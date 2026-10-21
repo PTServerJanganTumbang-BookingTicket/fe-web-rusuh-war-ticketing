@@ -1,0 +1,26 @@
+# Architecture Decision Records
+
+Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan, tidak pernah dihapus.
+
+| ADR | Judul | Status |
+|---|---|---|
+| [0001](0001-monorepo-structure.md) | Monorepo dengan pemisahan core / ui / api | Proposed |
+| [0002](0002-layered-clean-architecture.md) | Lapisan Clean Architecture dan aturan dependensi | Proposed |
+| [0003](0003-presentation-pattern-viewmodel-hooks.md) | Pola presentasi: ViewModel sebagai custom hook, bukan MVVM berbasis class | Proposed |
+| [0004](0004-server-state-tanstack-query.md) | Server state dengan TanStack Query | Proposed |
+| [0005](0005-server-authoritative-time.md) | Countdown server-authoritative | Proposed |
+| [0006](0006-payment-midtrans-core-api.md) | Payment via Midtrans Core API dengan UI sendiri | Proposed |
+| [0007](0007-rendering-strategy.md) | Strategi rendering per halaman | Proposed |
+| [0008](0008-webview-payment-embed.md) | Payment page sebagai embed WebView untuk mobile | Proposed |
+| [0009](0009-contract-first-openapi-msw.md) | Contract-first dengan OpenAPI dan MSW | Proposed |
+| [0010](0010-login-single-session-progress-persistence.md) | Login satu sesi aktif dengan progres yang melekat pada akun | Proposed |
+| [0011](0011-nik-linked-to-account.md) | NIK terikat ke akun, terisi otomatis, kuota 3 tiket ditegakkan server | Proposed |
+| [0012](0012-signal-ds-tokens-and-primitives.md) | Signal DS lewat preset token dan primitif yang diporting dari repo referensi | Proposed |
+| [0013](0013-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
+
+## Status
+
+- **Proposed**: diusulkan, belum disepakati tim.
+- **Accepted**: disepakati, wajib diikuti.
+- **Superseded by ADR-XXXX**: diganti keputusan lain. File tetap ada.
+- **Rejected**: dipertimbangkan dan ditolak. File tetap ada sebagai jejak.

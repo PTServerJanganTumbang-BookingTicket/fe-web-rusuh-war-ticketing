@@ -1,0 +1,4 @@
+{
+  "extends": "@rusuh/config/tsconfig/base.json",
+  "include": ["src"]
+}
