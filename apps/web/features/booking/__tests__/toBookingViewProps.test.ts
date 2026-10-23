@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BookingSession } from "@rusuh/core";
+import type { BookingSession, Selection } from "@rusuh/core";
 import { toBookingViewProps } from "../toBookingViewProps";
 
 const session: BookingSession = {
@@ -15,18 +15,17 @@ const session: BookingSession = {
   ],
 };
 
-const build = (overrides: Partial<Parameters<typeof toBookingViewProps>[0]> = {}) =>
-  toBookingViewProps({
-    session,
-    selection: { vip: 1 },
-    remainingMs: 288_000,
-    onAdd: vi.fn(),
-    onRemove: vi.fn(),
-    onSubmit: vi.fn(),
-    ...overrides,
-  });
+const actions = { add: vi.fn(), remove: vi.fn(), submit: vi.fn(), backToQueue: vi.fn() };
 
-describe("toBookingViewProps", () => {
+type Selecting = { session?: BookingSession; selection?: Selection; remainingMs?: number };
+
+const build = ({ session: current = session, selection = { vip: 1 }, remainingMs = 288_000 }: Selecting = {}) => {
+  const screen = toBookingViewProps({ state: { kind: "selecting", session: current, selection, remainingMs }, actions });
+  if (screen.kind !== "ready") throw new Error("harus ready");
+  return screen.view;
+};
+
+describe("toBookingViewProps: memilih tiket", () => {
   it("memformat countdown, total, dan label stok seperti wireframe", () => {
     const view = build();
     expect(view.headerTimerLabel).toBe("Booking 04:48");
@@ -64,5 +63,32 @@ describe("toBookingViewProps", () => {
     expect(build({ remainingMs: 0 }).submit.disabled).toBe(true);
     expect(build({ selection: {} }).submit.disabled).toBe(true);
     expect(build().submit.disabled).toBe(false);
+  });
+
+  it("tombol kategori memanggil action dengan id kategori", () => {
+    build().categories.find((c) => c.id === "festival")?.onAdd();
+    expect(actions.add).toHaveBeenCalledWith("festival");
+  });
+});
+
+describe("toBookingViewProps: layar status", () => {
+  it("loading dan gagal jaringan memakai pesan i18n", () => {
+    expect(toBookingViewProps({ state: { kind: "loading" }, actions })).toMatchObject({ kind: "status", view: { tone: "neutral" } });
+    expect(toBookingViewProps({ state: { kind: "failed", error: { kind: "network" } }, actions })).toMatchObject({
+      kind: "status",
+      view: { tone: "error", message: "Koneksi bermasalah. Kami mencoba lagi otomatis." },
+    });
+  });
+
+  it("expired redirect: pesan mengarahkan, tanpa tombol", () => {
+    const screen = toBookingViewProps({ state: { kind: "expired", next: "redirect" }, actions });
+    expect(screen.kind === "status" && screen.view.action).toBeUndefined();
+  });
+
+  it("expired screen: tombol antre lagi memanggil backToQueue", () => {
+    const screen = toBookingViewProps({ state: { kind: "expired", next: "screen" }, actions });
+    if (screen.kind !== "status") throw new Error("harus status");
+    screen.view.action?.onClick();
+    expect(actions.backToQueue).toHaveBeenCalledTimes(1);
   });
 });

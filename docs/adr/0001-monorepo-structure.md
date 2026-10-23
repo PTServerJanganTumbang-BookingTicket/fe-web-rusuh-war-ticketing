@@ -36,4 +36,4 @@ Opsi 2. Struktur:
 
 - Yang terpasang baru **pnpm workspace** (`apps/*`, `packages/*`, `mocks`). Turborepo belum dipasang sampai tech radar dicek.
 - `mocks/` berupa package `@rusuh/mocks` agar dependensi `msw` terisolasi dan bisa diimpor `api` (test) dan `apps/web` (dev server).
-
+- 2026-10-22: pnpm workspace diganti **npm workspaces**, yaitu fallback yang sudah tertulis di atas. Lihat [ADR-0014](0014-package-manager-npm-workspaces.md). Struktur package dan aturan dependensi tidak berubah.

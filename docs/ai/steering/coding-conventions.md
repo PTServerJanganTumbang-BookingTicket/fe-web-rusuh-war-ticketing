@@ -11,10 +11,15 @@
 |---|---|---|
 | File komponen | PascalCase | `QueuePosition.tsx` |
 | File non-komponen | camelCase | `remainingMs.ts` |
-| ViewModel | `use<Screen>ViewModel` | `useBookingViewModel` |
+| File test unit | `<nama sumber>.test.ts(x)` di `__tests__/` folder sumbernya | `time/__tests__/remainingMs.test.ts` |
+| Screen model | file `<screen>Model.ts`, tipe `<Screen>ScreenState`, fungsi `derive<Screen>ScreenState`; akhiran `Screen` membedakannya dari tipe domain (`QueueState`) | `bookingModel.ts` → `BookingScreenState` |
+| ViewModel | `use<Screen>ViewModel`, mengembalikan `<Screen>ViewModel = { state, actions }` | `useBookingViewModel` |
 | Mapper ke props View | `to<Screen>ViewProps` (murni, di folder fitur) | `toBookingViewProps` |
+| Contract dan mapper DTO (`api`) | file per resource di `contracts/` dan `mappers/`; schema `<x>Response`/`<x>Request`, tipe `<X>Dto`, mapper `to<Domain>` | `contracts/auth.ts`, `toAccount` |
 | Helper test yang bukan hook | awalan `setup`, bukan `use` (lint `rules-of-hooks`) | `setupMockServer` |
 | Flag build | `NEXT_PUBLIC_<NAMA>` di `.env.example` dan `ARG` di `Dockerfile` | `NEXT_PUBLIC_BOOKING_EXPIRY` |
+| Use case (`core/application`) | fungsi `kataKerjaObjek`, port lewat argumen pertama `deps` bertipe `<UseCase>Deps` | `payOrder(deps, order, method)` |
+| Port | tipe fungsi `PascalCase` di `application/ports.ts`, tanpa awalan `I` | `StartPayment` |
 | Container | `<Screen>Container` | `BookingContainer` |
 | View | `<Screen>View` | `BookingView` |
 | Reducer event | `SCREAMING_SNAKE` di `type` | `{ type: 'ADD_TICKET' }` |
@@ -39,6 +44,13 @@
 
 - Kepala file mencantumkan ID requirement dan nomor wireframe yang dipenuhi.
 - Mengembalikan union layar (`{ kind: 'ready' | 'status' | 'result', view }`) bila layar punya beberapa tampilan, supaya Container tinggal memilih View.
+
+## Use case
+
+- Fungsi biasa, bukan class. Tanpa I/O: fungsi murni (`addTicket(session, selection, id)`). Dengan I/O: `deps` memuat port, input menyusul (`payOrder(deps, order, method)`).
+- Kegagalan port dilempar apa adanya (`AppFailure`); use case tidak menerjemahkannya ke teks. Pemetaan ke i18n tetap di ViewModel.
+- Waktu masuk sebagai parameter (`now`, `remainingMs`), sama seperti seluruh `core`.
+- Dites dengan port palsu (`vi.fn()`), bukan MSW.
 
 ## Kode
 

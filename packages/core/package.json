@@ -8,6 +8,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@rusuh/config": "workspace:*"
+    "@rusuh/config": "*"
   }
 }

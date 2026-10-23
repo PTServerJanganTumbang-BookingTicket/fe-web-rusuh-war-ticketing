@@ -20,7 +20,7 @@ Monorepo berisi satu aplikasi yang berjalan (`apps/web`) dan beberapa library (`
 Opsi 1.
 
 - **`next.config.ts`**: `output: "standalone"`, `outputFileTracingRoot` ke root monorepo, `poweredByHeader: false`.
-- **`Dockerfile` multi-stage tanpa Turborepo**: `pnpm fetch` dari lockfile (layer di-cache selama lockfile tetap) → `pnpm install --offline` → `pnpm build` → runtime `node:22-alpine` dengan user non-root, `tini` sebagai PID 1, dan `HEALTHCHECK`.
+- **`Dockerfile` multi-stage tanpa Turborepo**: `npm ci` dari manifest dan lockfile (layer di-cache selama keduanya tetap, ADR-0014) → `npm run build` → runtime `node:22-alpine` dengan user non-root, `tini` sebagai PID 1, dan `HEALTHCHECK`.
 - **Satu image melayani route web dan route embed `/m/...`** untuk WebView.
 - **Konfigurasi `NEXT_PUBLIC_*` masuk sebagai `--build-arg`.** Next meng-inline nilainya ke bundle saat build, jadi **satu image = satu konfigurasi environment**. Build ulang per environment adalah konsekuensi yang diterima sampai ada kebutuhan promosi satu image lintas environment (lihat "Pekerjaan lanjutan").
 - **`NEXT_PUBLIC_API_MOCKING` default kosong di Dockerfile**, sehingga kode MSW dilipat keluar dari bundle produksi.
@@ -31,7 +31,7 @@ Opsi 1.
 
 ## Konsekuensi
 
-- **Positif**: satu artefak immutable per environment, rollback cukup dengan mengganti tag image. Isi standalone sekitar 43 MB (server + `node_modules` hasil tracing), tanpa source, pnpm, atau kode mock. Proses berhenti rapi saat SIGTERM, sehingga request yang sedang berjalan selesai dulu.
+- **Positif**: satu artefak immutable per environment, rollback cukup dengan mengganti tag image. Isi standalone sekitar 70 MB (server + `node_modules` hasil tracing; 46 MB di antaranya binary `sharp`, lihat ADR-0014), tanpa source, devDependencies, atau kode mock. Proses berhenti rapi saat SIGTERM, sehingga request yang sedang berjalan selesai dulu.
 - **Negatif**: cache `use cache` (Home) tersimpan in-memory per instance. Antar replica, status Home bisa berbeda sampai satu interval revalidate (15 detik). Ini diterima, karena tombol "Beli" tetap divalidasi queue service dan CDN di depan membuat Home jarang menyentuh container.
 - **Negatif**: `next build` mem-prerender Home dengan memanggil `NEXT_PUBLIC_API_BASE_URL`. Tanpa backend yang bisa dijangkau dari build, Home ter-bake dengan state error sampai revalidate pertama (sudah dicatat di ADR-0007).
 - **Negatif**: `proxy.ts` berjalan di proses Node, bukan di edge. Request tanpa token tetap sampai ke container sebelum di-redirect.
@@ -50,3 +50,7 @@ Opsi 1.
 
 - Langkah Dockerfile dijalankan di salinan bersih repo yang difilter `.dockerignore`: `pnpm fetch` → `pnpm install --offline --frozen-lockfile` → `pnpm build`, lalu layout `/app` disusun seperti stage runtime. Hasil: `/api/health` 200 `no-store`, Home 200 dengan `x-nextjs-cache: HIT` dan `data-dpl-id`, aset JS, CSS, dan font 200, `/orders/*/pay` tanpa cookie di-redirect, tidak ada header `X-Powered-By`, tidak ada `mockServiceWorker` di chunk client, dan proses keluar saat SIGTERM.
 - `docker build` penuh **belum** dijalankan: lingkungan sesi tidak bisa menarik base image dari Docker Hub. Job `image` di CI menjadi verifikasi pertama untuk stage `node:22-alpine`, `corepack`, dan `tini`.
+
+## Catatan perubahan (2026-10-22)
+
+- Package manager diganti dari pnpm ke npm workspaces ([ADR-0014](0014-package-manager-npm-workspaces.md)). Stage `deps` kini `COPY` manifest setiap workspace lalu `npm ci`. Catatan verifikasi di atas (2026-10-21) menggambarkan langkah pnpm dan dibiarkan sebagai jejak; verifikasi ulang dengan langkah npm ada di ADR-0014.

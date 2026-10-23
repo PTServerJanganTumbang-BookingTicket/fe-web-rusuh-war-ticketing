@@ -8,14 +8,14 @@ description: Menyinkronkan FE dengan openapi.yaml terbaru dari BE — regenerate
 ## Langkah
 
 1. **Ambil spec terbaru** dari lokasi yang disepakati dengan BE, simpan ke `packages/api/openapi.yaml`.
-2. **Regenerate tipe**: `pnpm --filter @rusuh/api generate`. Jangan mengedit `generated/` secara manual. (Script `generate` belum ada; ditambahkan saat `openapi.yaml` tersedia. Sampai itu, kontrak ada di schema zod adapter dan `mocks/src/handlers.ts`.)
+2. **Regenerate tipe**: `npm run generate -w @rusuh/api`. Jangan mengedit `generated/` secara manual. (Script `generate` belum ada; ditambahkan saat `openapi.yaml` tersedia. Sampai itu, kontrak ada di schema zod adapter dan `mocks/src/handlers.ts`.)
 3. **Baca diff tipe generated.** Klasifikasikan setiap perubahan:
    - **Tambah field opsional**: perbarui schema zod bila FE memakainya.
-   - **Ubah atau hapus field**: perbarui schema zod, mapper ke tipe `core`, dan semua pemakai. Jalankan `pnpm typecheck`.
+   - **Ubah atau hapus field**: perbarui schema zod, mapper ke tipe `core`, dan semua pemakai. Jalankan `npm run typecheck`.
    - **Error code baru**: tambah ke union `AppError` di `core/errors`, pemetaan di adapter, key i18n, dan tampilan di ViewModel terkait.
    - **Endpoint baru**: tambah adapter, query key, hook.
 4. **Perbarui skenario MSW** di `mocks/` agar sesuai bentuk response baru.
-5. **Jalankan** `pnpm lint && pnpm typecheck && pnpm test`.
+5. **Jalankan** `npm run lint && npm run typecheck && npm test`.
 6. **Catat breaking change** di deskripsi PR, dengan tag `contract`.
 
 ## Checklist

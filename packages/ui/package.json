@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@rusuh/config": "workspace:*",
+    "@rusuh/config": "*",
     "@types/react": "^19.3.0"
   },
   "dependencies": {

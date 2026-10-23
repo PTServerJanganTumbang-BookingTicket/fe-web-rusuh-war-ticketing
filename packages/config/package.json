@@ -5,6 +5,7 @@
   "exports": {
     "./tsconfig/base.json": "./tsconfig/base.json",
     "./eslint/boundaries": "./eslint/boundaries.mjs",
-    "./tailwind/signal.css": "./tailwind/signal.css"
+    "./tailwind/signal.css": "./tailwind/signal.css",
+    "./eslint/layers": "./eslint/layers.mjs"
   }
 }

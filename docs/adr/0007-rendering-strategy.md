@@ -37,4 +37,4 @@ Flash crowd pertama kali menghantam Home. Kalau Home dirender dinamis per reques
 - Home memakai `use cache` dengan `cacheLife({ stale: 60, revalidate: 15, expire: 600 })`. `revalidate: 15` saja tidak cukup: `stale` di bawah 30 detik atau `expire` di bawah 5 menit membuat Home keluar dari static shell.
 - `next build` tanpa backend yang bisa dijangkau membuat Home ter-prerender dengan state error sampai revalidate berikutnya.
 - Variabel `NEXT_PUBLIC_API_MOCKING` selalu didefinisikan di `next.config.ts` (kosong bila mati) agar kode mock dilipat dari bundle produksi. Dicek dengan membandingkan chunk build dengan dan tanpa mock.
-- CI (`.github/workflows/ci.yml`) menjalankan `pnpm build` dan gagal bila `/` tidak muncul sebagai route statis (`○`), sesuai butir "Yang harus dijaga" di atas.
+- CI (`.github/workflows/ci.yml`) menjalankan `npm run build` dan gagal bila `/` tidak muncul sebagai route statis (`○`), sesuai butir "Yang harus dijaga" di atas.

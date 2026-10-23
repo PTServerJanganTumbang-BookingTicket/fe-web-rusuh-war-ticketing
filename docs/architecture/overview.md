@@ -31,18 +31,20 @@ apps/web/features   ViewModel (custom hook) + Container per layar
 packages/ui  packages/api  packages/i18n
              │
              ▼
-       packages/core   domain murni, tanpa React/Next/fetch
+       packages/core   domain + application (use case, port): TypeScript murni, tanpa React/Next/fetch
 ```
 
 | Aturan | Ditegakkan oleh |
 |---|---|
 | `core` tidak mengimpor React, Next, `fetch`, atau package lain di monorepo | ESLint boundaries |
+| Di dalam `core`: `application` (use case) boleh mengimpor domain, domain tidak boleh mengimpor `application` | ESLint (ADR-0015) |
+| `features` memanggil command lewat `application` di `composition.ts`, bukan adapter `api` langsung | ESLint (ADR-0015) |
 | `ui` hanya menerima props. Tidak fetch, tidak mengimpor `api` atau `features` | ESLint boundaries |
 | `api` satu-satunya yang melakukan HTTP. Semua response diparse dengan schema zod | ESLint boundaries + code review |
 | Route di `app/` hanya merender Container dari `features` | Code review, steering AI |
 | FE tidak pernah memanggil Midtrans langsung | Steering AI, code review |
 
-Detail keputusan ada di [ADR-0002](../adr/0002-layered-clean-architecture.md) dan [ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md).
+Detail keputusan ada di [ADR-0002](../adr/0002-layered-clean-architecture.md) (termasuk peta ke layer Clean Architecture), [ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md), dan [ADR-0015](../adr/0015-use-case-pure-functions-in-core.md) (use case).
 
 ## 3. Struktur repo
 
@@ -52,13 +54,14 @@ rusuh-fe/
 ├─ apps/
 │  └─ web/
 │     ├─ app/
-│     │  ├─ (public)/page.tsx                         Home (ISR)
-│     │  ├─ (auth)/login/page.tsx
-│     │  ├─ events/[eventId]/queue/page.tsx           Waiting Room
-│     │  ├─ events/[eventId]/book/page.tsx            Detail Ticket
-│     │  ├─ orders/[orderId]/pay/page.tsx             Payment (web)
-│     │  ├─ (embed)/m/orders/[orderId]/pay/page.tsx   Payment (WebView)
-│     │  ├─ orders/[orderId]/ticket/page.tsx          E-tiket
+│     │  ├─ (site)/layout.tsx                         Navbar + footer (SiteShell) untuk semua route situs
+│     │  ├─ (site)/page.tsx                           Home (ISR)
+│     │  ├─ (site)/(auth)/login, register, auth/…     Login, registrasi, callback link email
+│     │  ├─ (site)/events/[eventId]/queue/page.tsx    Waiting Room
+│     │  ├─ (site)/events/[eventId]/book/page.tsx     Detail Ticket
+│     │  ├─ (site)/orders/[orderId]/pay/page.tsx      Payment (web)
+│     │  ├─ (site)/orders/[orderId]/ticket/page.tsx   E-tiket
+│     │  ├─ (embed)/m/orders/[orderId]/pay/page.tsx   Payment (WebView), tanpa navbar (ADR-0008)
 │     │  ├─ api/session/start/route.ts                Web: access token antrian → cookie
 │     │  └─ api/session/exchange/route.ts             WebView: one-time code → cookie (belum dibuat)
 │     ├─ proxy.ts                                     Gate access token (middleware.ts di Next < 16)
@@ -70,7 +73,7 @@ rusuh-fe/
 │           ├─ <Screen>Container.tsx
 │           └─ __tests__/
 ├─ packages/
-│  ├─ core/        domain/, booking/, queue/, payment/, time/, errors/
+│  ├─ core/        domain/, booking/, queue/, payment/, time/, errors/, application/ (use case + port)
 │  ├─ api/         generated/ (OpenAPI), adapters/, http/
 │  ├─ ui/          komponen di atas Signal DS, Storybook
 │  ├─ i18n/        pesan per key, default id-ID
@@ -114,7 +117,7 @@ idle → selecting ──submit──► submitting ──┤
 
 ## 7. Pertanyaan terbuka
 
-- Tooling (pnpm, Turborepo, TanStack Query, zod, MSW, Playwright) perlu dicek terhadap tech radar.
+- Tooling (npm workspaces, Turborepo, TanStack Query, zod, MSW, Playwright) perlu dicek terhadap tech radar.
 - Apakah Signal DS menyediakan Tailwind preset, atau kita buat dari token.
 - Login: dibuat tim kita atau ada SSO yang tersedia.
 
@@ -122,8 +125,8 @@ idle → selecting ──submit──► submitting ──┤
 
 | Ada | Belum ada |
 |---|---|
-| Workspace pnpm, aturan ESLint boundaries (ADR-0002), Vitest + Testing Library + MSW, workflow CI (belum pernah jalan) | Turborepo (menunggu tech radar), Storybook |
-| `core`: `AppError`, `remainingMs`, `withJitter`, `formatMmSs`, `canAddTicket`, `selectionReducer`, tipe event, queue, dan booking | `core`: state machine booking, validasi NIK, `PaymentResultNotifier` |
+| Workspace npm (ADR-0014), aturan ESLint boundaries (ADR-0002), Vitest + Testing Library + MSW, workflow CI (belum pernah jalan) | Turborepo (menunggu tech radar), Storybook |
+| `core`: `AppError`, `remainingMs`, `withJitter`, `formatMmSs`, `canAddTicket`, `selectionReducer`, aturan status order, tipe event, queue, dan booking. `core/application`: `addTicket`, `enterBookingRoom`, `payOrder` dengan port `StartSession`/`StartPayment` (ADR-0015) | `core`: state machine booking, validasi NIK, `PaymentResultNotifier`, use case `createBooking` (menunggu endpoint BE) |
 | `api`: client HTTP + zod, adapter events, queue, booking session, dan payment, query options antrian, booking, dan order | Tipe generated dari OpenAPI (kontrak ditulis tangan), hook mutation booking dan payment |
 | `ui`: primitif Signal DS (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`), `ScreenFrame`, dan view Home, Queue, Booking, Payment (ADR-0012) | Storybook, mode gelap |
 | Layar: Home (ISR), Waiting Room, Detail Ticket (dummy, wireframe 9.3), dan Payment mock (9.4, QR contoh, status akhir 9.5) dengan MSW | Login, E-tiket (placeholder), `/maintenance`, integrasi Midtrans via BE |

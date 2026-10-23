@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { withJitter } from "@rusuh/core";
+import { getMe } from "./adapters/auth";
 import { getBookingSession } from "./adapters/booking";
 import { getOrder } from "./adapters/payment";
 import { getQueueState } from "./adapters/queue";
@@ -39,3 +40,8 @@ export function orderQuery(orderId: string) {
   });
 }
 
+
+/** Akun yang sedang login. Tidak di-retry: 401 berarti belum login, bukan gangguan sementara. */
+export function meQuery() {
+  return queryOptions({ queryKey: queryKeys.me(), queryFn: getMe, retry: false });
+}
