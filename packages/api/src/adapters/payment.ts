@@ -1,24 +1,7 @@
-import { z } from "zod";
 import type { Order, PaymentMethod, PaymentOutcome } from "@rusuh/core";
+import { orderResponse } from "../contracts/payment";
 import { apiFetch } from "../http/client";
-
-const instruction = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("virtual_account"), bank: z.string(), number: z.string() }),
-  z.object({ type: z.literal("qr"), payload: z.string() }),
-  z.object({ type: z.literal("bank_transfer"), bank: z.string(), account: z.string(), accountName: z.string() }),
-]);
-
-const orderResponse = z.object({
-  orderId: z.string(),
-  eventName: z.string(),
-  items: z.array(z.object({ name: z.string(), quantity: z.number() })),
-  totalIdr: z.number(),
-  expiresAt: z.string(),
-  serverNow: z.string(),
-  status: z.enum(["awaiting_method", "pending", "paid", "failed", "expired"]),
-  method: z.enum(["virtual_account", "e_wallet", "bank_transfer"]).optional(),
-  instruction: instruction.optional(),
-});
+import { toOrder, toPaymentOutcomeRequest, toStartPaymentRequest } from "../mappers/payment";
 
 const post = (body: unknown): RequestInit => ({
   method: "POST",
@@ -26,15 +9,15 @@ const post = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export function getOrder(orderId: string): Promise<Order> {
-  return apiFetch(`/orders/${encodeURIComponent(orderId)}`, orderResponse);
+export async function getOrder(orderId: string): Promise<Order> {
+  return toOrder(await apiFetch(`/orders/${encodeURIComponent(orderId)}`, orderResponse));
 }
 
-export function startPayment(orderId: string, method: PaymentMethod): Promise<Order> {
-  return apiFetch(`/orders/${encodeURIComponent(orderId)}/payment`, orderResponse, post({ method }));
+export async function startPayment(orderId: string, method: PaymentMethod): Promise<Order> {
+  return toOrder(await apiFetch(`/orders/${encodeURIComponent(orderId)}/payment`, orderResponse, post(toStartPaymentRequest(method))));
 }
 
 /** Hanya ada di mock (MSW). Menggantikan callback Midtrans lewat BE untuk keperluan demo dan test. */
-export function emulatePaymentOutcome(orderId: string, outcome: PaymentOutcome): Promise<Order> {
-  return apiFetch(`/mock/orders/${encodeURIComponent(orderId)}/outcome`, orderResponse, post({ outcome }));
+export async function emulatePaymentOutcome(orderId: string, outcome: PaymentOutcome): Promise<Order> {
+  return toOrder(await apiFetch(`/mock/orders/${encodeURIComponent(orderId)}/outcome`, orderResponse, post(toPaymentOutcomeRequest(outcome))));
 }

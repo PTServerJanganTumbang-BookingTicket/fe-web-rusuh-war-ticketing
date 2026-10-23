@@ -11,54 +11,53 @@ setupMockServer();
 
 function mount(orderId: string) {
   const hook = renderHook(() => usePaymentViewModel(orderId), { wrapper: createWrapper() });
-  const payment = () => {
-    const screen = hook.result.current;
-    if (screen.kind !== "payment") throw new Error(`layar: ${screen.kind}`);
-    return screen.view;
+  const paying = () => {
+    const state = hook.result.current.state;
+    if (state.kind !== "paying") throw new Error(`layar: ${state.kind}`);
+    return state;
   };
-  return { ...hook, payment };
+  return { ...hook, paying };
 }
 
 describe("usePaymentViewModel", () => {
-  it("memuat order lalu menampilkan pilihan metode dan total", async () => {
-    const { result, payment } = mount("RB-V1");
-    expect(result.current.kind).toBe("status");
-    await waitFor(() => expect(result.current.kind).toBe("payment"));
-    expect(payment().methods?.options).toHaveLength(3);
-    expect(payment().total.value).toContain("1.500.000");
-    expect(payment().mockControls).toBeUndefined();
+  it("memuat order lalu masuk tahap bayar dengan metode default virtual account", async () => {
+    const { result, paying } = mount("RB-V1");
+    expect(result.current.state.kind).toBe("loading");
+    await waitFor(() => expect(result.current.state.kind).toBe("paying"));
+    expect(paying().order).toMatchObject({ status: "awaiting_method", totalIdr: 1_500_000 });
+    expect(paying()).toMatchObject({ method: "virtual_account", submitting: false, copied: false });
   });
 
-  it("e-wallet: bayar menampilkan QR dan kontrol simulasi; simulasi berhasil membuka status berhasil", async () => {
-    const { result, payment } = mount("RB-V2");
-    await waitFor(() => expect(result.current.kind).toBe("payment"));
+  it("e-wallet: bayar menghasilkan QR; simulasi berhasil membuka status akhir paid", async () => {
+    const { result, paying } = mount("RB-V2");
+    await waitFor(() => expect(result.current.state.kind).toBe("paying"));
 
-    act(() => payment().methods?.options.find((o) => o.id === "e_wallet")?.onSelect());
-    await waitFor(() => expect(payment().methods?.options.find((o) => o.id === "e_wallet")?.selected).toBe(true));
-    act(() => payment().pay?.onClick());
+    act(() => result.current.actions.selectMethod("e_wallet"));
+    await waitFor(() => expect(paying().method).toBe("e_wallet"));
+    act(() => result.current.actions.pay());
 
-    await waitFor(() => expect(payment().pending?.instruction.type).toBe("qr"));
-    expect(payment().methods).toBeUndefined();
-    expect(payment().mockControls).toBeDefined();
+    await waitFor(() => expect(paying().order.instruction?.type).toBe("qr"));
+    expect(paying().simulation).toEqual({ busy: false });
 
-    act(() => payment().mockControls?.success.onClick());
-    await waitFor(() => expect(result.current.kind).toBe("result"));
-    expect(result.current.kind === "result" && result.current.view).toMatchObject({ tone: "success", ticket: "e-Tiket ×1 — VIP" });
+    act(() => result.current.actions.simulate("success"));
+    await waitFor(() => expect(result.current.state.kind).toBe("settled"));
+    const state = result.current.state;
+    expect(state.kind === "settled" && state.order.status).toBe("paid");
   });
 
-  it("virtual account: nomor tampil, simulasi gagal membuka status gagal dan CTA kembali ke Home", async () => {
+  it("virtual account: simulasi gagal membuka status failed, dan goHome kembali ke Home", async () => {
     push.mockClear();
-    const { result, payment } = mount("RB-V3");
-    await waitFor(() => expect(result.current.kind).toBe("payment"));
-    act(() => payment().pay?.onClick());
+    const { result, paying } = mount("RB-V3");
+    await waitFor(() => expect(result.current.state.kind).toBe("paying"));
+    act(() => result.current.actions.pay());
 
-    await waitFor(() => expect(payment().pending?.instruction).toMatchObject({ type: "virtual_account", number: "8277081234567890" }));
-    act(() => payment().mockControls?.fail.onClick());
-    await waitFor(() => expect(result.current.kind).toBe("result"));
+    await waitFor(() => expect(paying().order.instruction).toMatchObject({ type: "virtual_account", number: "8277081234567890" }));
+    act(() => result.current.actions.simulate("fail"));
+    await waitFor(() => expect(result.current.state.kind).toBe("settled"));
 
-    const view = result.current.kind === "result" ? result.current.view : undefined;
-    expect(view).toMatchObject({ tone: "danger", title: "Pembayaran Gagal" });
-    act(() => view?.cta.onClick());
+    const state = result.current.state;
+    expect(state.kind === "settled" && state.order.status).toBe("failed");
+    act(() => result.current.actions.goHome());
     expect(push).toHaveBeenCalledWith("/");
   });
 });

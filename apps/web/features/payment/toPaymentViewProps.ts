@@ -1,23 +1,23 @@
-import { formatMmSs, type Order, type PaymentInstruction, type PaymentMethod } from "@rusuh/core";
-import { t } from "@rusuh/i18n";
-import type { PaymentInstructionView, PaymentResultViewProps, PaymentViewProps } from "@rusuh/ui";
+import { formatMmSs, type AppError, type Order, type PaymentInstruction, type PaymentMethod } from "@rusuh/core";
+import { t, type MessageKey } from "@rusuh/i18n";
+import type { PaymentInstructionView, PaymentResultViewProps, PaymentViewProps, StatusViewProps } from "@rusuh/ui";
 import { formatIdr } from "../shared/format";
+import type { PaymentScreenState } from "./paymentModel";
+import type { PaymentViewModel } from "./usePaymentViewModel";
 
 const URGENT_AT_MS = 60_000;
 const METHODS: PaymentMethod[] = ["virtual_account", "e_wallet", "bank_transfer"];
 
-type Common = { order: Order; remainingMs: number };
+type Actions = PaymentViewModel["actions"];
 
-export type PaymentViewInput = Common & {
-  method: PaymentMethod;
-  paying: boolean;
-  copied: boolean;
-  onSelectMethod: (method: PaymentMethod) => void;
-  onPay: () => void;
-  onCopy: (text: string) => void;
-  /** Hanya diisi di mode mock. */
-  mock?: { onSuccess: () => void; onFail: () => void; busy: boolean };
-};
+export type PaymentView =
+  | { kind: "payment"; view: PaymentViewProps }
+  | { kind: "result"; view: PaymentResultViewProps }
+  | { kind: "status"; view: StatusViewProps };
+
+function errorKey(error: AppError): MessageKey {
+  return error.kind === "network" ? "payment.error.network" : "payment.error.unknown";
+}
 
 function toInstructionView(instruction: PaymentInstruction, copied: boolean, onCopy: (text: string) => void): PaymentInstructionView {
   switch (instruction.type) {
@@ -49,8 +49,8 @@ function toInstructionView(instruction: PaymentInstruction, copied: boolean, onC
 }
 
 /** Tahap pilih metode (wireframe 9.4) dan tahap menunggu pembayaran. */
-export function toPaymentViewProps(input: PaymentViewInput): PaymentViewProps {
-  const { order, remainingMs } = input;
+function toPayingViewProps(state: Extract<PaymentScreenState, { kind: "paying" }>, actions: Actions): PaymentViewProps {
+  const { order, remainingMs } = state;
   const time = formatMmSs(remainingMs);
   const instruction = order.status === "pending" ? order.instruction : undefined;
 
@@ -72,33 +72,33 @@ export function toPaymentViewProps(input: PaymentViewInput): PaymentViewProps {
           options: METHODS.map((method) => ({
             id: method,
             label: t(`payment.method.${method}`),
-            selected: input.method === method,
-            onSelect: () => input.onSelectMethod(method),
+            selected: state.method === method,
+            onSelect: () => actions.selectMethod(method),
           })),
         },
     pay: instruction
       ? undefined
-      : { label: input.paying ? t("payment.paying") : t("payment.pay"), disabled: input.paying || remainingMs <= 0, onClick: input.onPay },
+      : { label: state.submitting ? t("payment.paying") : t("payment.pay"), disabled: state.submitting || remainingMs <= 0, onClick: actions.pay },
     pending: instruction
       ? {
           heading: t("payment.pending.heading"),
           note: t("payment.pending.note"),
-          instruction: toInstructionView(instruction, input.copied, input.onCopy),
+          instruction: toInstructionView(instruction, state.copied, actions.copy),
         }
       : undefined,
     mockControls:
-      instruction && input.mock
+      instruction && state.simulation
         ? {
             title: t("payment.mock.title"),
-            success: { label: t("payment.mock.success"), onClick: input.mock.onSuccess, disabled: input.mock.busy },
-            fail: { label: t("payment.mock.fail"), onClick: input.mock.onFail, disabled: input.mock.busy },
+            success: { label: t("payment.mock.success"), onClick: () => actions.simulate("success"), disabled: state.simulation.busy },
+            fail: { label: t("payment.mock.fail"), onClick: () => actions.simulate("fail"), disabled: state.simulation.busy },
           }
         : undefined,
   };
 }
 
 /** Status akhir (wireframe 9.5). */
-export function toPaymentResultProps(order: Order, onOpenTicket: () => void, onHome: () => void): PaymentResultViewProps {
+function toResultViewProps(order: Order, actions: Actions): PaymentResultViewProps {
   const orderLabel = t("payment.header.order", { orderId: order.orderId });
   if (order.status === "paid") {
     const quantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -109,7 +109,7 @@ export function toPaymentResultProps(order: Order, onOpenTicket: () => void, onH
       title: t("payment.result.paid.title"),
       message: t("payment.result.paid.message"),
       ticket: t("payment.result.paid.ticket", { quantity, names: order.items.map((item) => item.name).join(", ") }),
-      cta: { label: t("payment.result.paid.cta"), onClick: onOpenTicket },
+      cta: { label: t("payment.result.paid.cta"), onClick: actions.openTicket },
     };
   }
   const kind = order.status === "expired" ? "expired" : "failed";
@@ -119,6 +119,19 @@ export function toPaymentResultProps(order: Order, onOpenTicket: () => void, onH
     orderLabel,
     title: t(`payment.result.${kind}.title`),
     message: t(`payment.result.${kind}.message`),
-    cta: { label: t("payment.result.home"), onClick: onHome },
+    cta: { label: t("payment.result.home"), onClick: actions.goHome },
   };
+}
+
+export function toPaymentViewProps({ state, actions }: PaymentViewModel): PaymentView {
+  switch (state.kind) {
+    case "loading":
+      return { kind: "status", view: { title: t("payment.title"), message: t("payment.loading"), tone: "neutral" } };
+    case "failed":
+      return { kind: "status", view: { title: t("payment.error.title"), message: t(errorKey(state.error)), tone: "error" } };
+    case "settled":
+      return { kind: "result", view: toResultViewProps(state.order, actions) };
+    case "paying":
+      return { kind: "payment", view: toPayingViewProps(state, actions) };
+  }
 }

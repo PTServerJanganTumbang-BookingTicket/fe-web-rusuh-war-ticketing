@@ -14,12 +14,11 @@ const server = setupMockServer();
 describe("useQueueViewModel", () => {
   it("memuat lalu menampilkan posisi, estimasi, dan progress", async () => {
     const { result } = renderHook(() => useQueueViewModel("evt-q1"), { wrapper: createWrapper() });
-    expect(result.current.state).toBe("loading");
+    expect(result.current.state.kind).toBe("loading");
 
-    await waitFor(() => expect(result.current.state).toBe("waiting"));
-    expect(result.current.position?.value).toBe("#1.248");
-    expect(result.current.eta?.value).toBe("± 4 menit");
-    expect(result.current.progress?.percent).toBe(0);
+    await waitFor(() => expect(result.current.state.kind).toBe("waiting"));
+    const state = result.current.state;
+    expect(state.kind === "waiting" && state.queue).toMatchObject({ position: 1248, joinedPosition: 1248, etaSeconds: 240 });
   });
 
   it("saat giliran tiba menyimpan sesi satu kali lalu pindah ke Detail Ticket", async () => {
@@ -38,7 +37,7 @@ describe("useQueueViewModel", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/events/evt-q2/book"));
     expect(started).toHaveBeenCalledTimes(1);
     expect(started).toHaveBeenCalledWith({ accessToken: "tok-1" });
-    expect(result.current.state).toBe("admitted");
+    expect(result.current.state).toEqual({ kind: "entering", eventName: "Konser A" });
   });
 
   it("gagal menyimpan sesi: tampil pesan dan tombol coba lagi, tanpa pindah halaman", async () => {
@@ -51,14 +50,13 @@ describe("useQueueViewModel", () => {
     );
 
     const { result } = renderHook(() => useQueueViewModel("evt-q3"), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.action?.label).toBe("Coba lagi"));
+    await waitFor(() => expect(result.current.state.kind).toBe("enterFailed"));
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("jaringan gagal: state error dengan pesan jaringan, bukan pesan mentah", async () => {
+  it("jaringan gagal: state failed dengan AppError network", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue`, () => HttpResponse.error()));
     const { result } = renderHook(() => useQueueViewModel("evt-q4"), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.state).toBe("error"));
-    expect(result.current.message).toBe("Koneksi bermasalah. Kami mencoba lagi otomatis.");
+    await waitFor(() => expect(result.current.state).toEqual({ kind: "failed", error: { kind: "network" } }));
   });
 });

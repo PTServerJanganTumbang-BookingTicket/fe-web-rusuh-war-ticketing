@@ -1,14 +1,14 @@
 # Rusuh Booking Tiket — Frontend
 
-Next.js 16 (App Router) + Tailwind, monorepo pnpm. Arsitektur: [docs/architecture/overview.md](docs/architecture/overview.md). Keputusan: [docs/adr](docs/adr).
+Next.js 16 (App Router) + Tailwind, monorepo npm workspaces. Arsitektur: [docs/architecture/overview.md](docs/architecture/overview.md). Keputusan: [docs/adr](docs/adr).
 
 ## Menjalankan
 
 ```bash
-pnpm install
-pnpm dev          # http://localhost:3000, API dimock dengan MSW (apps/web/.env.development)
-pnpm check          # lint (termasuk aturan lapisan) + typecheck + test
-pnpm test:e2e       # Playwright (Chrome terpasang lokal), jam palsu, mock MSW
+npm install            # npm >= 10; lockfile: package-lock.json (ADR-0014)
+npm run dev            # http://localhost:3000, API dimock dengan MSW (apps/web/.env.development)
+npm run check          # lint (termasuk aturan lapisan dan dependensi) + typecheck + test
+npm run test:e2e       # Playwright (Chrome terpasang lokal), jam palsu, mock MSW
 ```
 
 Skenario mock di browser: `/events/evt-konser-rusuh/queue?scenario=queue-stuck` (default `queue-moving`; juga `booking-expiring`). Halaman `/book` butuh cookie dari alur queue, jadi masuk lewat Waiting Room dulu.

@@ -1,8 +1,0 @@
-packages:
-  - apps/*
-  - packages/*
-  - mocks
-
-allowBuilds:
-  sharp: false
-  unrs-resolver: false

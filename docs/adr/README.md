@@ -17,6 +17,9 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0011](0011-nik-linked-to-account.md) | NIK terikat ke akun, terisi otomatis, kuota 3 tiket ditegakkan server | Proposed |
 | [0012](0012-signal-ds-tokens-and-primitives.md) | Signal DS lewat preset token dan primitif yang diporting dari repo referensi | Proposed |
 | [0013](0013-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
+| [0014](0014-package-manager-npm-workspaces.md) | Package manager npm workspaces | Proposed |
+| [0015](0015-use-case-pure-functions-in-core.md) | Use case sebagai fungsi murni di `core/application`, port sebagai tipe fungsi | Proposed |
+| [0017](0017-screen-model-and-contract-mapping.md) | Screen model terpisah dari props View, dan lapisan contract + mapper di `api` | Proposed |
 
 ## Status
 

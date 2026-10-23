@@ -27,6 +27,11 @@ export function selectedCount(selection: Selection): number {
   return Object.values(selection).reduce((sum, qty) => sum + qty, 0);
 }
 
+/** Tombol lanjut aktif bila ada tiket terpilih dan sesi booking belum habis (jam server, ADR-0005). */
+export function canSubmitBooking(selection: Selection, remainingMs: number): boolean {
+  return selectedCount(selection) > 0 && remainingMs > 0;
+}
+
 export function totalPriceIdr(selection: Selection, categories: readonly TicketCategory[]): number {
   return categories.reduce((sum, category) => sum + category.priceIdr * (selection[category.id] ?? 0), 0);
 }

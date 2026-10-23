@@ -8,24 +8,28 @@
 ARG NODE_VERSION=22
 
 FROM node:${NODE_VERSION}-alpine AS base
-ENV PNPM_HOME=/pnpm \
-    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
-    NEXT_TELEMETRY_DISABLED=1
-ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
+ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /repo
 
-# 1. Unduh dependency hanya dari lockfile. Layer ini di-cache selama pnpm-lock.yaml tidak berubah.
+# 1. Install dependency hanya dari lockfile. Layer ini di-cache selama package.json dan
+#    package-lock.json tidak berubah. `npm ci` butuh package.json SETIAP workspace; package baru di
+#    apps/*, packages/*, atau mocks wajib ditambahkan ke daftar COPY di bawah (job `image` di CI
+#    gagal bila lupa). .npmrc dibawa karena memuat ignore-scripts (ADR-0014).
 FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm fetch
+COPY .npmrc package.json package-lock.json ./
+COPY apps/web/package.json apps/web/
+COPY packages/api/package.json packages/api/
+COPY packages/config/package.json packages/config/
+COPY packages/core/package.json packages/core/
+COPY packages/i18n/package.json packages/i18n/
+COPY packages/ui/package.json packages/ui/
+COPY mocks/package.json mocks/
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
+    npm ci
 
-# 2. Install offline dari store, lalu build.
+# 2. Salin source (node_modules dikecualikan .dockerignore, jadi hasil `npm ci` tidak tertimpa), lalu build.
 FROM deps AS build
 COPY . .
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --offline --frozen-lockfile
 
 # Nilai NEXT_PUBLIC_* di-inline ke bundle saat build, jadi satu image = satu konfigurasi environment.
 # NEXT_PUBLIC_API_MOCKING sengaja kosong: kode MSW dilipat keluar dari bundle produksi.
@@ -38,9 +42,9 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_API_MOCKING=$NEXT_PUBLIC_API_MOCKING \
     NEXT_PUBLIC_BOOKING_EXPIRY=$NEXT_PUBLIC_BOOKING_EXPIRY \
     NEXT_DEPLOYMENT_ID=$NEXT_DEPLOYMENT_ID
-RUN pnpm build
+RUN npm run build
 
-# 3. Runtime: hanya hasil standalone, user non-root, tanpa pnpm dan tanpa source.
+# 3. Runtime: hanya hasil standalone, user non-root, tanpa devDependencies dan tanpa source.
 FROM node:${NODE_VERSION}-alpine AS run
 RUN apk add --no-cache tini
 WORKDIR /app

@@ -11,22 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      # npm ci gagal bila package-lock.json tidak sinkron dengan package.json (ADR-0014).
+      - run: npm ci
 
       # Aturan dependensi antar lapisan (ADR-0002) ditegakkan ESLint boundaries.
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
 
       - name: Build
-        run: pnpm build | tee build.log
+        run: npm run build | tee build.log
 
       # ADR-0007: Home harus tetap statis. Gagal bila `/` berubah menjadi dynamic atau partial.
       - name: Home tetap statis
@@ -43,6 +42,15 @@ jobs:
           missing=0
           for name in $(grep -oE '^NEXT_PUBLIC_[A-Z0-9_]+' apps/web/.env.example); do
             grep -qE "^ARG $name(=|$)" Dockerfile || { echo "::error file=Dockerfile::ARG $name belum ada"; missing=1; }
+          done
+          exit $missing
+
+      # ADR-0014: `npm ci` di Dockerfile hanya melihat package.json yang di-COPY. Workspace baru wajib terdaftar.
+      - name: Workspace tercatat di Dockerfile
+        run: |
+          missing=0
+          for manifest in apps/*/package.json packages/*/package.json mocks/package.json; do
+            grep -qE "^COPY $manifest " Dockerfile || { echo "::error file=Dockerfile::COPY $manifest belum ada"; missing=1; }
           done
           exit $missing
 
@@ -77,20 +85,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      # npm ci gagal bila package-lock.json tidak sinkron dengan package.json (ADR-0014).
+      - run: npm ci
 
       - name: Pasang Chromium untuk Playwright
-        run: pnpm --filter web exec playwright install --with-deps chromium
+        run: npm exec -w web -- playwright install --with-deps chromium
 
       # Server dev dengan mock MSW dijalankan oleh webServer di playwright.config.ts. Jam palsu lewat page.clock.
-      - run: pnpm test:e2e
+      - run: npm run test:e2e
 
       - uses: actions/upload-artifact@v4
         if: failure()

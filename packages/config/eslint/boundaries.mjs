@@ -8,6 +8,15 @@ const anyOf = (...types) => ({ element: { types: { anyOf: types } } });
 const MOCK_IMPORTS = ["@rusuh/mocks", "@rusuh/mocks/*"];
 const FRAMEWORK_IMPORTS = ["react", "react-dom", "react/*", "next", "next/*"];
 
+const FEATURE_PATTERNS = [{ group: MOCK_IMPORTS, message: "Mock hanya dimuat dari AppProviders, instrumentation, dan test (ADR-0002)." }];
+const FEATURE_PATHS = [
+  {
+    name: "@rusuh/api",
+    importNames: ["startPayment", "startSession"],
+    message: "Panggil lewat `application` di features/shared/composition.ts (ADR-0015).",
+  },
+];
+
 const boundariesConfig = [
   {
     files: ["packages/*/src/**/*.{ts,tsx}", "apps/web/**/*.{ts,tsx}"],
@@ -84,6 +93,45 @@ const boundariesConfig = [
     files: ["packages/api/**/*.ts"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [...FRAMEWORK_IMPORTS, ...MOCK_IMPORTS] }],
+    },
+  },
+  {
+    // core: lapisan domain tidak boleh bergantung ke application (use case). Arah: application → domain (ADR-0015).
+    files: [
+      "packages/core/src/{domain,errors,booking,queue,time,payment,auth}/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          // `patterns` harus seragam (string semua atau objek semua), jadi semuanya ditulis sebagai objek.
+          patterns: [
+            { group: [...FRAMEWORK_IMPORTS, "@tanstack/*", ...MOCK_IMPORTS], message: "core tidak boleh bergantung pada framework, data fetching, atau mock (ADR-0002)." },
+            { group: ["**/application", "**/application/**"], message: "Domain tidak boleh mengimpor use case (ADR-0015)." },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // features: command dengan aturan bisnis dipanggil lewat `application` (composition.ts), bukan adapter api langsung.
+    // Query (baca) tetap lewat query options. emulatePaymentOutcome hanya ada di mock dan sengaja dilewatkan.
+    files: ["apps/web/features/**/*.{ts,tsx}"],
+    ignores: ["apps/web/features/shared/composition.ts"],
+    rules: { "no-restricted-imports": ["error", { patterns: FEATURE_PATTERNS, paths: FEATURE_PATHS }] },
+  },
+  {
+    // ViewModel mengembalikan state layar, bukan teks: i18n hanya di mapper to<Screen>ViewProps (ADR-0017).
+    // Opsi ditulis ulang lengkap karena flat config menimpa opsi rule yang sama, bukan menggabungkannya.
+    files: ["apps/web/features/**/use*ViewModel.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: FEATURE_PATTERNS,
+          paths: [...FEATURE_PATHS, { name: "@rusuh/i18n", message: "Teks dibentuk di to<Screen>ViewProps, bukan di ViewModel (ADR-0017)." }],
+        },
+      ],
     },
   },
   {

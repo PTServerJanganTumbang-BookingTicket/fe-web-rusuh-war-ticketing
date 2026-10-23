@@ -12,43 +12,37 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
 
 const server = setupMockServer();
 
-async function readyView(eventId: string) {
+async function selecting(eventId: string) {
   const hook = renderHook(() => useBookingViewModel(eventId), { wrapper: createWrapper() });
-  await waitFor(() => expect(hook.result.current.kind).toBe("ready"));
-  const view = () => {
-    const screen = hook.result.current;
-    if (screen.kind !== "ready") throw new Error("belum siap");
-    return screen.view;
+  await waitFor(() => expect(hook.result.current.state.kind).toBe("selecting"));
+  const state = () => {
+    const current = hook.result.current.state;
+    if (current.kind !== "selecting") throw new Error(`layar: ${current.kind}`);
+    return current;
   };
-  return { ...hook, view };
+  return { ...hook, state };
 }
 
 describe("useBookingViewModel", () => {
-  it("menampilkan sesi booking: NIK tersamar, tiga kategori, sisa kuota 3/3", async () => {
-    const { view } = await readyView("evt-b1");
-    expect(view().nik.maskedValue).toBe("3171••••••••0001");
-    expect(view().nik.hint).toContain("sisa 3/3");
-    expect(view().categories.map((c) => c.name)).toEqual(["VIP", "Festival", "Tribune"]);
-    expect(view().submit.disabled).toBe(true);
+  it("memuat sesi booking dari server: NIK tersamar, kuota, tiga kategori, pilihan kosong", async () => {
+    const { state } = await selecting("evt-b1");
+    expect(state().session.maskedNik).toBe("3171••••••••0001");
+    expect(state().session.quota).toEqual({ max: 3, used: 0, remaining: 3 });
+    expect(state().session.categories.map((c) => c.name)).toEqual(["VIP", "Festival", "Tribune"]);
+    expect(state().selection).toEqual({});
   });
 
-  it("menambah tiket mengubah total dan kuota, dan berhenti di 3", async () => {
-    const { result, view } = await readyView("evt-b2");
-    const add = (id: string) => act(() => result.current.kind === "ready" && view().categories.find((c) => c.id === id)?.onAdd());
-
-    add("vip");
-    add("vip");
-    add("festival");
-    await waitFor(() => expect(view().total.label).toBe("Total (3 tiket)"));
-    expect(view().nik.hint).toContain("sisa 0/3");
-    expect(view().categories.every((c) => !c.canAdd)).toBe(true);
-    expect(view().submit.disabled).toBe(false);
+  it("menambah tiket berhenti di 3 per NIK", async () => {
+    const { result, state } = await selecting("evt-b2");
+    for (const id of ["vip", "vip", "festival", "festival"]) act(() => result.current.actions.add(id));
+    await waitFor(() => expect(state().selection).toEqual({ vip: 2, festival: 1 }));
   });
 
-  it("tiket habis tidak bisa ditambah", async () => {
-    const { result, view } = await readyView("evt-b3");
-    act(() => view().categories.find((c) => c.id === "tribune")?.onAdd());
-    expect(result.current.kind === "ready" && view().total.label).toBe("Total (0 tiket)");
+  it("tiket habis tidak bisa ditambah, dan mengurangi tidak turun di bawah 0", async () => {
+    const { result, state } = await selecting("evt-b3");
+    act(() => result.current.actions.add("tribune"));
+    act(() => result.current.actions.remove("vip"));
+    expect(state().selection).toEqual({});
   });
 
   it("server menjawab ACCESS_EXPIRED: kembali ke Waiting Room (mode default)", async () => {
@@ -58,12 +52,12 @@ describe("useBookingViewModel", () => {
     );
     const { result } = renderHook(() => useBookingViewModel("evt-b4"), { wrapper: createWrapper() });
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/events/evt-b4/queue"));
-    expect(result.current.kind).toBe("status");
+    expect(result.current.state).toEqual({ kind: "expired", next: "redirect" });
   });
 
-  it("jaringan gagal tanpa data: layar status error", async () => {
+  it("jaringan gagal tanpa data: failed dengan AppError network", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/booking-session`, () => HttpResponse.error()));
     const { result } = renderHook(() => useBookingViewModel("evt-b5"), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.kind === "status" && result.current.view.tone).toBe("error"));
+    await waitFor(() => expect(result.current.state).toEqual({ kind: "failed", error: { kind: "network" } }));
   });
 });

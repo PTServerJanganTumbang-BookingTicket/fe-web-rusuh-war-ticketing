@@ -1,7 +1,9 @@
-import { t } from "@rusuh/i18n";
-import { ScreenPlaceholder } from "@rusuh/ui";
+"use client";
 
-// Placeholder: ViewModel dan View menyusul (skill new-feature-screen).
-export function LoginContainer() {
-  return <ScreenPlaceholder title={t("login.title")} description={t("common.placeholder")} />;
+import { LoginView } from "@rusuh/ui";
+import { toLoginViewProps } from "./toLoginViewProps";
+import { useLoginViewModel } from "./useLoginViewModel";
+
+export function LoginContainer({ returnTo, reason }: { returnTo: string | null; reason: string | null }) {
+  return <LoginView {...toLoginViewProps(useLoginViewModel({ returnTo, reason }))} />;
 }

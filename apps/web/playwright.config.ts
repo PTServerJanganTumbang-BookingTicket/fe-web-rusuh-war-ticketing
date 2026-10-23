@@ -25,7 +25,7 @@ export default defineConfig({
   ],
   // Server dev memakai mock MSW (apps/web/.env.development). Dipakai ulang bila sudah berjalan.
   webServer: {
-    command: `pnpm exec next dev -p ${PORT}`,
+    command: `npm run dev -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

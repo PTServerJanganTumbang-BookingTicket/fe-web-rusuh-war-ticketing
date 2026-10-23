@@ -78,3 +78,5 @@ Konsistensi dengan mobile dijaga di level konsep: nama state, nama event, dan sp
 - **ViewModel boleh mengembalikan union layar** (`ready`, `status`, `result`) bila satu route punya beberapa tampilan.
 - **Pengecualian Home.** Home adalah Server Component statis, jadi Container-nya async dan tidak memakai hook ViewModel.
 - Test ViewModel memakai Testing Library dan server MSW bersama.
+- **Orkestrasi di `core/application` (2026-10-22).** Alur yang merangkai aturan dan port (mulai pembayaran, masuk ruang booking, tambah tiket dari sesi server) adalah use case di `core`, bukan di hook. ViewModel memanggilnya lewat `application` di `features/shared/composition.ts`. Lihat [ADR-0015](0015-use-case-pure-functions-in-core.md).
+

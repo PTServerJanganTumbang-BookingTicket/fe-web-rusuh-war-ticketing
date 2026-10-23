@@ -8,13 +8,13 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@rusuh/config": "workspace:*",
-    "@types/node": "^20.19.43",
+    "@rusuh/config": "*",
+    "@types/node": "^22",
     "msw": "^3.0.3",
-    "@rusuh/mocks": "workspace:*"
+    "@rusuh/mocks": "*"
   },
   "dependencies": {
-    "@rusuh/core": "workspace:*",
+    "@rusuh/core": "*",
     "@tanstack/react-query": "^5.104.4",
     "zod": "^4.6.7"
   }
