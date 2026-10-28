@@ -45,7 +45,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Inisialisasi repo (pnpm workspace + Next.js)
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Inisialisasi repo dengan Next.js dan pnpm sesuai ADR-0001 dan struktur di `docs/architecture/overview.md`.
 - **Input**: `AGENTS.md`, steering, ADR-0001, ADR-0007, overview.
 - **Output**: `pnpm-workspace.yaml`, `package.json` root, `apps/web` (create-next-app: TS, Tailwind, ESLint, App Router), stub `packages/{core,ui,api,i18n,config}`, `mocks/`.
@@ -54,7 +54,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Tooling dasar: strictness, boundaries, Vitest
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Mengaktifkan `noUncheckedIndexedAccess`, menegakkan aturan dependensi ADR-0002 lewat ESLint, dan memasang Vitest.
 - **Output**: `packages/config` (tsconfig base, `eslint/boundaries.mjs`), `eslint.config.mjs` root, `vitest.config.ts`, tsconfig per package. Signal DS sengaja belum dipasang.
 - **Review manusia**: Rule `boundaries` diuji dengan impor yang melanggar (core→react, ui→core, api→ui, app→core). Perlu dicek: tabel ADR-0002 melarang `ui` mengimpor `core` kecuali tipe, saat ini semua impor `core` dari `ui` diblokir. Belum ada test, belum ada CI.
@@ -62,7 +62,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Struktur minimum dan integrasi untuk paparan tim
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menyiapkan struktur minimum dan satu alur terintegrasi (Home dan Waiting Room) untuk paparan tim.
 - **Input**: Steering, ADR-0002/0003/0004/0007/0009, dokumentasi Next 16 di `node_modules`.
 - **Output**: `core` (AppError, remainingMs, withJitter, canAddTicket) dengan test, `i18n`, `api` (client zod, adapter, queryKeys, query options) dengan test MSW, `mocks` (MSW node + browser, skenario), `ui` (HomeView, QueueView), `features` (catalog, queue, shared), route sesuai overview, `proxy.ts`, `/api/session/exchange`, README.
@@ -71,7 +71,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Cleanup repo dan koreksi dokumentasi
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Membersihkan file sisa dan menyelaraskan dokumentasi dengan implementasi.
 - **Output**: Hapus `.DS_Store` dan `tsconfig.tsbuildinfo`, ganti `apps/web/README.md` bawaan create-next-app. Koreksi `middleware.ts` → `proxy.ts` (overview, ADR-0007, skill), tambah catatan implementasi di ADR-0001, 0007, 0008, bagian status di overview, dan catatan tooling di testing.md. Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
 - **Review manusia**: Perlu diputuskan tim: pemisahan `/api/session/exchange` (ADR-0008), dan apakah `ui` boleh mengimpor tipe dari `core` (ADR-0002 mengizinkan, aturan ESLint saat ini memblokir semua impor `core` dari `ui`).
@@ -79,7 +79,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Perbaikan insight "URL data outside Suspense" dan mock browser
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menghilangkan error Next dev pada route `/` dan error validasi instant pada Waiting Room.
 - **Output**: `HomeContainer` dibungkus `<Suspense>` di `app/(public)/page.tsx`; layout queue dibungkus `<Suspense>`; `AppProviders` menahan query lewat `onlineManager` sampai worker MSW siap (children tetap dirender); `startWorker` idempoten dan mengimpor `msw/browser` dinamis; alias Turbopack untuk `msw/browser` di `next.config.ts`.
 - **Review manusia**: Perlu dicek: bagaimana Home di build produksi dengan backend asli (static shell hanya berisi fallback bila cache belum hangat), dan apakah alias `msw/browser` yang bergantung pada path `../../mocks` perlu dibuat lebih tahan perubahan struktur.
@@ -87,7 +87,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Menutup dua ketidaksesuaian dokumen dan kode
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menyelesaikan dua hal yang ditandai di entri cleanup: route session dan impor tipe `ui` dari `core`.
 - **Output**: `/api/session/exchange` dipecah: route web menjadi `/api/session/start` (adapter `startSession` diperbarui), `/exchange` tetap dicadangkan untuk one-time code WebView dan belum dibuat. Aturan ESLint boundaries kini mengizinkan `import type` dari `core` di `ui` dan tetap memblokir impor nilai (diuji dengan dua file probe). README, overview, dan catatan ADR-0008 diperbarui.
 - **Review manusia**: Perlu dicek: `ui` yang mengimpor tipe `core` perlu `@rusuh/core` di `package.json`-nya saat pertama dipakai. Isi route `/exchange` menunggu kontrak BE.
@@ -95,7 +95,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — ADR login satu sesi dan persistensi progres
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Mendokumentasikan keputusan login satu sesi aktif (login terakhir menang) dengan progres antrian, booking, dan pembayaran tetap tersimpan lintas perangkat.
 - **Output**: `docs/adr/0010-login-single-session-progress-persistence.md`, baris di `docs/adr/README.md` dan di tabel kontrak `overview.md`. Tidak ada perubahan kode.
 - **Review manusia**: Perlu dikonfirmasi: kode error `SESSION_REVOKED` dan kontrak `sid` dengan BE, aturan lintas app mobile dan web, serta apakah perilaku ini sudah disetujui klien (ADR memakai requirement login wajib dan prinsip "Jangan PHP", bukan ID requirement khusus).
@@ -103,7 +103,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — ADR NIK terikat akun dan jawaban untuk ADR-0010
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Mencatat keputusan tim: NIK terikat ke akun dan terisi otomatis, batas 3 tiket ditegakkan, login app mobile mengeluarkan sesi web dan sebaliknya.
 - **Output**: `docs/adr/0011-nik-linked-to-account.md`, pembaruan ADR-0010 (pertanyaan terbuka yang sudah dijawab), `docs/adr/README.md`, tabel kontrak `overview.md`, baris Detail Ticket dan usulan tim di `docs/ai/steering/product.md`. Tidak ada perubahan kode.
 - **Review manusia**: Perlu dikonfirmasi klien. Kode `canAddTicket` belum disesuaikan: `activeBooked` perlu bersumber dari kuota server saat layar Detail Ticket dibangun. Belum diputuskan: NIK diisi saat pendaftaran atau booking pertama, dan apakah NIK bisa diubah.
@@ -111,7 +111,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Dummy Pilih Tiket dari wireframe
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Membuat dummy layar Detail Ticket mengikuti wireframe 9.3 (screenshot yang diberikan), dengan pola ViewModel hook + Container + View.
 - **Input**: Screenshot wireframe 9.1–9.5, ADR-0002/0003/0004/0005/0011.
 - **Output**: `core` (`BookingSession`, `selectionReducer`, `totalPriceIdr`, `formatMmSs`) dengan test, adapter dan query booking di `api` dengan test MSW, handler `booking-session` dan skenario `booking-expiring` di `mocks`, `BookingView`, `CategoryRow`, `StatusView` di `ui`, `useBookingViewModel`, `toBookingViewProps`, `useCountdown` di `features`, route `/events/[eventId]/book`. Aksen tombol di Home dan Waiting Room diganti ungu agar konsisten dengan wireframe.
@@ -120,7 +120,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Koreksi: wireframe hanya referensi struktur, bukan desain visual
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Memperbaiki kesalahan: dummy Pilih Tiket meniru tampilan wireframe low-fi (ungu, garis putus-putus), padahal wireframe hanya referensi struktur dan target visual adalah Telkomsel Signal DS.
 - **Output**: Semua warna di `packages/ui` diganti token semantik (`bg-primary`, `text-muted`, `bg-danger-subtle`, dst.). Nilai token didefinisikan di `apps/web/app/globals.css` sebagai placeholder sementara. Garis putus-putus dan aksen ungu dihapus.
 - **Review manusia**: Nilai token BUKAN nilai Signal DS. Signal DS belum bisa diakses (tidak ditemukan di web publik), jadi komponen belum memakai komponen atau preset Signal. Perlu akses ke paket atau repo Signal untuk mengganti `Button`, `Card`, `Badge`, dll. dan menyelaraskan token.
@@ -128,7 +128,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Sisa kuota n/3, label kategori, redirect saat waktu habis
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menampilkan sisa kuota "n/3" di kartu NIK, menghapus "(maks. 3 tiket per NIK)" dari label kategori, dan mengembalikan customer ke Waiting Room saat waktu booking habis, dengan toggle untuk pengujian.
 - **Output**: Hint NIK memakai `quota.max - quota.used - tiket terpilih`; label kategori menjadi "Pilih kategori"; `useBookingViewModel` me-redirect ke queue setelah server menjawab `ACCESS_EXPIRED` (toggle `NEXT_PUBLIC_BOOKING_EXPIRY=queue|screen`); mock booking tetap 410 setelah expired dan antrian direset; catatan implementasi di ADR-0005.
 - **Review manusia**: Mode `queue` diuji end-to-end di browser dengan skenario `booking-expiring`. Mode `screen` tidak diuji ulang setelah perubahan ini. Belum ada test untuk ViewModel (perlu Testing Library).
@@ -136,7 +136,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Home dan Ruang Tunggu mengikuti struktur wireframe 9.1 dan 9.2
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menyelaraskan struktur dan isi Home dan Ruang Tunggu dengan wireframe. Visual tetap memakai token placeholder, bukan meniru wireframe (target visual adalah Signal DS).
 - **Output**: `ScreenFrame` bersama (dipakai Home, Ruang Tunggu, Detail Ticket). Home: header dengan Login, "Daftar Event", kartu dengan badge AVAILABLE/SOLD OUT, tanggal dan venue, "Beli Tiket →" atau "Tidak Tersedia" nonaktif. Ruang Tunggu: nama event di header, posisi "#1.248", estimasi "± 4 menit", progress bar, catatan jangan tutup halaman, dan masuk otomatis saat giliran tiba. Kontrak queue ditambah `eventName` dan `joinedPosition`; `queueProgressPercent` di `core`; data mock disesuaikan (Konser A/B/C).
 - **Review manusia**: Kontrak queue (`joinedPosition`, `eventName`) usulan FE, perlu disepakati dengan BE. Hamburger menu di header Home belum ada. Label badge mengikuti wireframe (bahasa Inggris), perlu dikonfirmasi tim.
@@ -144,7 +144,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Mock Pembayaran dengan QR contoh dan simulasi berhasil/gagal
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Membuat mock layar Pembayaran (wireframe 9.4) dan status akhir (9.5) dengan QR palsu dan dua tombol simulasi berhasil dan gagal.
 - **Output**: `core` (tipe `Order`, `PaymentInstruction`, `PaymentMethod`), `api` (`getOrder`, `startPayment`, `emulatePaymentOutcome`, `orderQuery`), handler MSW (`/orders/:id`, `/orders/:id/payment`, `/mock/orders/:id/outcome`, skenario `payment-expiring`), `ui` (`PaymentView`, `PaymentResultView`, `FakeQr`, `CountdownCard`, `ScreenFrame` dengan tone), `features/payment` (`usePaymentViewModel`, `toPaymentViewProps`, test), hook `useAskServerAtExpiry` yang dipakai Booking dan Payment, route web dan embed. Catatan implementasi di ADR-0006.
 - **Review manusia**: Alur sukses dan gagal diuji di browser (E-Wallet lalu berhasil, Virtual Account lalu gagal). Alur expired payment dan tombol Salin belum diuji di browser. QR hanyalah pola acak deterministik, tidak bisa dipindai. Kontrak order dan instruksi usulan FE, perlu disepakati dengan BE. Tombol "Lihat E-Tiket" menuju placeholder.
@@ -152,7 +152,7 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Penyempurnaan standar dan implementasi
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menutup temuan laporan kepatuhan struktur: pelanggaran kecil di kode dan standar yang belum tertulis.
 - **Output**: `@rusuh/mocks` pindah ke devDependencies `api`, dependensi `core` yang tidak terpakai dihapus dari `i18n`, `FakeQr` memakai token, cast tak perlu dihapus. ESLint baru: larangan hex di `ui` dan pembatasan impor mock. Kode mock dikeluarkan dari bundle produksi (diverifikasi: 0 chunk tanpa mock, 2 chunk dengan mock). Test ViewModel Queue, Booking, Payment dengan Testing Library (70 test total). Workflow CI dan skrip `pnpm check`. Komentar requirement di ViewModel. Steering (`architecture-rules`, `coding-conventions`, `testing`), skill `new-feature-screen` dan `new-ui-component`, catatan di ADR-0002/0003/0004/0007, status di `overview.md`.
 - **Review manusia**: Rujukan requirement Payment tidak selaras: overview menulis FR-20–25 dan BR-05–06, wireframe 9.4 menulis FR-16–20 dan BR-02. Perlu dicek ke dokumen requirement. Belum dikerjakan: Storybook, Playwright, reducer state machine booking, verifikasi JWT, Signal DS, git init. CI belum pernah dijalankan.
@@ -160,110 +160,65 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 ## 2026-10-19 — Signal DS (token, tipografi, primitif, layout) dan Playwright
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: (isi nama anggota tim yang menjalankan sesi)
+- **Oleh**: Stradivary
 - **Tujuan**: Menerapkan Signal DS pada layout dan primitif, dan memasang Playwright dengan jam palsu.
 - **Input**: Implementasi referensi internal Signal DS milik tim (token, font, skala tipografi, primitif shadcn, pola `AuthLayout`/`KioskLayout`).
 - **Output**: Preset `packages/config/tailwind/signal.css`, font Poppins dan Telkomsel Batik Sans, primitif `Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup` di `packages/ui`, semua view dan `ScreenFrame` dimigrasi, ADR-0012. Playwright (`apps/web/e2e`, 11 tes lulus, 2 `test.fixme`), job e2e di CI, skrip `pnpm test:e2e`.
 - **Review manusia**: Token Signal berasal dari repo referensi, bukan paket resmi, jadi perlu diverifikasi. Font Telkomsel Batik Sans disalin dari repo referensi: konfirmasi izin redistribusi. Playwright lokal memakai Chrome terpasang; job e2e di CI belum pernah dijalankan. Radix `RadioGroup` mengubah role radio; tes diperbarui mengikuti. Dua skenario E2E (stok habis saat submit, slot diambil alih) menunggu fiturnya. Sempat mencoba melempar error Home keluar dari `use cache` agar tidak di-cache, tetapi itu menggagalkan prerender build tanpa backend, jadi dikembalikan: error tetap ditangkap di dalam, dan ISR 15 detik yang menggantinya.
 
-## 2026-10-21 — Packaging satu container image
-
-- **Tool**: Claude (claude.ai)
-- **Oleh**: Ahmad Muzaki
-- **Tujuan**: Mengemas monorepo FE menjadi satu container image dan mengintegrasikannya ke repo.
-- **Input**: Repo ini, dokumentasi Next 16 di `node_modules/next/dist/docs` (`output`, `self-hosting`, `deploymentId`, environment variables), draf Dockerfile dari sesi analisis 2026-10-18.
-- **Output**: `Dockerfile` (pnpm fetch → install offline → build → runtime alpine non-root dengan tini dan HEALTHCHECK), `.dockerignore`, `output: "standalone"` + `outputFileTracingRoot` + `poweredByHeader: false` di `next.config.ts`, route `/api/health`, Poppins di-self-host lewat `next/font/local` (berlisensi OFL), job CI `image` (cek ARG flag build, build, batas ukuran 300 MB, smoke test container), ADR-0013, README, aturan steering untuk flag `NEXT_PUBLIC_*` dan larangan unduhan aset saat build.
-- **Review manusia**: Draf awal menomori ADR ini 0010 dan memakai Turborepo. Disesuaikan karena 0010–0012 sudah terpakai dan repo belum memakai Turborepo. `next/font/google` diganti karena build gagal tanpa akses ke Google Fonts. `pnpm check` hijau (70 test). Langkah Dockerfile diverifikasi di salinan bersih repo, tetapi `docker build` penuh belum: Docker Hub tidak terjangkau dari lingkungan sesi. Job `image` di CI menjadi verifikasi pertama. Perlu diputuskan tim: apakah satu image per environment cukup, atau perlu konfigurasi runtime (lihat "Pekerjaan lanjutan" di ADR-0013).
-
-## 2026-10-22 — Pindah dari pnpm ke npm workspaces
+## 2026-10-20 — Triase steering lama (.kiro) dan penyelarasan standar
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: Ahmad Muzaki
-- **Tujuan**: Mengganti package manager repo dari pnpm ke npm workspaces tanpa merusak packaging container image (ADR-0013).
-- **Input**: Repo di branch `feat/container-image`, ADR-0001 (fallback npm workspaces sudah tertulis), `Dockerfile`, workflow CI.
-- **Output**: `package.json` root (`workspaces`, skrip `npm run ... -w`, `packageManager`, `engines.npm`), `workspace:*` → `*` di 8 manifest, `package-lock.json` (menggantikan `pnpm-lock.yaml` dan `pnpm-workspace.yaml`), `.npmrc` (`ignore-scripts=true`), `@types/node` `^22` di `apps/web` dan `packages/api`, aturan ESLint `import/no-extraneous-dependencies` per workspace, `Dockerfile` (stage `deps`: COPY manifest + `npm ci` dengan cache mount), `ci.yml` (`npm ci`, cek COPY workspace di Dockerfile), `playwright.config.ts`, `.claude/launch.json`, README, skill `sync-api-contract` dan `new-feature-screen`, steering `testing` dan `architecture-rules`, ADR-0014, catatan di ADR-0001, ADR-0007, dan ADR-0013, `overview.md`. Tidak ada isi `docs/ai/` yang dihapus atau dipangkas; catatan sesi lama yang menyebut pnpm sengaja tidak diubah.
-- **Review manusia**: Alasan pindah ke npm belum tercatat di ADR-0014 selain fallback di ADR-0001; mohon tim menambahkannya. Lockfile di-resolve ulang: 7 dari 35 dependensi langsung berbeda versi (rincian di ADR-0014). `npm install` sempat menghasilkan lockfile yang ditolak `npm ci` karena bentrok peer `@types/node`; sudah diperbaiki. Standalone naik 43 → 70 MB karena `sharp`. `npm run check` hijau (70 test). `docker build` penuh belum bisa dijalankan di lingkungan sesi; job `image` di CI menjadi verifikasi pertama. E2E dan job CI belum dijalankan setelah perubahan. Nomor ADR-0014 dipakai di sini; usulan ADR use case + port perlu nomor berikutnya (0015).
+- **Oleh**: Stradivary
+- **Tujuan**: Menilai `.kiro/steering` (proyek MBC lama: Vite, Awilix, SCSS/BEM, GitLab) terhadap arsitektur baru, membuang yang usang, dan membawa yang masih relevan.
+- **Output**: Aturan yang dibawa ke `coding-conventions.md` (komponen fungsi, props memperluas atribut HTML, dialog Radix, aksesibilitas, tanpa ternary bersarang, satu import per modul, kebersihan kode, aturan git) dan `testing.md` (selektor, jalur galat, coverage 85% untuk core dan api). Skill `new-ui-component` diselaraskan dengan aturan ARIA countdown. ESLint baru: `no-nested-ternary`, `no-duplicate-imports`, `no-explicit-any`, `ban-ts-comment`, `no-console`, empat aturan `jsx-a11y`. `HomeView` direfaktor untuk satu pelanggaran. `.editorconfig`, `@vitest/coverage-v8`, skrip `pnpm test:coverage` (ambang 85% untuk `core` dan `api`, dipakai CI).
+- **Review manusia**: `.kiro/` dibiarkan tidak ter-commit; putuskan hapus atau arsipkan di luar `docs/ai/`. Prettier, Husky, lint-staged, dan commitlint sengaja belum dipasang (Prettier akan memformat ulang seluruh repo); perlu keputusan tim. Logger `api/telemetry` belum ada. Aturan `no-console` belum menjangkau skrip dan test.
 
-## 2026-10-22 — Layer Application: use case di `core/application` (ADR-0015)
+## 2026-10-20 — Hook commit (lint-staged dan commitlint)
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: Ahmad Muzaki
-- **Tujuan**: Menutup layer Application yang hilang di ADR-0002 (saran B1 dari analisis layering 2026-10-22), tanpa class atau container DI.
-- **Input**: Analisis layering ADR-0002 vs `architecture.md` (Tim FE Web, dibantu Kiro), ADR-0002/0003/0004, ViewModel dan mapper yang ada.
-- **Output**: `packages/core/src/application/` (`addTicket`, `enterBookingRoom`, `payOrder`, `ports.ts`) dan aturan domain baru (`payment/orderStatus.ts`, `booking/stock.ts`, `canSubmitBooking`, `isAccessExpired`), semuanya dengan test (25 test baru, total 95). `apps/web/features/shared/composition.ts` sebagai composition root. `useBookingViewModel`, `usePaymentViewModel`, `useQueueViewModel`, dan `toBookingViewProps` dipangkas. Aturan ESLint: domain tidak boleh mengimpor `application`, `features` tidak boleh mengimpor `startPayment`/`startSession` langsung. ADR-0015, catatan peta layer di ADR-0002 (saran A), catatan di ADR-0003, `overview.md`, steering (`architecture-rules`, `coding-conventions`, `testing`), skill `new-feature-screen`. Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: `createBooking` dari contoh analisis **belum dibuat**: endpoint submit booking dan kontraknya belum ada, dan `onSubmit` masih dummy. Dua use case pertama (`enterBookingRoom`, `payOrder`) tipis (satu aturan awal + satu panggilan port); `payOrder` mengembalikan order apa adanya bila bukan `awaiting_method`, aturan sisi FE yang perlu dikonfirmasi dengan BE. Booking memakai `useState` + `addTicket` menggantikan `useReducer(selectionReducer)`; perilakunya sama (test ViewModel lama lulus tanpa perubahan). Saran C (otoritas `architecture.md` vs ADR) tetap keputusan tim. Status ADR-0002 masih Proposed. E2E dan CI belum dijalankan setelah perubahan ini.
+- **Oleh**: Stradivary
+- **Tujuan**: Memastikan kode baru dilint dan pesan commit dicek sejak commit.
+- **Output**: Husky (`pre-commit`, `commit-msg`), `lint-staged.config.mjs`, `commitlint.config.mjs`, skrip `prepare`, job `commitlint` di CI untuk PR. `.kiro/` dihapus. Dua commit sebelumnya: `chore` (tooling) dan `style` (Prettier).
+- **Review manusia**: Hook diuji dengan file yang melanggar ESLint dan pesan commit yang salah; keduanya ditolak. Job CI commitlint belum pernah dijalankan. `typecheck` sengaja tidak masuk hook (lambat); hanya di CI.
 
 
-
-## 2026-10-22 — Test ke `__tests__` dan urutan impor di dalam lapisan
+## 2026-10-26 — Dokumentasi routing, lapisan Next.js, dan login/register
 
 - **Tool**: Claude Code (Sonnet 5.5)
-- **Oleh**: Ahmad Muzaki
-- **Tujuan**: Memindahkan semua test unit ke `__tests__/` per folder dan merapikan lapisan 3-4-5 (ui/api/i18n, features, app) agar sesuai aturan Clean Architecture, tanpa mengubah perilaku.
-- **Input**: Struktur repo di branch `feat/core-application-layer`, ADR-0002/0003/0015.
-- **Output**: 16 test di `packages/core` dan `packages/i18n` dipindah ke `__tests__/` (impor relatif ditulis ulang; isi test tidak berubah). `packages/config/eslint/layers.mjs` (`import/no-restricted-paths`): fitur tidak saling mengimpor, `ui` berurutan layar → shared → primitives → lib, `api` berurutan queries → adapters → http; daftar folder dibaca dari disk. `features/shared/session.ts` menjadi satu-satunya definisi nama dan umur cookie sesi (sebelumnya string ganda di `proxy.ts` dan route handler) dengan 11 test. Catatan di ADR-0002, `architecture-rules`, `testing`, `coding-conventions`, skill `new-feature-screen`. Total 106 test. Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: Tidak ada file di `ui`, `features`, atau `app` yang dipindah karena strukturnya sudah sesuai urutan; yang berubah hanya penegakannya. E2E tetap di `apps/web/e2e/`. Aturan `app` boleh mengimpor `ui` (ADR-0002) tidak diubah walau saat ini tidak dipakai; bisa dipersempit bila tim setuju. Hook `useCountdown` dan `useAskServerAtExpiry` belum punya test. E2E dan CI belum dijalankan setelah perubahan ini.
+- **Oleh**: Stradivary
+- **Tujuan**: Mendokumentasikan implementasi routing dan Clean Architecture di Next.js, serta implementasi login dan register.
+- **Output**: `docs/architecture/routing-and-layers.md` (peta route, layout dan provider, alur data, penegakan boundaries, `proxy.ts`, cookie sesi) dan `docs/architecture/auth-login-register.md`. Tautan ditambahkan di `overview.md` dan `docs/README.md`.
+- **Review manusia**: Login baru placeholder dan register belum ada di kode maupun ADR, jadi dokumen auth memisahkan kondisi nyata, rancangan ADR-0010/0011 (masih Proposed), dan pertanyaan terbuka. Isi dibaca dari kode, belum dijalankan ulang. Perlu dicek tim: celah alur tanpa login, cakupan matcher `proxy.ts`, dan keputusan metode login/register.
 
-
-## 2026-10-22 — Rencana implementasi semua layar dan ADR-0017
+## 2026-10-28 — Restrukturisasi: satu aplikasi, Clean Architecture per modul, DI Awilix, SSE
 
 - **Tool**: Claude Code (Opus 5.5)
 - **Oleh**: Stradivary
-- **Tujuan**: Merencanakan perbaikan layar yang sudah ada (ViewModel sulit dibaca, bentuk kontrak BE tertanam di `core`) dan melengkapi semua alur, dengan struktur yang mudah disesuaikan saat kontrak BE final.
-- **Input**: Steering, ADR-0002/0003/0008/0009/0010/0011/0015, `overview.md`, kode `app/`, `features/`, `core`, `api`, `mocks`, dan E2E di `main` (setelah PR #5).
-- **Output**: `docs/architecture/implementation-plan.md` (masalah, struktur target, 15 alur, inventaris layar, 8 tahap PR, kesiapan kontrak, pertanyaan terbuka), ADR-0017 (Proposed), baris ADR-0017 di `docs/adr/README.md`. Tidak ada perubahan kode. Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: Endpoint di rencana adalah asumsi sampai kontrak BE final. Steering dan skill sengaja belum diubah karena ADR-0017 masih Proposed; daftar file yang perlu diperbarui saat Accepted ada di ADR. Usulan Awilix (PR #6, ADR-0016) tidak dijadikan dasar rencana; composition root tetap manual seperti di `main`.
+- **Tujuan**: Mengubah repo dari monorepo pnpm menjadi satu aplikasi dengan modul fitur Clean Architecture dan SOLID, memakai Awilix untuk DI, dengan asumsi aplikasi akan berkembang. Di tengah sesi: transport realtime diganti ke SSE.
+- **Input**: Seluruh kode `apps/web`, `packages/*`, `mocks`; steering; ADR-0001–0012; dokumentasi `docs/architecture`.
+- **Output**:
+  - Kode dipindah dengan `git mv` ke `src/` (`app`, `di`, `modules/{catalog,queue,booking,payment,auth,ticket}`, `shared`, `mocks`, `test`). Per modul: `domain`, `application` (use case + port), `infrastructure` (HTTP + zod), `presentation` (+ `views`), `<m>.module.ts`. `pnpm-workspace.yaml` tinggal pengaturan pnpm.
+  - Awilix 13 (`PROXY`, `strict`), composition root `src/di`, `useCradle` di presentation, `getServerCradle` untuk Home. `Clock`, `RandomSource`, `AppConfig` diinjeksikan; `process.env` hanya di `src/di/config.ts`.
+  - SSE: port `QueueUpdates`/`OrderUpdates`, use case `WatchQueueState`/`WatchOrder`, `EventSourceStreamClient`, hook `useLiveUpdates`, handler `sse` MSW (browser saja), polling sebagai cadangan.
+  - `eslint.boundaries.mjs` baru (`default: "disallow"`, aturan per lapisan dan per modul), diuji dengan 6 file probe yang melanggar (semua tertangkap, lalu dihapus).
+  - Test baru: use case dengan fake, adapter sistem, composition root, `EventSourceStreamClient`, adapter SSE, ViewModel SSE (queue dan payment), mode `bookingExpiry: "screen"`. 96 test, coverage 97% (domain, application, infrastructure, di).
+  - ADR-0013 (satu aplikasi, menggantikan 0001), ADR-0014 (Clean Architecture + SOLID, menggantikan 0002), ADR-0015 (Awilix), ADR-0016 (SSE, mempersempit 0004); catatan implementasi di ADR-0003/0004/0005/0007/0009/0010/0012. Steering, skill (`new-module` baru), overview, routing-and-layers, auth-login-register, README, AGENTS.md diperbarui. Tidak ada isi `docs/ai/` yang dihapus; aturan lama diperbarui path-nya.
+- **Review manusia**: `pnpm check` dan `pnpm build` hijau (Home tetap statis, kode mock tidak ada di bundle produksi). **E2E Playwright tidak dijalankan** (dihentikan pengguna), termasuk alur SSE di browser dengan MSW: perlu dijalankan sebelum merge. Kontrak endpoint SSE adalah usulan FE dan perlu disepakati BE. Awilix perlu dicek terhadap tech radar. Kepemilikan per package di ADR-0001 perlu disepakati ulang per modul. Stok Detail Ticket masih polling 15 detik.
 
-## 2026-10-23 — Lapisan contract + mapper di `api` (tahap 2 rencana implementasi)
-
-- **Tool**: Claude Code (Opus 5.5)
-- **Oleh**: Stradivary
-- **Tujuan**: Mengurung bentuk kontrak BE di `packages/api` (ADR-0017, tahap 2 di `implementation-plan.md`) tanpa mengubah perilaku.
-- **Input**: Adapter `api` yang ada, `mocks/src/handlers.ts`, `packages/config/eslint/layers.mjs`, ADR-0017.
-- **Output**: `api/src/contracts/` (schema zod DTO events, queue, booking, payment, ditandai `KONTRAK-ASUMSI`), `api/src/mappers/` (DTO → domain dan domain → request body), adapter memakai keduanya, tipe DTO diekspor dari `@rusuh/api` dan dipakai handler MSW, zona lint `contracts ← mappers ← adapters ← queries`, 9 test mapper baru (total 116). Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: Dikerjakan atas permintaan langsung walau ADR-0017 masih Proposed. `mocks` mengimpor tipe (bukan nilai) dari `@rusuh/api` tanpa entri di `package.json`, sesuai pengecualian `import type` di ADR-0014. `docs/architecture/contracts.md` belum dibuat. E2E belum dijalankan; perubahan tidak menyentuh UI dan `npm run check` hijau.
-
-## 2026-10-23 — Screen model untuk Queue, Booking, Payment, dan Home (tahap 3 rencana implementasi)
+## 2026-10-28 — Pencatatan MoM fitur tambahan dan reversal
 
 - **Tool**: Claude Code (Opus 5.5)
 - **Oleh**: Stradivary
-- **Tujuan**: Memisahkan kondisi layar, wiring hook, dan pembentukan props View sesuai ADR-0017, tanpa mengubah perilaku.
-- **Input**: ViewModel, mapper, container, dan test keempat layar; ADR-0017; `boundaries.mjs`.
-- **Output**: `queueModel.ts`, `bookingModel.ts`, `paymentModel.ts` (`<Screen>ScreenState` + `derive<Screen>ScreenState`), ViewModel mengembalikan `{ state, actions }` tanpa i18n, mapper `to<Screen>ViewProps(vm)` memegang teks dan pemetaan error, Home dipecah menjadi `loadHome.ts` + `toHomeViewProps.ts`. Aturan ESLint baru: `use*ViewModel.ts` tidak boleh mengimpor `@rusuh/i18n`. Test ViewModel memeriksa `state`, test derive dan mapper murni (total 141). Penamaan di ADR-0017 dan rencana diselaraskan. Perbaikan terpisah: alias `msw/browser` di `next.config.ts` rusak di Windows. Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: `npm run check` hijau; build hijau dan `/` tetap statis. Alur Home → antrian → booking (batas 3) → e-wallet → berhasil dicek manual di dev server. E2E Playwright tidak bisa dijalankan: Chrome lokal tidak ada dan Chromium bawaan perlu versi 1248 (`npx playwright install chromium`). Nama tipe memakai akhiran `ScreenState` (bukan `<Screen>State` seperti draf awal ADR) agar tidak bentrok dengan `QueueState` di `core`.
+- **Tujuan**: Mendokumentasikan MoM (fitur tambahan dan reversal keputusan) dan menganalisis dampaknya ke ADR sebelum ADR diubah.
+- **Input**: Catatan rapat yang direkam (ditempel pengguna), ADR-0004–0016, `product.md`, `auth-login-register.md`.
+- **Output**: `docs/meetings/2026-10-28-mom-fitur-dan-reversal.md` (keputusan rapat apa adanya, tabel dampak ADR/kode, 23 pertanyaan terbuka dengan pemilik), tautan di `docs/README.md`. ADR belum diubah.
+- **Review manusia**: Perlu diisi tanggal rapat dan peserta. Perlu dicek bahwa terjemahan keputusan rapat di §1–2 tidak menggeser makna. Konflik utama untuk diputuskan: alur guest (non-login) vs "login wajib" di steering dan ADR-0010/0011 (Q1).
 
-## 2026-10-23 — Login passwordless, sesi dicabut, dan logout (tahap 4 rencana implementasi)
-
-- **Tool**: Claude Code (Opus 5.5)
-- **Oleh**: Stradivary
-- **Tujuan**: Membangun F2, F13, F14 dari `implementation-plan.md` mengikuti alur passwordless di Figma SJT ZAKI.
-- **Input**: Rencana implementasi, temuan Figma (bagian 7.1), ADR-0005/0010/0011/0015/0017.
-- **Output**: `core`: error code `UNAUTHENTICATED`, `SESSION_REVOKED`, `LOGIN_LINK_INVALID`, `RATE_LIMITED` (+ `retryAfterMs`), `isAuthRequired`, tipe `Account`/`LoginLinkSent`, `emailProblem`/`isValidNik`/`resolveReturnTo`, use case `requestLoginLink`, `redeemLoginLink`, `logout`. `api`: contract + mapper + adapter auth (`/auth/login-link`, `/auth/session`, `/me`), `meQuery`, cookie dikirim di setiap request, header `Retry-After` dibaca. `mocks`: sesi di memori, link sekali pakai, jeda kirim ulang 30 dtk, skenario `logged-out` dan `session-revoked`. `ui`: primitif `Input`, `LoginView`. `features`: layar Login dan `/auth/callback` (screen model), 401 dari endpoint mana pun mengarahkan ke login dengan `reason` dan `returnTo` lewat `AppProviders`, 401 tidak di-retry. Baris pengecualian token di URL di `architecture-rules.md`. 49 test baru (total 190). Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: Semua endpoint auth adalah KONTRAK-ASUMSI, termasuk cookie sesi milik BE (CORS dengan credentials) dan `returnTo` yang dititipkan ke link. Registrasi (F3: email + NIK + Dukcapil) belum dibangun. Alur dicek manual di dev server: belum login → antrian → login → link simulasi → kembali ke antrian → booking; sesi dicabut saat antre → login dengan pesan perangkat lain; link tidak valid; logout. E2E Playwright belum dijalankan (Chromium 1248 belum terpasang) dan belum ada skenario E2E untuk login. Teks UI dalam Bahasa Indonesia walau frame Figma berbahasa Inggris (pertanyaan terbuka 7.1 no. 3).
-
-## 2026-10-23 — Registrasi dan verifikasi email (F3, tahap 4 rencana implementasi)
+## 2026-10-28 — Memecah `src/shared` menjadi `core`, `platform`, `ui`
 
 - **Tool**: Claude Code (Opus 5.5)
 - **Oleh**: Stradivary
-- **Tujuan**: Membangun registrasi email + NIK sesuai frame Registration, Confirmation & Success, dan Error & Fallback (C, D, G, H) di Figma SJT ZAKI.
-- **Input**: Rencana implementasi, temuan Figma 7.1, ADR-0011, ADR-0017, kode login dari sesi sebelumnya.
-- **Output**: `core`: error code `EMAIL_ALREADY_REGISTERED`, `NIK_VERIFICATION_UNAVAILABLE`, `NIK_MISMATCH`, `VERIFICATION_LINK_INVALID`; `nikProblem`, `sanitizeNikInput`, `registrationProblems`; use case `registerAccount`, `verifyEmail`; `LoginLinkSent` diganti nama `EmailLinkSent`. `api`: `/auth/register`, `/auth/verification-email`, `/auth/verify-email` (KONTRAK-ASUMSI), mock link generik `/mock/auth/last-link?kind=`. `mocks`: simulasi Dukcapil lewat akhiran NIK (9999 tidak cocok, 0000 tidak tersedia), `alex@example.com` sudah terdaftar, token verifikasi sekali pakai, jeda kirim ulang. `ui`: primitif `Dialog` (modal desktop, bottom sheet mobile), `TextField` di `ui/shared` (dipakai ketiga kalinya), `RegisterView`, tautan daftar/masuk di `LoginView`. `features`: layar Registrasi (`/register`, mode `resend`) dan `/auth/verify-email` dengan screen model. 33 test baru (total 223). Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: Bug ditemukan saat uji manual dan diperbaiki: `maxLength` pada field NIK memotong teks sebelum tanda hubung dibuang, sehingga paste "3171-0000-…" kehilangan digit. Layar sukses registrasi digabung dengan "Verify your email" (Figma memisahkan modal sukses dan kartu verifikasi). Kirim ulang verifikasi dari link gagal memakai form email karena halaman link tidak tahu email customer; perlu dikonfirmasi BE (alternatif: kirim ulang memakai token kedaluwarsa). `returnTo` belum dibawa melewati registrasi. E2E Playwright belum dijalankan dan belum ada skenario registrasi.
-
-## 2026-10-23 — Navbar, footer, dan layout desktop (AppShell)
-
-- **Tool**: Claude Code (Opus 5.5)
-- **Oleh**: Stradivary
-- **Tujuan**: Menyamakan layout desktop dengan Figma SJT ZAKI: navbar atas dengan logo "rusuh.", konten terpusat, dan footer.
-- **Input**: Figma SJT ZAKI (navbar dan footer frame Component 1 dibaca di 100%), `ScreenFrame` dan view yang ada.
-- **Output**: `ui/shared`: `Logo` (ikon gelombang suara + "rusuh." + "BOOKING TIKET"), `AppShell` dengan slot `NavLinks` dan `AccountLink`, `ScreenFrame` menjadi kartu konten (aksen hijau/merah untuk berhasil/gagal) alih-alih kartu mobile berheader merah. `HomeView` mendapat hero dan grid 3 kolom; tautan login pindah ke navbar. Route situs dipindah ke grup `(site)` dengan layout `SiteShell`; route embed WebView tetap tanpa navbar (ADR-0008). Tautan aktif dan `returnTo` login dibaca dari URL lewat client component di dalam Suspense (Cache Components); Home tetap statis. Halaman placeholder `/tiket` dan `/bantuan` untuk tautan navbar. 5 test baru (total 228). Tidak ada isi `docs/ai/` yang dihapus atau dipangkas.
-- **Review manusia**: Warna tetap token Signal (merah, hero navy), bukan ungu Figma: keputusan sistem visual masih terbuka (rencana 7.1 no. 2). Navbar selalu menampilkan "Login" karena shell statis tidak tahu status sesi; yang sudah login melihat status di halaman login. Layout dua kolom Booking/Payment dan breadcrumb/stepper dari Figma belum dibuat. Dicek di dev server pada 1440 px dan 375 px (tanpa scroll horizontal). E2E Playwright belum dijalankan.
-
-## 2026-10-23 — Konvensi letak dan nama file, ditegakkan test
-
-- **Tool**: Claude Code (Opus 5.5)
-- **Oleh**: Stradivary
-- **Tujuan**: Menuliskan konvensi letak dan nama file yang sudah dipakai kode (peran dari folder + pola nama, bukan akhiran `.usecase.ts`), menegakkannya, dan merapikan file test yang tidak konsisten.
-- **Input**: Pohon file `core`, `api`, dan `features`; steering `architecture-rules`, `coding-conventions`, `testing`; skill `new-feature-screen`.
-- **Output**: `packages/config/conventions/fileConventions.test.ts` (dijalankan `npm test`): pola file di folder fitur, pasangan ViewModel/screen model/mapper beserta nama tipe yang diekspor, test wajib per use case/adapter/mapper/screen model/mapper View/ViewModel, setiap test memetakan satu file sumber, contract dan mapper `api` berpasangan. Test `core/application` dipecah per use case; test `api` dipecah per file sumber (`http/`, `adapters/`, `mappers/`) dengan helper `api/src/__tests__/support.ts`; test baru untuk `adapters/session.ts`, `mappers/auth.ts`, dan dua screen model serta dua mapper View auth. Bagian "Letak dan nama file" dan pola per layar yang diperbarui di `architecture-rules.md`, baris penamaan baru di `coding-conventions.md`, aturan satu test per file di `testing.md`, langkah skill `new-feature-screen` diselaraskan dengan screen model dan contract/mapper. Total 277 test. Tidak ada isi `docs/ai/` yang dihapus; langkah skill yang bertentangan dengan pola baru (ViewModel memetakan `AppError` ke i18n) ditulis ulang, bukan dibuang.
-- **Review manusia**: Steering kini memuat pola ADR-0017 walau ADR itu masih Proposed (diminta langsung). Test konvensi diuji dengan pelanggaran buatan (file helper di folder fitur, screen model tanpa test, test gabungan) dan ketiganya gagal sesuai harapan. `features/shared` dan `ui` belum diatur polanya selain aturan test per file.
+- **Tujuan**: Pengguna meminta `shared` diganti `core`. Karena `shared` berisi presentation dan adapter, mengganti nama saja akan menyesatkan; pengguna memilih memecahnya per lapisan.
+- **Output**: `src/shared/{domain,application}` → `src/core`, `src/shared/infrastructure` → `src/platform`, `src/shared/presentation` → `src/ui` (`design-system/`, `i18n/`, `hooks/`, `di/`). `sharedModule`/`SharedCradle`/`SharedDependencies` → `coreModule`/`CoreCradle`/`CoreDependencies` (`src/di/core.module.ts`). Element type ESLint boundaries dipetakan ulang (aturan tidak berubah); 5 file probe pelanggaran baru tertangkap semua lalu dihapus. Glob Vitest coverage, ESLint, dan Prettier disesuaikan. ADR-0013/0014/0015 dan catatan ADR-0005/0010/0012/0016, steering, skill, dokumen arsitektur, dan README diperbarui. Entri usage log sebelumnya dibiarkan sebagai riwayat (masih menyebut `src/shared`).
+- **Review manusia**: `pnpm check`, coverage (97%), dan `pnpm build` hijau; Home tetap statis, tanpa kode mock di bundle produksi. E2E belum dijalankan.

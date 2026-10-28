@@ -2,37 +2,42 @@
 
 | Lapisan | Tool | Wajib dites |
 |---|---|---|
-| `core` | Vitest | Use case di `application/` dengan port palsu (`vi.fn()`): port dipanggil dengan argumen yang benar, tidak dipanggil saat prasyarat gagal, kegagalan port diteruskan. Validasi NIK, `canAddTicket` (stok, batas 3, akumulasi booking aktif), reducer booking (semua transisi), `remainingMs` (offset positif, negatif, tab tertidur) |
-| `api` | Vitest + MSW | Parsing response valid dan tidak valid, pemetaan setiap error code ke `AppError`, retry dan backoff |
-| `ui` | Storybook + addon a11y | Satu story per state visual. Tidak ada pelanggaran a11y level serius |
-| `features` | Vitest + Testing Library + MSW | Mapper `to<Screen>ViewProps` (murni) dan alur ViewModel dengan server MSW bersama (`apps/web/features/__tests__/support.tsx`) |
+| `domain` (modul dan `core`) | Vitest | Validasi NIK, `canAddTicket` (stok, batas 3, akumulasi booking aktif), reducer booking (semua transisi), `remainingMs` (offset positif, negatif, tab tertidur) |
+| `application` | Vitest + fake | Setiap use case dengan fake yang memenuhi port (tanpa MSW, tanpa `vi.mock`); argumen yang diteruskan ke port diperiksa |
+| `infrastructure` | Vitest + MSW | Parsing response valid dan tidak valid, pemetaan setiap error code ke `AppError`, retry dan backoff. Adapter di-resolve dari container uji (`src/test/httpRepositories.test.ts`) |
+| `di` | Vitest | Setiap registrasi bisa di-resolve dalam mode strict (`src/di/container.test.ts`) |
+| `ui/design-system`, `presentation/views` | Storybook + addon a11y | Satu story per state visual. Tidak ada pelanggaran a11y level serius |
+| `presentation` | Vitest + Testing Library + MSW | Mapper `to<Screen>ViewProps` (murni) dan alur ViewModel dengan server MSW dan container uji bersama (`src/test/support.tsx`: `setupMockServer`, `setupTestContainer`, `createWrapper`) |
 | E2E | Playwright + fake clock | Happy path, booking expired, payment expired, stok habis saat submit, slot diambil alih tab lain |
 
 ## Aturan
 
-- **Lokasi**: test unit di `<folder>/__tests__/<nama>.test.ts(x)`, sejajar dengan folder yang diuji (`packages/core/src/booking/__tests__/selection.test.ts`). Impor sumber dengan path relatif (`../selection`). Helper bersama ditaruh di `__tests__/support.ts(x)` terdekat (`packages/api/src/__tests__/support.ts`, `apps/web/features/__tests__/support.tsx`). E2E di `apps/web/e2e/*.spec.ts`.
-- **Satu test per file sumber.** Jangan menggabungkan beberapa use case atau resource dalam satu file test. Ditegakkan `packages/config/conventions/fileConventions.test.ts` (lihat `architecture-rules.md`, "Letak dan nama file").
-- **Logika baru di `core` tanpa test tidak boleh di-merge.**
+- **Selektor memakai `getByRole` / `getByText`**, `getByTestId` hanya bila tidak ada peran atau teks yang bermakna.
+- **Uji jalur sukses dan galat.** Untuk `infrastructure` dan ViewModel, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.
+- **Mock direset tiap test** (`vi.clearAllMocks()` di `beforeEach` bila memakai `vi.fn`).
+- **Event handler diperiksa argumennya**, bukan hanya dipanggil.
+- **Coverage minimum 85%** (statement, branch, function, line) untuk `domain`, `application`, `infrastructure` (modul, `core`, dan `platform`) dan `src/di`, ditegakkan `pnpm test:coverage` dan CI. Presentation tidak dihitung; ia diuji lewat test mapper/ViewModel, story, dan e2e.
+- **Logika baru di `domain` atau use case baru tanpa test tidak boleh di-merge.**
 - **Bug fix diawali test yang gagal.**
-- **Test waktu tidak pernah memakai `sleep`.** Gunakan parameter `now` di `core` dan fake clock di Playwright.
+- **Test waktu tidak pernah memakai `sleep`.** Gunakan parameter `now` di `domain`, override `clock` di container uji, dan fake clock di Playwright.
 - **Skenario MSW dipakai bersama** oleh dev server, Storybook, test, dan demo. Jangan membuat mock ad hoc di dalam test.
 
 ## Status tooling (2026-10-19)
 
 | Alat | Status |
 |---|---|
-| Vitest, MSW (`mocks/`) | Terpasang. Dipakai `core`, `api`, `i18n`, mapper, dan ViewModel |
+| Vitest, MSW (`src/mocks/`) | Terpasang. Dipakai domain, application, infrastructure, di, i18n, mapper, dan ViewModel |
 | Testing Library + jsdom | Terpasang. Test ViewModel Queue, Booking, dan Payment ada |
-| CI (`.github/workflows/ci.yml`) | Ada: lint, typecheck, test, build, dan cek Home statis. Belum pernah dijalankan (repo belum di git) |
+| CI (`.github/workflows/ci.yml`) | Ada: lint, typecheck, test dengan coverage, build, dan cek Home statis. Belum pernah dijalankan (repo belum di git) |
 | Reducer state machine booking | **Belum ada.** Status booking dan payment saat ini diturunkan dari respons server. Ditambahkan saat endpoint submit booking tersedia |
 | Storybook + addon a11y | **Belum terpasang.** Skill `new-ui-component` meminta story per state visual |
-| Playwright + fake clock | Terpasang (`apps/web/e2e`, `npm run test:e2e`). Tiga dari lima skenario E2E utama ada: happy path, booking expired, payment expired. "Stok habis saat submit" dan "slot diambil alih" ditandai `test.fixme` sampai fiturnya dibangun |
+| Playwright + fake clock | Terpasang (`e2e/`, `pnpm test:e2e`). Tiga dari lima skenario E2E utama ada: happy path, booking expired, payment expired. "Stok habis saat submit" dan "slot diambil alih" ditandai `test.fixme` sampai fiturnya dibangun |
 
-Aturan menulis test ViewModel: unik `eventId` atau `orderId` per test (state mock tersimpan per id), override respons lewat `server.use`, dan `next/navigation` di-mock.
+Aturan menulis test ViewModel: unik `eventId` atau `orderId` per test (state mock tersimpan per id), override respons lewat `server.use`, dan `next/navigation` di-mock. Stream SSE dites dengan `FakeEventSource` (`src/test/fakeEventSource.ts`): `setupFakeEventSources()`, override `eventSourceFactory`, lalu `emit("open")` dan `emit("<event>", data)`. Container uji default memakai fake yang tidak pernah tersambung, jadi ViewModel memakai polling cadangan. Untuk mengganti konfigurasi atau satu dependensi, buat container dengan `setupTestContainer(overrides, config)` lalu `createWrapper(container)`; jangan `vi.mock` modul aplikasi atau `vi.stubGlobal("fetch")`.
 
 ## E2E (Playwright)
 
-- Menjalankan: `npm run test:e2e` (server dev dengan mock MSW dijalankan otomatis atau dipakai ulang bila sudah jalan di port 3000). Lokal memakai Chrome yang terpasang; CI memasang Chromium.
+- Menjalankan: `pnpm test:e2e` (server dev dengan mock MSW dijalankan otomatis atau dipakai ulang bila sudah jalan di port 3000). Lokal memakai Chrome yang terpasang; CI memasang Chromium.
 - Proyek utama adalah viewport mobile (Pixel 7), karena payment page dipakai ulang di WebView.
 - **Jam palsu**: `page.clock.install()` lalu `page.clock.runFor(...)`. Waktu nyata tetap berjalan di bawah jam palsu, jadi nilai countdown awal dicek rentangnya, bukan angka pasti. Dilarang `waitForTimeout` sebagai pengganti menunggu kondisi.
 - Skenario mock dipilih lewat `?scenario=` di URL Waiting Room (`booking-expiring`, `payment-expiring`). Setiap tes mendapat worker MSW baru, jadi state mock tidak bocor antar tes.

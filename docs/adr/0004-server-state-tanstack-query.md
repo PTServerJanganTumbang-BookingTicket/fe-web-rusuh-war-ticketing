@@ -35,3 +35,9 @@ Opsi 3. Aturan:
 
 - `packages/api` mengekspor *query options* (`queuePositionQuery`, `bookingSessionQuery`, `orderQuery`), bukan hook. `useQuery` dan `useMutation` dipanggil dari ViewModel di `features`, sehingga `api` bebas dari React.
 - Interval polling: antrian mengikuti `retryAfter` server, stok booking 15 detik, status pembayaran 3 detik, semuanya dengan jitter ±20%.
+
+## Catatan implementasi (2026-10-28)
+
+- Query options dan query key pindah ke presentation tiap modul (`queueQueries.ts`, `bookingQueries.ts`, `paymentQueries.ts`). Key diawali nama modul.
+- `queryFn` memanggil use case (`getQueueState.execute(eventId)`), bukan adapter. Jitter memakai port `RandomSource` dari container, bukan `Math.random()` langsung ([ADR-0015](0015-dependency-injection-awilix.md)).
+- **Dipersempit oleh [ADR-0016](0016-realtime-updates-sse.md)**: antrian dan status order kini didorong lewat SSE yang menulis ke cache query yang sama. Polling dengan jitter tetap ada, tetapi hanya aktif saat stream tidak tersambung. Stok di Detail Ticket tetap polling.

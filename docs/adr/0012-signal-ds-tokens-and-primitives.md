@@ -39,3 +39,7 @@ Opsi 3, hanya tema terang.
 - **Pertanyaan terbuka**:
   - Apakah ada paket, Figma, atau spesifikasi token Signal resmi untuk memverifikasi nilai yang diporting?
   - **Lisensi font.** Telkomsel Batik Sans adalah font milik Telkomsel. File yang dipakai diambil dari repo referensi. Konfirmasi izin penggunaan dan redistribusinya sebelum repo ini dipublikasikan.
+
+## Catatan implementasi (2026-10-28)
+
+- Preset token pindah ke `src/ui/design-system/signal.css`, primitif ke `src/ui/design-system/primitives`, kerangka layar (`ScreenFrame`, `CountdownCard`, `StatusView`, `ScreenPlaceholder`) ke `src/ui/design-system/layout`. View per layar ada di `src/modules/<m>/presentation/views`. Larangan hex berlaku untuk keduanya.

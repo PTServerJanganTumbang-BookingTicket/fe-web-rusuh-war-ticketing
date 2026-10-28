@@ -1,0 +1,4 @@
+# Hanya pengaturan pnpm. Tidak ada `packages:`: repo ini satu aplikasi, bukan monorepo (ADR-0013).
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
