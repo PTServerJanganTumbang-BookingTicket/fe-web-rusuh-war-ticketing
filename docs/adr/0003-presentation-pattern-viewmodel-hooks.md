@@ -78,5 +78,11 @@ Konsistensi dengan mobile dijaga di level konsep: nama state, nama event, dan sp
 - **ViewModel boleh mengembalikan union layar** (`ready`, `status`, `result`) bila satu route punya beberapa tampilan.
 - **Pengecualian Home.** Home adalah Server Component statis, jadi Container-nya async dan tidak memakai hook ViewModel.
 - Test ViewModel memakai Testing Library dan server MSW bersama.
-- **Orkestrasi di `core/application` (2026-10-22).** Alur yang merangkai aturan dan port (mulai pembayaran, masuk ruang booking, tambah tiket dari sesi server) adalah use case di `core`, bukan di hook. ViewModel memanggilnya lewat `application` di `features/shared/composition.ts`. Lihat [ADR-0015](0015-use-case-pure-functions-in-core.md).
 
+## Catatan implementasi (2026-10-28)
+
+- Keputusan inti tetap: ViewModel adalah custom hook, tanpa class atau Provider per layar.
+- Lokasi berubah ([ADR-0013](0013-single-app-modular-structure.md)): `src/modules/<m>/presentation/use<Screen>ViewModel.ts`, mapper `to<Screen>ViewProps.ts`, View di `presentation/views/`.
+- ViewModel tidak lagi mengimpor fungsi adapter. Use case diambil dari container lewat `useCradle<...>()` ([ADR-0015](0015-dependency-injection-awilix.md)). Context DI adalah satu-satunya Context dan berisi nilai global yang stabil, sesuai aturan 4.
+- Model (pada tabel Opsi B) kini adalah `domain` + `application` modul ([ADR-0014](0014-modular-clean-architecture-solid.md)).
+- Pengecualian Home: loader `loadHomeViewProps(deps)` ada di presentation modul `catalog`; route `app/(public)/page.tsx` memegang `"use cache"` dan memberi dependensi dari `getServerCradle()`.

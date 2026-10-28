@@ -1,33 +1,42 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
-import boundaries from "@rusuh/config/eslint/boundaries";
-import layers from "@rusuh/config/eslint/layers";
-
-const workspaces = ["apps/web", "packages/api", "packages/core", "packages/i18n", "packages/ui", "mocks"];
+import boundaries from "./eslint.boundaries.mjs";
 
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
   ...boundaries,
-  ...layers,
   {
-    settings: { next: { rootDir: "apps/web" } },
+    // Kebersihan kode (docs/ai/steering/coding-conventions.md)
+    files: ["**/*.{ts,tsx,mjs}"],
+    rules: {
+      "no-nested-ternary": "error",
+      "no-duplicate-imports": ["error", { allowSeparateTypeImports: true }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/ban-ts-comment": [
+        "error",
+        { "ts-expect-error": "allow-with-description", "ts-ignore": true, minimumDescriptionLength: 10 },
+      ],
+      "jsx-a11y/click-events-have-key-events": "error",
+      "jsx-a11y/no-static-element-interactions": "error",
+      "jsx-a11y/label-has-associated-control": "error",
+      "jsx-a11y/anchor-is-valid": "error",
+    },
   },
-  // npm menaruh semua dependency di node_modules root (hoisting), jadi impor tanpa deklarasi tetap
-  // ter-resolve. Aturan ini mengembalikan jaring pengaman yang dulu diberikan pnpm: setiap workspace
-  // hanya boleh mengimpor yang tertulis di package.json-nya sendiri, atau di devDependencies root
-  // (alat bersama seperti vitest dan typescript). Lihat ADR-0014.
-  ...workspaces.map((dir) => ({
-    files: [`${dir}/**/*.{ts,tsx,mts}`],
-    rules: { "import/no-extraneous-dependencies": ["error", { packageDir: [".", dir] }] },
-  })),
+  {
+    // Logger direncanakan sebagai port di core/application; test dan skrip boleh mencetak.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**"],
+    rules: { "no-console": "error" },
+  },
   globalIgnores([
     "**/.next/**",
     "**/out/**",
     "**/build/**",
+    "coverage/**",
     "**/next-env.d.ts",
-    "packages/api/generated/**",
-    "apps/web/public/mockServiceWorker.js",
+    "src/platform/http/generated/**",
+    "public/mockServiceWorker.js",
   ]),
 ]);

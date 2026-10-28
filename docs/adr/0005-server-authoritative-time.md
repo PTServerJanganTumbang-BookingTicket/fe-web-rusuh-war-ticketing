@@ -35,3 +35,7 @@ Opsi 2.
 - Pada layar Detail Ticket, sisa waktu nol memicu satu pemanggilan ke server. FE **baru mengembalikan customer ke Waiting Room setelah server menjawab `ACCESS_EXPIRED`**, bukan saat timer menyentuh nol.
 - Perilaku itu bisa diubah untuk pengujian lewat `NEXT_PUBLIC_BOOKING_EXPIRY`: `queue` (default, redirect ke `/events/[eventId]/queue`) atau `screen` (layar "Sesi booking berakhir" dengan tombol "Antre lagi"). Perlu restart dev server setelah mengubahnya.
 
+## Catatan implementasi (2026-10-28)
+
+- `remainingMs`, `serverOffsetMs`, `formatMmSs`, `withJitter` ada di `src/core/domain/time`.
+- `useCountdown` membaca jam dari port `Clock` di container, sehingga test bisa memakai jam palsu lewat override registrasi. Mode `NEXT_PUBLIC_BOOKING_EXPIRY` dibaca sekali di `src/di/config.ts` dan sampai ke ViewModel sebagai `appConfig.bookingExpiry`.

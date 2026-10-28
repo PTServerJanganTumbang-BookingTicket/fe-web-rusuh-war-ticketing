@@ -4,8 +4,9 @@ Titik masuk semua dokumentasi FE. Baca berurutan saat onboarding.
 
 | Folder | Isi | Pembaca utama |
 |---|---|---|
-| [`architecture/`](architecture/overview.md) | Gambaran arsitektur, lapisan, aturan dependensi, peta requirement | Semua |
+| [`architecture/`](architecture/overview.md) | Gambaran arsitektur, lapisan, aturan dependensi, peta requirement. Rinci: [routing dan lapisan](architecture/routing-and-layers.md), [login dan register](architecture/auth-login-register.md) | Semua |
 | [`adr/`](adr/README.md) | Architecture Decision Record, satu keputusan per file | Semua, penilai |
+| [`meetings/`](meetings/) | Notulen rapat (MoM), dampaknya ke ADR, dan pertanyaan terbuka. Terbaru: [fitur tambahan dan reversal](meetings/2026-10-28-mom-fitur-dan-reversal.md) | Semua |
 | [`ai/steering/`](ai/steering/README.md) | Aturan yang wajib diikuti AI tools saat bekerja di repo ini | AI agent, reviewer |
 | [`ai/skills/`](ai/skills/README.md) | Prosedur berulang yang bisa dijalankan AI agent (dan manusia) | AI agent, developer |
 | [`ai/usage-log.md`](ai/usage-log.md) | Catatan penggunaan AI tools selama pengerjaan | Penilai |

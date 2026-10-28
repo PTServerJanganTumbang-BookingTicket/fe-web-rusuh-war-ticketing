@@ -1,0 +1,9 @@
+.next
+coverage
+node_modules
+pnpm-lock.yaml
+src/platform/http/generated
+public/mockServiceWorker.js
+playwright-report
+test-results
+*.md

@@ -86,3 +86,7 @@ Perangkat A (antrian posisi 40)          BE                    Perangkat B
 - **Sudah dijawab tim**: login app mobile mencabut sesi web, dan sebaliknya (aturan sama untuk semua klien). Booking yang berjalan dilanjutkan dari perangkat baru tanpa mengisi NIK lagi karena NIK terikat akun ([ADR-0011](0011-nik-linked-to-account.md)).
 - **Pertanyaan terbuka untuk klien dan BE**:
   - Perlu refresh token? Bila ada, rotasinya harus mengikuti `sid` yang sama supaya `sid` yang dicabut tidak bisa memperbarui diri.
+
+## Catatan implementasi (2026-10-28)
+
+- Setelah ADR-0013 dan ADR-0014: `SESSION_REVOKED` ditambahkan ke `ApiErrorCode` di `src/core/domain/errors/appError.ts`; pemetaannya otomatis lewat `FetchHttpClient`. Penanganan global (hapus cookie, layar sesi dicabut) masuk `src/core/application/session` (port) dan `src/platform/session` (adapter) karena dipakai semua modul.

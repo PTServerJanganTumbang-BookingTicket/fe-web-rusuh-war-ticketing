@@ -33,3 +33,8 @@ FE dan BE dikerjakan paralel dalam waktu singkat. Kalau FE menunggu endpoint jad
 - **Positif**: FE jalan sejak hari pertama. Perubahan kontrak terdeteksi saat generate dan compile. Skenario MSW menjadi bahan demo state ekstrem.
 - **Negatif**: butuh disiplin memperbarui spec saat BE berubah.
 - **Yang harus dijaga**: CI menjalankan generate dan gagal bila hasilnya berbeda dari yang di-commit. Skill [`sync-api-contract`](../ai/skills/sync-api-contract/SKILL.md) menjadi prosedur standar.
+
+## Catatan implementasi (2026-10-28)
+
+- MSW pindah dari package `@rusuh/mocks` ke `src/mocks` ([ADR-0013](0013-single-app-modular-structure.md)). Skema zod ada di adapter `infrastructure` tiap modul; tipe generated nantinya di `src/platform/http/generated/`.
+- Endpoint simulasi pembayaran (`/mock/...`) dipisah menjadi port `PaymentSimulator` agar `OrderRepository` hanya berisi kontrak BE asli ([ADR-0014](0014-modular-clean-architecture-solid.md)).
