@@ -42,4 +42,4 @@ Opsi 3, hanya tema terang.
 
 ## Catatan implementasi (2026-10-28)
 
-- Preset token pindah ke `src/ui/design-system/signal.css`, primitif ke `src/ui/design-system/primitives`, kerangka layar (`ScreenFrame`, `CountdownCard`, `StatusView`, `ScreenPlaceholder`) ke `src/ui/design-system/layout`. View per layar ada di `src/modules/<m>/presentation/views`. Larangan hex berlaku untuk keduanya.
+- Preset token pindah ke `src/core/views/design-system/signal.css`, primitif ke `src/core/views/design-system/primitives`, kerangka layar (`ScreenFrame`, `CountdownCard`, `StatusView`, `ScreenPlaceholder`) ke `src/core/views/design-system/layout`. View per layar ada di `src/modules/<m>/views`. Larangan hex berlaku untuk keduanya.

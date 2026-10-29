@@ -7,12 +7,12 @@ Status: **login dan register belum diimplementasikan.** Yang ada hanya rute `/lo
 | Bagian | Lokasi | Keadaan |
 |---|---|---|
 | Rute `/login` | `src/app/(auth)/login/page.tsx` | Merender `LoginContainer` |
-| `LoginContainer` | `src/modules/auth/presentation/LoginContainer.tsx` | Placeholder: `ScreenPlaceholder` dengan `login.title` ("Masuk") dan `common.placeholder`. Tidak ada ViewModel, View, form, atau test |
+| `LoginContainer` | `src/modules/auth/views/LoginContainer.tsx` | Placeholder: `ScreenPlaceholder` dengan `login.title` ("Masuk") dan `common.placeholder`. Tidak ada controller, View, form, atau test |
 | Tautan masuk | `HomeView` via `loadHomeViewProps` | Tombol `home.login` ("Login") menuju `/login` |
-| Cookie sesi | `src/app/api/session/start/route.ts`, `StartSession` (`src/core`) + `HttpSessionGateway` (`src/platform`) | Sudah jalan, tetapi **untuk access token antrian**, bukan token login. Lihat [routing §6](routing-and-layers.md) |
+| Cookie sesi | `src/app/api/session/start/route.ts`, `StartSessionUseCase` (`src/core/application`) + `HttpSessionService` (`src/core/data/session`) | Sudah jalan, tetapi **untuk access token antrian**, bukan token login. Lihat [routing §6](routing-and-layers.md) |
 | Gerbang | `src/proxy.ts` | Memeriksa cookie `access_token` untuk `/book` dan `/pay`. Tidak mengenal login |
-| i18n | `src/ui/i18n/id.ts` | Baru `login.title` |
-| Kode error | `src/core/domain/errors/appError.ts` | Belum ada `SESSION_REVOKED` maupun kode error kredensial |
+| i18n | `src/core/i18n/id.messages.ts` | Baru `login.title` |
+| Kode error | `src/core/domain/app-error.ts` | Belum ada `SESSION_REVOKED` maupun kode error kredensial |
 | Mock | `src/mocks/handlers.ts` | Tidak ada handler login, register, atau `/me` |
 | Register | | Tidak ada rute, tidak ada ADR |
 
@@ -44,23 +44,27 @@ Mengikuti pola di [routing-and-layers](routing-and-layers.md) dan ADR-0007 ("Log
 ```
 src/app/(auth)/login/page.tsx               Server Component tipis → <LoginContainer />
 src/modules/auth/
-├─ domain/                                  tipe Account, profil (NIK tersamar)
+├─ domain/
+│  ├─ account.model.ts                      tipe Account, profil (NIK tersamar)
+│  └─ auth.protocol.ts                      AuthProtocol: login(), logout(), getMe()
 ├─ application/
-│  ├─ AuthRepository.ts                     port: login(), logout(), getMe()
-│  ├─ Login.ts, Logout.ts, GetMe.ts         use case
-│  └─ dependencies.ts                       AuthDependencies
-├─ infrastructure/HttpAuthRepository.ts     schema zod
-├─ presentation/
-│  ├─ useLoginViewModel.ts                  useCradle<AuthDependencies>(), useMutation(login), returnTo, galat → t(key)
-│  ├─ toLoginViewProps.ts                   fungsi murni: state → props View
-│  ├─ LoginContainer.tsx                    "use client"; vm → <LoginView {...vm} />
-│  ├─ views/LoginView.tsx                   props-only, di atas Button/Card/Alert Signal DS
-│  └─ __tests__/
+│  ├─ login.use-case.ts, logout.use-case.ts, get-me.use-case.ts
+│  └─ auth.dependencies.ts                  AuthDependencies
+├─ data/
+│  ├─ http-auth.service.ts                  HttpAuthService implements AuthProtocol
+│  └─ account.schema.ts                     schema zod, satisfies z.ZodType<Account>
+├─ controllers/
+│  ├─ login.controller.ts                   useLoginController: useDependencies<AuthDependencies>(), useMutation(loginUseCase), returnTo, galat → t(key)
+│  ├─ login.mapper.ts                       toLoginViewProps: state → props View
+│  └─ *.test.ts(x)
+├─ views/
+│  ├─ LoginContainer.tsx                    "use client"; screen → <LoginView {...screen} />
+│  └─ LoginView.tsx                         props-only, di atas Button/Card/Alert Signal DS
 └─ auth.module.ts                           registrasi Awilix (skill new-module)
 src/mocks/handlers.ts                       POST /auth/login, GET /me, skenario session-revoked
 ```
 
-Penanganan `SESSION_REVOKED` global (B.2 butir 1) dipakai semua modul, jadi port pengakhiran sesi (`/api/session/end`) masuk `src/core/application/session` (port) dan `src/platform/session` (adapter), bukan modul `auth`, karena modul tidak boleh saling mengimpor (ADR-0014).
+Penanganan `SESSION_REVOKED` global (B.2 butir 1) dipakai semua modul, jadi pengakhiran sesi (`/api/session/end`) masuk `SessionProtocol` di `src/core/domain`, use case di `src/core/application`, dan service di `src/core/data/session`, bukan modul `auth`, karena modul tidak boleh saling mengimpor (ADR-0014).
 
 Route `/login` perlu `AppProviders` (dari `src/di`) di layout `(auth)/login` karena memakai `useMutation` dan container DI. Itu tidak mengganggu Home, sebab provider tidak dipasang di root.
 
@@ -94,7 +98,7 @@ Dua keputusan ini sebaiknya jadi ADR baru ketika sudah disepakati (skill [`write
 
 ## D. Test yang dijanjikan ADR dan belum ada
 
-- ViewModel: `SESSION_REVOKED` pada queue, booking, payment menghasilkan layar sesi dicabut tanpa pemanggilan cancel.
+- Controller: `SESSION_REVOKED` pada queue, booking, payment menghasilkan layar sesi dicabut tanpa pemanggilan cancel.
 - Playwright dua browser context: login di B mengeluarkan A, progres tetap terlihat di B. Saat ini ada `test.fixme` terkait di `expiry-and-guards.spec.ts`.
 - Skenario MSW: `session-revoked`, `quota-exhausted`, `profile-incomplete`.
 - Tidak ada NIK mentah di URL, query key, `localStorage`, Context, atau log.

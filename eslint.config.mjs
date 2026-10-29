@@ -25,9 +25,9 @@ export default defineConfig([
     },
   },
   {
-    // Logger direncanakan sebagai port di core/application; test dan skrip boleh mencetak.
+    // Logger direncanakan sebagai protocol di core/domain; test dan skrip boleh mencetak.
     files: ["src/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**"],
+    ignores: ["**/*.test.{ts,tsx}"],
     rules: { "no-console": "error" },
   },
   globalIgnores([
@@ -36,7 +36,7 @@ export default defineConfig([
     "**/build/**",
     "coverage/**",
     "**/next-env.d.ts",
-    "src/platform/http/generated/**",
+    "src/core/data/http/generated/**",
     "public/mockServiceWorker.js",
   ]),
 ]);

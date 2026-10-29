@@ -19,11 +19,9 @@ Untuk backend asli: kosongkan `NEXT_PUBLIC_API_MOCKING` dan isi `NEXT_PUBLIC_API
 | Lokasi | Isi |
 |---|---|
 | `src/app` | Routing, layout, route handler. `src/proxy.ts` menjaga `/events/*/book` dan `/orders/*/pay` |
-| `src/di` | Composition root: container Awilix (`createAppContainer`), `AppConfig` dari env, `AppProviders`, `getServerCradle` |
-| `src/modules/<m>` | Modul fitur (`catalog`, `queue`, `booking`, `payment`, `auth`, `ticket`), masing-masing dengan `domain/`, `application/` (use case + port), `infrastructure/` (HTTP + zod), `presentation/` (ViewModel, mapper, Container, `views/`) dan `<m>.module.ts` |
-| `src/core` | Kernel murni (domain + application bersama): `AppError`, waktu, `AppConfig`, `Clock`, `RandomSource`, port sesi, `LiveUpdates`. Boleh dipakai siapa saja |
-| `src/platform` | Adapter bersama: `HttpClient`/`FetchHttpClient`, klien SSE, gateway dan cookie sesi, `SystemClock`, `MathRandomSource` |
-| `src/ui` | Presentation bersama: design system Signal (`design-system/`), i18n, hook (`useCountdown`, `useLiveUpdates`), `useCradle` |
+| `src/di` | Composition root: container Awilix (`createAppContainer`), `AppConfig` dari env, `AppProviders`, `getServerDependencies` |
+| `src/modules/<m>` | Modul fitur (`catalog`, `queue`, `booking`, `payment`, `auth`, `ticket`), masing-masing dengan `domain/` (model, rules, constants, protocol), `application/` (use case), `data/` (service + schema zod), `controllers/` (controller, mapper, query options), `views/` (Container + View) dan `<m>.module.ts` |
+| `src/core` | Kode bersama dengan lapisan yang sama: `domain/` (`AppError`, `AppConfig`, protocol jam/acak/sesi, waktu), `application/`, `data/` (`FetchHttpClient`, klien SSE, sesi), `controllers/` (`useCountdown`, `useLiveUpdates`, `useDependencies`), `views/design-system/` (Signal), `i18n/` |
 | `src/mocks` | Handler MSW dan skenario, dipakai dev server (server + browser) dan test |
 | `src/test` | Support test: server MSW bersama, container uji |
 | `eslint.boundaries.mjs` | Aturan lapisan dan modul (ADR-0014) |
@@ -40,4 +38,4 @@ Menambah fitur: skill [`new-module`](docs/ai/skills/new-module/SKILL.md) dan [`n
 
 ## Design system
 
-Tampilan memakai Telkomsel Signal DS: token, skala tipografi, dan primitif diporting dari implementasi referensi internal tim (ADR-0012). Preset token: `src/ui/design-system/signal.css`. Primitif: `src/ui/design-system/primitives`. Layout bersama: `ScreenFrame`. Hanya tema terang. Font Telkomsel Batik Sans milik Telkomsel; izin redistribusi perlu dikonfirmasi sebelum repo dipublikasikan.
+Tampilan memakai Telkomsel Signal DS: token, skala tipografi, dan primitif diporting dari implementasi referensi internal tim (ADR-0012). Preset token: `src/core/views/design-system/signal.css`. Primitif: `src/core/views/design-system/primitives`. Layout bersama: `ScreenFrame`. Hanya tema terang. Font Telkomsel Batik Sans milik Telkomsel; izin redistribusi perlu dikonfirmasi sebelum repo dipublikasikan.

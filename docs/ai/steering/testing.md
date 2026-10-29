@@ -3,20 +3,22 @@
 | Lapisan | Tool | Wajib dites |
 |---|---|---|
 | `domain` (modul dan `core`) | Vitest | Validasi NIK, `canAddTicket` (stok, batas 3, akumulasi booking aktif), reducer booking (semua transisi), `remainingMs` (offset positif, negatif, tab tertidur) |
-| `application` | Vitest + fake | Setiap use case dengan fake yang memenuhi port (tanpa MSW, tanpa `vi.mock`); argumen yang diteruskan ke port diperiksa |
-| `infrastructure` | Vitest + MSW | Parsing response valid dan tidak valid, pemetaan setiap error code ke `AppError`, retry dan backoff. Adapter di-resolve dari container uji (`src/test/httpRepositories.test.ts`) |
+| `application` | Vitest + fake | Setiap use case dengan fake yang memenuhi protocol (tanpa MSW, tanpa `vi.mock`); argumen yang diteruskan ke protocol diperiksa |
+| `data` | Vitest + MSW | Parsing response valid dan tidak valid, pemetaan setiap error code ke `AppError`, retry dan backoff. Service di-resolve dari container uji (`src/test/http-services.test.ts`) |
 | `di` | Vitest | Setiap registrasi bisa di-resolve dalam mode strict (`src/di/container.test.ts`) |
-| `ui/design-system`, `presentation/views` | Storybook + addon a11y | Satu story per state visual. Tidak ada pelanggaran a11y level serius |
-| `presentation` | Vitest + Testing Library + MSW | Mapper `to<Screen>ViewProps` (murni) dan alur ViewModel dengan server MSW dan container uji bersama (`src/test/support.tsx`: `setupMockServer`, `setupTestContainer`, `createWrapper`) |
+| `core/views/design-system`, `modules/<m>/views` | Storybook + addon a11y | Satu story per state visual. Tidak ada pelanggaran a11y level serius |
+| `controllers` | Vitest + Testing Library + MSW | Mapper `to<Layar>ViewProps` (murni) dan alur controller dengan server MSW dan container uji bersama (`src/test/support.tsx`: `setupMockServer`, `setupTestContainer`, `createWrapper`) |
 | E2E | Playwright + fake clock | Happy path, booking expired, payment expired, stok habis saat submit, slot diambil alih tab lain |
 
 ## Aturan
 
+- **Test di sebelah file yang dites**, dengan nama `<file>.test.ts(x)` (`payment.mapper.test.ts`, `get-queue-state.use-case.test.ts`). Tidak ada folder `__tests__`. Test lintas modul (service HTTP terhadap MSW) ada di `src/test`.
+
 - **Selektor memakai `getByRole` / `getByText`**, `getByTestId` hanya bila tidak ada peran atau teks yang bermakna.
-- **Uji jalur sukses dan galat.** Untuk `infrastructure` dan ViewModel, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.
+- **Uji jalur sukses dan galat.** Untuk `data` dan controller, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.
 - **Mock direset tiap test** (`vi.clearAllMocks()` di `beforeEach` bila memakai `vi.fn`).
 - **Event handler diperiksa argumennya**, bukan hanya dipanggil.
-- **Coverage minimum 85%** (statement, branch, function, line) untuk `domain`, `application`, `infrastructure` (modul, `core`, dan `platform`) dan `src/di`, ditegakkan `pnpm test:coverage` dan CI. Presentation tidak dihitung; ia diuji lewat test mapper/ViewModel, story, dan e2e.
+- **Coverage minimum 85%** (statement, branch, function, line) untuk `domain`, `application`, `data` (modul dan `core`) dan `src/di`, ditegakkan `pnpm test:coverage` dan CI. Controller dan view tidak dihitung; keduanya diuji lewat test mapper/controller, story, dan e2e.
 - **Logika baru di `domain` atau use case baru tanpa test tidak boleh di-merge.**
 - **Bug fix diawali test yang gagal.**
 - **Test waktu tidak pernah memakai `sleep`.** Gunakan parameter `now` di `domain`, override `clock` di container uji, dan fake clock di Playwright.
@@ -26,14 +28,14 @@
 
 | Alat | Status |
 |---|---|
-| Vitest, MSW (`src/mocks/`) | Terpasang. Dipakai domain, application, infrastructure, di, i18n, mapper, dan ViewModel |
-| Testing Library + jsdom | Terpasang. Test ViewModel Queue, Booking, dan Payment ada |
+| Vitest, MSW (`src/mocks/`) | Terpasang. Dipakai domain, application, data, di, i18n, mapper, dan controller |
+| Testing Library + jsdom | Terpasang. Test controller Queue, Booking, dan Payment ada |
 | CI (`.github/workflows/ci.yml`) | Ada: lint, typecheck, test dengan coverage, build, dan cek Home statis. Belum pernah dijalankan (repo belum di git) |
 | Reducer state machine booking | **Belum ada.** Status booking dan payment saat ini diturunkan dari respons server. Ditambahkan saat endpoint submit booking tersedia |
 | Storybook + addon a11y | **Belum terpasang.** Skill `new-ui-component` meminta story per state visual |
 | Playwright + fake clock | Terpasang (`e2e/`, `pnpm test:e2e`). Tiga dari lima skenario E2E utama ada: happy path, booking expired, payment expired. "Stok habis saat submit" dan "slot diambil alih" ditandai `test.fixme` sampai fiturnya dibangun |
 
-Aturan menulis test ViewModel: unik `eventId` atau `orderId` per test (state mock tersimpan per id), override respons lewat `server.use`, dan `next/navigation` di-mock. Stream SSE dites dengan `FakeEventSource` (`src/test/fakeEventSource.ts`): `setupFakeEventSources()`, override `eventSourceFactory`, lalu `emit("open")` dan `emit("<event>", data)`. Container uji default memakai fake yang tidak pernah tersambung, jadi ViewModel memakai polling cadangan. Untuk mengganti konfigurasi atau satu dependensi, buat container dengan `setupTestContainer(overrides, config)` lalu `createWrapper(container)`; jangan `vi.mock` modul aplikasi atau `vi.stubGlobal("fetch")`.
+Aturan menulis test controller: unik `eventId` atau `orderId` per test (state mock tersimpan per id), override respons lewat `server.use`, dan `next/navigation` di-mock. Stream SSE dites dengan `FakeEventSource` (`src/test/fake-event-source.ts`): `setupFakeEventSources()`, override `eventSourceFactory`, lalu `emit("open")` dan `emit("<event>", data)`. Container uji default memakai fake yang tidak pernah tersambung, jadi controller memakai polling cadangan. Untuk mengganti konfigurasi atau satu dependensi, buat container dengan `setupTestContainer(overrides, config)` lalu `createWrapper(container)`; jangan `vi.mock` modul aplikasi atau `vi.stubGlobal("fetch")`.
 
 ## E2E (Playwright)
 

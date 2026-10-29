@@ -38,4 +38,4 @@ Opsi 2.
 ## Catatan implementasi (2026-10-28)
 
 - `remainingMs`, `serverOffsetMs`, `formatMmSs`, `withJitter` ada di `src/core/domain/time`.
-- `useCountdown` membaca jam dari port `Clock` di container, sehingga test bisa memakai jam palsu lewat override registrasi. Mode `NEXT_PUBLIC_BOOKING_EXPIRY` dibaca sekali di `src/di/config.ts` dan sampai ke ViewModel sebagai `appConfig.bookingExpiry`.
+- `useCountdown` membaca jam dari `ClockProtocol` (registrasi `clock`) di container, sehingga test bisa memakai jam palsu lewat override registrasi. Mode `NEXT_PUBLIC_BOOKING_EXPIRY` dibaca sekali di `src/di/app-config.reader.ts` dan sampai ke controller sebagai `appConfig.bookingExpiry`.

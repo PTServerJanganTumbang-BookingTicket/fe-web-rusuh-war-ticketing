@@ -2,12 +2,12 @@ import boundaries from "eslint-plugin-boundaries";
 
 // Aturan dependensi Clean Architecture per modul (ADR-0014) dan DI (ADR-0015).
 //
-//   app ─► di ─► modules/*/<m>.module.ts ─► infrastructure ─► application ─► domain
-//    │                                                        ▲
-//    └──► presentation ─(import type)────────────────────────┘
+//   app ─► di ─► <m>.module.ts ─► data ─► application ─► domain
+//    │                                        ▲             ▲
+//    └──► views/*Container ─► controllers ─(import type)────┘
 //
-// Modul tidak saling mengimpor. Yang dipakai bersama ada di `src/core` (kernel murni), `src/platform`
-// (adapter bersama), dan `src/ui` (presentation bersama, termasuk design system).
+// Modul tidak saling mengimpor. Yang dipakai bersama ada di `src/core`, dengan lapisan yang sama
+// seperti modul: domain, application, data, controllers, views (termasuk design system), dan i18n.
 
 const SAME_MODULE = { module: "{{ from.element.captured.module }}" };
 
@@ -22,6 +22,9 @@ const DI_LIBRARY = ["awilix"];
 
 const SRC = "src/**/*.{ts,tsx}";
 
+// Yang boleh dipakai controller dan Container dari `src/core` (sisi tampilan).
+const CORE_UI = ["core-domain", "core-controller", "core-i18n", "core-view", "design-system"];
+
 const boundariesConfig = [
   {
     files: [SRC],
@@ -30,18 +33,27 @@ const boundariesConfig = [
       "import/resolver": { typescript: { project: "./tsconfig.json" } },
       "boundaries/include": ["src/**/*"],
       "boundaries/elements": [
-        // Kernel murni, adapter bersama, dan presentation bersama
+        // Kode bersama. Urutan penting: pola yang lebih spesifik lebih dulu.
         { type: "core-domain", pattern: "src/core/domain/**" },
         { type: "core-application", pattern: "src/core/application/**" },
-        { type: "platform", pattern: "src/platform/**" },
-        { type: "design-system", pattern: "src/ui/design-system/**" },
-        { type: "ui", pattern: "src/ui/**" },
+        { type: "core-data", pattern: "src/core/data/**" },
+        { type: "core-controller", pattern: "src/core/controllers/**" },
+        { type: "core-i18n", pattern: "src/core/i18n/**" },
+        { type: "design-system", pattern: "src/core/views/design-system/**" },
+        { type: "core-view", pattern: "src/core/views/**" },
         // Modul fitur. `module` ditangkap supaya aturan bisa membatasi ke modul yang sama.
         { type: "domain", pattern: "src/modules/*/domain/**", capture: ["module"] },
         { type: "application", pattern: "src/modules/*/application/**", capture: ["module"] },
-        { type: "infrastructure", pattern: "src/modules/*/infrastructure/**", capture: ["module"] },
-        { type: "view", pattern: "src/modules/*/presentation/views/**", capture: ["module"] },
-        { type: "presentation", pattern: "src/modules/*/presentation/**", capture: ["module"] },
+        { type: "data", pattern: "src/modules/*/data/**", capture: ["module"] },
+        { type: "controller", pattern: "src/modules/*/controllers/**", capture: ["module"] },
+        // `mode: "file"` supaya pola dicocokkan per file, bukan per folder. Deprecated di plugin v7 (masih jalan).
+        {
+          type: "container",
+          pattern: "src/modules/*/views/*Container.tsx",
+          mode: "file",
+          capture: ["module"],
+        },
+        { type: "view", pattern: "src/modules/*/views/**", capture: ["module"] },
         // Lapisan terluar
         { type: "di", pattern: "src/di/**" },
         { type: "app", pattern: "src/app/**" },
@@ -59,67 +71,73 @@ const boundariesConfig = [
         {
           default: "disallow",
           policies: [
-            // core = domain + application bersama; platform = infrastructure bersama; ui = presentation bersama.
+            // core: aturan arah yang sama dengan modul.
             allow(el("core-domain"), el("core-domain")),
             allow(el("core-application"), anyOf("core-domain", "core-application")),
-            allow(el("platform"), anyOf("core-domain", "core-application", "platform")),
+            allow(el("core-data"), anyOf("core-domain", "core-application", "core-data")),
             allow(el("design-system"), el("design-system")),
-            allow(el("ui"), anyOf("core-domain", "ui", "design-system")),
-            allowTypes(el("ui"), el("core-application")),
+            // ScreenLoading dipakai langsung oleh layout di `app/`, jadi boleh membaca teks i18n.
+            allow(el("core-view"), anyOf("core-view", "design-system", "core-i18n")),
+            allow(el("core-i18n"), anyOf("core-domain", "core-i18n")),
+            allow(el("core-controller"), anyOf("core-domain", "core-controller", "core-i18n")),
+            allowTypes(el("core-controller"), el("core-application")),
 
-            // Domain: hanya domain modul sendiri dan core domain.
+            // Domain: model, rules, constants, protocol. Hanya domain modul sendiri dan core domain.
             allow(el("domain"), el("core-domain"), el("domain", SAME_MODULE)),
-            // Application: use case dan port. Bergantung ke dalam saja.
+            // Application: use case. Bergantung ke dalam saja.
             allow(
               el("application"),
               anyOf("core-domain", "core-application"),
               el("domain", SAME_MODULE),
               el("application", SAME_MODULE),
             ),
-            // Infrastructure: implementasi port.
+            // Data: service yang mengimplementasikan protocol, beserta schema zod.
             allow(
-              el("infrastructure"),
-              anyOf("core-domain", "core-application", "platform"),
+              el("data"),
+              anyOf("core-domain", "core-application", "core-data"),
               el("domain", SAME_MODULE),
               el("application", SAME_MODULE),
-              el("infrastructure", SAME_MODULE),
+              el("data", SAME_MODULE),
             ),
             // View: props-only. Hanya design system dan view modul sendiri; domain hanya tipe.
             allow(el("view"), el("design-system"), el("view", SAME_MODULE)),
             allowTypes(el("view"), el("domain", SAME_MODULE)),
-            // Presentation: ViewModel, mapper, Container. Use case datang dari container,
+            // Controller: hook state + mapper + query options. Use case datang dari container,
             // jadi `application` hanya boleh diimpor sebagai tipe (DIP).
             allow(
-              el("presentation"),
-              anyOf("core-domain", "ui", "design-system"),
+              el("controller"),
+              anyOf(...CORE_UI),
               el("domain", SAME_MODULE),
-              el("presentation", SAME_MODULE),
+              el("controller", SAME_MODULE),
               el("view", SAME_MODULE),
             ),
-            allowTypes(el("presentation"), el("core-application"), el("application", SAME_MODULE)),
-            // Registrasi modul: memasangkan implementasi ke port milik modul itu sendiri.
+            allowTypes(el("controller"), el("core-application"), el("application", SAME_MODULE)),
+            // Container: satu-satunya view yang memanggil controller, lalu memilih View.
+            allow(
+              el("container"),
+              anyOf(...CORE_UI),
+              el("domain", SAME_MODULE),
+              el("controller", SAME_MODULE),
+              el("view", SAME_MODULE),
+            ),
+            allowTypes(el("container"), el("core-application"), el("application", SAME_MODULE)),
+            // Registrasi modul: memasangkan service ke protocol milik modul itu sendiri.
             allow(
               el("module-root"),
-              anyOf("core-domain", "core-application", "platform"),
+              anyOf("core-domain", "core-application", "core-data"),
               el("domain", SAME_MODULE),
               el("application", SAME_MODULE),
-              el("infrastructure", SAME_MODULE),
+              el("data", SAME_MODULE),
             ),
             // Composition root.
-            allow(
-              el("di"),
-              anyOf("di", "module-root", "core-domain", "core-application", "platform", "ui", "mocks"),
-            ),
+            allow(el("di"), anyOf("di", "module-root", "core-application", "core-data", "mocks", ...CORE_UI)),
             // Framework (Next.js): routing, layout, route handler, proxy.
             allow(
               el("app"),
-              anyOf("app", "di", "presentation", "view", "ui", "design-system", "platform", "mocks"),
+              anyOf("app", "di", "controller", "container", "view", "core-data", "mocks", ...CORE_UI),
             ),
             allow(el("mocks"), el("mocks")),
-            allow(
-              el("test-support"),
-              anyOf("di", "mocks", "core-application", "core-domain", "platform", "ui"),
-            ),
+            allow(el("test-support"), anyOf("di", "mocks", "core-application", "core-data", ...CORE_UI)),
           ],
         },
       ],
@@ -127,7 +145,7 @@ const boundariesConfig = [
   },
   {
     // Test boleh merakit apa saja (fake, container uji, MSW); aturan lapisan berlaku untuk kode produksi.
-    files: ["src/**/*.test.{ts,tsx}", "src/**/__tests__/**/*.{ts,tsx}"],
+    files: ["src/**/*.test.{ts,tsx}"],
     rules: { "boundaries/dependencies": "off" },
   },
   {
@@ -137,7 +155,7 @@ const boundariesConfig = [
   },
   {
     // design system dan view: hanya token desain, tidak ada nilai warna mentah (token Signal, bukan hex)
-    files: ["src/ui/design-system/**/*.{ts,tsx}", "src/modules/*/presentation/views/**/*.tsx"],
+    files: ["src/core/views/**/*.{ts,tsx}", "src/modules/*/views/**/*.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -170,7 +188,7 @@ const boundariesConfig = [
     },
   },
   {
-    // application: use case dan port. Tanpa framework, HTTP, atau library DI (constructor injection biasa).
+    // application: use case. Tanpa framework, HTTP, atau library DI (constructor injection biasa).
     files: ["src/core/application/**/*.ts", "src/modules/*/application/**/*.ts"],
     ignores: ["**/*.test.ts"],
     rules: {
@@ -180,18 +198,18 @@ const boundariesConfig = [
       ],
       "no-restricted-globals": [
         "error",
-        { name: "fetch", message: "I/O lewat port, implementasinya di infrastructure (ADR-0014)." },
+        { name: "fetch", message: "I/O lewat protocol, implementasinya service di data (ADR-0014)." },
       ],
       "no-restricted-properties": [
         "error",
-        { object: "Date", property: "now", message: "Pakai port `Clock` (ADR-0015)." },
-        { object: "Math", property: "random", message: "Pakai port `RandomSource` (ADR-0015)." },
+        { object: "Date", property: "now", message: "Pakai `ClockProtocol` (ADR-0015)." },
+        { object: "Math", property: "random", message: "Pakai `RandomProtocol` (ADR-0015)." },
       ],
     },
   },
   {
-    // infrastructure dan platform: tanpa React dan tanpa library DI (kelas hanya menerima dependensi lewat constructor).
-    files: ["src/platform/**/*.ts", "src/modules/*/infrastructure/**/*.ts"],
+    // data: tanpa React dan tanpa library DI (kelas hanya menerima dependensi lewat constructor).
+    files: ["src/core/data/**/*.ts", "src/modules/*/data/**/*.ts"],
     ignores: ["**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
@@ -201,9 +219,12 @@ const boundariesConfig = [
     },
   },
   {
-    // presentation: tidak mengenal Awilix. Dependensi diambil lewat `useCradle` (ADR-0015).
-    files: ["src/ui/**/*.{ts,tsx}", "src/modules/*/presentation/**/*.{ts,tsx}"],
-    ignores: ["**/*.test.{ts,tsx}", "**/__tests__/**"],
+    // controllers dan views: tidak mengenal Awilix. Dependensi diambil lewat `useDependencies` (ADR-0015).
+    files: [
+      "src/core/{controllers,views,i18n}/**/*.{ts,tsx}",
+      "src/modules/*/{controllers,views}/**/*.{ts,tsx}",
+    ],
+    ignores: ["**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [...DI_LIBRARY, ...MOCK_IMPORTS] }],
       "no-restricted-properties": [
@@ -215,13 +236,7 @@ const boundariesConfig = [
   },
   {
     // Pengecualian: titik masuk mock dan test.
-    files: [
-      "src/di/AppProviders.tsx",
-      "src/instrumentation.ts",
-      "src/**/*.test.{ts,tsx}",
-      "src/**/__tests__/**",
-      "src/test/**",
-    ],
+    files: ["src/di/AppProviders.tsx", "src/instrumentation.ts", "src/**/*.test.{ts,tsx}", "src/test/**"],
     rules: { "no-restricted-imports": "off" },
   },
 ];

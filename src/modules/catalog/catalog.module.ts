@@ -1,16 +1,16 @@
 import { asClass, type NameAndRegistrationPair } from "awilix";
-import type { EventRepository } from "./application/EventRepository";
-import { ListEvents } from "./application/ListEvents";
-import type { CatalogDependencies } from "./application/dependencies";
-import { HttpEventRepository } from "./infrastructure/HttpEventRepository";
+import type { EventProtocol } from "./domain/event.protocol";
+import { ListEventsUseCase } from "./application/list-events.use-case";
+import type { CatalogDependencies } from "./application/catalog.dependencies";
+import { HttpEventService } from "./data/http-event.service";
 
-export type CatalogCradle = CatalogDependencies & {
-  eventRepository: EventRepository;
+export type CatalogRegistry = CatalogDependencies & {
+  eventService: EventProtocol;
 };
 
-export function catalogModule(): NameAndRegistrationPair<CatalogCradle> {
+export function catalogModule(): NameAndRegistrationPair<CatalogRegistry> {
   return {
-    eventRepository: asClass(HttpEventRepository).singleton(),
-    listEvents: asClass(ListEvents).singleton(),
+    eventService: asClass(HttpEventService).singleton(),
+    listEventsUseCase: asClass(ListEventsUseCase).singleton(),
   };
 }

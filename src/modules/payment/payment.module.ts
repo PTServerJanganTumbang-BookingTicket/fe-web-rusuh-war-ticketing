@@ -1,30 +1,30 @@
 import { asClass, type NameAndRegistrationPair } from "awilix";
-import { GetOrder } from "./application/GetOrder";
-import type { OrderRepository } from "./application/OrderRepository";
-import type { OrderUpdates } from "./application/OrderUpdates";
-import type { PaymentSimulator } from "./application/PaymentSimulator";
-import { SimulatePaymentOutcome } from "./application/SimulatePaymentOutcome";
-import { StartPayment } from "./application/StartPayment";
-import { WatchOrder } from "./application/WatchOrder";
-import type { PaymentDependencies } from "./application/dependencies";
-import { HttpOrderRepository } from "./infrastructure/HttpOrderRepository";
-import { HttpPaymentSimulator } from "./infrastructure/HttpPaymentSimulator";
-import { SseOrderUpdates } from "./infrastructure/SseOrderUpdates";
+import { GetOrderUseCase } from "./application/get-order.use-case";
+import type { OrderProtocol } from "./domain/order.protocol";
+import type { OrderUpdatesProtocol } from "./domain/order-updates.protocol";
+import type { PaymentSimulatorProtocol } from "./domain/payment-simulator.protocol";
+import { SimulatePaymentOutcomeUseCase } from "./application/simulate-payment-outcome.use-case";
+import { StartPaymentUseCase } from "./application/start-payment.use-case";
+import { WatchOrderUseCase } from "./application/watch-order.use-case";
+import type { PaymentDependencies } from "./application/payment.dependencies";
+import { HttpOrderService } from "./data/http-order.service";
+import { HttpPaymentSimulatorService } from "./data/http-payment-simulator.service";
+import { SseOrderUpdatesService } from "./data/sse-order-updates.service";
 
-export type PaymentCradle = PaymentDependencies & {
-  orderRepository: OrderRepository;
-  orderUpdates: OrderUpdates;
-  paymentSimulator: PaymentSimulator;
+export type PaymentRegistry = PaymentDependencies & {
+  orderService: OrderProtocol;
+  orderUpdatesService: OrderUpdatesProtocol;
+  paymentSimulatorService: PaymentSimulatorProtocol;
 };
 
-export function paymentModule(): NameAndRegistrationPair<PaymentCradle> {
+export function paymentModule(): NameAndRegistrationPair<PaymentRegistry> {
   return {
-    orderRepository: asClass(HttpOrderRepository).singleton(),
-    orderUpdates: asClass(SseOrderUpdates).singleton(),
-    paymentSimulator: asClass(HttpPaymentSimulator).singleton(),
-    getOrder: asClass(GetOrder).singleton(),
-    watchOrder: asClass(WatchOrder).singleton(),
-    startPayment: asClass(StartPayment).singleton(),
-    simulatePaymentOutcome: asClass(SimulatePaymentOutcome).singleton(),
+    orderService: asClass(HttpOrderService).singleton(),
+    orderUpdatesService: asClass(SseOrderUpdatesService).singleton(),
+    paymentSimulatorService: asClass(HttpPaymentSimulatorService).singleton(),
+    getOrderUseCase: asClass(GetOrderUseCase).singleton(),
+    watchOrderUseCase: asClass(WatchOrderUseCase).singleton(),
+    startPaymentUseCase: asClass(StartPaymentUseCase).singleton(),
+    simulatePaymentOutcomeUseCase: asClass(SimulatePaymentOutcomeUseCase).singleton(),
   };
 }

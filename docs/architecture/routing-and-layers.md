@@ -6,7 +6,7 @@ Status: **mengikuti kode per 2026-10-28** (setelah restrukturisasi ADR-0013–00
 
 | Route | File | Rendering | Gerbang `proxy.ts` | Isi |
 |---|---|---|---|---|
-| `/` | `src/app/(public)/page.tsx` | Static shell + `use cache` (ISR 15 dtk) | Tidak | `HomeView` + `loadHomeViewProps(getServerCradle())` (Server Component) |
+| `/` | `src/app/(public)/page.tsx` | Static shell + `use cache` (ISR 15 dtk) | Tidak | `HomeView` + `loadHomeViewProps(getServerDependencies())` (Server Component) |
 | `/login` | `src/app/(auth)/login/page.tsx` | Server Component | Tidak | `LoginContainer` (**placeholder**, lihat [auth](auth-login-register.md)) |
 | `/events/[eventId]/queue` | `src/app/events/[eventId]/queue/` | Shell statis + client polling | Tidak | `QueueContainer` |
 | `/events/[eventId]/book` | `src/app/events/[eventId]/book/` | Dinamis | **Ya** | `BookingContainer` |
@@ -52,38 +52,38 @@ Dua hal yang sering salah dipahami:
 ## 4. Lapisan dan alur data
 
 ```
-src/app/**/page.tsx                       komposisi: params + Suspense (+ kebijakan cache)
+src/app/**/page.tsx                         komposisi: params + Suspense (+ kebijakan cache)
    │
    ▼
-modules/<m>/presentation/<S>Container.tsx "use client": const vm = use<S>ViewModel(); return <View {...vm} />
+modules/<m>/views/<S>Container.tsx          "use client": const screen = use<S>Controller(); return <View {...screen} />
    │
    ▼
-modules/<m>/presentation/use<S>ViewModel.ts
-   │   const { useCase, random } = useCradle<<M>Dependencies & CoreDependencies>()
-   │   useQuery(<m>Query({ useCase, random }, id))  /  useMutation(() => useCase.execute(...))
+modules/<m>/controllers/<m>.controller.ts
+   │   const { <x>UseCase, random } = useDependencies<<M>Dependencies & CoreDependencies>()
+   │   useQuery(<m>Query({ <x>UseCase, random }, id))  /  useMutation(() => <x>UseCase.execute(...))
    │         │
    │         ▼
-   │   presentation/to<S>ViewProps.ts      fungsi murni: data domain → props View (format, i18n)
+   │   controllers/<m>.mapper.ts             fungsi murni: data domain → props View (format, i18n)
    ▼
-modules/<m>/application/<UseCase>.ts      execute() → port (interface)
-   │                                           ▲
-   ▼                                           │ implements (dipasang di src/di)
-modules/<m>/domain                   modules/<m>/infrastructure/Http<Nama>Repository.ts → HttpClient (zod, AppFailure)
+modules/<m>/application/<x>.use-case.ts     execute() → <Nama>Protocol (interface di domain)
+   │                                              ▲
+   ▼                                              │ implements (dipasang di src/di)
+modules/<m>/domain                  modules/<m>/data/http-<nama>.service.ts → HttpClient + <nama>.schema.ts (zod, AppFailure)
 ```
 
-Paralel: `src/ui/design-system` (design system props-only di atas Signal DS), `presentation/views` per modul, dan `src/ui/i18n` (`t("key")`, default `id`).
+Paralel: `src/core/views/design-system` (design system props-only di atas Signal DS), `views/` per modul, dan `src/core/i18n` (`t("key")`, default `id`).
 
-Dari mana use case datang: `AppProviders` membuat container dengan `createAppContainer(readAppConfig())` ([`src/di/container.ts`](../../src/di/container.ts)). Container itu merakit `coreModule(config)` dan registrasi setiap modul (`catalogModule()`, `queueModule()`, ...). ViewModel tidak pernah mengimpor kelas implementasi.
+Dari mana use case datang: `AppProviders` membuat container dengan `createAppContainer(readAppConfig())` ([`src/di/container.ts`](../../src/di/container.ts)). Container itu merakit `coreModule(config)` dan registrasi setiap modul (`catalogModule()`, `queueModule()`, ...). Controller tidak pernah mengimpor kelas implementasi.
 
 Contoh nyata: Waiting Room.
 
-1. `QueueContainer` memanggil `useQueueViewModel(eventId)` lalu merender `QueueView` dengan hasilnya.
-2. ViewModel mengambil `getQueueState`, `watchQueueState`, `startSession`, dan `random` dari container. Snapshot awal lewat `queuePositionQuery` (GET); pembaruan datang dari SSE lewat `useLiveUpdates`, yang menulis ke cache query yang sama dan menutup stream saat `admitted`. Selama stream tidak tersambung, polling cadangan mengikuti `retryAfterMs` dengan `withJitter` ([ADR-0016](../adr/0016-realtime-updates-sse.md)).
-3. `GetQueueState.execute` memanggil port `QueueRepository`; implementasinya `HttpQueueRepository` memparse response dengan zod lewat `FetchHttpClient`.
-4. Saat status `admitted`, ViewModel menjalankan mutation `startSession.execute(accessToken)` (port `SessionGateway` di `src/core`, adapter di `src/platform`), lalu `router.push("/events/{id}/book")`.
+1. `QueueContainer` memanggil `useQueueController(eventId)` lalu merender `QueueView` dengan hasilnya.
+2. Controller mengambil `getQueueStateUseCase`, `watchQueueStateUseCase`, `startSessionUseCase`, dan `random` dari container. Snapshot awal lewat `queuePositionQuery` (GET); pembaruan datang dari SSE lewat `useLiveUpdates`, yang menulis ke cache query yang sama dan menutup stream saat `admitted`. Selama stream tidak tersambung, polling cadangan mengikuti `retryAfterMs` dengan `withJitter` ([ADR-0016](../adr/0016-realtime-updates-sse.md)).
+3. `GetQueueStateUseCase.execute` memanggil `QueueProtocol`; implementasinya `HttpQueueService` memparse response dengan `queueStateSchema` lewat `FetchHttpClient`.
+4. Saat status `admitted`, controller menjalankan mutation `startSessionUseCase.execute(accessToken)` (`SessionProtocol` di `src/core/domain`, service di `src/core/data/session`), lalu `router.push("/events/{id}/book")`.
 5. Galat dipetakan `toAppError` → `errorKey` → pesan `t(...)`. `QueueView` tidak tahu apa pun tentang HTTP.
 
-**Pengecualian Home**: route `src/app/(public)/page.tsx` adalah Server Component dengan fungsi `"use cache"` yang memanggil `loadHomeViewProps(getServerCradle())`. Loader itu ada di presentation modul `catalog` dan tidak memakai hook; kebijakan cache tetap di route ([ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md), [ADR-0015](../adr/0015-dependency-injection-awilix.md)). Galat backend ditangkap di loader dan dirender sebagai state error, bukan dilempar.
+**Pengecualian Home**: route `src/app/(public)/page.tsx` adalah Server Component dengan fungsi `"use cache"` yang memanggil `loadHomeViewProps(getServerDependencies())`. Loader itu ada di `src/modules/catalog/controllers/home.loader.ts` dan tidak memakai hook; kebijakan cache tetap di route ([ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md), [ADR-0015](../adr/0015-dependency-injection-awilix.md)). Galat backend ditangkap di loader dan dirender sebagai state error, bukan dilempar.
 
 ### Penegakan dependensi
 
@@ -92,13 +92,16 @@ Contoh nyata: Waiting Room.
 | Dari | Boleh mengimpor |
 |---|---|
 | `domain` | `domain` `<m>`, `core/domain` |
-| `application` | `domain`/`application` `<m>`, `core` |
-| `infrastructure` | `domain`/`application`/`infrastructure` `<m>`, `core`, `platform` |
-| `presentation` | `domain`/`presentation`/`views` `<m>`, `core/domain`, `ui`; `application` `<m>` dan `core/application` **hanya tipe** |
-| `views` | `ui/design-system`, `views` `<m>`; `domain` `<m>` hanya tipe |
-| `<m>.module.ts` | semua lapisan `<m>`, `core`, `platform` |
-| `src/di` | `*.module.ts`, `core`, `platform`, `ui`, `mocks` |
-| `src/app`, `proxy.ts`, `instrumentation.ts` | `di`, presentation dan views modul, `ui`, `platform` |
+| `application` | `domain`/`application` `<m>`, `core/domain`, `core/application` |
+| `data` | `domain`/`application`/`data` `<m>`, `core/domain`, `core/application`, `core/data` |
+| `controllers` | `domain`/`controllers`/`views` `<m>`, `core` sisi tampilan; `application` `<m>` dan `core/application` **hanya tipe** |
+| `views/<S>Container.tsx` | Sama dengan `controllers` |
+| `views` (lainnya) | `core/views/design-system`, `views` `<m>`; `domain` `<m>` hanya tipe |
+| `<m>.module.ts` | `domain`/`application`/`data` `<m>`, `core/domain`, `core/application`, `core/data` |
+| `src/di` | `*.module.ts`, seluruh `core`, `mocks` |
+| `src/app`, `proxy.ts`, `instrumentation.ts` | `di`, controller dan view modul, `core` sisi tampilan, `core/data` |
+
+"`core` sisi tampilan" = `core/domain`, `core/controllers`, `core/i18n`, `core/views`.
 
 Aturan tambahan: `domain` dan `application` tanpa framework, `zod`, `awilix`, `fetch`, `Date.now()` (application juga tanpa `Math.random()`); `awilix` hanya di `src/di` dan `*.module.ts`. Kode mock (`@/mocks`) hanya boleh diimpor dari `src/di/AppProviders.tsx`, `src/instrumentation.ts`, dan test.
 
@@ -131,23 +134,23 @@ Batasan saat ini, yang sengaja dicatat jujur:
 | `path` | `/` |
 | `maxAge` | 600 detik |
 
-Token tidak pernah muncul di URL. E2E memverifikasi: URL tidak mengandung `token`, cookie `httpOnly`, dan `document.cookie` tidak berisi `access_token` ([`expiry-and-guards.spec.ts`](../../e2e/expiry-and-guards.spec.ts)). Body kosong atau tanpa token mengembalikan `400 QUEUE_TOKEN_INVALID`. Nama cookie dan umurnya ada di `src/platform/session/accessTokenCookie.ts` (dipakai route handler dan `proxy.ts`). Sisi klien: use case `StartSession` → port `SessionGateway` → `HttpSessionGateway`.
+Token tidak pernah muncul di URL. E2E memverifikasi: URL tidak mengandung `token`, cookie `httpOnly`, dan `document.cookie` tidak berisi `access_token` ([`expiry-and-guards.spec.ts`](../../e2e/expiry-and-guards.spec.ts)). Body kosong atau tanpa token mengembalikan `400 QUEUE_TOKEN_INVALID`. Nama cookie dan umurnya ada di `src/core/data/session/access-token.constants.ts` (dipakai route handler dan `proxy.ts`). Sisi klien: use case `StartSessionUseCase` → `SessionProtocol` → `HttpSessionService`.
 
 ## 7. Cara menambah route baru
 
-Ikuti skill [`new-feature-screen`](../ai/skills/new-feature-screen/SKILL.md). Ringkasnya: tipe di `domain` → port dan use case di `application` → adapter di `infrastructure` → registrasi di `<m>.module.ts` → handler MSW → query options, View, mapper, ViewModel, Container di `presentation` → `page.tsx` tipis (+ layout bila butuh `AppProviders`) → tambah matcher `proxy.ts` bila route dijaga → test mapper, ViewModel, dan E2E.
+Ikuti skill [`new-feature-screen`](../ai/skills/new-feature-screen/SKILL.md). Ringkasnya: model, rules, constants, dan protocol di `domain` → use case di `application` → service dan schema di `data` → registrasi di `<m>.module.ts` → handler MSW → query options, mapper, controller di `controllers` → View dan Container di `views` → `page.tsx` tipis (+ layout bila butuh `AppProviders`) → tambah matcher `proxy.ts` bila route dijaga → test mapper, controller, dan E2E.
 
 ## 8. Strategi test per lapisan
 
 | Lapisan | Test |
 |---|---|
 | `domain` | Vitest murni, tanpa browser (kuota, waktu, progres antrian) |
-| `application` | Vitest dengan fake port, tanpa MSW |
-| `infrastructure` | Vitest, repository HTTP terhadap MSW, di-resolve dari container uji |
+| `application` | Vitest dengan fake protocol, tanpa MSW |
+| `data` | Vitest, service HTTP terhadap MSW, di-resolve dari container uji |
 | `di` | Setiap registrasi bisa di-resolve dalam mode strict |
-| `presentation` | Mapper tanpa render; ViewModel dengan Testing Library + MSW + container uji |
+| `controllers` | Mapper tanpa render; controller dengan Testing Library + MSW + container uji |
 | Route end-to-end | Playwright dengan jam palsu (`e2e/`) |
 
-Coverage 85% untuk `domain`, `application`, `infrastructure`, dan `di`.
+Coverage 85% untuk `domain`, `application`, `data`, dan `di`.
 
 Detail di [`testing.md`](../ai/steering/testing.md).

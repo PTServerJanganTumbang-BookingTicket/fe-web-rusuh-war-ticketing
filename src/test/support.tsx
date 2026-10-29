@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { asValue, type NameAndRegistrationPair } from "awilix";
-import { createAppContainer, type AppContainer, type AppCradle } from "@/di/container";
+import { createAppContainer, type AppContainer, type AppRegistry } from "@/di/container";
 import { server } from "@/mocks/node";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
-import type { AppConfig } from "@/core/application/AppConfig";
-import { DependencyProvider } from "@/ui/di/DependencyContext";
-import { setupFakeEventSources } from "./fakeEventSource";
+import type { AppConfig } from "@/core/domain/app-config.model";
+import { DependencyProvider } from "@/core/controllers/dependencies.context";
+import { setupFakeEventSources } from "./fake-event-source";
 
 /** Origin palsu untuk route handler same-origin (`/api/session/start`) di Node. */
 export const TEST_APP_ORIGIN = "http://localhost:3000";
@@ -15,7 +15,7 @@ export const TEST_APP_ORIGIN = "http://localhost:3000";
 export const testConfig: AppConfig = {
   apiBaseUrl: MOCK_API_BASE_URL,
   appBaseUrl: TEST_APP_ORIGIN,
-  // Kontrol simulasi pembayaran hanya ada di mode mock; test ViewModel berjalan di mode itu.
+  // Kontrol simulasi pembayaran hanya ada di mode mock; test controller berjalan di mode itu.
   mocking: true,
   bookingExpiry: "queue",
 };
@@ -29,12 +29,12 @@ export function setupMockServer() {
 }
 
 /**
- * Container yang sama dengan produksi (adapter HTTP asli terhadap MSW). `overrides` mengganti registrasi
+ * Container yang sama dengan produksi (service HTTP asli terhadap MSW). `overrides` mengganti registrasi
  * tertentu dengan fake, misalnya `clock`, tanpa memock modul. EventSource default diganti fake yang tidak
- * pernah tersambung, jadi ViewModel memakai polling cadangan kecuali test mengirim event sendiri.
+ * pernah tersambung, jadi controller memakai polling cadangan kecuali test mengirim event sendiri.
  */
 export function setupTestContainer(
-  overrides: NameAndRegistrationPair<Partial<AppCradle>> = {},
+  overrides: NameAndRegistrationPair<Partial<AppRegistry>> = {},
   config: AppConfig = testConfig,
 ): AppContainer {
   const container = createAppContainer(config);
@@ -48,7 +48,7 @@ export function createWrapper(container: AppContainer = setupTestContainer()) {
   });
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <DependencyProvider cradle={container.cradle}>
+      <DependencyProvider dependencies={container.cradle}>
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
       </DependencyProvider>
     );

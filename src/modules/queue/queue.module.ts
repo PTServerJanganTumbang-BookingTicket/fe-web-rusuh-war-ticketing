@@ -1,22 +1,22 @@
 import { asClass, type NameAndRegistrationPair } from "awilix";
-import { GetQueueState } from "./application/GetQueueState";
-import type { QueueRepository } from "./application/QueueRepository";
-import type { QueueUpdates } from "./application/QueueUpdates";
-import { WatchQueueState } from "./application/WatchQueueState";
-import type { QueueDependencies } from "./application/dependencies";
-import { HttpQueueRepository } from "./infrastructure/HttpQueueRepository";
-import { SseQueueUpdates } from "./infrastructure/SseQueueUpdates";
+import { GetQueueStateUseCase } from "./application/get-queue-state.use-case";
+import type { QueueProtocol } from "./domain/queue.protocol";
+import type { QueueUpdatesProtocol } from "./domain/queue-updates.protocol";
+import { WatchQueueStateUseCase } from "./application/watch-queue-state.use-case";
+import type { QueueDependencies } from "./application/queue.dependencies";
+import { HttpQueueService } from "./data/http-queue.service";
+import { SseQueueUpdatesService } from "./data/sse-queue-updates.service";
 
-export type QueueCradle = QueueDependencies & {
-  queueRepository: QueueRepository;
-  queueUpdates: QueueUpdates;
+export type QueueRegistry = QueueDependencies & {
+  queueService: QueueProtocol;
+  queueUpdatesService: QueueUpdatesProtocol;
 };
 
-export function queueModule(): NameAndRegistrationPair<QueueCradle> {
+export function queueModule(): NameAndRegistrationPair<QueueRegistry> {
   return {
-    queueRepository: asClass(HttpQueueRepository).singleton(),
-    queueUpdates: asClass(SseQueueUpdates).singleton(),
-    getQueueState: asClass(GetQueueState).singleton(),
-    watchQueueState: asClass(WatchQueueState).singleton(),
+    queueService: asClass(HttpQueueService).singleton(),
+    queueUpdatesService: asClass(SseQueueUpdatesService).singleton(),
+    getQueueStateUseCase: asClass(GetQueueStateUseCase).singleton(),
+    watchQueueStateUseCase: asClass(WatchQueueStateUseCase).singleton(),
   };
 }

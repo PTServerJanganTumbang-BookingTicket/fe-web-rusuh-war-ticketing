@@ -1,4 +1,4 @@
-import { LoginContainer } from "@/modules/auth/presentation/LoginContainer";
+import { LoginContainer } from "@/modules/auth/views/LoginContainer";
 
 export default function LoginPage() {
   return <LoginContainer />;
