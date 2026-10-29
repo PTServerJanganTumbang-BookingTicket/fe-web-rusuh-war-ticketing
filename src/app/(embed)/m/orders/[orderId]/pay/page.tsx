@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { PaymentContainer } from "@/modules/payment/presentation/PaymentContainer";
-import { ScreenLoading } from "@/ui/ScreenLoading";
+import { PaymentContainer } from "@/modules/payment/views/PaymentContainer";
+import { ScreenLoading } from "@/core/views/ScreenLoading";
 
 export default function PaymentPage({ params }: PageProps<"/m/orders/[orderId]/pay">) {
   return (

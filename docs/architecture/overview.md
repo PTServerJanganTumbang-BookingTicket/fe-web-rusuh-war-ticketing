@@ -21,7 +21,7 @@ Tiga kriteria yang dijual ke penilai, dan bagaimana arsitektur ini menjawabnya:
 
 ## 2. Lapisan dan aturan dependensi
 
-Satu aplikasi Next.js yang disusun per **modul fitur** (bounded context). Setiap modul punya lapisan Clean Architecture sendiri; yang dipakai bersama dipisah per lapisan ke `src/core`, `src/platform`, dan `src/ui` ([ADR-0013](../adr/0013-single-app-modular-structure.md), [ADR-0014](../adr/0014-modular-clean-architecture-solid.md)).
+Satu aplikasi Next.js yang disusun per **modul fitur** (bounded context). Setiap modul punya lima lapisan yang sama; yang dipakai lebih dari satu modul ada di lapisan yang sama di `src/core` ([ADR-0013](../adr/0013-single-app-modular-structure.md), [ADR-0014](../adr/0014-modular-clean-architecture-solid.md)).
 
 ```
 src/app  (Next.js: route, layout, proxy)                       framework
@@ -31,30 +31,29 @@ src/di   (composition root: container Awilix, config)          wiring
    │  merakit <m>.module.ts
    ▼
 src/modules/<m>/
-   presentation ── import type ──► application ──► domain
-   (ViewModel, mapper,              (use case,       (entitas, aturan
-    Container, views)                port)            murni)
-                                       ▲
-   infrastructure ─ implements ────────┘
-   (HTTP + zod)
+   views ──► controllers ── import type ──► application ──► domain
+   (Container,  (controller, mapper,         (use case)      (model, rules,
+    View)        query options)                 ▲             constants, protocol)
+                                                │
+   data ─ implements protocol ──────────────────┘
+   (service + schema zod)
 
-src/core/      domain + application bersama (murni)     ◄── boleh dipakai siapa saja
-src/platform/  infrastructure bersama (HTTP, SSE, sesi)
-src/ui/        presentation bersama (design system, i18n, hooks, useCradle)
+src/core/   domain/ application/ data/ controllers/ views/ i18n/   ◄── lapisan sama, dipakai lintas modul
 ```
 
 | Aturan | Ditegakkan oleh |
 |---|---|
-| Dependensi hanya ke dalam: presentation → application (tipe) → domain; infrastructure → application → domain | ESLint boundaries (`default: "disallow"`) |
-| Modul tidak saling mengimpor; yang dipakai bersama pindah ke `src/core`, `src/platform`, atau `src/ui` | ESLint boundaries (captured `module`) |
+| Dependensi hanya ke dalam: views → controllers → application (tipe) → domain; data → application → domain | ESLint boundaries (`default: "disallow"`) |
+| Modul tidak saling mengimpor; yang dipakai bersama pindah ke lapisan yang sama di `src/core` | ESLint boundaries (captured `module`) |
 | `domain` dan `application` tanpa React, Next, `zod`, `awilix`, `fetch`, `Date.now()` | ESLint `no-restricted-*` |
-| Presentation mendapat use case dari container (`useCradle`), bukan mengimpor implementasi | ESLint boundaries (`dependency.kind: type`), [ADR-0015](../adr/0015-dependency-injection-awilix.md) |
+| Controller mendapat use case dari container (`useDependencies`), bukan mengimpor implementasi | ESLint boundaries (`dependency.kind: type`), [ADR-0015](../adr/0015-dependency-injection-awilix.md) |
 | `awilix` hanya di `src/di` dan `<m>.module.ts` | ESLint `no-restricted-imports` |
-| View props-only, hanya design system | ESLint boundaries |
+| View props-only, hanya design system; hanya `<Layar>Container` yang memanggil controller | ESLint boundaries |
+| Angka bisnis di `*.constants.ts`, schema `satisfies z.ZodType<Model>` | Code review, steering AI |
 | Route di `app/` hanya merender Container dan kebijakan rendering | Code review, steering AI |
 | FE tidak pernah memanggil Midtrans langsung | Steering AI, code review |
 
-Detail: [ADR-0014](../adr/0014-modular-clean-architecture-solid.md) (lapisan, SOLID), [ADR-0015](../adr/0015-dependency-injection-awilix.md) (DI), [ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md) (ViewModel hook).
+Detail: [ADR-0014](../adr/0014-modular-clean-architecture-solid.md) (lapisan, SOLID), [ADR-0015](../adr/0015-dependency-injection-awilix.md) (DI), [ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md) (controller sebagai hook).
 
 Dokumen turunan: [routing dan implementasi lapisan di Next.js](routing-and-layers.md), [login dan register](auth-login-register.md).
 
@@ -68,7 +67,7 @@ rusuh-fe/
 ├─ public/                            aset statis, mockServiceWorker.js
 └─ src/
    ├─ app/
-   │  ├─ (public)/page.tsx                         Home (ISR, getServerCradle)
+   │  ├─ (public)/page.tsx                         Home (ISR, getServerDependencies)
    │  ├─ (auth)/login/page.tsx
    │  ├─ events/[eventId]/queue/page.tsx           Waiting Room
    │  ├─ events/[eventId]/book/page.tsx            Detail Ticket
@@ -78,24 +77,23 @@ rusuh-fe/
    │  └─ api/session/start/route.ts                Web: access token antrian → cookie
    ├─ proxy.ts                        gerbang access token (Next 16)
    ├─ instrumentation.ts              MSW sisi server (mode mock)
-   ├─ di/                             container.ts, core.module.ts, config.ts, server.ts, AppProviders.tsx
+   ├─ di/                             container.ts, core.module.ts, app-config.reader.ts, server-dependencies.ts, AppProviders.tsx
    ├─ modules/
    │  ├─ catalog/   queue/   booking/   payment/   auth/   ticket/
    │  └─ <m>/
-   │     ├─ domain/                   tipe + aturan murni (+ test)
-   │     ├─ application/              port, use case, dependencies.ts (+ test)
-   │     ├─ infrastructure/           Http<Nama>Repository (zod)
-   │     ├─ presentation/             <m>Queries, use<Screen>ViewModel, to<Screen>ViewProps, <Screen>Container
-   │     │  └─ views/                 <Screen>View props-only
+   │     ├─ domain/                   *.model.ts, *.rules.ts, <m>.constants.ts, *.protocol.ts (+ test)
+   │     ├─ application/              *.use-case.ts, <m>.dependencies.ts (+ test)
+   │     ├─ data/                     http-*.service.ts, sse-*.service.ts, *.schema.ts
+   │     ├─ controllers/              <m>.controller.ts, <m>.mapper.ts, <m>.queries.ts (+ test)
+   │     ├─ views/                    <Layar>Container.tsx, <Layar>View.tsx props-only
    │     └─ <m>.module.ts             registrasi Awilix
-   ├─ core/                          kernel murni bersama
-   │  ├─ domain/                      AppError, time/
-   │  └─ application/                 AppConfig, Clock, RandomSource, LiveUpdates, session/ (StartSession, SessionGateway)
-   ├─ platform/                      adapter bersama: http/ (HttpClient, FetchHttpClient), sse/, session/, SystemClock, MathRandomSource
-   ├─ ui/                            presentation bersama
-   │  ├─ design-system/               primitives/, layout/, signal.css
-   │  ├─ i18n/   hooks/   di/          t(), useCountdown, useLiveUpdates, useCradle
-   │  └─ ScreenLoading.tsx, format.ts
+   ├─ core/                          kode bersama, lapisan sama dengan modul
+   │  ├─ domain/                      app-error.ts, app-config.model.ts, clock/random/session/live-updates .protocol.ts, time/
+   │  ├─ application/                 start-session.use-case.ts, core.dependencies.ts
+   │  ├─ data/                        http/ (HttpClient, FetchHttpClient), sse/, session/, system-clock.service.ts, math-random.service.ts
+   │  ├─ controllers/                 countdown.hook.ts, live-updates.hook.ts, dependencies.context.tsx (useDependencies), format.utils.ts
+   │  ├─ views/                       design-system/ (primitives/, layout/, signal.css), ScreenLoading.tsx
+   │  └─ i18n/                        id.messages.ts, t.utils.ts
    ├─ mocks/                          MSW handlers + skenario (node dan browser)
    └─ test/                           support: setupMockServer, setupTestContainer, createWrapper
 ```
@@ -140,15 +138,15 @@ idle → selecting ──submit──► submitting ──┤
 - Apakah Signal DS menyediakan Tailwind preset, atau kita buat dari token.
 - Login: dibuat tim kita atau ada SSO yang tersedia.
 
-## 8. Status implementasi (2026-10-19, diperbarui 2026-10-28)
+## 8. Status implementasi (2026-10-19, diperbarui 2026-10-29)
 
 | Ada | Belum ada |
 |---|---|
 | Satu aplikasi dengan modul `catalog`, `queue`, `booking`, `payment` (+ placeholder `auth`, `ticket`), container Awilix, ESLint boundaries per lapisan dan modul (ADR-0013–0015), Vitest + Testing Library + MSW, workflow CI (belum pernah jalan) | Storybook |
-| Use case dan port per modul, `Clock`/`RandomSource`/`AppConfig` diinjeksikan, test use case dengan fake dan test container | Orkestrasi use case yang lebih kaya (submit booking) |
+| Use case dan protocol per modul, `ClockProtocol`/`RandomProtocol`/`AppConfig` diinjeksikan, test use case dengan fake dan test container | Orkestrasi use case yang lebih kaya (submit booking) |
 | `domain`: `AppError`, `remainingMs`, `withJitter`, `formatMmSs` (`core`), `canAddTicket`, `selectionReducer`, tipe event, queue, booking, order (modul) | `domain`: state machine booking, validasi NIK, `PaymentResultNotifier` |
-| `infrastructure`: `FetchHttpClient` + zod, repository HTTP events, queue, booking session, order, simulator pembayaran; query options di presentation tiap modul | Tipe generated dari OpenAPI (kontrak ditulis tangan), use case submit booking |
-| Design system (`src/ui/design-system`): primitif Signal DS (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`), `ScreenFrame`, dan view Home, Queue, Booking, Payment (ADR-0012) | Storybook, mode gelap |
+| `data`: `FetchHttpClient` + zod, service HTTP events, queue, booking session, order, simulator pembayaran, schema `satisfies z.ZodType<Model>`; query options di `controllers/` tiap modul; konstanta bisnis per modul | Tipe generated dari OpenAPI (kontrak ditulis tangan), use case submit booking |
+| Design system (`src/core/views/design-system`): primitif Signal DS (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`), `ScreenFrame`, dan view Home, Queue, Booking, Payment (ADR-0012) | Storybook, mode gelap |
 | Layar: Home (ISR), Waiting Room, Detail Ticket (dummy, wireframe 9.3), dan Payment mock (9.4, QR contoh, status akhir 9.5) dengan MSW | Login, E-tiket (placeholder), `/maintenance`, integrasi Midtrans via BE |
 | `proxy.ts` (cek cookie) dan `/api/session/start` | Verifikasi JWT di edge, `/api/session/exchange` (WebView), offset jam server, countdown |
 

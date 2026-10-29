@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ACCESS_TOKEN_COOKIE } from "@/platform/session/accessTokenCookie";
+import { ACCESS_TOKEN_COOKIE } from "@/core/data/session/access-token.constants";
 
 // Pengganti middleware.ts di Next 16 (ADR-0007).
 // SEMENTARA: hanya memeriksa keberadaan cookie. Verifikasi tanda tangan JWT di edge belum dipasang.

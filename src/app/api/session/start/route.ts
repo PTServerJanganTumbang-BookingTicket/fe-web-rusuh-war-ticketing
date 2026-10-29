@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
-import { ACCESS_TOKEN_COOKIE, ACCESS_TOKEN_MAX_AGE_SECONDS } from "@/platform/session/accessTokenCookie";
+import {
+  ACCESS_TOKEN_COOKIE,
+  ACCESS_TOKEN_MAX_AGE_SECONDS,
+} from "@/core/data/session/access-token.constants";
 
 // Waiting Room web: menyimpan access token dari antrian ke cookie httpOnly supaya tidak pernah ada di URL.
 // Penukaran one-time code WebView (ADR-0008) adalah route terpisah: /api/session/exchange (belum dibuat).

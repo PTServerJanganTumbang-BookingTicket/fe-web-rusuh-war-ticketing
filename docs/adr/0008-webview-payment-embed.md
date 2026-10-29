@@ -22,7 +22,7 @@ Token mentah tidak pernah muncul di URL atau log.
 ### 2. Route embed
 
 - `app/(embed)/m/orders/[orderId]/pay` memakai layout tanpa navbar dan footer, dengan dukungan safe area.
-- **Container dan ViewModel sama persis dengan versi web.** Yang berbeda hanya layout dan adapter `PaymentResultNotifier`.
+- **Container dan controller sama persis dengan versi web.** Yang berbeda hanya layout dan service `PaymentResultNotifier`.
 
 ### 3. `PaymentResultNotifier`
 

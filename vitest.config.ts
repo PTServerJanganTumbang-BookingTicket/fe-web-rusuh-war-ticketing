@@ -11,16 +11,15 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text-summary", "lcov"],
-      // Domain, application, dan infrastructure wajib teruji (testing.md); presentation diuji lewat
-      // test mapper/ViewModel dan e2e, view lewat story.
+      // Domain, application, dan data wajib teruji (testing.md); controller diuji lewat test mapper/controller
+      // dan e2e, view lewat story.
       include: [
-        "src/core/**/*.ts",
-        "src/platform/**/*.ts",
-        "src/modules/*/{domain,application,infrastructure}/**/*.ts",
+        "src/core/{domain,application,data}/**/*.ts",
+        "src/modules/*/{domain,application,data}/**/*.ts",
         "src/di/**/*.ts",
       ],
       thresholds: { statements: 85, branches: 85, functions: 85, lines: 85 },
-      exclude: ["**/*.test.ts", "**/__tests__/**", "src/di/server.ts"],
+      exclude: ["**/*.test.ts", "src/di/server-dependencies.ts"],
     },
   },
 });

@@ -28,7 +28,7 @@ Kendalanya, React sudah menyediakan lifecycle, state, dan mekanisme subscription
 - **View**: komponen di `packages/ui`, props-only.
 
 ```ts
-export function useBookingViewModel(eventId: string) {
+export function useBookingController(eventId: string) {
   const session = useBookingSession(eventId);              // TanStack Query
   const [state, dispatch] = useReducer(bookingReducer, initialBookingState);
   const remainingMs = useCountdown(session.data?.expiresAt);
@@ -46,7 +46,7 @@ export function useBookingViewModel(eventId: string) {
 }
 
 export function BookingContainer({ eventId }: { eventId: string }) {
-  const vm = useBookingViewModel(eventId);
+  const vm = useBookingController(eventId);
   return <BookingView {...vm} />;
 }
 ```
@@ -83,6 +83,12 @@ Konsistensi dengan mobile dijaga di level konsep: nama state, nama event, dan sp
 
 - Keputusan inti tetap: ViewModel adalah custom hook, tanpa class atau Provider per layar.
 - Lokasi berubah ([ADR-0013](0013-single-app-modular-structure.md)): `src/modules/<m>/presentation/use<Screen>ViewModel.ts`, mapper `to<Screen>ViewProps.ts`, View di `presentation/views/`.
-- ViewModel tidak lagi mengimpor fungsi adapter. Use case diambil dari container lewat `useCradle<...>()` ([ADR-0015](0015-dependency-injection-awilix.md)). Context DI adalah satu-satunya Context dan berisi nilai global yang stabil, sesuai aturan 4.
+- ViewModel tidak lagi mengimpor fungsi adapter. Use case diambil dari container lewat `useDependencies<...>()` ([ADR-0015](0015-dependency-injection-awilix.md)). Context DI adalah satu-satunya Context dan berisi nilai global yang stabil, sesuai aturan 4.
 - Model (pada tabel Opsi B) kini adalah `domain` + `application` modul ([ADR-0014](0014-modular-clean-architecture-solid.md)).
-- Pengecualian Home: loader `loadHomeViewProps(deps)` ada di presentation modul `catalog`; route `app/(public)/page.tsx` memegang `"use cache"` dan memberi dependensi dari `getServerCradle()`.
+- Pengecualian Home: loader `loadHomeViewProps(deps)` ada di presentation modul `catalog`; route `app/(public)/page.tsx` memegang `"use cache"` dan memberi dependensi dari `getServerDependencies()`.
+
+## Catatan implementasi (2026-10-29)
+
+- **ViewModel kini disebut controller** (revisi [ADR-0013](0013-single-app-modular-structure.md) dan [ADR-0014](0014-modular-clean-architecture-solid.md), istilah diambil dari branch `init/clean-arch`). Keputusan ADR ini tidak berubah: controller tetap custom hook, tanpa class atau Provider per layar. Aturan 1–5 di atas berlaku dengan membaca "ViewModel" sebagai "controller".
+- Lokasi: `src/modules/<m>/controllers/<m>.controller.ts` (`use<Layar>Controller`), mapper `<m>.mapper.ts` (`to<Layar>ViewProps`), query options `<m>.queries.ts`. Container dan View di `src/modules/<m>/views/`.
+- Loader Home: `src/modules/catalog/controllers/home.loader.ts`.

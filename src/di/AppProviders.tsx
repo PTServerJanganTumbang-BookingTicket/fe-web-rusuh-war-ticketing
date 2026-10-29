@@ -2,8 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { DependencyProvider } from "@/ui/di/DependencyContext";
-import { readAppConfig } from "./config";
+import { DependencyProvider } from "@/core/controllers/dependencies.context";
+import { readAppConfig } from "./app-config.reader";
 import { createAppContainer } from "./container";
 
 function createQueryClient(mocking: boolean) {
@@ -29,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <DependencyProvider cradle={container.cradle}>
+    <DependencyProvider dependencies={container.cradle}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </DependencyProvider>
   );

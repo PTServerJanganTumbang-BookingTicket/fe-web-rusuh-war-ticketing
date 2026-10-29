@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { QueueContainer } from "@/modules/queue/presentation/QueueContainer";
-import { ScreenLoading } from "@/ui/ScreenLoading";
+import { QueueContainer } from "@/modules/queue/views/QueueContainer";
+import { ScreenLoading } from "@/core/views/ScreenLoading";
 
 export default function QueuePage({ params }: PageProps<"/events/[eventId]/queue">) {
   return (

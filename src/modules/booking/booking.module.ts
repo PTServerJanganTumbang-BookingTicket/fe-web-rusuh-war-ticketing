@@ -1,16 +1,16 @@
 import { asClass, type NameAndRegistrationPair } from "awilix";
-import type { BookingRepository } from "./application/BookingRepository";
-import { GetBookingSession } from "./application/GetBookingSession";
-import type { BookingDependencies } from "./application/dependencies";
-import { HttpBookingRepository } from "./infrastructure/HttpBookingRepository";
+import type { BookingProtocol } from "./domain/booking.protocol";
+import { GetBookingSessionUseCase } from "./application/get-booking-session.use-case";
+import type { BookingDependencies } from "./application/booking.dependencies";
+import { HttpBookingService } from "./data/http-booking.service";
 
-export type BookingCradle = BookingDependencies & {
-  bookingRepository: BookingRepository;
+export type BookingRegistry = BookingDependencies & {
+  bookingService: BookingProtocol;
 };
 
-export function bookingModule(): NameAndRegistrationPair<BookingCradle> {
+export function bookingModule(): NameAndRegistrationPair<BookingRegistry> {
   return {
-    bookingRepository: asClass(HttpBookingRepository).singleton(),
-    getBookingSession: asClass(GetBookingSession).singleton(),
+    bookingService: asClass(HttpBookingService).singleton(),
+    getBookingSessionUseCase: asClass(GetBookingSessionUseCase).singleton(),
   };
 }

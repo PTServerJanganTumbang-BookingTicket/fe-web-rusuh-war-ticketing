@@ -7,30 +7,39 @@
 
 ## Penamaan
 
-| Hal | Konvensi | Contoh |
-|---|---|---|
-| File komponen | PascalCase | `QueuePosition.tsx` |
-| File non-komponen | camelCase | `remainingMs.ts` |
-| ViewModel | `use<Screen>ViewModel` | `useBookingViewModel` |
-| Mapper ke props View | `to<Screen>ViewProps` (murni, di folder fitur) | `toBookingViewProps` |
-| Helper test yang bukan hook | awalan `setup`, bukan `use` (lint `rules-of-hooks`) | `setupMockServer` |
-| Flag build | `NEXT_PUBLIC_<NAMA>` di `.env.example` | `NEXT_PUBLIC_BOOKING_EXPIRY` |
-| Container | `<Screen>Container` | `BookingContainer` |
-| View | `<Screen>View` | `BookingView` |
-| Reducer event | `SCREAMING_SNAKE` di `type` | `{ type: 'ADD_TICKET' }` |
-| Key i18n | `feature.context.message` | `booking.quota.exceeded` |
-| Query key | factory `<m>Keys` di `presentation/<m>Queries.ts`, diawali nama modul | `queueKeys.position(eventId)` |
-| Folder modul | camelCase, kata benda bounded context | `catalog`, `booking`, `payment` |
-| Registrasi modul | `<m>.module.ts` mengekspor `<m>Module()` dan `type <M>Cradle` | `bookingModule`, `BookingCradle` |
-| Port | PascalCase, kata benda + peran, tanpa awalan `I` | `OrderRepository`, `SessionGateway`, `Clock` |
-| Use case | Kelas PascalCase kata kerja + benda, satu method `execute` | `GetBookingSession`, `StartPayment` |
-| Adapter | Teknologi + nama port | `HttpOrderRepository`, `FetchHttpClient`, `SystemClock` |
-| Nama registrasi container | camelCase dari nama port/use case | `orderRepository`, `getOrder` |
-| Irisan dependensi presentation | `<M>Dependencies` di `application/dependencies.ts` | `PaymentDependencies` |
+Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen React: PascalCase.
+
+| Hal | File | Simbol | Contoh |
+|---|---|---|---|
+| Model | `<konsep>.model.ts` | Tipe PascalCase | `order.model.ts` → `Order` |
+| Aturan bisnis murni | `<konsep>.rules.ts` | Fungsi camelCase | `can-add-ticket.rules.ts` → `canAddTicket` |
+| Reducer | `<konsep>.reducer.ts` | `<konsep>Reducer`, event `SCREAMING_SNAKE` di `type` | `selectionReducer`, `{ type: 'ADD_TICKET' }` |
+| Konstanta bisnis | `<m>.constants.ts` | `SCREAMING_SNAKE`, satuan di akhir (`_MS`, `_SECONDS`) | `MAX_TICKETS_PER_NIK`, `STOCK_REFRESH_INTERVAL_MS` |
+| Protocol | `<nama>.protocol.ts` | `<Nama>Protocol`, tanpa awalan `I` | `OrderProtocol`, `ClockProtocol` |
+| Use case | `<kata-kerja>-<benda>.use-case.ts` | Kelas `<KataKerja><Benda>UseCase`, satu method `execute` | `StartPaymentUseCase` |
+| Irisan dependensi controller | `<m>.dependencies.ts` | `<M>Dependencies` | `PaymentDependencies` |
+| Service | `<teknologi>-<nama>.service.ts` | Kelas `<Teknologi><Nama>Service` | `http-order.service.ts` → `HttpOrderService` |
+| Client transport | `<teknologi>-<nama>.client.ts` | Interface `<Nama>Client`, kelas `<Teknologi><Nama>Client` | `HttpClient`, `FetchHttpClient` |
+| Schema zod | `<nama>.schema.ts` | `<nama>Schema` | `orderSchema` |
+| Helper murni | `<nama>.utils.ts` | Fungsi camelCase | `remaining-ms.utils.ts` → `remainingMs` |
+| Controller | `<m>.controller.ts` | Hook `use<Layar>Controller` | `usePaymentController` |
+| Mapper ke props View | `<m>.mapper.ts` | `to<Layar>ViewProps` (murni) | `toPaymentViewProps` |
+| Query options | `<m>.queries.ts` | Factory `<m>Keys`, key diawali nama modul | `queueKeys.position(eventId)` |
+| Loader Server Component | `<layar>.loader.ts` | `load<Layar>ViewProps` | `loadHomeViewProps` |
+| Hook bersama | `<nama>.hook.ts` (di `core/controllers`) | `use<Nama>` | `countdown.hook.ts` → `useCountdown` |
+| Container | `<Layar>Container.tsx` | Komponen | `PaymentContainer` |
+| View | `<Layar>View.tsx` | Komponen | `PaymentView` |
+| Registrasi modul | `<m>.module.ts` | `<m>Module()` dan `type <M>Registry` | `paymentModule`, `PaymentRegistry` |
+| Nama registrasi container | - | Use case `<x>UseCase`; protocol `<x>Service`; sisanya kata benda pendek | `startPaymentUseCase`, `orderService`, `clock` |
+| Test | `<file>.test.ts(x)` di sebelah file | - | `payment.mapper.test.ts` |
+| Helper test yang bukan hook | - | Awalan `setup`, bukan `use` (lint `rules-of-hooks`) | `setupMockServer` |
+| Folder modul | camelCase, kata benda bounded context | - | `catalog`, `booking`, `payment` |
+| Flag build | `NEXT_PUBLIC_<NAMA>` di `.env.example` | - | `NEXT_PUBLIC_BOOKING_EXPIRY` |
+| Key i18n | `feature.context.message` | - | `booking.quota.exceeded` |
 
 ## Komponen
 
-- Komponen design system (`src/ui/design-system`) dan view modul memakai komponen Signal DS sebagai dasar. Tailwind hanya untuk layout dan spacing yang tidak disediakan Signal.
+- Komponen design system (`src/core/views/design-system`) dan view modul memakai komponen Signal DS sebagai dasar. Tailwind hanya untuk layout dan spacing yang tidak disediakan Signal.
 - Token warna dan tipografi diambil dari preset Signal, bukan nilai hex langsung.
 - Komponen fungsi saja (tanpa class). Satu-satunya pengecualian adalah error boundary, karena React belum menyediakan versi hook.
 - Props komponen primitif memperluas atribut HTML bawaan (`React.ComponentProps<"button">`) dan meneruskan `...rest` ke elemen akar.
@@ -39,9 +48,9 @@
 
 ## Token desain
 
-- Warna, radius, dan tipografi lewat token Signal DS: `bg-primary`, `text-muted-foreground`, `border`, `bg-signal-bg-valid`, `text-signal-error`, `bg-brand`. Nilainya ada di satu tempat, `src/ui/design-system/signal.css` (ADR-0012).
+- Warna, radius, dan tipografi lewat token Signal DS: `bg-primary`, `text-muted-foreground`, `border`, `bg-signal-bg-valid`, `text-signal-error`, `bg-brand`. Nilainya ada di satu tempat, `src/core/views/design-system/signal.css` (ADR-0012).
 - Tipografi memakai kelas skala Signal: `type-h1`…`type-h6` (Telkomsel Batik Sans) dan `type-title`, `type-body1`, `type-body2` (Poppins), bukan ukuran font ad hoc.
-- Tidak ada hex, `rgb()`, atau nama warna Tailwind mentah (`violet-700`) di `src/ui/design-system` dan `presentation/views`.
+- Tidak ada hex, `rgb()`, atau nama warna Tailwind mentah (`violet-700`) di `src/core/views` dan `src/modules/<m>/views`.
 - Elemen interaktif dan wadah dibangun dari primitif (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`). Varian Signal baru ditambahkan ke primitif, bukan ditulis ulang di view.
 - Wireframe adalah referensi struktur dan isi, **bukan** desain visual. Target visual adalah Telkomsel Signal DS.
 
@@ -53,7 +62,7 @@
 - Target sentuh minimal 44x44px (payment page dipakai di WebView mobile). Primitif `Button` ukuran `lg` setinggi 48px.
 - Status memuat memakai `role="status"`.
 
-## ViewModel
+## Controller
 
 - Kepala file mencantumkan ID requirement dan nomor wireframe yang dipenuhi.
 - Mengembalikan union layar (`{ kind: 'ready' | 'status' | 'result', view }`) bila layar punya beberapa tampilan, supaya Container tinggal memilih View.
@@ -73,17 +82,17 @@
 - Font lewat `next/font` (self-hosted saat build). Tidak ada `<link>` ke CDN font saat runtime.
 - Perhitungan countdown dan kedaluwarsa hanya lewat `src/core/domain/time` dengan `now` dan offset server (ADR-0005). `new Date(...)` boleh untuk memformat tanggal tampilan, bukan untuk menghitung sisa waktu.
 
-- Fungsi di `domain` murni dan menerima `now` sebagai parameter bila butuh waktu. Di presentation, jam diambil dari `clock` di container, acak dari `random`.
+- Fungsi di `domain` murni dan menerima `now` sebagai parameter bila butuh waktu. Di controller, jam diambil dari `clock` di container, acak dari `random`.
 
 ## Kelas, use case, dan DI (ADR-0014, ADR-0015)
 
-- Kelas hanya untuk use case, adapter, dan port implementasi. Komponen dan ViewModel tetap fungsi.
-- Constructor menerima satu objek dependensi dan menyimpannya ke field `private readonly`: `constructor({ orderRepository }: { orderRepository: OrderRepository })`. Tidak ada parameter posisi (Awilix mode PROXY).
-- Dependensi constructor bertipe port (interface), bukan kelas adapter.
-- Use case tidak menangkap error; biarkan `AppFailure` naik ke ViewModel.
+- Kelas hanya untuk use case, service, dan client. Komponen dan controller tetap fungsi.
+- Constructor menerima satu objek dependensi dan menyimpannya ke field `private readonly`: `constructor({ orderService }: { orderService: OrderProtocol })`. Tidak ada parameter posisi (Awilix mode PROXY).
+- Dependensi constructor bertipe protocol (interface), bukan kelas service.
+- Use case dan service tidak menangkap error; biarkan `AppFailure` naik ke controller.
 - Tidak ada `import` dari `awilix` di luar `src/di` dan `*.module.ts`.
-- Impor di dalam satu modul memakai path relatif; impor ke `core`, `platform`, `ui`, `di`, atau dari `app` memakai alias `@/`.
-- Tidak ada `console.*` di kode yang di-commit (`no-console`). Logger di `api/telemetry` direncanakan tetapi belum ada; sampai ada, jangan mencetak log.
+- Impor di dalam satu modul memakai path relatif; impor ke `core`, `di`, atau dari `app` memakai alias `@/`.
+- Tidak ada `console.*` di kode yang di-commit (`no-console`). Logger (protocol di `core/domain`) direncanakan tetapi belum ada; sampai ada, jangan mencetak log.
 - Komentar menjelaskan *mengapa*, bukan *apa*.
 - Tidak ada abstraksi untuk satu pemakaian. Ekstrak setelah dipakai di tempat ketiga.
 
