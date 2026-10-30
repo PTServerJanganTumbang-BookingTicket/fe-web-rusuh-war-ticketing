@@ -1,5 +1,5 @@
-import { Alert } from "@/core/views/design-system/primitives/Alert";
-import { ScreenFrame } from "@/core/views/design-system/layout/ScreenFrame";
+import { Alert } from "@/components/ui/primitives/Alert";
+import { ScreenFrame } from "@/components/ui/layout/ScreenFrame";
 import { EventCard, type EventCardProps } from "./EventCard";
 
 export type HomeViewProps = {

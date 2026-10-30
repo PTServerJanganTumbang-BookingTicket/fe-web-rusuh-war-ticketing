@@ -1,7 +1,7 @@
-import { Badge, type BadgeProps } from "@/core/views/design-system/primitives/Badge";
-import { Button } from "@/core/views/design-system/primitives/Button";
-import { Card } from "@/core/views/design-system/primitives/Card";
-import { cn } from "@/core/views/design-system/cn.utils";
+import { Badge, type BadgeProps } from "@/components/ui/primitives/Badge";
+import { Button } from "@/components/ui/primitives/Button";
+import { Card } from "@/components/ui/primitives/Card";
+import { cn } from "@/components/ui/cn.utils";
 
 export type EventCardProps = {
   id: string;

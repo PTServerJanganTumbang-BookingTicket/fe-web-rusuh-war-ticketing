@@ -39,8 +39,9 @@ const boundariesConfig = [
         { type: "core-data", pattern: "src/core/data/**" },
         { type: "core-controller", pattern: "src/core/controllers/**" },
         { type: "core-i18n", pattern: "src/core/i18n/**" },
-        { type: "design-system", pattern: "src/core/views/design-system/**" },
         { type: "core-view", pattern: "src/core/views/**" },
+        // Design system di src/components/ui
+        { type: "design-system", pattern: "src/components/ui/**" },
         // Modul fitur. `module` ditangkap supaya aturan bisa membatasi ke modul yang sama.
         { type: "domain", pattern: "src/modules/*/domain/**", capture: ["module"] },
         { type: "application", pattern: "src/modules/*/application/**", capture: ["module"] },
@@ -155,7 +156,11 @@ const boundariesConfig = [
   },
   {
     // design system dan view: hanya token desain, tidak ada nilai warna mentah (token Signal, bukan hex)
-    files: ["src/core/views/**/*.{ts,tsx}", "src/modules/*/views/**/*.tsx"],
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "src/core/views/**/*.{ts,tsx}",
+      "src/modules/*/views/**/*.tsx",
+    ],
     rules: {
       "no-restricted-syntax": [
         "error",

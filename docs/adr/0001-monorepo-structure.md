@@ -1,9 +1,19 @@
 # ADR-0001: Monorepo dengan pemisahan core / ui / api
 
-- **Status**: Superseded by ADR-0013
+- **Status**: ❌ **ARCHIVED** — Superseded by [ADR-0013](0013-single-app-modular-structure.md)
 - **Tanggal**: 2026-10-18
+- **Tanggal arsip**: 2026-10-30
 - **Pengambil keputusan**: Tim FE Web (Ahmad Muzaki, Akbar T Hartomo)
 - **Requirement terkait**: NFR-08, aturan evaluasi #2 (standar development)
+
+> ⚠️ **ADR INI SUDAH TIDAK BERLAKU**
+>
+> Struktur monorepo (`packages/{core,api,ui,i18n}`) telah diganti dengan **satu aplikasi Next.js dengan modul fitur** di `src/modules/<m>/`.
+>
+> **Baca ADR pengganti:**
+> - [ADR-0013](0013-single-app-modular-structure.md) — Struktur folder dan penamaan file
+
+---
 
 ## Konteks
 

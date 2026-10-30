@@ -34,6 +34,8 @@ src/
 ├─ app/                 Next.js App Router: routing, layout, route handler
 ├─ proxy.ts             gerbang edge (Next 16)
 ├─ instrumentation.ts
+├─ components/
+│  └─ ui/               primitives (Button, dll), layout (ScreenFrame), tokens
 ├─ di/                  composition root Awilix (ADR-0015)
 ├─ modules/
 │  └─ <modul>/
@@ -48,7 +50,7 @@ src/
 │  ├─ application/      use case bersama (StartSessionUseCase), core.dependencies.ts
 │  ├─ data/             klien HTTP dan SSE, service sesi, jam, acak
 │  ├─ controllers/      hook bersama, useDependencies, format tampilan
-│  ├─ views/            design-system/ (Signal), ScreenLoading
+│  ├─ views/            ScreenLoading (minimal, hanya loading indicator)
 │  └─ i18n/             pesan Bahasa Indonesia dan t()
 ├─ mocks/               MSW: handler dan skenario
 └─ test/                support test (container uji, server MSW)

@@ -1,8 +1,8 @@
 import { Minus, Plus } from "lucide-react";
-import { Badge } from "@/core/views/design-system/primitives/Badge";
-import { Button } from "@/core/views/design-system/primitives/Button";
-import { Card } from "@/core/views/design-system/primitives/Card";
-import { cn } from "@/core/views/design-system/cn.utils";
+import { Badge } from "@/components/ui/primitives/Badge";
+import { Button } from "@/components/ui/primitives/Button";
+import { Card } from "@/components/ui/primitives/Card";
+import { cn } from "@/components/ui/cn.utils";
 
 export type CategoryRowProps = {
   id: string;

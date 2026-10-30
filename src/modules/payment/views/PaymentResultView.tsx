@@ -1,6 +1,6 @@
-import { Button } from "@/core/views/design-system/primitives/Button";
-import { Card } from "@/core/views/design-system/primitives/Card";
-import { ScreenFrame } from "@/core/views/design-system/layout/ScreenFrame";
+import { Button } from "@/components/ui/primitives/Button";
+import { Card } from "@/components/ui/primitives/Card";
+import { ScreenFrame } from "@/components/ui/layout/ScreenFrame";
 
 export type PaymentResultViewProps = {
   tone: "success" | "danger";

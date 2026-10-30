@@ -38,7 +38,8 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 | `data/` | Service yang mengimplementasikan protocol, schema zod | `domain`, `application`, `data` modul sendiri, `core/domain`, `core/application`, `core/data` | React, Next, `awilix` |
 | `controllers/` | Hook controller, mapper, query options, loader | `domain`, `controllers`, `views` modul sendiri, `core` sisi tampilan; **`application` hanya `import type`** | Impor nilai dari `application` atau `data`, `awilix`, `Date.now()`, `Math.random()` |
 | `views/*Container.tsx` | Memanggil controller, memilih View | Sama dengan `controllers/` | Sama dengan `controllers/` |
-| `views/` (selain Container) | View props-only | `core/views/design-system`, `views` modul sendiri; `domain` hanya tipe | Controller, i18n, hook data, apa pun selain design system |
+| `views/` (selain Container) | View props-only | `components/ui`, `views` modul sendiri; `domain` hanya tipe | Controller, i18n, hook data, apa pun selain design system |
+| `components/ui/` | Primitives dan layout | React, Radix UI, Tailwind | Apapun di luar `components/` |
 | `<m>.module.ts` | Registrasi DI modul | `domain`, `application`, `data` modul sendiri, `core/domain`, `core/application`, `core/data` | Modul lain |
 
 "`core` sisi tampilan" berarti `core/domain`, `core/controllers`, `core/i18n`, `core/views`. Lapisan terluar: `src/di` boleh mengimpor registrasi modul dan seluruh `core`; `src/app`, `proxy.ts`, `instrumentation.ts` boleh mengimpor `di`, controller, view, `core` sisi tampilan, dan `core/data` (konstanta cookie).

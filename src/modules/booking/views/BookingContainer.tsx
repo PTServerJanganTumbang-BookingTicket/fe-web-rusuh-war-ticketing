@@ -1,6 +1,6 @@
 "use client";
 
-import { StatusView } from "@/core/views/design-system/layout/StatusView";
+import { StatusView } from "@/components/ui/layout/StatusView";
 import { useBookingController } from "../controllers/booking.controller";
 import { BookingView } from "./BookingView";
 
