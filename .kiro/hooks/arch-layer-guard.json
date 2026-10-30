@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Architecture Layer Guard",
+      "trigger": "PostFileSave",
+      "description": "Verifies Clean Architecture dependency rules: domain layer must not import from outer layers (application, data, controllers, views, di). Checks both module-specific and core domain files.",
+      "matcher": "/(modules/[^/]+/domain/|core/domain/)",
+      "action": {
+        "type": "agent",
+        "prompt": "A domain layer file was saved. Verify it follows Clean Architecture dependency rules:\n\nALLOWED imports in domain/:\n- Other files within the same domain/ folder\n- src/core/domain/ (shared domain types)\n- TypeScript built-ins\n\nFORBIDDEN imports in domain/:\n- application/ (use cases)\n- data/ (services, schemas, zod)\n- controllers/ (hooks, mappers)\n- views/ (React components)\n- di/ (Awilix, container)\n- Any framework: React, Next.js, zod, awilix, fetch, window, Date.now()\n\nCheck the file's import statements. If any violation is found, report:\n1. The violating import line\n2. Which rule it breaks\n3. How to fix it (usually by moving the dependency to a protocol or removing it)\n\nIf no violations, confirm the file follows domain layer rules."
+      }
+    }
+  ]
+}
