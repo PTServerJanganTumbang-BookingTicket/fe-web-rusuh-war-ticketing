@@ -15,8 +15,9 @@ Satu aplikasi Next.js dengan modul fitur. **Bukan monorepo.**
 ```
 src/app            → Next.js routing, layout, route handler (framework)
 src/di             → Awilix composition root, config, AppProviders (wiring)
+src/components/ui  → primitives, layout, tokens (design system)
 src/modules/<m>/   → domain/ application/ data/ controllers/ views/ <m>.module.ts
-src/core/          → domain/ application/ data/ controllers/ views/ i18n/ (shared)
+src/core/          → domain/ application/ data/ controllers/ views/ i18n/ (shared logic)
 src/mocks          → MSW
 src/test           → test support
 ```
@@ -31,8 +32,8 @@ Arah dependensi selalu **ke dalam**: `views → controllers → application (tip
 | `application/` | Use case, dependencies type, `domain`, `core/domain`, `core/application` | Framework, `zod`, `awilix`, `fetch`, `Date.now()`, `Math.random()` |
 | `data/` | Service, schema zod, `core/data` | React, Next, `awilix`, `controllers`, `views` |
 | `controllers/` | Controller, mapper, query options, `domain` (modul sendiri), `views` (tipe props), **`application` hanya `import type`** | Import nilai dari `application` atau `data`, `awilix`, `Date.now()` |
-| `views/` (selain Container) | View props-only, `core/views/design-system`, `domain` hanya tipe | Controller, i18n, hook data, TanStack Query |
-| `design-system/` | React, Signal DS, Tailwind | Semua di luar `design-system` |
+| `views/` (selain Container) | View props-only, `components/ui`, `domain` hanya tipe | Controller, i18n, hook data, TanStack Query |
+| `components/ui/` | React, Radix UI, Tailwind | Semua di luar `components/` |
 
 **Modul tidak saling mengimpor.** Kode bersama pindah ke `src/core`.
 
@@ -73,7 +74,9 @@ src/modules/<m>/
 ## Import Path
 
 - Impor di dalam satu modul memakai path **relatif**
-- Impor ke `core`, `di`, atau dari `app` memakai alias `@/`
+- Impor ke `core`, `di`, `components`, atau dari `app` memakai alias `@/`
+- UI primitives: `import { Button } from '@/components/ui/primitives'`
+- Layout: `import { ScreenFrame } from '@/components/ui/layout/ScreenFrame'`
 
 ## Kelas vs Fungsi
 

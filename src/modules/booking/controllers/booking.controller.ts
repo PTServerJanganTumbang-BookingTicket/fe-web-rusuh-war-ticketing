@@ -12,7 +12,7 @@ import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
-import type { StatusViewProps } from "@/core/views/design-system/layout/StatusView";
+import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
 import { selectionReducer } from "../domain/selection.reducer";
 import { bookingSessionQuery } from "./booking.queries";

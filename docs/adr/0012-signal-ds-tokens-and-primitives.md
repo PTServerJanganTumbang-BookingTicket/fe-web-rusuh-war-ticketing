@@ -43,3 +43,26 @@ Opsi 3, hanya tema terang.
 ## Catatan implementasi (2026-10-28)
 
 - Preset token pindah ke `src/core/views/design-system/signal.css`, primitif ke `src/core/views/design-system/primitives`, kerangka layar (`ScreenFrame`, `CountdownCard`, `StatusView`, `ScreenPlaceholder`) ke `src/core/views/design-system/layout`. View per layar ada di `src/modules/<m>/views`. Larangan hex berlaku untuk keduanya.
+
+## Catatan implementasi (2026-10-30)
+
+Struktur UI dipindahkan ke `src/components/ui/`:
+
+```
+src/components/
+└── ui/
+    ├── primitives/      ← Shadcn-style components (Button, Badge, Card, dll)
+    ├── layout/          ← App-specific composites (ScreenFrame, CountdownCard)
+    ├── signal.css       ← Token warna Signal
+    └── cn.utils.ts      ← Class merge utility
+```
+
+**Alasan pemindahan:**
+- `components/ui/` = UI components, terpisah dari business logic di `core/`
+- `core/` sekarang hanya berisi shared business logic (domain, application, data, controllers)
+- `core/views/` hanya menyimpan `ScreenLoading.tsx` (minimal loading indicator)
+
+**Aturan dependensi:**
+- `components/ui/` boleh import: React, Radix UI, Tailwind
+- `components/ui/` dilarang import: apapun di luar `components/`
+- View di `modules/<m>/views/` boleh import: `@/components/ui/`

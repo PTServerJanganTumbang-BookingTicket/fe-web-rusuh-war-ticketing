@@ -14,7 +14,7 @@ import { useLiveUpdates } from "@/core/controllers/live-updates.hook";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
-import type { StatusViewProps } from "@/core/views/design-system/layout/StatusView";
+import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
 import type { Order, PaymentMethod, PaymentOutcome } from "../domain/order.model";
 import { isFinalOrder } from "../domain/order.rules";

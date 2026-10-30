@@ -1,8 +1,8 @@
-import { Alert } from "@/core/views/design-system/primitives/Alert";
-import { Button } from "@/core/views/design-system/primitives/Button";
-import { Card } from "@/core/views/design-system/primitives/Card";
-import { CountdownCard, type CountdownCardProps } from "@/core/views/design-system/layout/CountdownCard";
-import { ScreenFrame } from "@/core/views/design-system/layout/ScreenFrame";
+import { Alert } from "@/components/ui/primitives/Alert";
+import { Button } from "@/components/ui/primitives/Button";
+import { Card } from "@/components/ui/primitives/Card";
+import { CountdownCard, type CountdownCardProps } from "@/components/ui/layout/CountdownCard";
+import { ScreenFrame } from "@/components/ui/layout/ScreenFrame";
 import { CategoryRow, type CategoryRowProps } from "./CategoryRow";
 
 export type BookingViewProps = {

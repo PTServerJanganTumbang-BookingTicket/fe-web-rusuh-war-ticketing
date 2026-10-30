@@ -1,10 +1,10 @@
-import { Alert } from "@/core/views/design-system/primitives/Alert";
-import { Button } from "@/core/views/design-system/primitives/Button";
-import { Card } from "@/core/views/design-system/primitives/Card";
-import { RadioGroup, RadioGroupItem } from "@/core/views/design-system/primitives/RadioGroup";
-import { CountdownCard, type CountdownCardProps } from "@/core/views/design-system/layout/CountdownCard";
-import { ScreenFrame } from "@/core/views/design-system/layout/ScreenFrame";
-import { cn } from "@/core/views/design-system/cn.utils";
+import { Alert } from "@/components/ui/primitives/Alert";
+import { Button } from "@/components/ui/primitives/Button";
+import { Card } from "@/components/ui/primitives/Card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/primitives/RadioGroup";
+import { CountdownCard, type CountdownCardProps } from "@/components/ui/layout/CountdownCard";
+import { ScreenFrame } from "@/components/ui/layout/ScreenFrame";
+import { cn } from "@/components/ui/cn.utils";
 import { FakeQr } from "./FakeQr";
 
 export type PaymentInstructionView =

@@ -1,9 +1,21 @@
 # ADR-0002: Lapisan Clean Architecture dan aturan dependensi
 
-- **Status**: Superseded by ADR-0014
+- **Status**: ❌ **ARCHIVED** — Superseded by [ADR-0013](0013-single-app-modular-structure.md) dan [ADR-0014](0014-modular-clean-architecture-solid.md)
 - **Tanggal**: 2026-10-18
+- **Tanggal arsip**: 2026-10-30
 - **Pengambil keputusan**: Tim FE Web
 - **Requirement terkait**: FR-13–19, NFR-02, NFR-04, NFR-07
+
+> ⚠️ **ADR INI SUDAH TIDAK BERLAKU**
+>
+> Struktur monorepo (`apps/web`, `packages/{core,api,ui,i18n}`) telah diganti dengan **satu aplikasi Next.js dengan modul fitur** di `src/modules/<m>/`.
+>
+> **Baca ADR pengganti:**
+> - [ADR-0013](0013-single-app-modular-structure.md) — Struktur folder dan penamaan file
+> - [ADR-0014](0014-modular-clean-architecture-solid.md) — Aturan dependensi antar lapisan
+> - [ADR-0015](0015-dependency-injection-awilix.md) — Dependency injection dengan Awilix
+
+---
 
 ## Konteks
 
