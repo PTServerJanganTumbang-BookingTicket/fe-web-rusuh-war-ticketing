@@ -11,23 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       # Aturan dependensi antar lapisan dan modul (ADR-0014, ADR-0015) ditegakkan ESLint boundaries.
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test:coverage
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
 
       - name: Build
-        run: pnpm build | tee build.log
+        run: npm run build | tee build.log
 
       # ADR-0007: Home harus tetap statis. Gagal bila `/` berubah menjadi dynamic atau partial.
       - name: Home tetap statis
@@ -41,37 +39,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       # Menangkap commit yang melewati hook lokal (--no-verify).
-      - run: pnpm exec commitlint --from origin/${{ github.base_ref }} --to HEAD
+      - run: npx commitlint --from origin/${{ github.base_ref }} --to HEAD
 
   e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       - name: Pasang Chromium untuk Playwright
-        run: pnpm exec playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
 
       # Server dev dengan mock MSW dijalankan oleh webServer di playwright.config.ts. Jam palsu lewat page.clock.
-      - run: pnpm test:e2e
+      - run: npm run test:e2e
 
       - uses: actions/upload-artifact@v4
         if: failure()
