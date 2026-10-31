@@ -18,7 +18,7 @@ export function queuePositionQuery(
 ) {
   return queryOptions({
     queryKey: queueKeys.position(eventId),
-    queryFn: () => deps.getQueueStateUseCase.execute(eventId),
+    queryFn: () => deps.getQueueStateUseCase(eventId),
     refetchInterval: (query) => {
       const state = query.state.data;
       return !live && state?.status === "waiting"

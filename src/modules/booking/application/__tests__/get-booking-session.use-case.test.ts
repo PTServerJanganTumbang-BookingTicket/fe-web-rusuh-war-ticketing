@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BookingSession } from "../../domain/booking-session.model";
-import { GetBookingSessionUseCase } from "../get-booking-session.use-case";
+import { createGetBookingSessionUseCase } from "../get-booking-session.use-case";
 
 const session: BookingSession = {
   eventName: "Konser A",
@@ -11,10 +11,10 @@ const session: BookingSession = {
   categories: [],
 };
 
-describe("GetBookingSessionUseCase", () => {
+describe("createGetBookingSessionUseCase", () => {
   it("meneruskan eventId ke BookingProtocol", async () => {
     const asked: string[] = [];
-    const getBookingSessionUseCase = new GetBookingSessionUseCase({
+    const getBookingSessionUseCase = createGetBookingSessionUseCase({
       bookingService: {
         getSession: async (eventId) => {
           asked.push(eventId);
@@ -22,7 +22,7 @@ describe("GetBookingSessionUseCase", () => {
         },
       },
     });
-    expect(await getBookingSessionUseCase.execute("evt-1")).toBe(session);
+    expect(await getBookingSessionUseCase("evt-1")).toBe(session);
     expect(asked).toEqual(["evt-1"]);
   });
 });

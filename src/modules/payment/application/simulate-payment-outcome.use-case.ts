@@ -1,14 +1,12 @@
 import type { Order, PaymentOutcome } from "../domain/order.model";
 import type { PaymentSimulatorProtocol } from "../domain/payment-simulator.protocol";
 
-export class SimulatePaymentOutcomeUseCase {
-  private readonly paymentSimulatorService: PaymentSimulatorProtocol;
+export type SimulatePaymentOutcomeUseCase = (orderId: string, outcome: PaymentOutcome) => Promise<Order>;
 
-  constructor({ paymentSimulatorService }: { paymentSimulatorService: PaymentSimulatorProtocol }) {
-    this.paymentSimulatorService = paymentSimulatorService;
-  }
-
-  execute(orderId: string, outcome: PaymentOutcome): Promise<Order> {
-    return this.paymentSimulatorService.simulate(orderId, outcome);
-  }
+export function createSimulatePaymentOutcomeUseCase({
+  paymentSimulatorService,
+}: {
+  paymentSimulatorService: PaymentSimulatorProtocol;
+}): SimulatePaymentOutcomeUseCase {
+  return (orderId, outcome) => paymentSimulatorService.simulate(orderId, outcome);
 }

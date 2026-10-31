@@ -45,7 +45,7 @@ export function usePaymentController(orderId: string): PaymentScreen {
   } = useDependencies<PaymentDependencies & CoreDependencies>();
   const live = useLiveUpdates<Order>({
     queryKey: orderKeys.detail(orderId),
-    watch: (observer) => watchOrderUseCase.execute(orderId, observer),
+    watch: (observer) => watchOrderUseCase(orderId, observer),
     until: isFinalOrder,
   });
   const query = useQuery(orderQuery({ getOrderUseCase, random }, orderId, live));
@@ -56,11 +56,11 @@ export function usePaymentController(orderId: string): PaymentScreen {
 
   const setOrder = (next: Order) => queryClient.setQueryData(orderKeys.detail(orderId), next);
   const pay = useMutation({
-    mutationFn: (selected: PaymentMethod) => startPaymentUseCase.execute(orderId, selected),
+    mutationFn: (selected: PaymentMethod) => startPaymentUseCase(orderId, selected),
     onSuccess: setOrder,
   });
   const emulate = useMutation({
-    mutationFn: (outcome: PaymentOutcome) => simulatePaymentOutcomeUseCase.execute(orderId, outcome),
+    mutationFn: (outcome: PaymentOutcome) => simulatePaymentOutcomeUseCase(orderId, outcome),
     onSuccess: setOrder,
   });
 

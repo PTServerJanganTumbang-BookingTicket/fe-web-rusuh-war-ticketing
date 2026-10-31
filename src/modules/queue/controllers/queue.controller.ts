@@ -29,12 +29,12 @@ export function useQueueController(eventId: string): QueueViewProps {
   >();
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
-    watch: (observer) => watchQueueStateUseCase.execute(eventId, observer),
+    watch: (observer) => watchQueueStateUseCase(eventId, observer),
     until: (state) => state.status === "admitted",
   });
   const queue = useQuery(queuePositionQuery({ getQueueStateUseCase, random }, eventId, live));
   const enter = useMutation({
-    mutationFn: (accessToken: string) => startSessionUseCase.execute(accessToken),
+    mutationFn: (accessToken: string) => startSessionUseCase(accessToken),
     onSuccess: () => router.push(`/events/${eventId}/book`),
   });
   const title = t("queue.title");

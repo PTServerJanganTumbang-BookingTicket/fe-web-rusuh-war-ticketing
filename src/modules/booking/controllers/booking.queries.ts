@@ -15,7 +15,7 @@ export function bookingSessionQuery(
 ) {
   return queryOptions({
     queryKey: bookingKeys.session(eventId),
-    queryFn: () => deps.getBookingSessionUseCase.execute(eventId),
+    queryFn: () => deps.getBookingSessionUseCase(eventId),
     refetchInterval: () => withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next()),
   });
 }

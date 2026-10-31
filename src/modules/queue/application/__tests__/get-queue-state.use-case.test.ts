@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { QueueState } from "../../domain/queue-state.model";
-import { GetQueueStateUseCase } from "../get-queue-state.use-case";
+import { createGetQueueStateUseCase } from "../get-queue-state.use-case";
 
-describe("GetQueueStateUseCase", () => {
+describe("createGetQueueStateUseCase", () => {
   it("meneruskan eventId ke QueueProtocol", async () => {
     const state: QueueState = {
       status: "admitted",
@@ -11,7 +11,7 @@ describe("GetQueueStateUseCase", () => {
       expiresAt: "x",
     };
     const asked: string[] = [];
-    const getQueueStateUseCase = new GetQueueStateUseCase({
+    const getQueueStateUseCase = createGetQueueStateUseCase({
       queueService: {
         getState: async (eventId) => {
           asked.push(eventId);
@@ -19,7 +19,7 @@ describe("GetQueueStateUseCase", () => {
         },
       },
     });
-    expect(await getQueueStateUseCase.execute("evt-1")).toBe(state);
+    expect(await getQueueStateUseCase("evt-1")).toBe(state);
     expect(asked).toEqual(["evt-1"]);
   });
 });

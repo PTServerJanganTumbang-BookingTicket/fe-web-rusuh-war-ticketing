@@ -19,7 +19,7 @@ export function orderQuery(
 ) {
   return queryOptions({
     queryKey: orderKeys.detail(orderId),
-    queryFn: () => deps.getOrderUseCase.execute(orderId),
+    queryFn: () => deps.getOrderUseCase(orderId),
     refetchInterval: (query) =>
       !live && query.state.data?.status === "pending"
         ? withJitter(PAYMENT_STATUS_POLL_INTERVAL_MS, deps.random.next())
