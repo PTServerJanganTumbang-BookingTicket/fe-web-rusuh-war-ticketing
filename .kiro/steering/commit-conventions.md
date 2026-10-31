@@ -29,8 +29,8 @@ Aturan commit message mengikuti Telkomsel FOSS Technical Guidelines.
 ✓ [TITAN-305][Beta] fix(payment): resolve timeout on checkout
 ✓ [TITAN-410][Caca] chore(deps): update axios to v1.5.0
 ✓ [TITAN-500][Dodi] fix(auth): resolve critical login issue
-✓ [RUSUH-001][Akbar] feat(booking): add ticket selection reducer
-✓ [RUSUH-002][Akbar] fix(queue): handle SSE reconnection on network error
+✓ [SJT-001][Akbar] feat(booking): add ticket selection reducer
+✓ [SJT-002][Akbar] fix(queue): handle SSE reconnection on network error
 ```
 
 ## Contoh INVALID
@@ -38,9 +38,9 @@ Aturan commit message mengikuti Telkomsel FOSS Technical Guidelines.
 ```
 ❌ feat(booking): add feature                    # tidak ada JIRAID dan ACTOR
 ❌ [Akbar] feat(booking): add feature            # tidak ada JIRAID
-❌ [RUSUH-001] feat(booking): add feature        # tidak ada ACTOR
+❌ [SJT-001] feat(booking): add feature          # tidak ada ACTOR
 ❌ update steering files                         # format salah total
-❌ [RUSUH-001][Akbar] Add feature               # tidak ada type dan scope
+❌ [SJT-001][Akbar] Add feature                  # tidak ada type dan scope
 ```
 
 ## Commit Types

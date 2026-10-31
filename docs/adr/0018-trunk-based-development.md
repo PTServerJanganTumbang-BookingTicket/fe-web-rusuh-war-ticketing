@@ -104,8 +104,8 @@ Mengikuti Conventional Commits dengan Jira ID dan Actor:
 
 Contoh:
 ```
-[RUSUH-001][Akbar] feat(booking): add ticket selection reducer
-[RUSUH-002][Akbar] fix(queue): handle SSE reconnection on network error
+[SJT-001][Akbar] feat(booking): add ticket selection reducer
+[SJT-002][Akbar] fix(queue): handle SSE reconnection on network error
 ```
 
 ## Konsekuensi
