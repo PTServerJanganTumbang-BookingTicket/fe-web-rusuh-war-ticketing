@@ -1,6 +1,6 @@
 import { COUNTDOWN_URGENT_AT_MS } from "@/core/domain/time/countdown.constants";
 import { formatMmSs } from "@/core/domain/time/format-mm-ss.utils";
-import { formatIdr } from "@/core/controllers/format.utils";
+import { formatIdr } from "@/core/controllers/format-currency.utils";
 import { t } from "@/core/i18n/t.utils";
 import type { BookingSession } from "../domain/booking-session.model";
 import { canAddTicket } from "../domain/can-add-ticket.rules";
