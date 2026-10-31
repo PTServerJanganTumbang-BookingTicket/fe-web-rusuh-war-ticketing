@@ -16,7 +16,7 @@ Plan → Implement → Review
 ```
 Launch sjt-feature workflow untuk R1: Event List
 - requirement_id: R1
-- jira_id: RUSUH-XXX
+- jira_id: SJT-XXX
 - actor: [Nama]
 ```
 

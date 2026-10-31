@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { StartSessionUseCase } from "../start-session.use-case";
+import { createStartSessionUseCase } from "../start-session.use-case";
 
-describe("StartSessionUseCase", () => {
+describe("createStartSessionUseCase", () => {
   it("menitipkan access token lewat SessionProtocol", async () => {
     const started: string[] = [];
-    const startSessionUseCase = new StartSessionUseCase({
+    const startSessionUseCase = createStartSessionUseCase({
       sessionService: { start: async (token) => void started.push(token) },
     });
-    await startSessionUseCase.execute("tok-1");
+    await startSessionUseCase("tok-1");
     expect(started).toEqual(["tok-1"]);
   });
 });

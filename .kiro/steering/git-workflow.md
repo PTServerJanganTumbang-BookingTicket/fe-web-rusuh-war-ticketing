@@ -32,14 +32,14 @@ Strategi Trunk-Based Development mengikuti Telkomsel FOSS Technical Guidelines. 
 # 1. Buat branch dari main
 git checkout main
 git pull origin main
-git checkout -b story/RUSUH-001-ticket-selection
+git checkout -b story/SJT-001-ticket-selection
 
 # 2. Commit kecil dan sering
 git add <files>
-git commit -m "[RUSUH-001][Akbar] feat(booking): add ticket model"
+git commit -m "[SJT-001][Akbar] feat(booking): add ticket model"
 
 # 3. Push dan buat MR sebelum 1 hari
-git push -u origin story/RUSUH-001-ticket-selection
+git push -u origin story/SJT-001-ticket-selection
 ```
 
 ## Release Train Flow
@@ -71,7 +71,7 @@ git checkout release/1.0.0
 git checkout -b hotfix/critical-payment-fix
 
 # 2. Fix dan commit
-git commit -m "[RUSUH-999][Akbar] fix(payment): resolve critical timeout"
+git commit -m "[SJT-999][Akbar] fix(payment): resolve critical timeout"
 
 # 3. Merge ke release, tag baru
 git checkout release/1.0.0
@@ -93,7 +93,7 @@ git checkout -b cherry-pick-release-1.0.0
 git merge origin/release/1.0.0
 # Resolve conflicts
 git add .
-git commit -m "[RUSUH-XXX][Akbar] chore: resolve mergeback conflict"
+git commit -m "[SJT-XXX][Akbar] chore: resolve mergeback conflict"
 git push origin cherry-pick-release-1.0.0
 # Buat MR ke main
 ```
@@ -120,8 +120,8 @@ Setiap commit otomatis menjalankan:
 
 | Tipe | Format | Contoh |
 |------|--------|--------|
-| Feature | `story/<JIRAID>-<deskripsi>` | `story/RUSUH-001-ticket-selection` |
-| Fix | `fix/<JIRAID>-<deskripsi>` | `fix/RUSUH-002-sse-reconnect` |
+| Feature | `story/<JIRAID>-<deskripsi>` | `story/SJT-001-ticket-selection` |
+| Fix | `fix/<JIRAID>-<deskripsi>` | `fix/SJT-002-sse-reconnect` |
 | Chore | `chore/<deskripsi>` | `chore/update-deps` |
 | Release | `release/<X.Y.Z>` | `release/1.0.0` |
-| Hotfix | `hotfix/<JIRAID>-<deskripsi>` | `hotfix/RUSUH-999-payment-timeout` |
+| Hotfix | `hotfix/<JIRAID>-<deskripsi>` | `hotfix/SJT-999-payment-timeout` |

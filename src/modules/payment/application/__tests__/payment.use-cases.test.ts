@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Order, PaymentMethod, PaymentOutcome } from "../../domain/order.model";
-import { GetOrderUseCase } from "../get-order.use-case";
+import { createGetOrderUseCase } from "../get-order.use-case";
 import type { OrderProtocol } from "../../domain/order.protocol";
 import type { PaymentSimulatorProtocol } from "../../domain/payment-simulator.protocol";
-import { SimulatePaymentOutcomeUseCase } from "../simulate-payment-outcome.use-case";
-import { StartPaymentUseCase } from "../start-payment.use-case";
+import { createSimulatePaymentOutcomeUseCase } from "../simulate-payment-outcome.use-case";
+import { createStartPaymentUseCase } from "../start-payment.use-case";
 
 const order: Order = {
   orderId: "RB-1",
@@ -38,25 +38,22 @@ function setupFakes() {
 }
 
 describe("use case pembayaran", () => {
-  it("GetOrderUseCase membaca order dari OrderProtocol", async () => {
+  it("createGetOrderUseCase membaca order dari OrderProtocol", async () => {
     const { calls, orderService } = setupFakes();
-    expect(await new GetOrderUseCase({ orderService }).execute("RB-1")).toBe(order);
+    expect(await createGetOrderUseCase({ orderService })("RB-1")).toBe(order);
     expect(calls).toEqual([["get", "RB-1"]]);
   });
 
-  it("StartPaymentUseCase meneruskan metode yang dipilih", async () => {
+  it("createStartPaymentUseCase meneruskan metode yang dipilih", async () => {
     const { calls, orderService } = setupFakes();
-    const result = await new StartPaymentUseCase({ orderService }).execute("RB-1", "e_wallet");
+    const result = await createStartPaymentUseCase({ orderService })("RB-1", "e_wallet");
     expect(result.status).toBe("pending");
     expect(calls).toEqual([["initiatePayment", "RB-1", "e_wallet"]]);
   });
 
-  it("SimulatePaymentOutcomeUseCase hanya bergantung pada PaymentSimulatorProtocol", async () => {
+  it("createSimulatePaymentOutcomeUseCase hanya bergantung pada PaymentSimulatorProtocol", async () => {
     const { calls, paymentSimulatorService } = setupFakes();
-    const result = await new SimulatePaymentOutcomeUseCase({ paymentSimulatorService }).execute(
-      "RB-1",
-      "fail",
-    );
+    const result = await createSimulatePaymentOutcomeUseCase({ paymentSimulatorService })("RB-1", "fail");
     expect(result.status).toBe("failed");
     expect(calls).toEqual([["simulate", "RB-1", "fail"]]);
   });

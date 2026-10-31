@@ -16,7 +16,7 @@ export async function loadHomeViewProps({ listEventsUseCase }: CatalogDependenci
     emptyLabel: t("home.empty"),
   };
   try {
-    return { ...base, events: (await listEventsUseCase.execute()).map(toEventCardProps) };
+    return { ...base, events: (await listEventsUseCase()).map(toEventCardProps) };
   } catch {
     return { ...base, events: [], errorMessage: t("home.error") };
   }

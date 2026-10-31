@@ -1,8 +1,8 @@
-import { asClass, asValue, type NameAndRegistrationPair } from "awilix";
+import { asClass, asFunction, asValue, type NameAndRegistrationPair } from "awilix";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import type { SessionProtocol } from "@/core/domain/session.protocol";
-import { StartSessionUseCase } from "@/core/application/start-session.use-case";
+import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
 import { FetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
 import type { HttpClient } from "@/core/data/http/http.client";
 import { MathRandomService } from "@/core/data/math-random.service";
@@ -35,6 +35,6 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     eventSourceFactory: asValue(browserEventSource),
     eventStreamClient: asClass(EventSourceStreamClient).singleton(),
     sessionService: asClass(HttpSessionService).singleton(),
-    startSessionUseCase: asClass(StartSessionUseCase).singleton(),
+    startSessionUseCase: asFunction(createStartSessionUseCase).singleton(),
   };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Event } from "../../domain/event.model";
-import { ListEventsUseCase } from "../list-events.use-case";
+import { createListEventsUseCase } from "../list-events.use-case";
 
 const event: Event = {
   id: "evt-1",
@@ -11,9 +11,9 @@ const event: Event = {
   minPriceIdr: 500_000,
 };
 
-describe("ListEventsUseCase", () => {
+describe("createListEventsUseCase", () => {
   it("mengembalikan event dari service apa pun yang memenuhi EventProtocol", async () => {
-    const listEventsUseCase = new ListEventsUseCase({ eventService: { list: async () => [event] } });
-    expect(await listEventsUseCase.execute()).toEqual([event]);
+    const listEventsUseCase = createListEventsUseCase({ eventService: { list: async () => [event] } });
+    expect(await listEventsUseCase()).toEqual([event]);
   });
 });
