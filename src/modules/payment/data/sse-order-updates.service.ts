@@ -5,19 +5,19 @@ import type { Order } from "../domain/order.model";
 import { orderSchema } from "./order.schema";
 
 /** `GET /orders/{id}/stream`, event `order`. Server mengirim snapshot saat tersambung (ADR-0016). */
-export class SseOrderUpdatesService implements OrderUpdatesProtocol {
-  private readonly eventStreamClient: EventStreamClient;
-
-  constructor({ eventStreamClient }: { eventStreamClient: EventStreamClient }) {
-    this.eventStreamClient = eventStreamClient;
-  }
-
-  watch(orderId: string, observer: Observer<Order>): Unsubscribe {
-    return this.eventStreamClient.open(
-      `/orders/${encodeURIComponent(orderId)}/stream`,
-      "order",
-      orderSchema,
-      observer,
-    );
-  }
+export function createSseOrderUpdatesService({
+  eventStreamClient,
+}: {
+  eventStreamClient: EventStreamClient;
+}): OrderUpdatesProtocol {
+  return {
+    watch(orderId: string, observer: Observer<Order>): Unsubscribe {
+      return eventStreamClient.open(
+        `/orders/${encodeURIComponent(orderId)}/stream`,
+        "order",
+        orderSchema,
+        observer,
+      );
+    },
+  };
 }

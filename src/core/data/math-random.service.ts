@@ -1,7 +1,9 @@
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 
-export class MathRandomService implements RandomProtocol {
-  next(): number {
-    return Math.random();
-  }
+export function createMathRandomService(): RandomProtocol {
+  return {
+    next(): number {
+      return Math.random();
+    },
+  };
 }

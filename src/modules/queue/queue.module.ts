@@ -1,11 +1,11 @@
-import { asClass, asFunction, type NameAndRegistrationPair } from "awilix";
+import { asFunction, type NameAndRegistrationPair } from "awilix";
 import { createGetQueueStateUseCase } from "./application/get-queue-state.use-case";
 import type { QueueProtocol } from "./domain/queue.protocol";
 import type { QueueUpdatesProtocol } from "./domain/queue-updates.protocol";
 import { createWatchQueueStateUseCase } from "./application/watch-queue-state.use-case";
 import type { QueueDependencies } from "./application/queue.dependencies";
-import { HttpQueueService } from "./data/http-queue.service";
-import { SseQueueUpdatesService } from "./data/sse-queue-updates.service";
+import { createHttpQueueService } from "./data/http-queue.service";
+import { createSseQueueUpdatesService } from "./data/sse-queue-updates.service";
 
 export type QueueRegistry = QueueDependencies & {
   queueService: QueueProtocol;
@@ -14,8 +14,8 @@ export type QueueRegistry = QueueDependencies & {
 
 export function queueModule(): NameAndRegistrationPair<QueueRegistry> {
   return {
-    queueService: asClass(HttpQueueService).singleton(),
-    queueUpdatesService: asClass(SseQueueUpdatesService).singleton(),
+    queueService: asFunction(createHttpQueueService).singleton(),
+    queueUpdatesService: asFunction(createSseQueueUpdatesService).singleton(),
     getQueueStateUseCase: asFunction(createGetQueueStateUseCase).singleton(),
     watchQueueStateUseCase: asFunction(createWatchQueueStateUseCase).singleton(),
   };

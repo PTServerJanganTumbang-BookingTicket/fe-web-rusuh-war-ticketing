@@ -1,7 +1,9 @@
 import type { ClockProtocol } from "@/core/domain/clock.protocol";
 
-export class SystemClockService implements ClockProtocol {
-  now(): number {
-    return Date.now();
-  }
+export function createSystemClockService(): ClockProtocol {
+  return {
+    now(): number {
+      return Date.now();
+    },
+  };
 }

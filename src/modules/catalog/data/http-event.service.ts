@@ -3,15 +3,11 @@ import type { EventProtocol } from "../domain/event.protocol";
 import type { Event } from "../domain/event.model";
 import { eventListSchema } from "./event.schema";
 
-export class HttpEventService implements EventProtocol {
-  private readonly httpClient: HttpClient;
-
-  constructor({ httpClient }: { httpClient: HttpClient }) {
-    this.httpClient = httpClient;
-  }
-
-  async list(): Promise<Event[]> {
-    const { events } = await this.httpClient.get("/events", eventListSchema);
-    return events;
-  }
+export function createHttpEventService({ httpClient }: { httpClient: HttpClient }): EventProtocol {
+  return {
+    async list(): Promise<Event[]> {
+      const { events } = await httpClient.get("/events", eventListSchema);
+      return events;
+    },
+  };
 }
