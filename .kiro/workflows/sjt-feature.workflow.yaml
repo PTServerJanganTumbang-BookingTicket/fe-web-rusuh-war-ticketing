@@ -1,0 +1,84 @@
+# SJT Feature Workflow
+# Workflow untuk implementasi satu requirement dengan plan → code → review loop
+#
+# Usage: Launch dengan input requirement_id (e.g., "R1", "R3")
+# Example: "Launch sjt-feature workflow untuk R1: Event List"
+
+name: SJT Feature Implementation
+description: |
+  Workflow per-requirement dengan 3 stages:
+  1. Planning - sjt-planner investigasi dan buat plan
+  2. Implementation - sjt-coder implement sesuai plan
+  3. Review - sjt-reviewer code review
+
+inputs:
+  requirement_id:
+    description: "Requirement ID dari requirements.md (e.g., R0, R1, R2)"
+    required: true
+  jira_id:
+    description: "JIRA ticket ID untuk commit message"
+    required: true
+  actor:
+    description: "Actor name untuk commit message"
+    required: true
+
+steps:
+  - id: plan
+    name: "Planning Phase"
+    agent: sjt-planner
+    prompt: |
+      Buat implementation plan untuk Requirement {{requirement_id}}.
+
+      Context:
+      - Requirements file: `.kiro/specs/rusuh-tiket-booking/requirements.md`
+      - Steering files: `.kiro/steering/`
+      - ADRs: `docs/adr/`
+
+      Tasks:
+      1. Baca requirement {{requirement_id}} dari requirements.md
+      2. Investigasi existing codebase untuk patterns yang relevan
+      3. Buat implementation plan dengan format yang sudah ditentukan
+
+      Output plan ke: `.kiro/specs/rusuh-tiket-booking/plans/{{requirement_id}}-plan.md`
+
+      INGAT: Pause di setiap checkpoint untuk validasi!
+
+  - id: implement
+    name: "Implementation Phase"
+    agent: sjt-coder
+    dependsOn: [plan]
+    prompt: |
+      Implementasi Requirement {{requirement_id}} sesuai plan.
+
+      Context:
+      - Plan file: `.kiro/specs/rusuh-tiket-booking/plans/{{requirement_id}}-plan.md`
+      - JIRA ID: {{jira_id}}
+      - Actor: {{actor}}
+
+      Tasks:
+      1. Baca plan yang sudah dibuat
+      2. Implementasi setiap task dalam plan
+      3. Run verification (lint, typecheck, test)
+      4. Commit dengan format: [{{jira_id}}][{{actor}}] type(scope): subject
+
+      INGAT: Pause di setiap checkpoint untuk validasi!
+
+  - id: review
+    name: "Review Phase"
+    agent: sjt-reviewer
+    dependsOn: [implement]
+    prompt: |
+      Review implementasi Requirement {{requirement_id}}.
+
+      Context:
+      - Requirement: {{requirement_id}} di requirements.md
+      - Plan: `.kiro/specs/rusuh-tiket-booking/plans/{{requirement_id}}-plan.md`
+
+      Tasks:
+      1. Review semua files yang diubah/dibuat
+      2. Verify against acceptance criteria
+      3. Check architecture compliance
+      4. Run full verification suite
+      5. Output review ke: `.kiro/specs/rusuh-tiket-booking/reviews/{{requirement_id}}-review.md`
+
+      INGAT: Pause di setiap checkpoint untuk validasi!
