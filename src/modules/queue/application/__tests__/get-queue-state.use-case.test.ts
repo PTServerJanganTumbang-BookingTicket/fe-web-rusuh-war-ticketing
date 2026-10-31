@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { QueueState } from "../domain/queue-state.model";
+import type { QueueState } from "../../domain/queue-state.model";
 import { GetQueueStateUseCase } from "../get-queue-state.use-case";
 
 describe("GetQueueStateUseCase", () => {

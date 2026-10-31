@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Event } from "../domain/event.model";
+import type { Event } from "../../domain/event.model";
 import { toEventCardProps } from "../event-card.mapper";
 
 const event: Event = {
