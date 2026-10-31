@@ -236,3 +236,19 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
   - `eslint.boundaries.mjs` ditulis ulang untuk lapisan baru (element `container` untuk `*Container.tsx`); 7 file probe pelanggaran tertangkap semua lalu dihapus. Glob coverage Vitest dan ignore ESLint/Prettier disesuaikan.
   - ADR-0013 (struktur, istilah, tabel akhiran file), ADR-0014 (lapisan, service, konstanta, SOLID), ADR-0015 (DI, aturan nama registrasi) ditulis ulang. Catatan implementasi di ADR-0003/0004/0005/0008/0009/0010/0012/0016. Steering `architecture-rules.md` ditulis ulang tanpa membuang aturan; `coding-conventions.md` (tabel penamaan), `testing.md`, `product.md`, skill `new-module`, `new-feature-screen`, `new-ui-component`, `sync-api-contract`, `docs/architecture/*`, README diperbarui.
 - **Review manusia**: lint, `tsc`, 96 test, dan `next build` hijau (Home tetap statis, tanpa kode MSW di bundle produksi). **Coverage tidak dijalankan**: `@vitest/coverage-v8` tidak terpasang di `node_modules` lokal, dan `pnpm` lokal gagal dijalankan. Prettier dijalankan dari cache npx (3.9.10) untuk file yang berubah saja. E2E belum dijalankan. `mode: "file"` di boundaries memicu peringatan deprecation plugin v7. Akhiran nama file belum ditegakkan lint.
+
+
+## 2026-10-27 — Sinkronisasi requirements.md dengan Final Requirements v1.1
+
+- **Tool**: Kiro (Claude Opus 4.5)
+- **Oleh**: akbhartomo
+- **Tujuan**: Cross-check dan sinkronisasi `.kiro/specs/rusuh-tiket-booking/requirements.md` terhadap ADR-001–005, meeting notes (14, 16, 21, 23, 27 Oktober 2026), dan Final Requirements v1.1 (26 Oktober 2026).
+- **Input**: ADR-001–005, meeting notes, Final Requirements v1.1 (`requirements (3).md`), requirements.md yang ada.
+- **Output**:
+  - **Perubahan kritis**: TTL_Booking anchor diubah ke `granted_at` (bukan saat halaman dibuka); Session_TTL_Antrian dihapus (REJECTED per BR-17); kuota tiket diubah ke 3 per transaksi (bukan per NIK kumulatif); metode pembayaran POC dipersempit ke VA + GoPay saja; BR-07 keterlibatan aktif hanya untuk user login; Dukcapil fail policy diubah ke fail-closed; push notification (Req 3 AC17) dihapus (out of scope POC); refund Disputed diubah ke manual.
+  - **Fitur baru**: Home Page dual status (`status` + `queue_state` + `display` block); CAPTCHA tak terlihat (fail-open dengan alarm); pause admission saat circuit breaker OPEN; Pause TTL Grace (+60 detik); sold out reversible (930 detik); Dashboard Disputed list; ganti metode pembayaran.
+  - **Business rules diperbarui**: BR-01 (per transaksi), BR-03 (`granted_at`), BR-07 (login only), BR-17 (Session_TTL REJECTED), BR-19 (refund manual), BR-20 (sold out sementara), BR-21 (pause admission), BR-22 (Pause TTL Grace).
+  - **Glossary baru**: Keterlibatan_Aktif, Pause_Admission, Pause_TTL_Grace, Sold_Out_Sementara, CAPTCHA_Tak_Terlihat, Display_Block.
+  - AC baru dari gap analysis sebelumnya: AC14 (quota check endpoint), AC15 (hold replacement), AC16 (error codes standar) di Req 4; AC7 (e-ticket webhook) di Req 7.
+  - Validasi format requirements.md: passed.
+- **Review manusia**: Perlu dicek: (1) implikasi perubahan kuota dari per-NIK ke per-transaksi terhadap anti-scalping; (2) keselarasan dengan kontrak API BE untuk dual status Home Page; (3) implementasi invisible CAPTCHA dan provider yang akan dipakai; (4) mekanisme pause admission dan integrasi dengan circuit breaker.
