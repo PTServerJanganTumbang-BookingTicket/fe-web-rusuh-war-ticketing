@@ -185,20 +185,14 @@ export function maskNik(nik: string): string {
 
 ```typescript
 // auth/application/validate-nik.use-case.ts
-export class ValidateNikUseCase {
-  constructor(private deps: { authService: AuthProtocol }) {}
-  
-  async execute(nik: string): Promise<NikValidationResult> {
-    if (!isValidNikFormat(nik)) {
-      return { valid: false, reason: 'INVALID_FORMAT' };
-    }
-    
-    const status = await this.deps.authService.validateNik(nik);
-    return { 
-      valid: status === 'VALID',
-      status 
-    };
-  }
+export type ValidateNikUseCase = (nik: string) => Promise<NikValidationResult>;
+
+export function createValidateNikUseCase({ authService }: { authService: AuthProtocol }): ValidateNikUseCase {
+  return async (nik) => {
+    if (!isValidNikFormat(nik)) return { valid: false, reason: 'INVALID_FORMAT' };
+    const status = await authService.validateNik(nik);
+    return { valid: status === 'VALID', status };
+  };
 }
 ```
 
@@ -360,55 +354,52 @@ export function calculateEta(
 
 ```typescript
 // queue/application/watch-queue-state.use-case.ts
-export class WatchQueueStateUseCase {
-  constructor(private deps: {
-    queueService: QueueProtocol;
-    queueUpdatesService: QueueUpdatesProtocol;
-  }) {}
-  
-  execute(eventId: string, observer: Observer<QueueState>): Unsubscribe {
-    // Subscribe to SSE updates
-    return this.deps.queueUpdatesService.subscribe(
-      eventId,
-      (update) => {
-        // Recalculate position based on nowServing
-        observer.next(/* recalculated state */);
-      }
-    );
-  }
+export type WatchQueueStateUseCase = (eventId: string, observer: Observer<QueueState>) => Unsubscribe;
+
+export function createWatchQueueStateUseCase({
+  queueUpdatesService,
+}: {
+  queueService: QueueProtocol;
+  queueUpdatesService: QueueUpdatesProtocol;
+}): WatchQueueStateUseCase {
+  return (eventId, observer) =>
+    queueUpdatesService.subscribe(eventId, (update) => {
+      // Recalculate position based on nowServing
+      observer.next(/* recalculated state */);
+    });
 }
 ```
 
 ```typescript
 // queue/application/join-queue-with-captcha.use-case.ts
 // Ref: Req 3.22, Req 12.4 — CAPTCHA tak terlihat saat join antrian
-export class JoinQueueWithCaptchaUseCase {
-  constructor(private deps: {
-    queueService: QueueProtocol;
-    captchaService: CaptchaProtocol;
-  }) {}
-  
-  async execute(eventId: string): Promise<QueueState> {
+export type JoinQueueWithCaptchaUseCase = (eventId: string) => Promise<QueueState>;
+
+export function createJoinQueueWithCaptchaUseCase({
+  queueService,
+  captchaService,
+}: {
+  queueService: QueueProtocol;
+  captchaService: CaptchaProtocol;
+}): JoinQueueWithCaptchaUseCase {
+  return async (eventId) => {
     // Get or refresh CAPTCHA token
-    const captchaToken = await this.deps.captchaService.prefetchToken();
-    
+    const captchaToken = await captchaService.prefetchToken();
     // Join queue with CAPTCHA token
-    return this.deps.queueService.joinQueue(eventId, captchaToken);
-  }
+    return queueService.joinQueue(eventId, captchaToken);
+  };
 }
 ```
 
 ```typescript
 // queue/application/claim-slot.use-case.ts
 // Ref: Req 3 AC3a — polling 1 detik saat posisi 0 menunggu slot
-export class ClaimSlotUseCase {
-  constructor(private deps: {
-    queueService: QueueProtocol;
-  }) {}
-  
-  async execute(eventId: string): Promise<QueueState> {
-    const state = await this.deps.queueService.claimToken(eventId);
-    
+export type ClaimSlotUseCase = (eventId: string) => Promise<QueueState>;
+
+export function createClaimSlotUseCase({ queueService }: { queueService: QueueProtocol }): ClaimSlotUseCase {
+  return async (eventId) => {
+    const state = await queueService.claimToken(eventId);
+
     // If still waiting for slot, return waiting_slot state
     if (state.status === 'waiting_slot') {
       return {
@@ -418,9 +409,9 @@ export class ClaimSlotUseCase {
         message: 'Giliran Anda sudah tiba — menunggu kasir tersedia. Anda akan diarahkan otomatis segera.',
       };
     }
-    
+
     return state;
-  }
+  };
 }
 ```
 
@@ -574,28 +565,24 @@ export function selectionReducer(
 
 ```typescript
 // booking/application/submit-booking.use-case.ts
-export class SubmitBookingUseCase {
-  constructor(private deps: {
-    bookingService: BookingProtocol;
-  }) {}
-  
-  async execute(data: BookingSubmitData): Promise<BookingResult> {
+export type SubmitBookingUseCase = (data: BookingSubmitData) => Promise<BookingResult>;
+
+export function createSubmitBookingUseCase({ bookingService }: { bookingService: BookingProtocol }): SubmitBookingUseCase {
+  return async (data) => {
     // Validasi NIK uniqueness (frontend validation)
-    const nikValidation = validateNikUniqueness(
-      data.attendees.map(a => a.nik)
-    );
-    
+    const nikValidation = validateNikUniqueness(data.attendees.map((a) => a.nik));
+
     if (!nikValidation.valid) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: 'DUPLICATE_NIK_IN_REQUEST',
-        duplicates: nikValidation.duplicates
+        duplicates: nikValidation.duplicates,
       };
     }
-    
+
     // Submit to backend (atomic hold)
-    return this.deps.bookingService.submitBooking(data);
-  }
+    return bookingService.submitBooking(data);
+  };
 }
 ```
 
@@ -686,24 +673,22 @@ export interface OrderUpdatesProtocol {
 ```typescript
 // payment/application/change-payment-method.use-case.ts
 // Ref: Req 6 AC19 — use case untuk ganti metode pembayaran
-export class ChangePaymentMethodUseCase {
-  constructor(private deps: {
-    orderService: OrderProtocol;
-  }) {}
-  
-  async execute(orderId: string, newMethod: PaymentMethod): Promise<Order> {
-    const order = await this.deps.orderService.getOrder(orderId);
-    
+export type ChangePaymentMethodUseCase = (orderId: string, newMethod: PaymentMethod) => Promise<Order>;
+
+export function createChangePaymentMethodUseCase({ orderService }: { orderService: OrderProtocol }): ChangePaymentMethodUseCase {
+  return async (orderId, newMethod) => {
+    const order = await orderService.get(orderId);
+
     if (!canChangePaymentMethod(order.status)) {
-      throw new AppFailure({ 
-        kind: 'api', 
-        code: 'PAYMENT_METHOD_CHANGE_NOT_ALLOWED', 
-        status: 400 
+      throw new AppFailure({
+        kind: 'api',
+        code: 'PAYMENT_METHOD_CHANGE_NOT_ALLOWED',
+        status: 400,
       });
     }
-    
-    return this.deps.orderService.changePaymentMethod(orderId, newMethod);
-  }
+
+    return orderService.changePaymentMethod(orderId, newMethod);
+  };
 }
 ```
 
