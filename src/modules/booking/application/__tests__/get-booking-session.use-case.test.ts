@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BookingSession } from "../domain/booking-session.model";
+import type { BookingSession } from "../../domain/booking-session.model";
 import { GetBookingSessionUseCase } from "../get-booking-session.use-case";
 
 const session: BookingSession = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Event } from "../domain/event.model";
+import type { Event } from "../../domain/event.model";
 import { ListEventsUseCase } from "../list-events.use-case";
 
 const event: Event = {

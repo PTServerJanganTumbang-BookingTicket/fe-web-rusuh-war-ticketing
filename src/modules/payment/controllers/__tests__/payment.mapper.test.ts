@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Order } from "../domain/order.model";
+import type { Order } from "../../domain/order.model";
 import { toPaymentResultProps, toPaymentViewProps, type PaymentViewInput } from "../payment.mapper";
 
 const order: Order = {

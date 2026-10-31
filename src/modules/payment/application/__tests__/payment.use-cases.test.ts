@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Order, PaymentMethod, PaymentOutcome } from "../domain/order.model";
+import type { Order, PaymentMethod, PaymentOutcome } from "../../domain/order.model";
 import { GetOrderUseCase } from "../get-order.use-case";
-import type { OrderProtocol } from "../domain/order.protocol";
-import type { PaymentSimulatorProtocol } from "../domain/payment-simulator.protocol";
+import type { OrderProtocol } from "../../domain/order.protocol";
+import type { PaymentSimulatorProtocol } from "../../domain/payment-simulator.protocol";
 import { SimulatePaymentOutcomeUseCase } from "../simulate-payment-outcome.use-case";
 import { StartPaymentUseCase } from "../start-payment.use-case";
 

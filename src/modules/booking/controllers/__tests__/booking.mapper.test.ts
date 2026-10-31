@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BookingSession } from "../domain/booking-session.model";
+import type { BookingSession } from "../../domain/booking-session.model";
 import { toBookingViewProps } from "../booking.mapper";
 
 const session: BookingSession = {
