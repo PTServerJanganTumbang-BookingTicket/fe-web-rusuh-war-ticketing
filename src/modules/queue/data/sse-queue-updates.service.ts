@@ -5,19 +5,19 @@ import type { QueueState } from "../domain/queue-state.model";
 import { queueStateSchema } from "./queue-state.schema";
 
 /** `GET /events/{id}/queue/stream`, event `queue`. Server mengirim snapshot saat tersambung (ADR-0016). */
-export class SseQueueUpdatesService implements QueueUpdatesProtocol {
-  private readonly eventStreamClient: EventStreamClient;
-
-  constructor({ eventStreamClient }: { eventStreamClient: EventStreamClient }) {
-    this.eventStreamClient = eventStreamClient;
-  }
-
-  watch(eventId: string, observer: Observer<QueueState>): Unsubscribe {
-    return this.eventStreamClient.open(
-      `/events/${encodeURIComponent(eventId)}/queue/stream`,
-      "queue",
-      queueStateSchema,
-      observer,
-    );
-  }
+export function createSseQueueUpdatesService({
+  eventStreamClient,
+}: {
+  eventStreamClient: EventStreamClient;
+}): QueueUpdatesProtocol {
+  return {
+    watch(eventId: string, observer: Observer<QueueState>): Unsubscribe {
+      return eventStreamClient.open(
+        `/events/${encodeURIComponent(eventId)}/queue/stream`,
+        "queue",
+        queueStateSchema,
+        observer,
+      );
+    },
+  };
 }

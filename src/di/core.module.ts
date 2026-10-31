@@ -5,11 +5,11 @@ import type { SessionProtocol } from "@/core/domain/session.protocol";
 import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
 import { FetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
 import type { HttpClient } from "@/core/data/http/http.client";
-import { MathRandomService } from "@/core/data/math-random.service";
-import { HttpSessionService } from "@/core/data/session/http-session.service";
+import { createMathRandomService } from "@/core/data/math-random.service";
+import { createHttpSessionService } from "@/core/data/session/http-session.service";
 import { EventSourceStreamClient, type EventSourceFactory } from "@/core/data/sse/event-source-stream.client";
 import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
-import { SystemClockService } from "@/core/data/system-clock.service";
+import { createSystemClockService } from "@/core/data/system-clock.service";
 
 export type CoreRegistry = CoreDependencies & {
   fetchFn: FetchFn;
@@ -29,12 +29,12 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
   return {
     appConfig: asValue(appConfig),
     fetchFn: asValue(lateBoundFetch),
-    clock: asClass(SystemClockService).singleton(),
-    random: asClass(MathRandomService).singleton(),
+    clock: asFunction(createSystemClockService).singleton(),
+    random: asFunction(createMathRandomService).singleton(),
     httpClient: asClass(FetchHttpClient).singleton(),
     eventSourceFactory: asValue(browserEventSource),
     eventStreamClient: asClass(EventSourceStreamClient).singleton(),
-    sessionService: asClass(HttpSessionService).singleton(),
+    sessionService: asFunction(createHttpSessionService).singleton(),
     startSessionUseCase: asFunction(createStartSessionUseCase).singleton(),
   };
 }
