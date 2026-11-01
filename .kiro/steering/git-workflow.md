@@ -53,12 +53,9 @@ git checkout -b release/1.0.0
 # 2. Testing: FT → NFT → Security
 # (automated di CI/CD)
 
-# 3. Tag dan mergeback
+# 3. Tag, lalu mergeback lewat MR dari release/1.0.0 ke main
 git tag v1.0.0
 git push origin v1.0.0
-git checkout main
-git merge release/1.0.0
-git push origin main
 ```
 
 ## Hotfix Flow (SOP 3)
@@ -79,10 +76,7 @@ git merge hotfix/critical-payment-fix
 git tag v1.0.1
 git push origin v1.0.1
 
-# 4. Mergeback ke main
-git checkout main
-git merge release/1.0.0
-git push origin main
+# 4. Mergeback lewat MR dari release/1.0.0 ke main
 ```
 
 ## Mergeback Conflict Resolution
@@ -93,19 +87,20 @@ git checkout -b cherry-pick-release-1.0.0
 git merge origin/release/1.0.0
 # Resolve conflicts
 git add .
-git commit -m "[SJT-XXX][Akbar] chore: resolve mergeback conflict"
+git commit -m "[SJT-XXX][Akbar] chore(release): resolve mergeback conflict"
 git push origin cherry-pick-release-1.0.0
 # Buat MR ke main
 ```
 
 ## CI/CD on Every Commit
 
-Setiap commit otomatis menjalankan:
+Setiap PR dan push ke `main` menjalankan:
 - ✅ `npm test` — Unit tests
 - ✅ `npm run lint` — Code quality
 - ✅ `npm run typecheck` — Type checking
-- ✅ Security scans
-- ✅ Auto-deploy to Dev
+- ✅ Container image dan smoke test
+- ⏳ Security scans (belum ada)
+- ⏳ Auto-deploy to Dev (belum ada)
 
 ## Larangan
 

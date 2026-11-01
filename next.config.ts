@@ -12,6 +12,9 @@ const mswBrowser = path
   .join("/");
 
 const nextConfig: NextConfig = {
+  // Satu container image (ADR-0021): server minimal + node_modules hasil tracing di .next/standalone.
+  output: "standalone",
+  poweredByHeader: false,
   // Selalu didefinisikan (kosong bila mati) supaya bundler bisa melipat kondisi mock dan membuang kode mock dari build produksi.
   env: { NEXT_PUBLIC_API_MOCKING: process.env.NEXT_PUBLIC_API_MOCKING ?? "" },
   cacheComponents: true,

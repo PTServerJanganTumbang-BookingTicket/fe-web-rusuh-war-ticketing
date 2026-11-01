@@ -1,0 +1,24 @@
+# Dependency dan hasil build dibuat ulang di dalam image.
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+**/next-env.d.ts
+**/coverage
+**/test-results
+**/playwright-report
+**/blob-report
+
+# Konfigurasi masuk lewat --build-arg, bukan file .env dari mesin build.
+**/.env*
+
+# Tidak dibutuhkan untuk build.
+.git
+.github
+.claude
+.kiro
+.husky
+docs
+e2e
+emails
+Dockerfile
+.dockerignore

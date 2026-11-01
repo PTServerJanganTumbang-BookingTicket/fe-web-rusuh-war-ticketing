@@ -20,6 +20,8 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0014](0014-modular-clean-architecture-solid.md) | Clean Architecture per modul: domain, application, data, controllers, views | Proposed |
 | [0015](0015-dependency-injection-awilix.md) | Dependency injection dengan Awilix di composition root | Proposed |
 | [0016](0016-realtime-updates-sse.md) | Pembaruan antrian dan status pembayaran lewat SSE, polling sebagai cadangan | Proposed |
+| [0018](0018-trunk-based-development.md) | Trunk-Based Development dengan Release Train | Accepted |
+| [0021](0021-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
 
 ## Status
 

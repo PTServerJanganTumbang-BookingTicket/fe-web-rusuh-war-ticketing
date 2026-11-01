@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   check:
@@ -46,14 +46,13 @@ jobs:
       - run: npm ci
 
       # Menangkap commit yang melewati hook lokal (--no-verify).
-      # PR develop ke main dilewati: commit-nya sudah dicek saat masuk develop, dan commit sebelum aturan ini tidak bisa ditulis ulang.
       - name: Commit pada PR
-        if: github.event_name == 'pull_request' && github.head_ref != 'develop'
+        if: github.event_name == 'pull_request'
         run: npx commitlint --from origin/${{ github.base_ref }} --to HEAD
 
       # Judul PR menjadi pesan commit saat squash merge.
       - name: Judul PR
-        if: github.event_name == 'pull_request' && github.head_ref != 'develop'
+        if: github.event_name == 'pull_request'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: printf '%s\n' "$PR_TITLE" | npx commitlint
@@ -61,6 +60,46 @@ jobs:
       - name: Commit pada push
         if: github.event_name == 'push'
         run: npx commitlint --from ${{ github.event.before }} --to ${{ github.sha }}
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ADR-0021: NEXT_PUBLIC_* di-inline saat build, jadi setiap flag di .env.example wajib punya ARG di Dockerfile.
+      - name: Flag build tercatat di Dockerfile
+        run: |
+          missing=0
+          for name in $(grep -oE '^NEXT_PUBLIC_[A-Z0-9_]+' .env.example); do
+            grep -qE "^ARG $name(=|$)" Dockerfile || { echo "::error file=Dockerfile::ARG $name belum ada"; missing=1; }
+          done
+          exit $missing
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: rusuh-fe:ci
+          build-args: NEXT_DEPLOYMENT_ID=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Ukuran image di bawah 300 MB
+        run: |
+          size=$(docker image inspect rusuh-fe:ci --format '{{.Size}}')
+          echo "Ukuran image: $((size / 1024 / 1024)) MB"
+          test "$size" -lt $((300 * 1024 * 1024))
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name web -p 3000:3000 rusuh-fe:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3000/api/health && break; sleep 1; done
+          curl -fsS -o /dev/null http://127.0.0.1:3000/
+          test "$(docker inspect -f '{{.Config.User}}' web)" = "app"
+          docker stop -t 15 web
 
   e2e:
     runs-on: ubuntu-latest

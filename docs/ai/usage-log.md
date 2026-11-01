@@ -270,3 +270,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: Requirement 1 AC7-8, Requirement 7 AC1-2, MoM 2026-10-28 butir 15, token Signal DS (`signal.css`).
 - **Output**: `emails/*.mjml` dengan partial bersama, `npm run emails:build` ke `emails/dist/` (tidak di-commit), test kompilasi dan placeholder di `src/test/__tests__/emails.test.ts`, kontrak placeholder di `emails/README.md`. `package-lock.json` diregenerasi atas permintaan pengguna saat memasang `mjml`.
 - **Review manusia**: Menunggu review. Perlu disepakati dengan BE: format placeholder Mustache, penyamaran NIK di e-tiket, dan URL gambar QR. Alur link login belum ada di requirement. Versi Inggris menyusul (Req 13 AC7). Belum diuji di klien email sungguhan.
+
+## 2026-11-01 — Cutover ke `main` dan audit Trunk-Based Development
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menyiapkan perpindahan seluruh pekerjaan ke `main` sesuai ADR-0018 dan memulihkan artefak deployment yang hilang saat migrasi.
+- **Input**: ADR-0018, `.kiro/steering/git-workflow.md`, `.github/workflows/ci.yml`, serta `Dockerfile`, `/api/health`, dan ADR packaging dari `origin/main`.
+- **Output**: `Dockerfile`, `.dockerignore`, `/api/health`, `output: "standalone"`, dan job `image` di CI dipulihkan untuk struktur satu aplikasi (ADR-0021). `develop` dihapus dari CI, pesan lima commit lama ditulis ulang ke format `[NO-JIRA]` tanpa mengubah isi, ADR-0018 berstatus Accepted dan mencatat bagian yang belum tersedia.
+- **Review manusia**: Menunggu review PR ke `main`. Proteksi branch perlu diatur admin. Security scan, auto-deploy Dev, feature flag, trigger `release/*`, mergeback otomatis, dan font Poppins self-hosted belum dikerjakan.

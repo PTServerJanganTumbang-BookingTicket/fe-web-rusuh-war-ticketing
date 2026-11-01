@@ -1,6 +1,6 @@
 # ADR-0018: Trunk-Based Development dengan Release Train
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Tanggal**: 2026-10-30
 - **Pengambil keputusan**: Tim FE Web
 - **Requirement terkait**: NFR-08 (standar development), Telkomsel FOSS Technical Guidelines
@@ -87,12 +87,13 @@ Jika mergeback conflict:
 
 ### CI/CD on Every Commit
 
-Setiap commit ke `main` dan branch aktif otomatis menjalankan:
+Setiap PR dan push ke `main` menjalankan pipeline di `.github/workflows/ci.yml`. Target ADR ini dan statusnya per 2026-11-01:
 
 - ✅ Unit tests (`npm test`)
 - ✅ Code quality checks (`npm run lint`, `npm run typecheck`)
-- ✅ Security scans
-- ✅ Auto-deploy to Dev environment
+- ✅ Container image dan smoke test (ADR-0021)
+- ⏳ Security scans (belum ada)
+- ⏳ Auto-deploy to Dev environment (belum ada)
 
 ### Commit Message Format
 
@@ -117,6 +118,12 @@ Contoh:
   - CI/CD pipeline harus hijau sebelum merge
   - Hotfix selalu dari `release/*`, bukan `main`
   - Mergeback otomatis atau segera setelah release
+
+## Status implementasi (2026-11-01)
+
+Branch `develop` sempat dipakai sebagai branch integrasi dan dihapus saat cutover ke `main`. Lima commit yang lebih tua dari aturan format commit ditulis ulang pesannya ke format `[NO-JIRA]` sebelum masuk `main`, tanpa mengubah isi. Riwayat aslinya tersimpan di tag `archive/develop-2026-11-01`.
+
+Belum tersedia dan masih menjadi pekerjaan lanjutan: security scan, auto-deploy ke Dev, mekanisme feature flag, trigger CI untuk `release/*`, dan mergeback otomatis. Proteksi branch `main` diatur admin di GitHub, tidak tercatat di repo ini.
 
 ## Referensi
 
