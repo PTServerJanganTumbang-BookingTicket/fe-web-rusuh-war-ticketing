@@ -38,3 +38,8 @@ FE dan BE dikerjakan paralel dalam waktu singkat. Kalau FE menunggu endpoint jad
 
 - MSW pindah dari package `@rusuh/mocks` ke `src/mocks` ([ADR-0013](0013-single-app-modular-structure.md)). Schema zod ada di `src/modules/<m>/data/<nama>.schema.ts` dan ditulis `satisfies z.ZodType<Model>`; tipe generated nantinya di `src/core/data/http/generated/`.
 - Endpoint simulasi pembayaran (`/mock/...`) dipisah menjadi `PaymentSimulatorProtocol` agar `OrderProtocol` hanya berisi kontrak BE asli ([ADR-0014](0014-modular-clean-architecture-solid.md)).
+
+## Catatan implementasi (2026-11-01)
+
+- Kontrak ada di repo `documentations`: [`api/rusuh-booking-openapi.yaml`](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/rusuh-booking-openapi.yaml) dan [`api/api-contracts.md`](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/api-contracts.md). Katalog error di sana (Appendix A) menggantikan tabel di atas, dan kode FE belum diselaraskan.
+- Contoh response error di kontrak belum membawa kode error, hanya `meta.code` numerik dan `meta.message`. Ini perlu disepakati dengan BE sebelum FE bisa memetakan error ke layar.

@@ -1,6 +1,6 @@
 # Konteks Produk
 
-Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumber requirement: dokumen tender "Evaluasi Expertise Solution Development 2026 H2".
+Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumber requirement: dokumen tender "Evaluasi Expertise Solution Development 2026 H2" dan pembaruannya di repo [`documentations`](https://github.com/PTServerJanganTumbang-BookingTicket/documentations), termasuk kontrak API.
 
 ## Halaman
 
@@ -8,7 +8,7 @@ Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumbe
 |---|---|
 | Home | Daftar event, available (aktif) vs sold out (disabled) |
 | Waiting Room | Posisi antrian, update otomatis, auto-redirect saat giliran tiba |
-| Detail Ticket | NIK terisi otomatis dari akun (hanya-baca, tersamar), kategori dan harga, maks 3 tiket per NIK per event (ditegakkan BE), countdown booking |
+| Detail Ticket | NIK per tiket (terisi dari akun bila login, diisi manual bila tamu), kategori dan harga, maks 3 tiket per transaksi dan 1 NIK per tiket (ditegakkan BE), countdown booking |
 | Payment | Countdown 10 menit, VA dan e-wallet via BE (Midtrans), dipakai ulang di mobile WebView |
 
 ## Prinsip yang tidak boleh dilanggar
@@ -18,8 +18,10 @@ Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumbe
 
 ## Keputusan klien yang sudah pasti
 
-- Login wajib sebelum antre. Email e-tiket diambil dari akun.
-- Usulan tim, menunggu konfirmasi klien: satu sesi login aktif per akun dengan progres tetap tersimpan ([ADR-0010](../../adr/0010-login-single-session-progress-persistence.md)), dan NIK terikat ke akun ([ADR-0011](../../adr/0011-nik-linked-to-account.md)).
+- Login bersifat opsional, dikonfirmasi CEO. Customer bisa antre dan membeli sebagai tamu. E-tiket dikirim ke email akun atau email yang diinput.
+- Login tanpa kata sandi lewat magic link (kontrak API §1, [ADR-0022](../../adr/0022-passwordless-login-email.md)).
+- BR-01: maksimal 3 tiket per transaksi. BR-02: 1 NIK untuk 1 tiket per event. BR-07: satu keterlibatan aktif per event, hanya untuk customer login.
+- Usulan tim, menunggu konfirmasi: satu sesi login aktif per akun ([ADR-0010](../../adr/0010-login-single-session-progress-persistence.md)). NIK terdaftar terikat ke akun ([ADR-0011](../../adr/0011-nik-linked-to-account.md)).
 - Payment gateway: Midtrans sandbox.
 - Stok habis saat submit: tampilkan **popup** dengan stok terbaru.
 - Stack: Next.js, Telkomsel Signal Design System, Tailwind CSS.

@@ -90,3 +90,8 @@ Perangkat A (antrian posisi 40)          BE                    Perangkat B
 ## Catatan implementasi (2026-10-28)
 
 - Setelah ADR-0013 dan ADR-0014: `SESSION_REVOKED` ditambahkan ke `ApiErrorCode` di `src/core/domain/app-error.ts`; pemetaannya otomatis lewat `FetchHttpClient`. Penanganan global (hapus cookie, layar sesi dicabut) masuk `src/core/domain/session.protocol.ts` (protocol), `src/core/application` (use case), dan `src/core/data/session` (service) karena dipakai semua modul.
+
+## Catatan (2026-11-01)
+
+- Login kini opsional (update requirement §2 di repo `documentations`), jadi "login wajib sebelum masuk antrian" pada Konteks tidak berlaku lagi.
+- Kontrak API v2.1 tidak memuat `sid` maupun `SESSION_REVOKED`. Sampai diputuskan bersama BE, keputusan satu sesi aktif di ADR ini belum menjadi bagian kontrak. Pemulihan lintas perangkat untuk customer login ada di `GET /events/{event_id}/queue/me`.

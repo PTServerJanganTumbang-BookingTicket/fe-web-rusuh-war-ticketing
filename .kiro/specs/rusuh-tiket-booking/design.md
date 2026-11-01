@@ -4,6 +4,8 @@
 
 Dokumen ini menjelaskan desain teknis frontend web **Rusuh Booking Tiket**, sebuah sistem pemesanan tiket konser yang dirancang untuk menangani 200.000–300.000 concurrent users saat flash crowd (lonjakan trafik ekstrem saat penjualan tiket dibuka).
 
+> **Sumber kebenaran API**: [kontrak API v2.1](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/api-contracts.md) dan [OpenAPI](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/rusuh-booking-openapi.yaml) di repo `documentations`. Bila dokumen ini berbeda dengan kontrak, kontrak yang berlaku. Contoh tipe dan alur di dokumen ini ditulis sebelum kontrak diselaraskan, dan kode FE masih memakai bentuk lama sampai integrasi selesai. Login bersifat opsional, batas tiket mengikuti BR-01 (3 per transaksi) dan BR-02 (1 NIK per tiket), dan status pembayaran memakai polling.
+
 ### Tujuan Arsitektur
 
 1. **Murah**: Tidak membangun framework internal. Memakai mekanisme React dan library yang sudah matang. Satu payment page untuk web dan mobile.
@@ -17,7 +19,7 @@ Dokumen ini menjelaskan desain teknis frontend web **Rusuh Booking Tiket**, sebu
 | Single app dengan feature modules | ADR-0013 | Bukan monorepo; satu aplikasi Next.js dengan folder per fitur |
 | Clean Architecture per modul | ADR-0014 | 5 lapisan: domain, application, data, controllers, views |
 | Dependency Injection Awilix | ADR-0015 | Composition root, PROXY mode, strict: true |
-| SSE untuk real-time updates | ADR-0016 | ~$14/event vs $300 polling; fallback ke polling |
+| SSE untuk antrian, polling untuk status pembayaran | ADR-0016, kontrak Appendix B | Antrian disiarkan ke banyak klien; status pembayaran milik satu klien |
 | Server-authoritative time | ADR-0005 | Timer dari `expiresAt` server + offset, bukan countdown lokal |
 | Payment via BE (Midtrans Core API) | ADR-0006 | FE tidak pernah memanggil Midtrans langsung |
 | TanStack Query untuk server state | ADR-0004 | Cache, retry, polling dengan jitter |
@@ -159,32 +161,29 @@ export type NikValidationStatus =
   | 'INVALID' 
   | 'PENDING_DUKCAPIL_VALIDATION';
 
-export type LoginRequestResult = {
-  resendAvailableAt: string; // Jeda kirim ulang dari server (ADR-0005)
+export type MagicLinkContext = {
+  type: string; // Contoh: "booking" (BR-09)
+  eventId?: string;
+  bookingId?: string;
 };
 
 export type LoginResult = {
   user: User;
-  returnTo?: string; // Path relatif internal
+  redirectContext?: MagicLinkContext;
 };
 ```
 
 ```typescript
 // auth/domain/auth.protocol.ts
-// Login passwordless dengan link dan kode dari satu email (ADR-0022, Proposed).
+// Login magic link sesuai kontrak API §1 (ADR-0022, Proposed). Login bersifat opsional.
 export interface AuthProtocol {
-  // Magic link flow (replaces password login)
-  requestMagicLink(email: string): Promise<void>;           // POST /auth/magic-link
-  resendMagicLink(email: string): Promise<void>;            // POST /auth/magic-link/resend
-  verifyMagicLink(token: string): Promise<AuthResult>;      // GET /auth/verify
-  
-  // Registration with consent (required by UU PDP)
-  register(data: RegisterData): Promise<void>;              // POST /auth/register
-  
-  // Saved NIKs (replaces NIK friends — Dukcapil called on add, not on checkout)
-  getSavedNiks(): Promise<SavedNik[]>;                      // GET /accounts/me/saved-niks
-  addSavedNik(nik: string, label: string): Promise<SavedNik>; // POST /accounts/me/saved-niks
-  removeSavedNik(id: string): Promise<void>;                // DELETE /accounts/me/saved-niks/{id}
+  requestMagicLink(email: string): Promise<void>; // POST /auth/magic-link
+  resendMagicLink(email: string): Promise<void>; // POST /auth/magic-link/resend
+  verifyMagicLink(): Promise<LoginResult>; // GET /auth/verify, cara kirim token masih usulan di ADR-0022
+  register(data: RegisterData): Promise<void>; // POST /auth/register
+  getSavedNiks(): Promise<NikFriend[]>; // GET /accounts/me/saved-niks
+  addSavedNik(nik: string): Promise<NikFriend>; // POST /accounts/me/saved-niks
+  removeSavedNik(id: string): Promise<void>; // DELETE /accounts/me/saved-niks/{id}
 }
 
 export type AuthResult = {
@@ -1144,6 +1143,8 @@ export function useLiveUpdates<T>(
 
 ### API Request/Response DTOs
 
+Bentuk request dan response ada di [kontrak API](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/api-contracts.md) dan [OpenAPI](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/rusuh-booking-openapi.yaml). Semua response memakai `{ meta: { code, message }, data }` dengan field `snake_case`. Tipe domain FE tetap `camelCase`, dan pemetaannya ada di schema zod `data/<nama>.schema.ts`.
+
 ```typescript
 // Note: ALL API responses use {meta: {code, message}, data: ...} wrapper
 // The HttpClient adapter handles unwrapping — domain models see only data payload
@@ -1307,7 +1308,18 @@ interface SoldOutSseEvent {
 
 ## API Contracts
 
-### REST Endpoints
+Daftar lengkap ada di [kontrak API](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/api-contracts.md). Peta FE saat ini ke kontrak:
+
+| Area | FE saat ini | Kontrak |
+|------|-------------|---------|
+| Event | `GET /events` | `GET /events`, `GET /events/{event_id}` |
+| Antrian | `GET /events/{id}/queue` | `POST …/queue/join`, `GET …/queue/me`, `GET …/queue/serving`, `GET …/queue/stream` |
+| Booking | `GET /events/{id}/booking-session` | `GET /events/{event_id}/tickets`, `POST /nik/validate`, `POST /bookings`, `GET /bookings/{booking_id}` |
+| Pembayaran | `GET /orders/{id}`, `POST /orders/{id}/payment`, `GET /orders/{id}/stream` | `GET /payments/{booking_id}/methods`, `POST /payments/{booking_id}`, `POST /payments/{booking_id}/retry`, `GET /payments/{booking_id}/status` |
+| E-tiket | Belum ada | `GET /users/me/tickets`, `GET /tickets/{ticket_id}/eticket` |
+| Akun | Belum ada | `/auth/*`, `/accounts/me/saved-niks` |
+
+Endpoint di kontrak saat ini:
 
 | Method | Path | Purpose | Auth | Module |
 |--------|------|---------|------|--------|
@@ -1347,37 +1359,7 @@ Note: Removed endpoints vs design.md v1:
 - `DELETE /orders/{orderId}/payment` → replaced by `POST /payments/{booking_id}/retry`
 - `GET /me/nik-friends` etc → replaced by `/accounts/me/saved-niks`
 
-### SSE Endpoints
-
-| Path | Event Name | Purpose | Auth |
-|------|------------|---------|------|
-| `/events/{eventId}/queue/stream` | `queue` | Update nowServing real-time | Cookie |
-| `/orders/{orderId}/stream` | `order` | Update status pembayaran | Cookie |
-| `/system/health/stream` | `health` | System health & pause state (BR-21) | Cookie |
-
-### Error Codes
-
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `INSUFFICIENT_STOCK` | 409 | Stok tidak mencukupi |
-| `QUOTA_EXCEEDED` | 409 | Kuota per NIK sudah terpenuhi (3 tiket) |
-| `HOLD_EXPIRED` | 410 | Hold sudah expired |
-| `INVALID_NIK_FORMAT` | 400 | NIK bukan 16 digit angka |
-| `DUPLICATE_NIK_IN_REQUEST` | 400 | NIK sama dalam satu request |
-| `NIK_ALREADY_USED` | 409 | NIK sudah dipakai di event yang sama |
-| `ACCESS_EXPIRED` | 401 | Access token expired |
-| `QUEUE_TOKEN_INVALID` | 401 | Token antrian invalid |
-| `QUEUE_FULL` | 503 | Antrian penuh (300.000) |
-| `SLOT_TAKEN_OVER` | 409 | Slot diambil sesi lain |
-| `PAYMENT_EXPIRED` | 410 | TTL pembayaran habis |
-| `DUKCAPIL_UNAVAILABLE` | 503 | Layanan Dukcapil tidak tersedia |
-| `CAPTCHA_INVALID` | 400 | CAPTCHA token invalid (Req 3.22) |
-| `ADMISSION_PAUSED` | 503 | Sistem sedang pause admission (BR-21) |
-| `PAYMENT_METHOD_CHANGE_NOT_ALLOWED` | 400 | Tidak bisa ganti metode di status ini (Req 6 AC19) |
-| `LOGIN_CODE_INVALID` | 400 | Link atau kode login salah, kedaluwarsa, atau sudah dipakai (ADR-0022) |
-| `LOGIN_RATE_LIMITED` | 429 | Terlalu banyak percobaan login (ADR-0022) |
-| `EMAIL_NOT_VERIFIED` | 403 | Akun belum memverifikasi email (Req 1 AC7) |
-| `SESSION_REVOKED` | 401 | Sesi dicabut oleh login di perangkat lain (ADR-0010) |
+Katalog error ada di Appendix A kontrak. Contoh response error di kontrak hanya memuat `meta.code` numerik dan `meta.message`, jadi FE belum punya field yang stabil untuk memetakan error ke layar. Ini perlu disepakati dengan BE sebelum integrasi.
 
 ---
 
@@ -1754,10 +1736,10 @@ test('complete booking flow', async ({ page }) => {
 
 ### Authentication & Authorization
 
-1. **Cookie-based session**: HttpOnly, Secure, SameSite=Lax supaya sesi terbawa saat datang dari link di email (ADR-0022)
+1. **Cookie-based session**: `queue_token` dikelola BE. Token akun disimpan route same-origin di cookie HttpOnly, Secure, SameSite=Lax (ADR-0022)
 2. **Access token validation at edge (proxy.ts)**: JWT signature verification
-3. **Token tidak di URL**: SSE menggunakan cookie, bukan query param. Pengecualian: one-time code WebView (ADR-0008) dan link login di fragmen URL (ADR-0022)
-4. **Login passwordless**: tanpa kata sandi. Link dan kode dari satu email, sekali pakai, dan membuka link saja tidak memakai kredensial (ADR-0022)
+3. **Token tidak di URL**: SSE menggunakan cookie, bukan query param. Pengecualian: one-time code WebView (ADR-0008). Cara token magic link sampai ke verifikasi masih usulan (ADR-0022)
+4. **Login opsional dan tanpa kata sandi**: magic link sesuai kontrak API §1 (ADR-0022)
 
 ### Input Validation
 

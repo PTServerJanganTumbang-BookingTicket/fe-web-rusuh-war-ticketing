@@ -23,7 +23,7 @@ src/test           support test
 | Rules | Fungsi bisnis murni (`*.rules.ts`, `*.reducer.ts`) | `canAddTicket` |
 | Constants | Angka bisnis dengan rujukan requirement/ADR (`*.constants.ts`) | `MAX_TICKETS_PER_NIK` |
 | Protocol | Interface yang dibutuhkan use case, di `domain/` (`*.protocol.ts`) | `OrderProtocol` |
-| Use case | Satu aksi, kelas dengan satu `execute()` (`*.use-case.ts`) | `StartPaymentUseCase` |
+| Use case | Satu aksi, fungsi dari factory `create<Nama>UseCase` (`*.use-case.ts`) | `createStartPaymentUseCase` → `StartPaymentUseCase` |
 | Service | Implementasi protocol di `data/` (`*.service.ts`) | `HttpOrderService` |
 | Client | Transport di `core/data` yang dipakai service (`*.client.ts`) | `HttpClient` |
 | Schema | Schema zod response BE (`*.schema.ts`) | `orderSchema` |
@@ -41,7 +41,7 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 | Lokasi | Boleh | Dilarang |
 |---|---|---|
 | `modules/<m>/domain` | TypeScript murni; `domain` modul sendiri, `core/domain` | React, Next, `zod`, `awilix`, `fetch`, `window`, `Date.now()` (terima `now` sebagai parameter) |
-| `modules/<m>/application` | Use case (kelas `execute()`), `<m>.dependencies.ts`; `domain`/`application` modul sendiri, `core/domain`, `core/application` | Framework, `zod`, `awilix`, `fetch`, `Date.now()`, `Math.random()` |
+| `modules/<m>/application` | Use case (factory `create<Nama>UseCase`), `<m>.dependencies.ts`; `domain`/`application` modul sendiri, `core/domain`, `core/application` | Framework, `zod`, `awilix`, `fetch`, `Date.now()`, `Math.random()` |
 | `modules/<m>/data` | Service yang mengimplementasikan protocol, schema zod; lapisan dalam modul sendiri, `core/domain`, `core/application`, `core/data` | React, Next, `awilix`, `controllers`, `views` |
 | `modules/<m>/controllers` | Controller, mapper, query options, loader; `domain` modul sendiri, `views` modul sendiri (tipe props), `core` sisi tampilan, **`application` hanya `import type`** | Impor nilai dari `application` atau `data`, `awilix`, `Date.now()`, `Math.random()` |
 | `modules/<m>/views/<Layar>Container.tsx` | Sama dengan `controllers` | Sama dengan `controllers` |
@@ -62,7 +62,7 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 
 - File non-komponen: kebab-case dengan akhiran peran (`start-payment.use-case.ts`, `http-order.service.ts`, `order.schema.ts`). Daftar akhiran lengkap ada di ADR-0013 dan [coding-conventions](coding-conventions.md).
 - Komponen React: PascalCase (`PaymentView.tsx`, `PaymentContainer.tsx`).
-- Test di sebelah file yang dites: `payment.mapper.test.ts`, `payment.controller.test.tsx`. Tidak ada folder `__tests__`.
+- Test di folder `__tests__` di sebelah file yang dites (ADR-0020): `controllers/__tests__/payment.mapper.test.ts`, `controllers/__tests__/payment.controller.test.tsx`.
 
 ## Service dan schema (ADR-0014)
 
@@ -77,7 +77,7 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 
 ## Aturan SOLID (ADR-0014)
 
-- **SRP**: satu use case satu kelas, satu `execute()`. Mapper murni terpisah dari controller.
+- **SRP**: satu use case satu fungsi. Mapper murni terpisah dari controller.
 - **OCP**: modul baru tidak mengubah modul lain; cukup satu baris di `src/di/container.ts`.
 - **LSP**: setiap implementasi protocol bisa saling ganti (service HTTP, fake di test).
 - **ISP**: protocol kecil (`PaymentSimulatorProtocol` terpisah dari `OrderProtocol`). Controller meminta irisan container (`useDependencies<PaymentDependencies & CoreDependencies>()`), bukan seluruh container.
@@ -85,7 +85,7 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 
 ## Dependency injection (ADR-0015)
 
-- Awilix `InjectionMode.PROXY`, `strict: true`. Kelas menerima satu objek dependensi di constructor: `constructor({ eventService }: { eventService: EventProtocol })`.
+- Awilix `InjectionMode.PROXY`, `strict: true`. Factory use case dan service menerima satu objek dependensi: `createListEventsUseCase({ eventService }: { eventService: EventProtocol })`, didaftarkan dengan `asFunction`.
 - `awilix` hanya boleh diimpor dari `src/di` dan `src/modules/<m>/<m>.module.ts`.
 - Nama registrasi: use case `<x>UseCase`, protocol `<x>Service`, sisanya kata benda pendek (`clock`, `random`, `appConfig`, `httpClient`).
 - Controller: `const { getOrderUseCase } = useDependencies<PaymentDependencies & CoreDependencies>()`. Selalu destructuring, jangan spread.
@@ -126,10 +126,10 @@ src/modules/<m>/
 │  ├─ <m>.constants.ts              angka bisnis + rujukan requirement/ADR
 │  └─ <nama>.protocol.ts            interface <Nama>Protocol
 ├─ application/
-│  ├─ <kata-kerja>-<benda>.use-case.ts   kelas <KataKerja><Benda>UseCase: constructor({ deps }), execute(...)
+│  ├─ <kata-kerja>-<benda>.use-case.ts   create<KataKerja><Benda>UseCase({ deps }) → fungsi use case
 │  └─ <m>.dependencies.ts           type <M>Dependencies = irisan container untuk controller
 ├─ data/
-│  ├─ http-<nama>.service.ts        kelas Http<Nama>Service implements <Nama>Protocol
+│  ├─ http-<nama>.service.ts        createHttp<Nama>Service({ deps }): <Nama>Protocol
 │  └─ <nama>.schema.ts              schema zod, satisfies z.ZodType<Model>
 ├─ controllers/
 │  ├─ <m>.queries.ts                queryOptions + query key (memanggil use case)

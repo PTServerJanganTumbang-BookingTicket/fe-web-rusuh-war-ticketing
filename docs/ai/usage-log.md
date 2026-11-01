@@ -280,11 +280,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Output**: `Dockerfile`, `.dockerignore`, `/api/health`, `output: "standalone"`, dan job `image` di CI dipulihkan untuk struktur satu aplikasi (ADR-0021). `develop` dihapus dari CI, pesan lima commit lama ditulis ulang ke format `[NO-JIRA]` tanpa mengubah isi, ADR-0018 berstatus Accepted dan mencatat bagian yang belum tersedia.
 - **Review manusia**: Menunggu review PR ke `main`. Proteksi branch perlu diatur admin. Security scan, auto-deploy Dev, feature flag, trigger `release/*`, mergeback otomatis, dan font Poppins self-hosted belum dikerjakan.
 
-## 2026-11-01 — Rancangan login passwordless
+## 2026-11-01 — Penyelarasan dokumen dengan kontrak API
 
 - **Tool**: Claude Code (Claude Opus 5.5)
 - **Oleh**: Ahmad Muzaki
-- **Tujuan**: Mencatat keinginan tim untuk login tanpa kata sandi sebagai ADR dan menyelaraskan dokumen desain.
-- **Input**: `docs/architecture/auth-login-register.md`, `.kiro/specs/rusuh-tiket-booking/design.md`, Req 1 dan Req 7, MoM 2026-10-28, ADR-0008, ADR-0010, ADR-0011.
-- **Output**: ADR-0022 (Proposed) dengan link dan kode sekali pakai lewat email; `AuthProtocol`, endpoint, kode error, dan catatan keamanan di `design.md`; pembaruan `auth-login-register.md` dan `overview.md`. Belum ada perubahan kode.
-- **Review manusia**: Menunggu keputusan klien dan BE. Angka TTL, pembatasan laju, dan target email adalah usulan FE. `requirements.md`, `product.md`, dan `architecture-rules.md` sengaja belum diubah sampai ADR Accepted.
+- **Tujuan**: Menyelaraskan dokumen FE dengan kontrak API dan requirement terbaru di repo `documentations`, dan menyiapkan rancangan login magic link.
+- **Input**: `api/api-contracts.md`, `api/rusuh-booking-openapi.yaml`, dan `requirement/update-requirement-rusuh-booking-tiket.md` di repo `documentations`; kode FE; MoM 2026-10-28.
+- **Output**: ADR-0022 (Proposed) mengikuti endpoint magic link dari kontrak, dengan usulan perubahan kontrak. Bagian API di `design.md` diganti tautan dan peta ke kontrak. `auth-login-register.md`, `overview.md`, `product.md`, steering, dan skill diselaraskan: login opsional, BR-01, BR-02, factory use case, dan folder `__tests__`. Catatan bertanggal di ADR-0009, ADR-0010, ADR-0011, ADR-0016, dan MoM. Template e-tiket memakai `ticketId` dan `nikMasked`, tanpa nomor kursi. Kode FE belum diintegrasikan ke kontrak.
+- **Review manusia**: Menunggu review. Usulan perubahan kontrak di ADR-0022 dan kode error pada response perlu dibahas dengan BE. `.kiro/specs/.../requirements.md` belum diselaraskan dengan update requirement, dan contoh kode lama di `design.md` hanya ditandai lewat catatan di awal dokumen.

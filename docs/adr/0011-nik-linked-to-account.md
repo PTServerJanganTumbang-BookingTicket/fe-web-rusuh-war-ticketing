@@ -45,3 +45,8 @@ Detail Ticket mewajibkan NIK dan membatasi maksimal 3 tiket per NIK per event, d
   - Tidak ada input NIK di `ui` Detail Ticket, dan tidak ada NIK mentah di key i18n, query key, atau log.
   - Skenario MSW: `quota-exhausted` dan `profile-incomplete`.
 - **Pertanyaan terbuka**: NIK diisi saat pendaftaran atau saat pertama kali booking, dan apakah akun boleh mengubah NIK setelah tersimpan (usulan: tidak, hanya lewat bantuan admin).
+
+## Catatan (2026-11-01)
+
+- BR-01 kini 3 tiket per transaksi, dan BR-02 kini 1 NIK untuk 1 tiket per event (update requirement §3 di repo `documentations`). Aturan 3 tiket per NIK dan `quota` pada ADR ini tidak berlaku lagi.
+- Tamu boleh membeli dan mengisi NIK per tiket, jadi "tidak ada input NIK di Detail Ticket" hanya berlaku untuk NIK terdaftar customer login. NIK diisi saat registrasi lewat `POST /auth/register`.

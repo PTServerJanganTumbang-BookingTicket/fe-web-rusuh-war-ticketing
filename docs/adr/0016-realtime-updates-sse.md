@@ -53,3 +53,8 @@ Opsi 3.
 - **Negatif**: BE harus menahan koneksi terbuka per klien. Pada batas antrian yang dibicarakan (300.000) itu butuh HTTP/2, idle timeout load balancer di atas interval heartbeat, dan komentar heartbeat (`:`) berkala. Untuk API lintas origin dengan cookie, BE perlu CORS `Access-Control-Allow-Credentials`. Ada dua jalur data (stream dan polling) yang harus menghasilkan bentuk yang sama.
 - **Test**: Node tidak punya EventSource, jadi test memakai `FakeEventSource` (`src/test/fake-event-source.ts`) lewat override `eventSourceFactory` di container uji; handler MSW SSE hanya dipakai di browser (dev dan E2E).
 - **Yang harus dijaga**: kontrak endpoint stream disepakati dengan BE (path, nama event, heartbeat, penutupan di status akhir). Test controller memeriksa bahwa stream ditutup di status akhir dan bahwa data stream tampil.
+
+## Catatan (2026-11-01)
+
+- Kontrak API v2.1 (Appendix B) memakai SSE hanya untuk antrian. Status pembayaran memakai polling `GET /payments/{booking_id}/status` tiap 2–3 detik, karena nilainya milik satu klien dan tidak perlu disiarkan. `/orders/{id}/stream` di FE perlu diganti saat modul payment diintegrasikan.
+- Event antrian berbeda dari ADR ini: event tanpa nama, `grant`, `status`, dan `sold-out` (kontrak §3.2).

@@ -12,7 +12,7 @@
 
 ## Aturan
 
-- **Test di sebelah file yang dites**, dengan nama `<file>.test.ts(x)` (`payment.mapper.test.ts`, `get-queue-state.use-case.test.ts`). Tidak ada folder `__tests__`. Test lintas modul (service HTTP terhadap MSW) ada di `src/test`.
+- **Test di folder `__tests__` di sebelah file yang dites** ([ADR-0020](../../adr/0020-test-file-organization.md)), dengan nama `<file>.test.ts(x)` (`controllers/__tests__/payment.mapper.test.ts`, `application/__tests__/get-queue-state.use-case.test.ts`). Test lintas modul (service HTTP terhadap MSW) ada di `src/test/__tests__`.
 
 - **Selektor memakai `getByRole` / `getByText`**, `getByTestId` hanya bila tidak ada peran atau teks yang bermakna.
 - **Uji jalur sukses dan galat.** Untuk `data` dan controller, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.

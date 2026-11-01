@@ -8,7 +8,7 @@ Frontend web Rusuh Booking Tiket, dibangun oleh 2 FE Web dalam tim 5 orang (2 BE
 
 - **Stack**: Next.js (App Router), Telkomsel Signal Design System, Tailwind CSS.
 - **Payment gateway**: Midtrans sandbox, dipanggil hanya oleh BE.
-- **Login wajib** sebelum masuk antrian.
+- **Login opsional**: customer bisa antre dan membeli sebagai tamu ([update requirement §2](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/requirement/update-requirement-rusuh-booking-tiket.md)).
 - **Payment page dipakai ulang di mobile** lewat WebView.
 
 Tiga kriteria yang dijual ke penilai, dan bagaimana arsitektur ini menjawabnya:
@@ -126,7 +126,7 @@ idle → selecting ──submit──► submitting ──┤
 
 | Dengan | Kontrak | Status |
 |---|---|---|
-| BE | OpenAPI spec di hari pertama, katalog error code, endpoint server time | Menunggu BE |
+| BE | [Kontrak API](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/api-contracts.md) dan [OpenAPI](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/rusuh-booking-openapi.yaml) v2.1 | Draft ada. FE belum selaras, dan response error belum punya field kode yang stabil |
 | BE | Stream SSE `/events/{id}/queue/stream` (event `queue`) dan `/orders/{id}/stream` (event `order`): snapshot saat tersambung, heartbeat, tutup di status akhir, CORS dengan credentials | Usulan FE di [ADR-0016](../adr/0016-realtime-updates-sse.md) |
 | BE | Satu sesi login aktif per akun (`sid`), error `SESSION_REVOKED`, progres terikat akun | Draft di [ADR-0010](../adr/0010-login-single-session-progress-persistence.md) |
 | BE | `GET /me` (NIK tersamar), NIK unik per akun, `quota` pada sesi booking, batas 3 ditegakkan saat submit | Draft di [ADR-0011](../adr/0011-nik-linked-to-account.md) |
@@ -136,7 +136,7 @@ idle → selecting ──submit──► submitting ──┤
 
 - Tooling (npm, Awilix, TanStack Query, zod, MSW, Playwright) perlu dicek terhadap tech radar. Turborepo tidak lagi dibutuhkan (ADR-0013).
 - Apakah Signal DS menyediakan Tailwind preset, atau kita buat dari token.
-- Login: dibuat tim kita (passwordless, usulan [ADR-0022](../adr/0022-passwordless-login-email.md)) atau ada SSO yang tersedia.
+- Login: magic link sesuai kontrak API. Rancangan FE web ada di [ADR-0022](../adr/0022-passwordless-login-email.md).
 
 ## 8. Status implementasi (2026-10-19, diperbarui 2026-10-29)
 

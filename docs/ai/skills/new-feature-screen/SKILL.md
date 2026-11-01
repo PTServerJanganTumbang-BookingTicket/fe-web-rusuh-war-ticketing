@@ -11,7 +11,7 @@ Baca dulu `docs/ai/steering/architecture-rules.md`, ADR-0003, ADR-0014, dan ADR-
 
 1. **Identifikasi requirement dan wireframe.** Catat ID FR/NFR/BR dan nomor wireframe yang dipenuhi layar ini di komentar kepala file controller. Wireframe dipakai untuk struktur dan isi, bukan visual.
 2. **Aturan bisnis ke `domain` dulu.** Jika layar butuh aturan baru (validasi, transisi state, perhitungan), tambahkan di `src/modules/<m>/domain/<konsep>.rules.ts` atau `<konsep>.reducer.ts` (atau `src/core/domain` bila dipakai lintas modul) beserta test Vitest di sebelahnya. Angka bisnis baru masuk `<m>.constants.ts`. Jangan lanjut sebelum test hijau.
-3. **Protocol dan use case.** Jika butuh data atau aksi baru: tambah method di protocol (`domain/<nama>.protocol.ts`) atau protocol baru yang kecil (ISP), lalu use case `application/<kata-kerja>-<benda>.use-case.ts` (kelas `<KataKerja><Benda>UseCase`, `constructor({ deps })`, `execute`). Tambah ke `<m>.dependencies.ts`. Test use case dengan fake protocol.
+3. **Protocol dan use case.** Jika butuh data atau aksi baru: tambah method di protocol (`domain/<nama>.protocol.ts`) atau protocol baru yang kecil (ISP), lalu use case `application/<kata-kerja>-<benda>.use-case.ts` (factory `create<KataKerja><Benda>UseCase`). Tambah ke `<m>.dependencies.ts`. Test use case dengan fake protocol.
 4. **Service di `data`.** Pastikan endpoint sudah ada di OpenAPI (skill `sync-api-contract`), lalu tulis schema di `data/<nama>.schema.ts` (`satisfies z.ZodType<Model>`) dan implementasikan protocol di `data/http-<nama>.service.ts` lewat `HttpClient`. Tambah kasus di `src/test/http-services.test.ts` dan handler di `src/mocks/handlers.ts`.
 5. **Registrasi.** Daftarkan service (`<x>Service`) dan use case (`<x>UseCase`) di `src/modules/<m>/<m>.module.ts` (`asClass(...).singleton()`) dan tipe `<M>Registry`. `src/di/container.test.ts` harus tetap hijau.
 6. **Query options.** Di `controllers/<m>.queries.ts`: query key diawali nama modul, `queryFn` memanggil use case, jitter memakai `random` dari container, interval dari `<m>.constants.ts` (ADR-0004).
@@ -30,7 +30,7 @@ Baca dulu `docs/ai/steering/architecture-rules.md`, ADR-0003, ADR-0014, dan ADR-
 ## Checklist sebelum selesai
 
 - [ ] Tidak ada import yang melanggar aturan dependensi (`npm run lint` hijau): controller hanya `import type` dari `application`, view tidak mengimpor controller, tidak ada impor lintas modul.
-- [ ] Tidak ada class controller, Provider baru, atau server state di Context. Kelas hanya untuk use case, service, dan client.
+- [ ] Tidak ada class controller, Provider baru, atau server state di Context. Use case dan service memakai factory; kelas hanya untuk client transport.
 - [ ] Countdown (jika ada) memakai `useCountdown` dari `expiresAt`.
 - [ ] Setiap error code yang relevan punya tampilan.
 - [ ] Tidak ada angka bisnis langsung di controller, mapper, atau query.

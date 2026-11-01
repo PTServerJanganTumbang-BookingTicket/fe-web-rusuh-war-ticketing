@@ -1,4 +1,4 @@
-<!-- Requirement 7 AC1: satu email ke Email_Pemesan berisi seluruh tiket dalam transaksi. -->
+<!-- Requirement 7 AC1: satu email ke Email_Pemesan berisi seluruh tiket dalam transaksi. Nomor kursi tidak dipakai (MoM 2026-10-28). -->
 <mjml lang="id">
   <mj-head>
     <mj-title>E-tiket {{eventName}} ({{bookingCode}})</mj-title>
@@ -33,7 +33,7 @@
       <mj-column width="40%" vertical-align="middle">
         <mj-image
           src="{{qrCodeUrl}}"
-          alt="QR code tiket kursi {{seatNumber}}"
+          alt="QR code tiket {{ticketId}}"
           width="160px"
           height="160px"
           padding="0 0 16px"
@@ -42,10 +42,10 @@
       <mj-column width="60%" vertical-align="middle">
         <mj-text mj-class="label">Kategori</mj-text>
         <mj-text mj-class="value">{{category}}</mj-text>
-        <mj-text mj-class="label">Nomor bangku</mj-text>
-        <mj-text mj-class="value">{{seatNumber}}</mj-text>
+        <mj-text mj-class="label">Nomor tiket</mj-text>
+        <mj-text mj-class="value">{{ticketId}}</mj-text>
         <mj-text mj-class="label">NIK pemegang tiket</mj-text>
-        <mj-text mj-class="value">{{attendeeNik}}</mj-text>
+        <mj-text mj-class="value">{{nikMasked}}</mj-text>
       </mj-column>
     </mj-section>
     <mj-raw>{{/tickets}}</mj-raw>
