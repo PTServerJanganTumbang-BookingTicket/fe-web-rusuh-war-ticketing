@@ -89,8 +89,8 @@ Jika mergeback conflict:
 
 Setiap commit ke `main` dan branch aktif otomatis menjalankan:
 
-- ✅ Unit tests (`pnpm test`)
-- ✅ Code quality checks (`pnpm lint`, `pnpm typecheck`)
+- ✅ Unit tests (`npm test`)
+- ✅ Code quality checks (`npm run lint`, `npm run typecheck`)
 - ✅ Security scans
 - ✅ Auto-deploy to Dev environment
 

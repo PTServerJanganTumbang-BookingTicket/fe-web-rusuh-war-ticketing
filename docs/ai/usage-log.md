@@ -252,3 +252,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
   - AC baru dari gap analysis sebelumnya: AC14 (quota check endpoint), AC15 (hold replacement), AC16 (error codes standar) di Req 4; AC7 (e-ticket webhook) di Req 7.
   - Validasi format requirements.md: passed.
 - **Review manusia**: Perlu dicek: (1) implikasi perubahan kuota dari per-NIK ke per-transaksi terhadap anti-scalping; (2) keselarasan dengan kontrak API BE untuk dual status Home Page; (3) implementasi invisible CAPTCHA dan provider yang akan dipakai; (4) mekanisme pause admission dan integrasi dengan circuit breaker.
+
+## 2026-11-01 — Penegakan format commit Telkomsel
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menyamakan commitlint, hook, dan CI dengan poster Technical Guidelines Commit Message.
+- **Input**: Poster commit message, `commitlint.config.mjs`, `.kiro/steering/commit-conventions.md`, `.github/workflows/ci.yml`.
+- **Output**: Scope wajib, enam tipe commit sesuai poster, spasi format ditegakkan, subjek boleh memuat akronim; hook dan `webServer` Playwright tidak lagi bergantung pada pnpm; CI memeriksa push ke `develop` dan judul PR; `@types/node` naik ke `^22` agar `npm ci` lolos. Memulihkan perbaikan alias `msw/browser` untuk Windows yang hilang saat sync ke `develop`.
+- **Review manusia**: Menunggu review. Commit tanpa tiket Jira kini memakai `[NO-JIRA]`; commitlint, hook Kiro, dan steering disesuaikan, dan auto-increment Jira ID hanya jika diminta eksplisit.

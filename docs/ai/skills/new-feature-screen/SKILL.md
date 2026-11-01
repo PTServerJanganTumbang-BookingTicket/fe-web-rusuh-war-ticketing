@@ -29,10 +29,10 @@ Baca dulu `docs/ai/steering/architecture-rules.md`, ADR-0003, ADR-0014, dan ADR-
 
 ## Checklist sebelum selesai
 
-- [ ] Tidak ada import yang melanggar aturan dependensi (`pnpm lint` hijau): controller hanya `import type` dari `application`, view tidak mengimpor controller, tidak ada impor lintas modul.
+- [ ] Tidak ada import yang melanggar aturan dependensi (`npm run lint` hijau): controller hanya `import type` dari `application`, view tidak mengimpor controller, tidak ada impor lintas modul.
 - [ ] Tidak ada class controller, Provider baru, atau server state di Context. Kelas hanya untuk use case, service, dan client.
 - [ ] Countdown (jika ada) memakai `useCountdown` dari `expiresAt`.
 - [ ] Setiap error code yang relevan punya tampilan.
 - [ ] Tidak ada angka bisnis langsung di controller, mapper, atau query.
 - [ ] Test mapper dan controller ditambahkan. Story ditambahkan setelah Storybook terpasang.
-- [ ] `pnpm check` hijau. Kontrol khusus simulasi hanya muncul di mode mock.
+- [ ] `npm run check` hijau. Kontrol khusus simulasi hanya muncul di mode mock.

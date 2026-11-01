@@ -8,7 +8,7 @@
       "matcher": "\\.(ts|tsx|js|jsx)$",
       "action": {
         "type": "command",
-        "command": "pnpm lint --max-warnings=0",
+        "command": "npm run lint -- --max-warnings=0",
         "timeout": 60
       },
       "enabled": true

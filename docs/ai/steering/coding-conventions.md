@@ -98,10 +98,10 @@ Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen Rea
 
 ## Git
 
-- Conventional Commits: `feat(booking): ...`, `fix(queue): ...`, `docs(adr): ...`.
-- Hook lokal (Husky): `pre-commit` menjalankan lint-staged (Prettier, ESLint `--max-warnings=0`, dan test terkait via `vitest related` untuk file yang di-stage); `commit-msg` menjalankan commitlint (`commitlint.config.mjs`, termasuk larangan trailer atribusi). CI menjalankan commitlint ulang pada PR untuk menangkap `--no-verify`.
-- Tipe commit: `feat fix docs style refactor perf test build ci chore revert`.
-- Subjek huruf kecil, imperatif, maksimal 72 karakter. Body menjelaskan apa dan mengapa.
+- Format commit Telkomsel: `[JIRAID][ACTOR] <type>(<scope>): <deskripsi>`, misalnya `[SJT-102][Agus] feat(booking): add ticket selection`. Jika tidak ada tiket, pakai `[NO-JIRA]`. Scope wajib. Detail di `.kiro/steering/commit-conventions.md`.
+- Hook lokal (Husky): `pre-commit` menjalankan lint-staged (Prettier, ESLint `--max-warnings=0`, dan test terkait via `vitest related` untuk file yang di-stage); `commit-msg` menjalankan commitlint (`commitlint.config.mjs`, termasuk larangan trailer atribusi). CI menjalankan commitlint ulang pada PR, judul PR, dan push ke `main`/`develop` untuk menangkap `--no-verify`.
+- Tipe commit: `feat fix chore docs refactor test`.
+- Subjek imperatif, tidak diawali huruf besar kecuali akronim, seluruh header maksimal 100 karakter. Body menjelaskan apa dan mengapa.
 - Jangan `git push --force` atau push langsung ke `main` tanpa konfirmasi eksplisit dari pemilik repo. Konflik merge diselesaikan bersama pengguna, bukan otomatis.
 - Satu PR satu concern. PR yang mengubah arsitektur menyertakan ADR.
 - Tidak ada trailer atribusi atau co-authorship di commit dan PR.
