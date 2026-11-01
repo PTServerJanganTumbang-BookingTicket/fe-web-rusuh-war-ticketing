@@ -26,4 +26,4 @@ Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumbe
 
 ## Bahasa
 
-UI dalam Bahasa Indonesia lewat `packages/i18n`. Tidak ada string UI yang di-hardcode di komponen.
+UI dalam Bahasa Indonesia lewat `src/core/i18n`. Tidak ada string UI yang di-hardcode di komponen.

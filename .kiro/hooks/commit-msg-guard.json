@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Commit Message Guard",
+      "trigger": "PreToolUse",
+      "description": "Validates commit message format before git commit and confirms before git push. Ensures JIRAID and ACTOR are present per ADR-0018 conventions.",
+      "matcher": "execute_bash",
+      "action": {
+        "type": "agent",
+        "prompt": "Check the command and apply the appropriate rule:\n\n## For 'git commit' commands:\nVerify the commit message follows the required format: [JIRAID][ACTOR] <type>(<scope>): <description>\n\nRules:\n- JIRAID must be a valid Jira ticket (e.g., SJT-001, TITAN-102), or NO-JIRA when there is no ticket\n- ACTOR must be present (developer name)\n- type must be one of: feat, fix, chore, docs, refactor, test\n- scope should be a module name: booking, payment, queue, catalog, auth, core, di, deps, ci, kiro, adr, readme\n\nIf JIRAID is missing or the format is invalid:\n1. Ask the user for the Jira ticket number, or use NO-JIRA if there is none\n2. Help format the commit message correctly\n3. Only then allow the commit to proceed\n\nIf the commit message format is correct, allow the command without intervention.\n\n## For 'git push' commands:\nDO NOT automatically push. Always ask the user first:\n\"Apakah Anda ingin push commit ini ke branch [branch-name]?\"\n\nWait for explicit user confirmation before proceeding with the push command."
+      }
+    }
+  ]
+}

@@ -1,36 +1,38 @@
 ---
 name: new-feature-screen
-description: Membuat layar baru di apps/web dengan pola ViewModel hook + Container + View props-only, lengkap dengan test dan story. Gunakan saat menambah halaman atau layar state (mis. sesi berakhir, pembayaran pending).
+description: Membuat layar baru di sebuah modul (src/modules/<m>) dengan pola use case + hook controller + Container + View props-only, lengkap dengan test dan story. Gunakan saat menambah halaman atau layar state (mis. sesi berakhir, pembayaran pending).
 ---
 
 # New Feature Screen
 
-Baca dulu `docs/ai/steering/architecture-rules.md` dan ADR-0003.
+Baca dulu `docs/ai/steering/architecture-rules.md`, ADR-0003, ADR-0014, dan ADR-0015. Bila layar milik bounded context yang belum ada, jalankan skill [`new-module`](../new-module/SKILL.md) dulu.
 
 ## Langkah
 
-1. **Identifikasi requirement dan wireframe.** Catat ID FR/NFR/BR dan nomor wireframe yang dipenuhi layar ini di komentar kepala file ViewModel. Wireframe dipakai untuk struktur dan isi, bukan visual.
-2. **Aturan bisnis ke `core` dulu.** Jika layar butuh aturan baru (validasi, transisi state, perhitungan), tambahkan sebagai fungsi murni di `packages/core/<domain>/` beserta test Vitest. Jangan lanjut sebelum test hijau.
-   - **Ada command (tulis ke BE) yang punya aturan atau merangkai langkah?** Buat use case di `packages/core/src/application/<useCase>.ts` (ADR-0015): fungsi dengan `deps` berisi port (tipe fungsi di `ports.ts`), tes dengan port palsu, ekspor lewat `application/index.ts`, lalu sambungkan adapter-nya di `apps/web/features/shared/composition.ts`. Query (baca) tidak butuh use case.
-3. **Endpoint ke `api`.** Jika butuh data baru, pastikan sudah ada di OpenAPI (skill `sync-api-contract`), lalu tambah di `packages/api`: schema DTO di `contracts/<resource>.ts` (tandai `KONTRAK-ASUMSI` bila belum final), mapper DTO → domain di `mappers/<resource>.ts`, adapter di `adapters/<resource>.ts`, query key, dan query options. Setiap adapter dan mapper punya test sendiri. Hook `useQuery`/`useMutation` dipanggil dari ViewModel di `features` (ADR-0004, ADR-0017).
-4. **View di `ui`.** Buat `<Screen>View.tsx` lewat skill `new-ui-component`. Semua state visual (loading, kosong, error per `AppError`, expired) punya story.
-5. **Screen model.** Buat `apps/web/features/<feature>/<screen>Model.ts`: `type <Screen>ScreenState` (union semua kondisi layar, berisi data domain, tanpa teks) dan fungsi murni `derive<Screen>ScreenState(input)`, dengan test tanpa render (ADR-0017).
-6. **Mapper.** Buat `apps/web/features/<feature>/to<Screen>ViewProps.ts`: fungsi murni `({ state, actions })` → props View (format angka dan tanggal, label i18n, pemetaan `AppError` ke pesan, state tombol), dengan test tanpa render.
-7. **ViewModel.** Buat `apps/web/features/<feature>/use<Screen>ViewModel.ts`:
-   - Hanya hook (query, mutation, countdown, router); mengembalikan `export type <Screen>ViewModel = { state, actions }` dengan `state` dari `derive<Screen>ScreenState`.
-   - Tidak mengandung aturan bisnis; memanggil fungsi `core` dan command lewat `application` (`shared/composition.ts`). Tidak mengimpor adapter command dari `@rusuh/api` langsung (ESLint).
-   - Tidak mengimpor `@rusuh/i18n` (ESLint): teks dan pemetaan `AppError` ada di mapper.
-8. **Container.** `<Screen>Container.tsx` hanya: `return <<Screen>View {...to<Screen>ViewProps(use<Screen>ViewModel(...))} />`, atau memilih View sesuai `kind` hasil mapper.
-9. **Route.** `app/(site)/.../page.tsx` hanya merender Container; grup `(site)` memberi navbar dan footer, route embed WebView di luarnya (ADR-0008). Halaman yang membaca `params` atau `searchParams` membungkusnya dalam `<Suspense>`, dan `layout.tsx` route memasang `<Suspense>` + `AppProviders` (bukan di root layout). Tentukan strategi rendering sesuai ADR-0007. Jika route perlu dijaga token, tambahkan matcher di `proxy.ts` (Next 16 mengganti nama `middleware.ts`).
-10. **Test** satu file per file sumber di `__tests__/` folder yang diuji: `<screen>Model.test.ts`, `to<Screen>ViewProps.test.ts`, `use<Screen>ViewModel.test.tsx`, dan `<useCase>.test.ts` bila ada. **Test ViewModel** dengan Testing Library dan server MSW bersama (`features/__tests__/support.tsx`), memakai skenario bernama atau `server.use`, dan memeriksa `state`, bukan teks.
-11. **i18n.** Semua string lewat key di `packages/i18n`.
+1. **Identifikasi requirement dan wireframe.** Catat ID FR/NFR/BR dan nomor wireframe yang dipenuhi layar ini di komentar kepala file controller. Wireframe dipakai untuk struktur dan isi, bukan visual.
+2. **Aturan bisnis ke `domain` dulu.** Jika layar butuh aturan baru (validasi, transisi state, perhitungan), tambahkan di `src/modules/<m>/domain/<konsep>.rules.ts` atau `<konsep>.reducer.ts` (atau `src/core/domain` bila dipakai lintas modul) beserta test Vitest di sebelahnya. Angka bisnis baru masuk `<m>.constants.ts`. Jangan lanjut sebelum test hijau.
+3. **Protocol dan use case.** Jika butuh data atau aksi baru: tambah method di protocol (`domain/<nama>.protocol.ts`) atau protocol baru yang kecil (ISP), lalu use case `application/<kata-kerja>-<benda>.use-case.ts` (kelas `<KataKerja><Benda>UseCase`, `constructor({ deps })`, `execute`). Tambah ke `<m>.dependencies.ts`. Test use case dengan fake protocol.
+4. **Service di `data`.** Pastikan endpoint sudah ada di OpenAPI (skill `sync-api-contract`), lalu tulis schema di `data/<nama>.schema.ts` (`satisfies z.ZodType<Model>`) dan implementasikan protocol di `data/http-<nama>.service.ts` lewat `HttpClient`. Tambah kasus di `src/test/http-services.test.ts` dan handler di `src/mocks/handlers.ts`.
+5. **Registrasi.** Daftarkan service (`<x>Service`) dan use case (`<x>UseCase`) di `src/modules/<m>/<m>.module.ts` (`asClass(...).singleton()`) dan tipe `<M>Registry`. `src/di/container.test.ts` harus tetap hijau.
+6. **Query options.** Di `controllers/<m>.queries.ts`: query key diawali nama modul, `queryFn` memanggil use case, jitter memakai `random` dari container, interval dari `<m>.constants.ts` (ADR-0004).
+7. **View.** Buat `views/<Layar>View.tsx` lewat skill `new-ui-component`. Semua state visual (loading, kosong, error per `AppError`, expired) punya story.
+8. **Mapper.** `controllers/<m>.mapper.ts` (`to<Layar>ViewProps`): fungsi murni dari data domain ke props View (format angka dan tanggal, label i18n, state tombol), dengan test tanpa render di `<m>.mapper.test.ts`.
+9. **Controller.** `controllers/<m>.controller.ts` (`use<Layar>Controller`):
+   - Ambil dependensi dengan `useDependencies<<M>Dependencies & CoreDependencies>()` (destructuring).
+   - Mengembalikan objek datar atau union layar: state siap tampil + command.
+   - Tidak mengandung aturan bisnis; memanggil fungsi `domain` dan use case.
+   - Memetakan `AppError` ke key i18n. Konfigurasi dari `appConfig`, bukan `process.env`.
+10. **Container.** `views/<Layar>Container.tsx` hanya: `const screen = use<Layar>Controller(...); return <<Layar>View {...screen} />`.
+11. **Route.** `src/app/.../page.tsx` hanya merender Container. Halaman yang membaca `params` membungkusnya dalam `<Suspense>`, dan `layout.tsx` route memasang `<Suspense>` + `AppProviders` dari `@/di/AppProviders` (bukan di root layout). Server Component statis memanggil loader (`controllers/<layar>.loader.ts`) dengan `getServerDependencies()` (lihat Home). Tentukan strategi rendering sesuai ADR-0007. Jika route perlu dijaga token, tambahkan matcher di `src/proxy.ts`.
+12. **Test controller** di `controllers/<m>.controller.test.tsx` dengan Testing Library, `setupMockServer`, dan `createWrapper` dari `@/test/support`. Untuk variasi konfigurasi atau dependensi, `setupTestContainer(overrides, config)`.
+13. **i18n.** Semua string lewat key di `src/core/i18n/id.messages.ts`.
 
 ## Checklist sebelum selesai
 
-- [ ] Tidak ada import yang melanggar aturan dependensi (`npm run lint` hijau).
-- [ ] Tidak ada class, Provider baru, atau server state di Context.
+- [ ] Tidak ada import yang melanggar aturan dependensi (`npm run lint` hijau): controller hanya `import type` dari `application`, view tidak mengimpor controller, tidak ada impor lintas modul.
+- [ ] Tidak ada class controller, Provider baru, atau server state di Context. Kelas hanya untuk use case, service, dan client.
 - [ ] Countdown (jika ada) memakai `useCountdown` dari `expiresAt`.
 - [ ] Setiap error code yang relevan punya tampilan.
-- [ ] Test screen model, mapper, dan ViewModel ditambahkan. Story ditambahkan setelah Storybook terpasang.
-- [ ] Nama dan letak file mengikuti `architecture-rules.md` "Letak dan nama file" (`fileConventions.test.ts` hijau).
+- [ ] Tidak ada angka bisnis langsung di controller, mapper, atau query.
+- [ ] Test mapper dan controller ditambahkan. Story ditambahkan setelah Storybook terpasang.
 - [ ] `npm run check` hijau. Kontrol khusus simulasi hanya muncul di mode mock.

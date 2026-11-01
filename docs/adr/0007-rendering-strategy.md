@@ -38,3 +38,8 @@ Flash crowd pertama kali menghantam Home. Kalau Home dirender dinamis per reques
 - `next build` tanpa backend yang bisa dijangkau membuat Home ter-prerender dengan state error sampai revalidate berikutnya.
 - Variabel `NEXT_PUBLIC_API_MOCKING` selalu didefinisikan di `next.config.ts` (kosong bila mati) agar kode mock dilipat dari bundle produksi. Dicek dengan membandingkan chunk build dengan dan tanpa mock.
 - CI (`.github/workflows/ci.yml`) menjalankan `npm run build` dan gagal bila `/` tidak muncul sebagai route statis (`○`), sesuai butir "Yang harus dijaga" di atas.
+
+## Catatan implementasi (2026-10-28)
+
+- Route ada di `src/app`, gerbang di `src/proxy.ts`. Home tetap statis (`○ /`, ISR 15 dtk), diverifikasi `pnpm build` setelah restrukturisasi ADR-0013.
+- `AppProviders` (provider TanStack Query dan container DI) ada di `src/di/AppProviders.tsx` dan tetap dipasang di layout route, bukan root layout.

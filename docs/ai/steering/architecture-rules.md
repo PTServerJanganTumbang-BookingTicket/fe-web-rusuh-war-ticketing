@@ -1,108 +1,162 @@
 # Aturan Arsitektur
 
-Ringkasan untuk agent dari [overview](../../architecture/overview.md) dan ADR 0001–0015. Detail dan alasan ada di ADR.
+Ringkasan untuk agent dari [overview](../../architecture/overview.md) dan ADR yang berlaku. Struktur dan lapisan: ADR-0013, ADR-0014, ADR-0015 (menggantikan ADR-0001 dan ADR-0002). Detail dan alasan ada di ADR.
 
-## Aturan dependensi (wajib)
+## Struktur (ADR-0013)
+
+Satu aplikasi Next.js, bukan monorepo. Fitur adalah **modul**; tiap modul punya lima lapisan yang sama, dan kode bersama di `src/core` memakai lapisan yang sama juga.
 
 ```
-apps/web/app → apps/web/features → packages/{ui, api, i18n} → packages/core
+src/app            Next.js: routing, layout, route handler        (framework)
+src/di             composition root Awilix, config, AppProviders  (wiring)
+src/modules/<m>/   domain/ application/ data/ controllers/ views/ <m>.module.ts
+src/core/          domain/ application/ data/ controllers/ views/ i18n/   (dipakai lebih dari satu modul)
+src/mocks          MSW
+src/test           support test
 ```
+
+## Istilah
+
+| Istilah | Artinya | Contoh |
+|---|---|---|
+| Model | Tipe data domain (`*.model.ts`) | `Order` |
+| Rules | Fungsi bisnis murni (`*.rules.ts`, `*.reducer.ts`) | `canAddTicket` |
+| Constants | Angka bisnis dengan rujukan requirement/ADR (`*.constants.ts`) | `MAX_TICKETS_PER_NIK` |
+| Protocol | Interface yang dibutuhkan use case, di `domain/` (`*.protocol.ts`) | `OrderProtocol` |
+| Use case | Satu aksi, kelas dengan satu `execute()` (`*.use-case.ts`) | `StartPaymentUseCase` |
+| Service | Implementasi protocol di `data/` (`*.service.ts`) | `HttpOrderService` |
+| Client | Transport di `core/data` yang dipakai service (`*.client.ts`) | `HttpClient` |
+| Schema | Schema zod response BE (`*.schema.ts`) | `orderSchema` |
+| Controller | Hook React per layar (`*.controller.ts`) | `usePaymentController` |
+| Mapper | Data domain → props View (`*.mapper.ts`) | `toPaymentViewProps` |
+| Container | Komponen yang memanggil controller dan memilih View | `PaymentContainer` |
+| View | Komponen props-only | `PaymentView` |
+| Registry | Semua yang didaftarkan modul ke container | `PaymentRegistry` |
+| Dependencies | Irisan container yang boleh diminta controller (`*.dependencies.ts`) | `PaymentDependencies` |
+
+## Aturan dependensi (wajib, ADR-0014)
+
+Arah dependensi selalu ke dalam: `views → controllers → application (tipe saja) → domain`, `data → application → domain`. Hanya `src/di` yang memasangkan service ke protocol.
 
 | Lokasi | Boleh | Dilarang |
 |---|---|---|
-| `packages/core` | TypeScript murni, `zod`. Di dalamnya: `application/` (use case, port) boleh mengimpor domain | React, Next, `fetch`, `window`, `Date.now()` langsung (pakai parameter `now`), import package lain. Domain (`domain`, `errors`, `booking`, `queue`, `time`, `payment`) tidak boleh mengimpor `application/` |
-| `packages/api` | `core`, client HTTP, TanStack Query hooks | React component, `ui`, `features` |
-| `packages/ui` | React, Signal DS, Tailwind | Fetch data, hook TanStack Query, import `api` atau `features` |
-| `apps/web/features` | `core`, `api`, `ui`, `i18n` | Logika bisnis yang belum ada di `core`. Memanggil `startPayment`/`startSession` langsung (pakai `application` dari `shared/composition.ts`) |
-| `apps/web/app` | Render Container dari `features`, layout | Logika apa pun selain komposisi |
+| `modules/<m>/domain` | TypeScript murni; `domain` modul sendiri, `core/domain` | React, Next, `zod`, `awilix`, `fetch`, `window`, `Date.now()` (terima `now` sebagai parameter) |
+| `modules/<m>/application` | Use case (kelas `execute()`), `<m>.dependencies.ts`; `domain`/`application` modul sendiri, `core/domain`, `core/application` | Framework, `zod`, `awilix`, `fetch`, `Date.now()`, `Math.random()` |
+| `modules/<m>/data` | Service yang mengimplementasikan protocol, schema zod; lapisan dalam modul sendiri, `core/domain`, `core/application`, `core/data` | React, Next, `awilix`, `controllers`, `views` |
+| `modules/<m>/controllers` | Controller, mapper, query options, loader; `domain` modul sendiri, `views` modul sendiri (tipe props), `core` sisi tampilan, **`application` hanya `import type`** | Impor nilai dari `application` atau `data`, `awilix`, `Date.now()`, `Math.random()` |
+| `modules/<m>/views/<Layar>Container.tsx` | Sama dengan `controllers` | Sama dengan `controllers` |
+| `modules/<m>/views` (selain Container) | View props-only; `core/views/design-system`; `domain` hanya tipe | Controller, i18n, hook data, TanStack Query, apa pun selain design system |
+| `modules/<m>/<m>.module.ts` | Registrasi Awilix modul sendiri | Modul lain |
+| `src/core/views/design-system` | React, Signal DS, Tailwind | Semua di luar `design-system` (termasuk i18n dan hook `core/controllers`) |
+| `src/core/domain`, `src/core/application` | TypeScript murni | Semua di luar `core/domain` dan `core/application`, framework, `zod`, `awilix` |
+| `src/core/data` | `core/domain`, `core/application`, client (HTTP, SSE) | React, `core/controllers`, `core/views`, modul, `awilix` |
+| `src/core/controllers`, `src/core/i18n` | `core/domain`, `core/application` hanya tipe | `core/data`, modul, `awilix` |
+| `src/di` | Registrasi modul, seluruh `core`, `awilix` | Controller dan view modul |
+| `src/app`, `proxy.ts`, `instrumentation.ts` | `di`, controller dan view modul, `core` sisi tampilan, `core/data` (konstanta cookie) | Logika apa pun selain komposisi dan kebijakan rendering |
+
+"`core` sisi tampilan" berarti `core/domain`, `core/controllers`, `core/i18n`, `core/views`.
+
+**Modul tidak saling mengimpor.** Yang dipakai lebih dari satu modul pindah ke lapisan yang sama di `src/core`. Kalau terpaksa melanggar, berhenti dan usulkan ADR.
+
+## Nama file (ADR-0013)
+
+- File non-komponen: kebab-case dengan akhiran peran (`start-payment.use-case.ts`, `http-order.service.ts`, `order.schema.ts`). Daftar akhiran lengkap ada di ADR-0013 dan [coding-conventions](coding-conventions.md).
+- Komponen React: PascalCase (`PaymentView.tsx`, `PaymentContainer.tsx`).
+- Test di sebelah file yang dites: `payment.mapper.test.ts`, `payment.controller.test.tsx`. Tidak ada folder `__tests__`.
+
+## Service dan schema (ADR-0014)
+
+- Satu protocol per sumber daya BE, ditambah protocol terpisah untuk stream SSE dan untuk endpoint khusus mock (ISP).
+- Service hanya memanggil `HttpClient` atau `EventStreamClient` dan mem-parse dengan schema dari `data/<nama>.schema.ts`. URL dasar, header, dan pemetaan error adalah tugas client.
+- Schema ditulis `satisfies z.ZodType<Model>`. Schema yang mengubah bentuk memakai `.transform()` dengan tipe hasil eksplisit.
+
+## Konstanta (ADR-0014)
+
+- Angka bisnis dan interval di `domain/<m>.constants.ts`, atau `core/domain` bila dipakai lebih dari satu modul. Setiap konstanta punya komentar rujukan requirement atau ADR.
+- Nilai yang berbeda per environment ada di `AppConfig` (`src/di/app-config.reader.ts`), bukan konstanta.
+
+## Aturan SOLID (ADR-0014)
+
+- **SRP**: satu use case satu kelas, satu `execute()`. Mapper murni terpisah dari controller.
+- **OCP**: modul baru tidak mengubah modul lain; cukup satu baris di `src/di/container.ts`.
+- **LSP**: setiap implementasi protocol bisa saling ganti (service HTTP, fake di test).
+- **ISP**: protocol kecil (`PaymentSimulatorProtocol` terpisah dari `OrderProtocol`). Controller meminta irisan container (`useDependencies<PaymentDependencies & CoreDependencies>()`), bukan seluruh container.
+- **DIP**: use case bergantung pada protocol; controller menerima use case dari container. Jam, acak, dan konfigurasi diinjeksikan (`clock`, `random`, `appConfig`).
+
+## Dependency injection (ADR-0015)
+
+- Awilix `InjectionMode.PROXY`, `strict: true`. Kelas menerima satu objek dependensi di constructor: `constructor({ eventService }: { eventService: EventProtocol })`.
+- `awilix` hanya boleh diimpor dari `src/di` dan `src/modules/<m>/<m>.module.ts`.
+- Nama registrasi: use case `<x>UseCase`, protocol `<x>Service`, sisanya kata benda pendek (`clock`, `random`, `appConfig`, `httpClient`).
+- Controller: `const { getOrderUseCase } = useDependencies<PaymentDependencies & CoreDependencies>()`. Selalu destructuring, jangan spread.
+- Server Component: route di `app/` memanggil `getServerDependencies()` dan meneruskannya ke loader di `controllers/`.
+- `process.env` hanya dibaca di `src/di/app-config.reader.ts` (kecuali kondisi literal pemuatan MSW).
 
 ## Larangan keras
 
-- **Jangan membuat class ViewModel, lifecycle buatan, atau Provider per layar.** ViewModel adalah custom hook `use<Screen>ViewModel` (ADR-0003).
-- **Jangan menaruh orkestrasi atau aturan bisnis di ViewModel.** Command yang punya aturan atau merangkai langkah adalah use case di `core/application` (fungsi murni, port sebagai tipe fungsi, tanpa class atau container DI), disambungkan di `features/shared/composition.ts` (ADR-0015).
-- **Jangan menyimpan server state di Context atau global store.** Pakai TanStack Query (ADR-0004).
-- **Jangan menghitung countdown dari durasi.** Selalu dari `expiresAt` + offset server, lewat `core/time` (ADR-0005).
+- **Jangan membuat class controller, lifecycle buatan, atau Provider per layar.** Controller adalah custom hook `use<Layar>Controller` (ADR-0003; dulu disebut ViewModel).
+- **Jangan menyimpan server state di Context atau global store.** Pakai TanStack Query (ADR-0004). Satu-satunya Context adalah `DependencyProvider` (container DI), dan isinya bukan server state.
+- **Jangan membuat container Awilix atau memanggil `new` pada use case/service di luar `src/di`** (kecuali test application dengan fake).
+- **Jangan memakai polling sebagai jalur utama untuk antrian atau status order.** Pembaruan lewat SSE (`useLiveUpdates` + use case `Watch*UseCase`); polling hanya cadangan saat stream putus (ADR-0016). Stream ditutup klien di status akhir.
+- **Jangan menaruh token di URL stream SSE.** EventSource memakai cookie (`withCredentials`).
+- **Jangan menghitung countdown dari durasi.** Selalu dari `expiresAt` + offset server, lewat `src/core/domain/time` (ADR-0005).
 - **Jangan memutuskan expired di klien.** Saat timer nol, panggil endpoint status, ikuti jawabannya (ADR-0005).
 - **Jangan memanggil Midtrans atau mengimpor SDK-nya.** Pembayaran hanya lewat endpoint BE (ADR-0006).
 - **Jangan menaruh token di URL**, kecuali one-time code di alur exchange WebView (ADR-0008).
 - **Jangan memasang provider client di root layout.** Home harus tetap statis (ADR-0007).
-- **Jangan mengedit `packages/api/generated/`.** Regenerate dari OpenAPI (ADR-0009).
+- **Jangan mengedit `src/core/data/http/generated/`.** Regenerate dari OpenAPI (ADR-0009).
+- **Jangan menulis angka bisnis langsung di controller, mapper, atau query.** Taruh di `*.constants.ts` (ADR-0014).
 
 ## Aturan tambahan (ditegakkan lint atau CI)
 
-- **`ui` memakai primitif dan token Signal DS (ADR-0012).** Tidak ada nilai hex di `packages/ui` (`bg-primary`, `text-muted-foreground`, `bg-signal-bg-error`, `currentColor`). Tombol, kartu, badge, alert, progress, dan radio dibangun dari `packages/ui/src/primitives`. Hex ditegakkan ESLint.
-- **`ui` boleh `import type` dari `core`, bukan nilai.** Ditegakkan ESLint boundaries (ADR-0002).
-- **Kode mock hanya dimuat dari `features/shared/AppProviders.tsx`, `instrumentation.ts`, dan test.** Pemuatannya dijaga `NEXT_PUBLIC_API_MOCKING`. `next.config.ts` selalu mendefinisikan variabel itu supaya kode mock hilang dari bundle produksi. Ditegakkan ESLint dan dicek lewat ukuran bundle.
+- **Seluruh aturan dependensi di atas ditegakkan `eslint.boundaries.mjs`** dengan `default: "disallow"` (ADR-0014). Test (`*.test.*`) dikecualikan dari aturan lapisan.
+- **Design system memakai primitif dan token Signal DS (ADR-0012).** Tidak ada nilai hex di `src/core/views` maupun `src/modules/<m>/views` (`bg-primary`, `text-muted-foreground`, `bg-signal-bg-error`, `currentColor`). Tombol, kartu, badge, alert, progress, dan radio dibangun dari `src/core/views/design-system/primitives`. Hex ditegakkan ESLint.
+- **View boleh `import type` dari `domain` modulnya, bukan nilai.** Ditegakkan ESLint boundaries.
+- **Kode mock hanya dimuat dari `src/di/AppProviders.tsx`, `src/instrumentation.ts`, dan test.** Pemuatannya dijaga `NEXT_PUBLIC_API_MOCKING`. `next.config.ts` selalu mendefinisikan variabel itu supaya kode mock hilang dari bundle produksi. Ditegakkan ESLint dan dicek lewat ukuran bundle.
 - **Kontrol yang hanya untuk simulasi** (mis. tombol "Simulasikan berhasil/gagal") dirender hanya saat `NEXT_PUBLIC_API_MOCKING=enabled`.
 - **Home tetap statis.** CI gagal bila `/` bukan route statis (ADR-0007).
-- **Flag `NEXT_PUBLIC_*` baru wajib ditambahkan sebagai `ARG` dan `ENV` di `Dockerfile`**, karena nilainya di-inline saat build. CI gagal bila ada variabel di `apps/web/.env.example` yang tidak ada di `Dockerfile` (ADR-0013).
-- **Build tidak boleh mengunduh aset dari internet** selain registry paket (mis. `next/font/google`). Font dan aset di-self-host agar image bisa dibangun di jaringan tertutup (ADR-0013).
-- **Urutan impor di dalam lapisan** (ESLint `layers.mjs`, ADR-0002): fitur di `features` tidak saling mengimpor dan `shared` tidak mengimpor fitur; `ui` berurutan `layar → shared → primitives → lib` tanpa layar saling mengimpor; `api` berurutan `queries → adapters → http`. Yang dipakai bersama ditaruh di `shared`.
-- **Nama dan umur cookie sesi** hanya didefinisikan di `features/shared/session.ts`; route handler dan `proxy.ts` mengimpornya, jangan menulis ulang string `access_token`.
-- **Test unit ada di `__tests__/` pada folder yang diuji** (bukan di samping file). E2E di `apps/web/e2e/`.
-- **Setiap workspace hanya mengimpor dependensi yang tertulis di `package.json`-nya sendiri** (atau devDependencies root untuk alat bersama). npm menghoist semua package, jadi aturan ESLint `import/no-extraneous-dependencies` yang menjaganya. `import type` tidak diperiksa (ADR-0014).
-- **Package manager adalah npm.** Jangan menambah `pnpm-lock.yaml`, `yarn.lock`, atau `workspace:*`. Dependensi antar workspace memakai `"*"`. Commit `package-lock.json` bersama perubahan `package.json`, dan selesaikan peer dependency yang bentrok dengan menyelaraskan versi, bukan `legacy-peer-deps`.
-- **Workspace baru wajib ditambahkan ke daftar `COPY .../package.json` di stage `deps` `Dockerfile`**, karena `npm ci` hanya melihat manifest yang disalin. CI gagal bila lupa (ADR-0014).
 
-## Pola wajib per layar
-
-Mengikuti ADR-0017 (screen model, Proposed); kode sudah memakainya sejak tahap 3 rencana implementasi.
+## Pola wajib per modul dan layar
 
 ```
-features/<feature>/
-├─ <screen>Model.ts            type <Screen>ScreenState (union) + derive<Screen>ScreenState(input): murni, tanpa i18n
-├─ use<Screen>ViewModel.ts     hanya hook (query, mutation, countdown, router) → { state, actions }; tanpa @rusuh/i18n (lint)
-├─ to<Screen>ViewProps.ts      fungsi murni (state, actions) → props View: i18n, format, pesan galat, state tombol
-├─ <Screen>Container.tsx       render View dari to<Screen>ViewProps(use<Screen>ViewModel(...))
-└─ __tests__/                  satu test per file di atas (kecuali Container)
-packages/ui/src/<screen>/
-└─ <Screen>View.tsx            props-only, semua state visual punya story
-packages/core/src/application/
-└─ <useCase>.ts                hanya bila command punya aturan/langkah; port baru di ports.ts, sambung di features/shared/composition.ts
-packages/api/src/
-├─ contracts/<resource>.ts     schema zod DTO (cermin OpenAPI), ditandai KONTRAK-ASUMSI sampai final
-└─ mappers/<resource>.ts       DTO → domain dan domain → request body; satu-satunya yang tahu nama field BE
+src/modules/<m>/
+├─ domain/
+│  ├─ <konsep>.model.ts             tipe
+│  ├─ <konsep>.rules.ts             fungsi bisnis murni, test di sebelahnya
+│  ├─ <m>.constants.ts              angka bisnis + rujukan requirement/ADR
+│  └─ <nama>.protocol.ts            interface <Nama>Protocol
+├─ application/
+│  ├─ <kata-kerja>-<benda>.use-case.ts   kelas <KataKerja><Benda>UseCase: constructor({ deps }), execute(...)
+│  └─ <m>.dependencies.ts           type <M>Dependencies = irisan container untuk controller
+├─ data/
+│  ├─ http-<nama>.service.ts        kelas Http<Nama>Service implements <Nama>Protocol
+│  └─ <nama>.schema.ts              schema zod, satisfies z.ZodType<Model>
+├─ controllers/
+│  ├─ <m>.queries.ts                queryOptions + query key (memanggil use case)
+│  ├─ <m>.controller.ts             use<Layar>Controller: useDependencies → useQuery/useMutation → state + command
+│  ├─ <m>.mapper.ts                 to<Layar>ViewProps: data domain → props View (format, label i18n, state tombol)
+│  └─ *.test.ts(x)                  test mapper (tanpa render) dan controller (Testing Library + MSW + container uji)
+├─ views/
+│  ├─ <Layar>Container.tsx          const screen = use<Layar>Controller(); render View sesuai screen.kind
+│  └─ <Layar>View.tsx               props-only, semua state visual punya story
+└─ <m>.module.ts                    <m>Module(): registrasi Awilix; type <M>Registry
 ```
-
-## Letak dan nama file
-
-Peran file ditentukan **folder** dan **pola nama**, bukan akhiran seperti `.usecase.ts` atau `.model.ts`: aturan lint lapisan (`boundaries.mjs`, `layers.mjs`) sudah membaca folder, dan akhiran hanya mengulang informasi yang sama. Ditegakkan oleh `packages/config/conventions/fileConventions.test.ts` (bagian dari `npm test`).
-
-| Peran | Letak | Nama file | Isi wajib |
-|---|---|---|---|
-| Tipe domain | `core/src/domain/` | `<konsep>.ts` | tipe, tanpa logika |
-| Aturan domain | `core/src/<area>/` (`booking`, `queue`, `payment`, `time`, `auth`, `errors`) | `<aturan>.ts` (`canAddTicket.ts`) | fungsi murni, `now` sebagai parameter |
-| Use case | `core/src/application/` | `<kataKerjaObjek>.ts` (`registerAccount.ts`) | `<UseCase>Deps` + fungsi `(deps, ...input)` |
-| Port | `core/src/application/ports.ts` | satu file | tipe fungsi `PascalCase` |
-| Contract | `api/src/contracts/` | `<resource>.ts` | schema zod + tipe `*Dto` |
-| Mapper DTO | `api/src/mappers/` | `<resource>.ts`, berpasangan dengan contract | fungsi `to<Domain>` / `to<X>Request` |
-| Adapter | `api/src/adapters/` | `<resource>.ts` | `apiFetch` + contract + mapper |
-| Screen model | `features/<fitur>/` | `<screen>Model.ts` | `<Screen>ScreenState` + `derive<Screen>ScreenState` |
-| ViewModel | `features/<fitur>/` | `use<Screen>ViewModel.ts` | `export type <Screen>ViewModel` |
-| Mapper ke View | `features/<fitur>/` | `to<Screen>ViewProps.ts` atau `to<Komponen>Props.ts` | fungsi murni |
-| Container | `features/<fitur>/` | `<Screen>Container.tsx` | tanpa logika |
-| Loader Server Component | `features/<fitur>/` | `load<Screen>.ts` | hanya Home (ADR-0007) |
-| Bersama lintas fitur | `features/shared/` | bebas, camelCase/PascalCase | tidak mengimpor fitur |
-| View | `ui/src/<screen>/` | `<Screen>View.tsx` | props-only |
-
-- Satu folder fitur boleh berisi beberapa layar (mis. `auth`: login, registrasi, callback, verifikasi), masing-masing dengan set file lengkapnya.
-- File lain di folder fitur (helper, util, subfolder) ditolak test: pindahkan ke `features/shared`, `core`, atau `ui`.
-- Test unit: satu file test per file sumber, di `__tests__/` folder sumbernya, bernama `<sumber>.test.ts(x)`. Helper bersama hanya `__tests__/support.ts(x)`. Wajib ada untuk use case, adapter, mapper DTO, screen model, mapper ke View, dan ViewModel.
 
 ## Pengecualian terdokumentasi
 
 | Pengecualian | Alasan | Dicatat di |
 |---|---|---|
-| Home memakai Container async (Server Component), tanpa hook ViewModel | Hook memaksa Client Component dan merusak render statis | ADR-0003 |
+| Home tidak memakai hook controller: route `app/(public)/page.tsx` memegang `"use cache"` dan memanggil `loadHomeViewProps(getServerDependencies())` dari `catalog/controllers/home.loader.ts` | Hook memaksa Client Component dan merusak render statis; kebijakan cache milik framework | ADR-0003, ADR-0015 |
 | `proxy.ts`, bukan `middleware.ts` | Konvensi Next 16 | ADR-0007 |
 | `/api/session/start` (web) terpisah dari `/api/session/exchange` (WebView) | Kontrak berbeda | ADR-0008 |
-| Halaman dengan `params` membungkus isinya dalam `<Suspense>`, dan layout route memasang `AppProviders` | Cache Components Next 16 menuntut akses `params` di dalam Suspense | ADR-0007 |
-| Token link login sekali pakai di URL `/auth/callback?token=` | Link dari email tidak punya cara lain membawa token. Token sekali pakai, dihapus dari URL dan riwayat sebelum ditukar, dan tidak disimpan FE | Figma SJT ZAKI (Login); perlu ADR saat kontrak auth final |
+| Halaman dengan `params` membungkus isinya dalam `<Suspense>`, dan layout route memasang `AppProviders` (dari `src/di`) | Cache Components Next 16 menuntut akses `params` di dalam Suspense | ADR-0007 |
+| Sesi/access token (`StartSessionUseCase`, `SessionProtocol`) ada di `src/core` (service-nya di `src/core/data/session`), bukan modul | Dipakai Waiting Room dan nanti login; modul tidak boleh saling mengimpor | ADR-0014 |
+| `src/di`, `src/mocks`, `src/test` tanpa akhiran peran | Sedikit file dengan satu tugas masing-masing | ADR-0013 |
 
 ## Error
 
-- `api` memetakan response gagal ke `AppError` (union bertipe di `core/errors`).
-- ViewModel memetakan `AppError` ke key i18n dan state layar.
+- `FetchHttpClient` di `core/data/http` memetakan response gagal ke `AppError` (union bertipe di `src/core/domain/app-error.ts`). Service tidak menangkap error.
+- Controller memetakan `AppError` ke key i18n dan state layar.
 - Komponen tidak pernah menampilkan `error.message` mentah.
 
 ## Jika ragu

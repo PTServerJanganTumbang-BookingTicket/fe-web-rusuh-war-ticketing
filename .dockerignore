@@ -15,6 +15,10 @@
 .git
 .github
 .claude
+.kiro
+.husky
 docs
+e2e
+emails
 Dockerfile
 .dockerignore

@@ -1,0 +1,27 @@
+<mjml lang="id">
+  <mj-head>
+    <mj-title>Link masuk Rusuh Booking Tiket</mj-title>
+    <mj-preview>Masuk tanpa kata sandi. Link ini hanya bisa dipakai sekali.</mj-preview>
+    <mj-include path="./partials/attributes.mjml" />
+  </mj-head>
+  <mj-body>
+    <mj-include path="./partials/header.mjml" />
+    <mj-section>
+      <mj-column>
+        <mj-text mj-class="heading">Masuk ke akun kamu</mj-text>
+        <mj-text>Halo {{customerName}}, tekan tombol di bawah untuk masuk.</mj-text>
+        <mj-button href="{{loginUrl}}">Masuk sekarang</mj-button>
+        <mj-text mj-class="muted">Link berlaku selama {{expiryMinutes}} menit dan hanya bisa dipakai sekali. Jangan teruskan email
+          ini ke siapa pun.
+        </mj-text>
+        <mj-text mj-class="muted">
+          Tombol tidak berfungsi? Salin link ini ke browser:<br />
+          <a href="{{loginUrl}}" style="color: #0050ae; word-break: break-all">{{loginUrl}}</a>
+        </mj-text>
+        <mj-divider />
+        <mj-text mj-class="muted">Tidak merasa meminta link ini? Abaikan email ini, akunmu tetap aman.</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -1,0 +1,31 @@
+<!-- Requirement 1 AC7 dan AC8; MoM 2026-10-28 butir 15. -->
+<mjml lang="id">
+  <mj-head>
+    <mj-title>Verifikasi email akun Rusuh Booking Tiket</mj-title>
+    <mj-preview>Satu langkah lagi. Link ini berlaku selama 24 jam.</mj-preview>
+    <mj-include path="./partials/attributes.mjml" />
+  </mj-head>
+  <mj-body>
+    <mj-include path="./partials/header.mjml" />
+    <mj-section>
+      <mj-column>
+        <mj-text mj-class="heading">Verifikasi email kamu</mj-text>
+        <mj-text>
+          Halo {{customerName}}, tekan tombol di bawah untuk menyelesaikan pendaftaran. Kamu baru bisa
+          membeli tiket setelah email terverifikasi.
+        </mj-text>
+        <mj-button href="{{verificationUrl}}">Verifikasi email</mj-button>
+        <mj-text mj-class="muted">Link berlaku selama 24 jam. Jika sudah kedaluwarsa, kamu bisa meminta link baru hingga 3 kali per
+          jam dari halaman login.
+        </mj-text>
+        <mj-text mj-class="muted">
+          Tombol tidak berfungsi? Salin link ini ke browser:<br />
+          <a href="{{verificationUrl}}" style="color: #0050ae; word-break: break-all">{{verificationUrl}}</a>
+        </mj-text>
+        <mj-divider />
+        <mj-text mj-class="muted">Tidak merasa mendaftar? Abaikan email ini, akun tidak akan aktif.</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -16,13 +16,13 @@ jobs:
           node-version: 22
           cache: npm
 
-      # npm ci gagal bila package-lock.json tidak sinkron dengan package.json (ADR-0014).
       - run: npm ci
 
-      # Aturan dependensi antar lapisan (ADR-0002) ditegakkan ESLint boundaries.
+      # Aturan dependensi antar lapisan dan modul (ADR-0014, ADR-0015) ditegakkan ESLint boundaries.
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - run: npm run test:coverage
 
       - name: Build
         run: npm run build | tee build.log
@@ -31,26 +31,47 @@ jobs:
       - name: Home tetap statis
         run: grep -E '^[┌├└] ○ /[[:space:]]' build.log
 
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Menangkap commit yang melewati hook lokal (--no-verify).
+      - name: Commit pada PR
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from origin/${{ github.base_ref }} --to HEAD
+
+      # Judul PR menjadi pesan commit saat squash merge.
+      - name: Judul PR
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | npx commitlint
+
+      - name: Commit pada push
+        if: github.event_name == 'push'
+        run: npx commitlint --from ${{ github.event.before }} --to ${{ github.sha }}
+
   image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # ADR-0013: NEXT_PUBLIC_* di-inline saat build, jadi setiap flag di .env.example wajib punya ARG di Dockerfile.
+      # ADR-0021: NEXT_PUBLIC_* di-inline saat build, jadi setiap flag di .env.example wajib punya ARG di Dockerfile.
       - name: Flag build tercatat di Dockerfile
         run: |
           missing=0
-          for name in $(grep -oE '^NEXT_PUBLIC_[A-Z0-9_]+' apps/web/.env.example); do
+          for name in $(grep -oE '^NEXT_PUBLIC_[A-Z0-9_]+' .env.example); do
             grep -qE "^ARG $name(=|$)" Dockerfile || { echo "::error file=Dockerfile::ARG $name belum ada"; missing=1; }
-          done
-          exit $missing
-
-      # ADR-0014: `npm ci` di Dockerfile hanya melihat package.json yang di-COPY. Workspace baru wajib terdaftar.
-      - name: Workspace tercatat di Dockerfile
-        run: |
-          missing=0
-          for manifest in apps/*/package.json packages/*/package.json mocks/package.json; do
-            grep -qE "^COPY $manifest " Dockerfile || { echo "::error file=Dockerfile::COPY $manifest belum ada"; missing=1; }
           done
           exit $missing
 
@@ -90,11 +111,10 @@ jobs:
           node-version: 22
           cache: npm
 
-      # npm ci gagal bila package-lock.json tidak sinkron dengan package.json (ADR-0014).
       - run: npm ci
 
       - name: Pasang Chromium untuk Playwright
-        run: npm exec -w web -- playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
 
       # Server dev dengan mock MSW dijalankan oleh webServer di playwright.config.ts. Jam palsu lewat page.clock.
       - run: npm run test:e2e
@@ -103,5 +123,5 @@ jobs:
         if: failure()
         with:
           name: playwright-report
-          path: apps/web/playwright-report
+          path: playwright-report
           retention-days: 7

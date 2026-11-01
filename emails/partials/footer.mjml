@@ -1,0 +1,9 @@
+<mj-section background-color="#f6f3f3" padding="24px">
+  <mj-column>
+    <mj-text mj-class="muted" align="center" padding="0">
+      Email ini dikirim otomatis, mohon tidak membalas.<br />
+      Butuh bantuan? Hubungi
+      <a href="mailto:{{supportEmail}}" style="color: #0050ae">{{supportEmail}}</a>
+    </mj-text>
+  </mj-column>
+</mj-section>

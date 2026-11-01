@@ -1,4 +1,4 @@
-# Satu container image untuk apps/web. packages/* ter-compile ke dalam build Next.js (ADR-0013).
+# Satu container image untuk aplikasi Next.js (ADR-0021).
 #
 #   docker build -t rusuh-fe \
 #     --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com \
@@ -11,21 +11,12 @@ FROM node:${NODE_VERSION}-alpine AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /repo
 
-# 1. Install dependency hanya dari lockfile. Layer ini di-cache selama package.json dan
-#    package-lock.json tidak berubah. `npm ci` butuh package.json SETIAP workspace; package baru di
-#    apps/*, packages/*, atau mocks wajib ditambahkan ke daftar COPY di bawah (job `image` di CI
-#    gagal bila lupa). .npmrc dibawa karena memuat ignore-scripts (ADR-0014).
+# 1. Install dependency hanya dari lockfile. Layer ini di-cache selama package.json dan package-lock.json
+#    tidak berubah. --ignore-scripts: image tidak butuh hook Husky dari script `prepare`.
 FROM base AS deps
-COPY .npmrc package.json package-lock.json ./
-COPY apps/web/package.json apps/web/
-COPY packages/api/package.json packages/api/
-COPY packages/config/package.json packages/config/
-COPY packages/core/package.json packages/core/
-COPY packages/i18n/package.json packages/i18n/
-COPY packages/ui/package.json packages/ui/
-COPY mocks/package.json mocks/
+COPY package.json package-lock.json ./
 RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
-    npm ci
+    npm ci --ignore-scripts --no-audit --no-fund
 
 # 2. Salin source (node_modules dikecualikan .dockerignore, jadi hasil `npm ci` tidak tertimpa), lalu build.
 FROM deps AS build
@@ -54,9 +45,9 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app
 
-COPY --from=build --chown=app:app /repo/apps/web/.next/standalone ./
-COPY --from=build --chown=app:app /repo/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=app:app /repo/apps/web/public ./apps/web/public
+COPY --from=build --chown=app:app /repo/.next/standalone ./
+COPY --from=build --chown=app:app /repo/.next/static ./.next/static
+COPY --from=build --chown=app:app /repo/public ./public
 
 USER app
 EXPOSE 3000
@@ -65,4 +56,4 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
 
 # tini meneruskan SIGTERM ke Node: Next menyelesaikan request yang sedang berjalan sebelum keluar.
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "server.js"]

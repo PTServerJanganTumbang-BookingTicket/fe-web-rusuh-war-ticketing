@@ -29,7 +29,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-
 # env files (can opt-in for committing if needed)
 .env*
 !.env.development
@@ -46,3 +45,6 @@ next-env.d.ts
 test-results/
 playwright-report/
 blob-report/
+
+# compiled email templates
+/emails/dist/

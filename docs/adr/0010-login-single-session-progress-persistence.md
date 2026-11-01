@@ -80,9 +80,13 @@ Perangkat A (antrian posisi 40)          BE                    Perangkat B
 - **Yang harus dijaga**:
   - Tambahkan `SESSION_REVOKED` ke `ApiErrorCode` di `packages/core/errors`, pemetaannya di `api`, dan key i18n `session.revoked.*`.
   - Skenario MSW `session-revoked` di `mocks/` (ADR-0009), dipakai test dan demo.
-  - Test ViewModel: `SESSION_REVOKED` pada queue, booking, dan payment menghasilkan layar sesi dicabut, tanpa pemanggilan cancel.
+  - Test controller: `SESSION_REVOKED` pada queue, booking, dan payment menghasilkan layar sesi dicabut, tanpa pemanggilan cancel.
   - Playwright dengan dua browser context: login di B mengeluarkan A, progres tetap terlihat di B.
   - Aturan steering yang sudah ada tetap berlaku: tidak ada progres di `localStorage`, Context, atau global store (ADR-0004).
 - **Sudah dijawab tim**: login app mobile mencabut sesi web, dan sebaliknya (aturan sama untuk semua klien). Booking yang berjalan dilanjutkan dari perangkat baru tanpa mengisi NIK lagi karena NIK terikat akun ([ADR-0011](0011-nik-linked-to-account.md)).
 - **Pertanyaan terbuka untuk klien dan BE**:
   - Perlu refresh token? Bila ada, rotasinya harus mengikuti `sid` yang sama supaya `sid` yang dicabut tidak bisa memperbarui diri.
+
+## Catatan implementasi (2026-10-28)
+
+- Setelah ADR-0013 dan ADR-0014: `SESSION_REVOKED` ditambahkan ke `ApiErrorCode` di `src/core/domain/app-error.ts`; pemetaannya otomatis lewat `FetchHttpClient`. Penanganan global (hapus cookie, layar sesi dicabut) masuk `src/core/domain/session.protocol.ts` (protocol), `src/core/application` (use case), dan `src/core/data/session` (service) karena dipakai semua modul.
