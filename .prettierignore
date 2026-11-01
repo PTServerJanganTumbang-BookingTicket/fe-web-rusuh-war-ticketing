@@ -1,7 +1,6 @@
 .next
 coverage
 node_modules
-pnpm-lock.yaml
 src/core/data/http/generated
 public/mockServiceWorker.js
 playwright-report

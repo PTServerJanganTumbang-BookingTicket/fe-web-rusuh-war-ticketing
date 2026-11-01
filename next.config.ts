@@ -5,7 +5,11 @@ import type { NextConfig } from "next";
 // `msw/browser` mengekspor `node: null`, sehingga gagal di-resolve pada pass SSR komponen client.
 // Alias ke file-nya langsung; kode ini hanya dijalankan di browser.
 const mswPackage = createRequire(path.join(process.cwd(), "package.json")).resolve("msw/package.json");
-const mswBrowser = path.relative(process.cwd(), path.join(path.dirname(mswPackage), "lib/browser/index.js"));
+// Turbopack hanya menerima pemisah `/`; path.relative di Windows menghasilkan `\`.
+const mswBrowser = path
+  .relative(process.cwd(), path.join(path.dirname(mswPackage), "lib/browser/index.js"))
+  .split(path.sep)
+  .join("/");
 
 const nextConfig: NextConfig = {
   // Selalu didefinisikan (kosong bila mati) supaya bundler bisa melipat kondisi mock dan membuang kode mock dari build produksi.

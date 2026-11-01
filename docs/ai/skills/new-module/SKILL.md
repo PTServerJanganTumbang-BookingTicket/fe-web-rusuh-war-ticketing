@@ -46,7 +46,7 @@ Contoh di bawah memakai modul `ticket` dengan sumber daya `Ticket`.
 
 ## Checklist
 
-- [ ] `pnpm lint` hijau: tidak ada impor dari atau ke modul lain.
+- [ ] `npm run lint` hijau: tidak ada impor dari atau ke modul lain.
 - [ ] `src/di/container.test.ts` hijau (semua registrasi baru bisa di-resolve).
 - [ ] Use case punya test dengan fake protocol; service punya test MSW di `src/test/http-services.test.ts`.
 - [ ] Tidak ada `awilix` di luar `<m>.module.ts`.

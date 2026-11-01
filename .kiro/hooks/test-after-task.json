@@ -7,7 +7,7 @@
       "description": "Runs vitest after every spec task completion to ensure 85% coverage requirement is maintained and no tests are broken.",
       "action": {
         "type": "command",
-        "command": "pnpm test --run --reporter=verbose",
+        "command": "npm test -- --reporter=verbose",
         "timeout": 120
       }
     }

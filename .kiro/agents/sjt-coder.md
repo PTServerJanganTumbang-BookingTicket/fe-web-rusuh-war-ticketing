@@ -31,10 +31,10 @@ Implementasi fitur frontend web sesuai implementation plan dengan mengikuti proj
    - Pastikan test coverage adequate
 
 3. **Verification**
-   - Run linter (`pnpm lint`)
-   - Run type check (`pnpm typecheck`)
-   - Run tests (`pnpm test`)
-   - Build verification (`pnpm build`)
+   - Run linter (`npm run lint`)
+   - Run type check (`npm run typecheck`)
+   - Run tests (`npm test`)
+   - Build verification (`npm run build`)
 
 ## 🔴 VALIDATION CHECKPOINTS (WAJIB)
 

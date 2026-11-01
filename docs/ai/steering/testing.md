@@ -18,7 +18,7 @@
 - **Uji jalur sukses dan galat.** Untuk `data` dan controller, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.
 - **Mock direset tiap test** (`vi.clearAllMocks()` di `beforeEach` bila memakai `vi.fn`).
 - **Event handler diperiksa argumennya**, bukan hanya dipanggil.
-- **Coverage minimum 85%** (statement, branch, function, line) untuk `domain`, `application`, `data` (modul dan `core`) dan `src/di`, ditegakkan `pnpm test:coverage` dan CI. Controller dan view tidak dihitung; keduanya diuji lewat test mapper/controller, story, dan e2e.
+- **Coverage minimum 85%** (statement, branch, function, line) untuk `domain`, `application`, `data` (modul dan `core`) dan `src/di`, ditegakkan `npm run test:coverage` dan CI. Controller dan view tidak dihitung; keduanya diuji lewat test mapper/controller, story, dan e2e.
 - **Logika baru di `domain` atau use case baru tanpa test tidak boleh di-merge.**
 - **Bug fix diawali test yang gagal.**
 - **Test waktu tidak pernah memakai `sleep`.** Gunakan parameter `now` di `domain`, override `clock` di container uji, dan fake clock di Playwright.
@@ -33,13 +33,13 @@
 | CI (`.github/workflows/ci.yml`) | Ada: lint, typecheck, test dengan coverage, build, dan cek Home statis. Belum pernah dijalankan (repo belum di git) |
 | Reducer state machine booking | **Belum ada.** Status booking dan payment saat ini diturunkan dari respons server. Ditambahkan saat endpoint submit booking tersedia |
 | Storybook + addon a11y | **Belum terpasang.** Skill `new-ui-component` meminta story per state visual |
-| Playwright + fake clock | Terpasang (`e2e/`, `pnpm test:e2e`). Tiga dari lima skenario E2E utama ada: happy path, booking expired, payment expired. "Stok habis saat submit" dan "slot diambil alih" ditandai `test.fixme` sampai fiturnya dibangun |
+| Playwright + fake clock | Terpasang (`e2e/`, `npm run test:e2e`). Tiga dari lima skenario E2E utama ada: happy path, booking expired, payment expired. "Stok habis saat submit" dan "slot diambil alih" ditandai `test.fixme` sampai fiturnya dibangun |
 
 Aturan menulis test controller: unik `eventId` atau `orderId` per test (state mock tersimpan per id), override respons lewat `server.use`, dan `next/navigation` di-mock. Stream SSE dites dengan `FakeEventSource` (`src/test/fake-event-source.ts`): `setupFakeEventSources()`, override `eventSourceFactory`, lalu `emit("open")` dan `emit("<event>", data)`. Container uji default memakai fake yang tidak pernah tersambung, jadi controller memakai polling cadangan. Untuk mengganti konfigurasi atau satu dependensi, buat container dengan `setupTestContainer(overrides, config)` lalu `createWrapper(container)`; jangan `vi.mock` modul aplikasi atau `vi.stubGlobal("fetch")`.
 
 ## E2E (Playwright)
 
-- Menjalankan: `pnpm test:e2e` (server dev dengan mock MSW dijalankan otomatis atau dipakai ulang bila sudah jalan di port 3000). Lokal memakai Chrome yang terpasang; CI memasang Chromium.
+- Menjalankan: `npm run test:e2e` (server dev dengan mock MSW dijalankan otomatis atau dipakai ulang bila sudah jalan di port 3000). Lokal memakai Chrome yang terpasang; CI memasang Chromium.
 - Proyek utama adalah viewport mobile (Pixel 7), karena payment page dipakai ulang di WebView.
 - **Jam palsu**: `page.clock.install()` lalu `page.clock.runFor(...)`. Waktu nyata tetap berjalan di bawah jam palsu, jadi nilai countdown awal dicek rentangnya, bukan angka pasti. Dilarang `waitForTimeout` sebagai pengganti menunggu kondisi.
 - Skenario mock dipilih lewat `?scenario=` di URL Waiting Room (`booking-expiring`, `payment-expiring`). Setiap tes mendapat worker MSW baru, jadi state mock tidak bocor antar tes.

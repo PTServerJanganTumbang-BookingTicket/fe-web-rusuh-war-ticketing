@@ -101,9 +101,9 @@ git push origin cherry-pick-release-1.0.0
 ## CI/CD on Every Commit
 
 Setiap commit otomatis menjalankan:
-- ✅ `pnpm test` — Unit tests
-- ✅ `pnpm lint` — Code quality
-- ✅ `pnpm typecheck` — Type checking
+- ✅ `npm test` — Unit tests
+- ✅ `npm run lint` — Code quality
+- ✅ `npm run typecheck` — Type checking
 - ✅ Security scans
 - ✅ Auto-deploy to Dev
 

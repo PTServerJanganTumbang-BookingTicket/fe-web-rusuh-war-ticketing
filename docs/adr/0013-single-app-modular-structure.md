@@ -104,10 +104,10 @@ File non-komponen memakai kebab-case dengan akhiran peran, sehingga peran file t
 
 `src/app` mengikuti konvensi Next.js (`page.tsx`, `layout.tsx`, `route.ts`). `src/di`, `src/mocks`, dan `src/test` berisi sedikit file dengan satu tugas masing-masing, jadi cukup kebab-case.
 
-pnpm tetap package manager. `pnpm-workspace.yaml` hanya berisi pengaturan pnpm, tanpa `packages:`.
+Package manager: npm (menggantikan pnpm sejak 2026-11-01). Repo tidak lagi memakai `pnpm-workspace.yaml`.
 
 ## Konsekuensi
 
 - **Positif**: satu fitur, satu folder. Modul dan `core` punya lapisan yang sama, jadi satu pola cukup untuk dipelajari. Peran file terbaca dari namanya tanpa membuka isinya. Menambah modul tidak menambah manifest atau konfigurasi build. Modul bisa diekstrak utuh karena tidak saling mengimpor.
 - **Negatif**: batas tidak lagi didukung resolver package; sepenuhnya bergantung pada ESLint boundaries. Kepemilikan per package di ADR-0001 perlu disepakati ulang per modul. Revisi ini memindahkan 126 file; riwayat tetap bisa diikuti dengan `git log --follow`. Akhiran nama file belum ditegakkan lint dan masih dijaga lewat review.
-- **Yang harus dijaga**: `pnpm lint` (boundaries) hijau di CI. Bila suatu saat ada konsumen kedua yang nyata (mis. aplikasi admin terpisah), buat ADR baru untuk mengekstrak modul, `core`, atau `core/views/design-system` menjadi package.
+- **Yang harus dijaga**: `npm run lint` (boundaries) hijau di CI. Bila suatu saat ada konsumen kedua yang nyata (mis. aplikasi admin terpisah), buat ADR baru untuk mengekstrak modul, `core`, atau `core/views/design-system` menjadi package.

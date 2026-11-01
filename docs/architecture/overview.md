@@ -134,7 +134,7 @@ idle → selecting ──submit──► submitting ──┤
 
 ## 7. Pertanyaan terbuka
 
-- Tooling (pnpm, Awilix, TanStack Query, zod, MSW, Playwright) perlu dicek terhadap tech radar. Turborepo tidak lagi dibutuhkan (ADR-0013).
+- Tooling (npm, Awilix, TanStack Query, zod, MSW, Playwright) perlu dicek terhadap tech radar. Turborepo tidak lagi dibutuhkan (ADR-0013).
 - Apakah Signal DS menyediakan Tailwind preset, atau kita buat dari token.
 - Login: dibuat tim kita atau ada SSO yang tersedia.
 

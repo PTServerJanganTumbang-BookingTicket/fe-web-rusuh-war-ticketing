@@ -19,13 +19,10 @@ Aktifkan prosedur ini ketika user berkata:
 ## Input yang Diperlukan
 
 User HARUS memberikan:
-1. **Jira ID** — Format: `SJT-XXX` (harus increment dari commit terakhir jika tidak disebutkan)
+1. **Jira ID** — Format: `SJT-XXX`, atau `NO-JIRA` jika tidak ada tiket
 2. **Actor** — Nama developer (default: AKBAR jika tidak disebutkan)
 
-Jika user tidak memberikan Jira ID, cari commit terakhir dan increment:
-```bash
-git log --oneline -10 | grep -o 'SJT-[0-9]*' | head -1
-```
+Jika user tidak memberikan Jira ID, pakai `[NO-JIRA]`. Jangan mengarang nomor tiket.
 
 ## Prosedur Commit
 
@@ -36,7 +33,7 @@ git log --oneline -10 | grep -o 'SJT-[0-9]*' | head -1
 git status
 
 # Pastikan tidak ada error
-pnpm typecheck && pnpm lint && pnpm test
+npm run typecheck && npm run lint && npm test
 ```
 
 ### Step 2: Tentukan Commit Message
@@ -87,7 +84,7 @@ git push origin <current-branch>
 
 **Agent:**
 1. Cek `git status` untuk lihat perubahan
-2. Jalankan `pnpm typecheck && pnpm lint && pnpm test`
+2. Jalankan `npm run typecheck && npm run lint && npm test`
 3. Tentukan type dan scope dari file yang berubah
 4. Stage files yang relevan
 5. Commit: `[SJT-007][Akbar] feat(payment): add payment timeout handler`
@@ -96,7 +93,7 @@ git push origin <current-branch>
 
 ## Auto-Increment Jira ID
 
-Jika user bilang "increment dari sebelumnya" atau tidak menyebutkan Jira ID:
+Hanya jika user secara eksplisit bilang "increment dari sebelumnya":
 1. Cari commit terakhir: `git log --oneline -10`
 2. Extract Jira ID tertinggi dari pattern `SJT-XXX`
 3. Increment angkanya
@@ -119,8 +116,8 @@ Contoh:
 
 ## Checklist Sebelum Commit
 
-- [ ] `pnpm typecheck` — tidak ada error
-- [ ] `pnpm lint` — tidak ada error
-- [ ] `pnpm test` — semua test pass
+- [ ] `npm run typecheck` — tidak ada error
+- [ ] `npm run lint` — tidak ada error
+- [ ] `npm test` — semua test pass
 - [ ] Format commit message sudah benar
 - [ ] Hanya stage file yang relevan
