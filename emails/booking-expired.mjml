@@ -1,0 +1,35 @@
+<!-- Requirement 7 AC2. -->
+<mjml lang="id">
+  <mj-head>
+    <mj-title>Booking {{bookingCode}} sudah kedaluwarsa</mj-title>
+    <mj-preview>Batas waktu pembayaran untuk {{eventName}} sudah lewat.</mj-preview>
+    <mj-include path="./partials/attributes.mjml" />
+  </mj-head>
+  <mj-body>
+    <mj-include path="./partials/header.mjml" />
+    <mj-section>
+      <mj-column>
+        <mj-text mj-class="heading">Booking kamu kedaluwarsa</mj-text>
+        <mj-text>
+          Pembayaran belum kami terima sampai batas waktu berakhir, jadi booking ini dibatalkan dan tiketnya
+          dilepas kembali.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section>
+      <mj-column background-color="#f5f8fa" border-radius="12px" padding="16px">
+        <mj-text mj-class="label">Kode booking</mj-text>
+        <mj-text mj-class="value">{{bookingCode}}</mj-text>
+        <mj-text mj-class="label">Event</mj-text>
+        <mj-text mj-class="value" padding="0">{{eventName}}</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="24px 24px 0">
+      <mj-column>
+        <mj-text>Masih ingin hadir? Kamu bisa memesan lagi selama tiket masih tersedia.</mj-text>
+        <mj-button href="{{eventUrl}}">Lihat event</mj-button>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer.mjml" />
+  </mj-body>
+</mjml>

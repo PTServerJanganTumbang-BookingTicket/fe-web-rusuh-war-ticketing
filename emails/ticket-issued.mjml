@@ -1,0 +1,62 @@
+<!-- Requirement 7 AC1: satu email ke Email_Pemesan berisi seluruh tiket dalam transaksi. -->
+<mjml lang="id">
+  <mj-head>
+    <mj-title>E-tiket {{eventName}} ({{bookingCode}})</mj-title>
+    <mj-preview>Pembayaran berhasil. Tunjukkan QR code saat masuk venue.</mj-preview>
+    <mj-include path="./partials/attributes.mjml" />
+  </mj-head>
+  <mj-body>
+    <mj-include path="./partials/header.mjml" />
+    <mj-section>
+      <mj-column>
+        <mj-text mj-class="heading">E-tiket kamu sudah terbit</mj-text>
+        <mj-text>
+          Pembayaran berhasil. Setiap tiket punya QR code sendiri yang dipindai saat masuk venue. Teruskan
+          tiket ke masing-masing pemegangnya.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section>
+      <mj-column background-color="#f5f8fa" border-radius="12px" padding="16px">
+        <mj-text mj-class="label">Event</mj-text>
+        <mj-text mj-class="value">{{eventName}}</mj-text>
+        <mj-text mj-class="label">Waktu</mj-text>
+        <mj-text mj-class="value">{{eventDate}}</mj-text>
+        <mj-text mj-class="label">Lokasi</mj-text>
+        <mj-text mj-class="value">{{eventVenue}}</mj-text>
+        <mj-text mj-class="label">Kode booking</mj-text>
+        <mj-text mj-class="value" padding="0">{{bookingCode}}</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-raw>{{#tickets}}</mj-raw>
+    <mj-section padding="24px 24px 0">
+      <mj-column width="40%" vertical-align="middle">
+        <mj-image
+          src="{{qrCodeUrl}}"
+          alt="QR code tiket kursi {{seatNumber}}"
+          width="160px"
+          height="160px"
+          padding="0 0 16px"
+        />
+      </mj-column>
+      <mj-column width="60%" vertical-align="middle">
+        <mj-text mj-class="label">Kategori</mj-text>
+        <mj-text mj-class="value">{{category}}</mj-text>
+        <mj-text mj-class="label">Nomor bangku</mj-text>
+        <mj-text mj-class="value">{{seatNumber}}</mj-text>
+        <mj-text mj-class="label">NIK pemegang tiket</mj-text>
+        <mj-text mj-class="value">{{attendeeNik}}</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-raw>{{/tickets}}</mj-raw>
+    <mj-section padding="24px 24px">
+      <mj-column>
+        <mj-divider padding="0 0 16px" />
+        <mj-text mj-class="muted" padding="0">
+          Bawa identitas sesuai NIK pada tiket. Jangan bagikan QR code selain kepada pemegang tiketnya.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -6,3 +6,4 @@ public/mockServiceWorker.js
 playwright-report
 test-results
 *.md
+*.mjml

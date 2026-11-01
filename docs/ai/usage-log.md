@@ -261,3 +261,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: Poster commit message, `commitlint.config.mjs`, `.kiro/steering/commit-conventions.md`, `.github/workflows/ci.yml`.
 - **Output**: Scope wajib, enam tipe commit sesuai poster, spasi format ditegakkan, subjek boleh memuat akronim; hook dan `webServer` Playwright tidak lagi bergantung pada pnpm; CI memeriksa push ke `develop` dan judul PR; `@types/node` naik ke `^22` agar `npm ci` lolos. Memulihkan perbaikan alias `msw/browser` untuk Windows yang hilang saat sync ke `develop`.
 - **Review manusia**: Menunggu review. Commit tanpa tiket Jira kini memakai `[NO-JIRA]`; commitlint, hook Kiro, dan steering disesuaikan, dan auto-increment Jira ID hanya jika diminta eksplisit.
+
+## 2026-11-01 — Template email MJML
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menyediakan template email untuk Email_Service di BE: verifikasi registrasi, link login, booking expired, dan e-tiket terbit.
+- **Input**: Requirement 1 AC7-8, Requirement 7 AC1-2, MoM 2026-10-28 butir 15, token Signal DS (`signal.css`).
+- **Output**: `emails/*.mjml` dengan partial bersama, `npm run emails:build` ke `emails/dist/` (tidak di-commit), test kompilasi dan placeholder di `src/test/__tests__/emails.test.ts`, kontrak placeholder di `emails/README.md`. `package-lock.json` diregenerasi atas permintaan pengguna saat memasang `mjml`.
+- **Review manusia**: Menunggu review. Perlu disepakati dengan BE: format placeholder Mustache, penyamaran NIK di e-tiket, dan URL gambar QR. Alur link login belum ada di requirement. Versi Inggris menyusul (Req 13 AC7). Belum diuji di klien email sungguhan.
