@@ -23,6 +23,7 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0018](0018-trunk-based-development.md) | Trunk-Based Development dengan Release Train | Accepted |
 | [0021](0021-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
 | [0022](0022-payment-instruction-renderer.md) | Payment UI — Composable Instruction Renderer | Accepted |
+| [0022](0022-passwordless-login-email.md) | Login passwordless dengan link dan kode sekali pakai lewat email | Proposed |
 
 ## Status
 

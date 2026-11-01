@@ -158,10 +158,20 @@ export type NikValidationStatus =
   | 'VALID' 
   | 'INVALID' 
   | 'PENDING_DUKCAPIL_VALIDATION';
+
+export type LoginRequestResult = {
+  resendAvailableAt: string; // Jeda kirim ulang dari server (ADR-0005)
+};
+
+export type LoginResult = {
+  user: User;
+  returnTo?: string; // Path relatif internal
+};
 ```
 
 ```typescript
 // auth/domain/auth.protocol.ts
+// Login passwordless dengan link dan kode dari satu email (ADR-0022, Proposed).
 export interface AuthProtocol {
   // Magic link flow (replaces password login)
   requestMagicLink(email: string): Promise<void>;           // POST /auth/magic-link
@@ -1364,6 +1374,10 @@ Note: Removed endpoints vs design.md v1:
 | `CAPTCHA_INVALID` | 400 | CAPTCHA token invalid (Req 3.22) |
 | `ADMISSION_PAUSED` | 503 | Sistem sedang pause admission (BR-21) |
 | `PAYMENT_METHOD_CHANGE_NOT_ALLOWED` | 400 | Tidak bisa ganti metode di status ini (Req 6 AC19) |
+| `LOGIN_CODE_INVALID` | 400 | Link atau kode login salah, kedaluwarsa, atau sudah dipakai (ADR-0022) |
+| `LOGIN_RATE_LIMITED` | 429 | Terlalu banyak percobaan login (ADR-0022) |
+| `EMAIL_NOT_VERIFIED` | 403 | Akun belum memverifikasi email (Req 1 AC7) |
+| `SESSION_REVOKED` | 401 | Sesi dicabut oleh login di perangkat lain (ADR-0010) |
 
 ---
 
@@ -1740,9 +1754,10 @@ test('complete booking flow', async ({ page }) => {
 
 ### Authentication & Authorization
 
-1. **Cookie-based session**: HttpOnly, Secure, SameSite=Strict
+1. **Cookie-based session**: HttpOnly, Secure, SameSite=Lax supaya sesi terbawa saat datang dari link di email (ADR-0022)
 2. **Access token validation at edge (proxy.ts)**: JWT signature verification
-3. **Token tidak di URL**: SSE menggunakan cookie, bukan query param
+3. **Token tidak di URL**: SSE menggunakan cookie, bukan query param. Pengecualian: one-time code WebView (ADR-0008) dan link login di fragmen URL (ADR-0022)
+4. **Login passwordless**: tanpa kata sandi. Link dan kode dari satu email, sekali pakai, dan membuka link saja tidak memakai kredensial (ADR-0022)
 
 ### Input Validation
 
@@ -1909,6 +1924,7 @@ sequenceDiagram
 - [ADR-0006: Payment via Midtrans Core API](../../../docs/adr/0006-payment-midtrans-core-api.md)
 - [ADR-0004: TanStack Query](../../../docs/adr/0004-server-state-tanstack-query.md)
 - [ADR-0012: Signal DS](../../../docs/adr/0012-signal-ds-tokens-and-primitives.md)
+- [ADR-0022: Login passwordless](../../../docs/adr/0022-passwordless-login-email.md)
 - [Architecture Overview](../../../docs/architecture/overview.md)
 - [ADR-0022: Payment UI — Composable Instruction Renderer](../../../docs/adr/0022-payment-instruction-renderer.md)
 
