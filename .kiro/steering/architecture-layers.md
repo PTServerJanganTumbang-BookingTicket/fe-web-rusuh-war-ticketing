@@ -81,17 +81,20 @@ src/modules/<m>/
 ## Kelas vs Fungsi
 
 **Kelas hanya untuk:**
-- Use case (`StartPaymentUseCase`) — karena butuh DI via constructor
-- Service (`HttpOrderService`) — karena implementasi protocol
-- Client (`FetchHttpClient`) — karena transport layer
+- Client transport layer (`FetchHttpClient`, `EventSourceStreamClient`) — karena pola OOP dari library
+- React error boundary
 
-**Wajib fungsi:**
+**Wajib fungsi (functional pattern):**
+- Use case → factory: `createGetOrderUseCase({ deps }): UseCase`
+- Service → factory: `createHttpOrderService({ deps }): Protocol`
 - Komponen React (kecuali error boundary)
-- Controller (`usePaymentController`)
-- Mapper (`toPaymentViewProps`)
-- Rules (`canAddTicket`)
-- Reducer (`selectionReducer`)
-- Utils (`formatCurrency`)
+- Controller: `use<Layar>Controller` (custom hook)
+- Mapper: `toXxxViewProps` (fungsi murni)
+- Rules: `canAddTicket` (fungsi murni)
+- Reducer: `(state, event) => state`
+- Utils: `formatCurrency`
+
+Lihat `coding-patterns.md` untuk contoh lengkap dan aturan DI (`asFunction` vs `asClass`).
 
 ## Functional Programming
 
