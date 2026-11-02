@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
-    resolveAlias: { "msw/browser": `./${mswBrowser}` },
+    resolveAlias: { "msw/browser": "./" + mswBrowser },
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

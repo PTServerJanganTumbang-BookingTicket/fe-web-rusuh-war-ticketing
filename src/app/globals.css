@@ -1,2 +1,44 @@
 @import "tailwindcss";
 @import "../components/ui/signal.css";
+
+/* ── Signal UI Core CSS Variables ── */
+/* Diperlukan oleh @signal-web-ui/core untuk styling komponen web. */
+/* Memetakan token Signal DS yang sudah ada ke variabel yang diharapkan paket. */
+:root {
+  /* Color tokens */
+  --signal-color-accent: var(--signal-primary);
+  --signal-color-accent-strong: #cc001e;
+  --signal-color-on-accent: #ffffff;
+  --signal-color-surface: #ffffff;
+  --signal-color-muted: var(--color-muted);
+  --signal-color-border: var(--color-border);
+  --signal-color-text: var(--signal-text-primary);
+  --signal-color-text-subtle: var(--signal-text-secondary);
+  --signal-color-text-disabled: var(--signal-text-disable);
+  --signal-color-danger: var(--signal-text-error);
+  --signal-color-success: var(--signal-text-valid);
+  --signal-color-warning: var(--signal-text-warning);
+  --signal-color-info: var(--signal-text-info);
+
+  /* Shadow tokens */
+  --signal-shadow-soft: 0 2px 8px rgba(0, 26, 65, 0.08);
+  --signal-shadow-focus: 0 0 0 3px rgba(255, 0, 37, 0.25);
+
+  /* Spacing tokens */
+  --signal-space-1: 0.25rem;
+  --signal-space-2: 0.5rem;
+  --signal-space-3: 0.75rem;
+  --signal-space-4: 1rem;
+  --signal-space-6: 1.5rem;
+  --signal-space-8: 2rem;
+
+  /* Font tokens */
+  --signal-font-sans: var(--font-poppins, system-ui, sans-serif);
+  --signal-font-heading: var(--font-batik, var(--font-poppins, system-ui));
+
+  /* Radius tokens */
+  --signal-radius-sm: 0.375rem;
+  --signal-radius-md: 0.5rem;
+  --signal-radius-lg: 0.75rem;
+  --signal-radius-full: 9999px;
+}

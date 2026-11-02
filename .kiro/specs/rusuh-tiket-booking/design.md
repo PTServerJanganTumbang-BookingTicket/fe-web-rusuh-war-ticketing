@@ -21,6 +21,7 @@ Dokumen ini menjelaskan desain teknis frontend web **Rusuh Booking Tiket**, sebu
 | Server-authoritative time | ADR-0005 | Timer dari `expiresAt` server + offset, bukan countdown lokal |
 | Payment via BE (Midtrans Core API) | ADR-0006 | FE tidak pernah memanggil Midtrans langsung |
 | TanStack Query untuk server state | ADR-0004 | Cache, retry, polling dengan jitter |
+| Payment instruction renderer | ADR-0022 | Composable renderer registry; `PaymentView` tidak tahu detail tiap metode |
 
 ---
 
@@ -93,7 +94,7 @@ src/
 │  ├─ catalog/              # Daftar event (Home)
 │  ├─ queue/                # Waiting Room (SSE)
 │  ├─ booking/              # Detail Ticket (pemilihan tiket, NIK)
-│  ├─ payment/              # Payment page (VA, GoPay)
+│  ├─ payment/              # Payment page (VA, GoPay); views/renderers/ via ADR-0022
 │  └─ ticket/               # E-tiket (placeholder)
 ├─ core/                    # Shared logic, same layer structure
 │  ├─ domain/               # AppError, protocols, time utils
@@ -842,6 +843,62 @@ export interface OrderProtocol {
 ```typescript
 // payment/application/change-payment-method.use-case.ts REMOVED
 // Replaced by retryPayment flow: retryPayment() → initiatePayment() with new method
+```
+
+#### Views Layer
+
+Following ADR-0022 — Composable Instruction Renderer. `PaymentView` delegates rendering of each instruction type to a dedicated component via a registry. The controller and mapper never contain `switch`/`if` over `instruction.type`.
+
+```typescript
+// payment/views/renderers/renderer.registry.ts
+import type { ComponentType } from "react";
+import type { PaymentInstruction, PaymentMethod } from "../../domain/order.model";
+
+export type InstructionRendererProps = {
+  instruction: PaymentInstruction;
+  copied: boolean;         // VA: has number been copied
+  onCopy: (text: string) => void;
+  isEmbedded: boolean;     // true when rendered inside WebView (ADR-0008)
+};
+
+export type InstructionRendererRegistry = {
+  [K in PaymentMethod]: ComponentType<InstructionRendererProps>;
+};
+
+// Registry — adding a new payment method = one new file + one line here
+export const instructionRenderers: InstructionRendererRegistry = {
+  bank_transfer: BankTransferInstructionView,  // VA number + copy button (Signal DS)
+  gopay: GoPayInstructionView,                  // QR (desktop) or deeplink (mobile/WebView)
+};
+```
+
+**`isEmbedded` source**: set by `app/(embed)` layout — NEVER by `navigator.userAgent`. This ensures the WebView-specific render path is determined at the routing layer, not in component logic.
+
+```typescript
+// payment/views/PaymentView.tsx — delegate to registry, no switch
+const InstructionRenderer = props.instruction
+  ? instructionRenderers[props.instruction.type]
+  : null;
+
+return InstructionRenderer ? (
+  <InstructionRenderer
+    instruction={props.instruction}
+    copied={props.copied}
+    onCopy={props.onCopy}
+    isEmbedded={props.isEmbedded}
+  />
+) : null;
+```
+
+File structure (ADR-0022):
+```
+payment/views/
+├── PaymentView.tsx             ← orchestrator; no instruction.type branching
+├── PaymentResultView.tsx
+└── renderers/
+    ├── renderer.registry.ts   ← InstructionRendererProps + registry
+    ├── BankTransferInstructionView.tsx   ← Card + VA number + copy (Signal DS)
+    └── GoPayInstructionView.tsx          ← QR url (desktop) | deeplink (mobile)
 ```
 
 ---
@@ -1853,3 +1910,4 @@ sequenceDiagram
 - [ADR-0004: TanStack Query](../../../docs/adr/0004-server-state-tanstack-query.md)
 - [ADR-0012: Signal DS](../../../docs/adr/0012-signal-ds-tokens-and-primitives.md)
 - [Architecture Overview](../../../docs/architecture/overview.md)
+- [ADR-0022: Payment UI — Composable Instruction Renderer](../../../docs/adr/0022-payment-instruction-renderer.md)

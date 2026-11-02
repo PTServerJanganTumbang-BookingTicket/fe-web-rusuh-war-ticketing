@@ -1,149 +1,111 @@
-# ADR-0017: Pemilihan Shadcn + Radix UI dengan Signal Theme sebagai Design System
+# ADR-0017: Design System Selection — Radix + Signal Tokens
 
-- **Status**: Accepted
-- **Tanggal**: 2026-10-30
+- **Status**: Superseded by ADR-0012 (Radix + Signal Tokens approach divalidasi sebagai solusi final)
+- **Tanggal**: 2026-10-20 / Diperbarui: 2026-11-02
 - **Pengambil keputusan**: Tim FE Web
-- **Requirement terkait**: NFR-08 (standar development), Telkomsel Signal DS branding requirement
+- **Requirement terkait**: NFR-08, Telkomsel Signal DS branding requirement
 
 ## Konteks
 
-Tim akan mengembangkan aplikasi greenfield yang **wajib** mengikuti branding Signal/Telkomsel. Pemilihan design system harus mempertimbangkan:
+Aplikasi **Rusuh Booking Tiket** wajib mengikuti branding Signal/Telkomsel.
 
-- Ketersediaan komponen yang lengkap
-- Aksesibilitas (WAI-ARIA compliance)
-- Kemudahan maintenance jangka panjang
-- Kesesuaian dengan branding Signal/Telkomsel
-- Kompatibilitas dengan React 18/19 dan Next.js
+### Evaluasi Awal
 
-Terdapat tiga opsi design system yang dipertimbangkan.
+Evaluasi awal mempertimbangkan tiga opsi:
 
-## Opsi yang dipertimbangkan
+1. **Shadcn + Radix + Signal Tokens** — Komponen Radix dengan styling Signal
+2. **Signal UI React (`@signal-web-ui/react`)** — Paket resmi Stencil Web Components
+3. **TDesign** — Alternatif DS lain
 
-### 1. Signal UI React (Internal Telkomsel)
+### Masalah dengan Signal UI React
 
-| Attribute | Value |
-|-----------|-------|
-| Version | 0.0.3 (Beta) |
-| Components | ~20 komponen (14 Beta, 0 Stable) |
-| Styling | SCSS/Sass + CSS Variables |
-| Accessibility | ⚠️ Partial — tidak WAI-ARIA compliant |
+Setelah percobaan integrasi `@signal-web-ui/react@0.1.12`, ditemukan beberapa masalah:
 
-**Kelebihan:**
-- Zero setup untuk branding Telkomsel
-- Konsisten dengan aplikasi Telkomsel lain
-- Internal support dari tim Signal
+1. **Turbopack/Next.js 16 tidak kompatibel** dengan struktur export Stencil — import path `@signal-web-ui/core/dist/custom-elements/*.js` tidak dapat di-resolve.
+2. **`transpilePackages`** tidak menyelesaikan masalah karena package Stencil memiliki dependency internal yang kompleks.
+3. **Styling system berbeda** — Signal UI menggunakan SCSS/CSS Variables sendiri, tidak kompatibel dengan Tailwind yang sudah menjadi stack utama.
 
-**Kekurangan:**
-- Beta status, belum production-ready
-- Limited components (tidak ada Table, DatePicker, Select)
-- Poor accessibility
-- SCSS coupling, sulit integrasi dengan Tailwind
+### Solusi yang Berhasil (ADR-0012)
 
-### 2. Shadcn + Radix UI (Headless + Tailwind)
+Pendekatan **Radix UI + Signal Design Tokens** terbukti:
+- ✅ Berfungsi 100% dengan Turbopack/Next.js 16
+- ✅ Lulus typecheck dan lint
+- ✅ Sesuai dengan standar visual Telkomsel
+- ✅ Kompatibel dengan Tailwind CSS
+- ✅ Aksesibilitas bawaan dari Radix primitives
 
-| Attribute | Value |
-|-----------|-------|
-| Components | 50+ komponen |
-| Styling | Tailwind CSS + CSS Variables |
-| Accessibility | ✅ Complete — WAI-ARIA compliant via Radix |
-| React Version | 18.x, 19.x compatible |
+## Keputusan (Diperbarui)
 
-**Kelebihan:**
-- Full ownership — kode di repo sendiri
-- WAI-ARIA compliant (aksesibilitas production-grade)
-- 50+ komponen lengkap
-- React 19 ready, future-proof
-- Tailwind native, industri standard
-- Excellent DX dan community support
-
-**Kekurangan:**
-- Initial setup effort (~2 minggu untuk Signal theming)
-- Maintenance responsibility di tim sendiri
-- Potential inconsistency dengan aplikasi Telkomsel lain
-
-### 3. TDesign (Tencent Design System)
-
-| Attribute | Value |
-|-----------|-------|
-| Components | 80+ komponen |
-| Styling | CSS/Less + CSS Variables |
-| Accessibility | ⭐⭐⭐ Good (tidak sebaik Radix) |
-| Documentation | Dominan Mandarin |
-
-**Kelebihan:**
-- 80+ komponen, paling lengkap
-- Production-ready, used by Tencent at scale
-
-**Kekurangan:**
-- Massive override effort untuk Signal branding
-- CSS/Less based, tidak native Tailwind
-- Large bundle size
-- Dokumentasi dominan Mandarin
-- React 19 compatibility uncertain
-
-## Keputusan
-
-**Opsi 2: Shadcn + Radix UI dengan Signal Theme**
-
-### Scoring Decision Matrix
-
-| Factor | Weight | Signal UI | Shadcn + Radix | TDesign |
-|--------|--------|-----------|----------------|---------|
-| Signal Branding Compliance | 25% | 5 | 4 | 2 |
-| Component Completeness | 20% | 2 | 4 | 5 |
-| Accessibility | 15% | 2 | 5 | 3 |
-| Maintainability | 15% | 3 | 5 | 2 |
-| Initial Setup Speed | 10% | 5 | 3 | 1 |
-| Community & Documentation | 10% | 2 | 5 | 2 |
-| Future-proofing | 5% | 2 | 5 | 3 |
-| **Weighted Score** | **100%** | **3.25** | **4.35** | **2.65** |
-
-### Rationale
-
-1. **Best long-term investment** — Higher initial effort, significantly lower maintenance cost
-2. **Accessibility compliance** — Critical untuk enterprise applications
-3. **Component completeness** — Tidak perlu build dari scratch untuk Table, DatePicker, dll
-4. **Industry standard** — Tailwind adoption mempermudah hiring dan onboarding
-5. **Full ownership** — Tidak dependent pada tim Signal untuk updates
-
-### Implementasi
-
-Signal branding diimplementasikan melalui:
-
-1. **UI components** di `src/components/ui/`
-   - `primitives/` — Shadcn-style components (Button, Badge, Card, dll)
-   - `layout/` — App-specific composites (ScreenFrame, CountdownCard)
-   - `signal.css` — Token warna Signal
-   - `cn.utils.ts` — Class merge utility
-2. **Tailwind config** dengan Signal design tokens (`bg-primary`, `bg-signal-bg-error`, dll)
-3. **Font** Poppins dan Telkomsel Batik Sans via `next/font`
+**Gunakan pendekatan ADR-0012: Radix UI + Signal Design Tokens**
 
 ```
-src/components/
-└── ui/
-    ├── primitives/      ← Button, Badge, Card, Alert, Progress, RadioGroup
-    ├── layout/          ← ScreenFrame, CountdownCard, StatusView
-    ├── signal.css       ← Token warna Signal
-    └── cn.utils.ts
+src/components/ui/
+├── primitives/      ← Shadcn-style components (Button, Badge, Card, dll)
+├── layout/          ← App-specific composites (ScreenFrame, CountdownCard)
+├── signal.css       ← Token warna Signal
+└── cn.utils.ts      ← Class merge utility
 ```
 
-Lihat [ADR-0012](0012-signal-ds-tokens-and-primitives.md) untuk detail implementasi token dan primitif.
+### Komponen yang Tersedia
+
+| Primitif | Varian |
+|----------|--------|
+| `Button` | default, secondary, outline, ghost, destructive, success, link |
+| `Badge` | success, info, warning, error |
+| `Card` | CardContent, CardHeader |
+| `Alert` | info, warning |
+| `Progress` | — |
+| `RadioGroup` | — |
+
+### Layout Components
+
+| Komponen | Penggunaan |
+|----------|-----------|
+| `ScreenFrame` | Kerangka layar: header merek + kartu putih |
+| `CountdownCard` | Timer countdown dengan visualisasi |
+| `StatusView` | Status screen (success/error) |
+
+### Halaman Demo
+
+- `/ds-sample` — Demonstrasi komponen primitif
+- `/signal-demo` — Demonstrasi interaktif (input validation, progress)
+
+## Aturan Penggunaan
+
+1. **JANGAN gunakan `@signal-web-ui/react` langsung** — tidak kompatibel dengan Next.js 16/Turbopack
+2. **Gunakan primitif di `src/components/ui/primitives/`**
+3. **Token warna Signal** wajib dipakai — tidak ada hex/rgb di `src/modules/*/views`
+4. **Tailwind CSS** boleh digunakan bersama token Signal
+
+```tsx
+// ✅ Benar — gunakan primitif lokal
+import { Button } from "@/components/ui/primitives/Button";
+import { Card, CardContent } from "@/components/ui/primitives/Card";
+
+// ❌ Salah — jangan import langsung dari @signal-web-ui/react
+import { SignalButton } from "@signal-web-ui/react";
+```
 
 ## Konsekuensi
 
-- **Positif**: Full control over component behavior dan styling. Production-grade accessibility out of the box. Tidak blocked oleh tim Signal untuk fitur baru. Lebih mudah di-maintain oleh any frontend developer. 50+ komponen tersedia tanpa build from scratch.
+- **Positif**: 
+  - Tampilan sejalan dengan Signal tanpa masalah bundler
+  - Token satu sumber, konsisten
+  - Primitif Radix memberi aksesibilitas bawaan
+  - Kompatibel penuh dengan Tailwind + Turbopack
 
-- **Negatif / biaya**: 2 minggu initial investment untuk setup dan theming. Potential visual inconsistency dengan aplikasi Telkomsel lain. Tim perlu familiar dengan Tailwind.
+- **Negatif / biaya**: 
+  - Ini bukan paket Signal resmi — token mengikuti repo referensi
+  - Beberapa komponen Signal tidak tersedia (harus dibuat manual)
+  - Mode gelap tidak ada
 
 - **Yang harus dijaga**:
-  - ESLint melarang hex di `src/core/views` dan `src/modules/<m>/views`
+  - ESLint melarang hex di `src/modules/*/views`
   - Komponen baru memakai primitif yang ada sebelum membuat gaya sendiri
-  - Primitif baru diporting dengan pola yang sama dan varian Signal
-  - Regular sync dengan tim Signal untuk branding updates jika ada perubahan
+  - Jika paket Signal resmi kompatibel di masa depan, evaluasi ulang
 
 ## Referensi
 
-- [Signal UI React Repository](https://cicd-gitlab-ee.telkomsel.co.id/signal/signal-ui-react/)
-- [Shadcn/UI Documentation](https://ui.shadcn.com/)
-- [Radix UI Primitives](https://www.radix-ui.com/)
-- [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
+- [ADR-0012: Signal DS tokens dan primitif](0012-signal-ds-tokens-and-primitives.md) ← **Sumber kebenaran**
+- [Signal Design System — Foundation](https://signal-design-system.web.app/foundation/)
+- [Signal Design System — Components](https://signal-design-system.web.app/component/)
