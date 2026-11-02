@@ -27,7 +27,7 @@ describe("composition root", () => {
 
   it("service bisa diganti tanpa menyentuh use case (DIP)", async () => {
     const container = createAppContainer(config);
-    container.register({ eventService: asValue({ list: async () => [] }) });
+    container.register({ eventService: asValue({ getEvents: async () => [] }) });
     expect(await container.cradle.listEventsUseCase()).toEqual([]);
   });
 

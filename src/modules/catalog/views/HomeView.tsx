@@ -1,53 +1,61 @@
-import { Alert } from "@/components/ui/primitives/Alert";
-import { ScreenFrame } from "@/components/ui/layout/ScreenFrame";
+import { Navbar, type NavItem } from "@/components/ui/layout/Navbar";
+import { Footer } from "@/components/ui/layout/Footer";
+import { HeroSection } from "./HeroSection";
 import { EventCard, type EventCardProps } from "./EventCard";
 
 export type HomeViewProps = {
-  title: string;
-  login: { label: string; href: string };
-  listLabel: string;
-  emptyLabel: string;
-  /** Diisi bila daftar acara gagal dimuat. */
-  errorMessage?: string;
+  nav: {
+    items: NavItem[];
+    loginHref: string;
+    loginLabel: string;
+  };
+  hero: {
+    eyebrow: string;
+    headline: string;
+    subtext: string;
+    backgroundImage?: string;
+  };
+  eventList: {
+    title: string;
+    subtitle: string;
+  };
   events: EventCardProps[];
+  footer: {
+    copyright: string;
+    tagline: string;
+    infoBanner?: string;
+  };
+  emptyLabel?: string;
+  errorMessage?: string;
 };
 
-function renderContent({
-  errorMessage,
-  emptyLabel,
-  events,
-}: Pick<HomeViewProps, "errorMessage" | "emptyLabel" | "events">) {
-  if (errorMessage) {
-    return (
-      <Alert variant="error" role="alert">
-        {errorMessage}
-      </Alert>
-    );
-  }
-  if (events.length === 0) {
-    return <p className="type-body1 text-muted-foreground">{emptyLabel}</p>;
-  }
+export function HomeView({ nav, hero, eventList, events, footer, emptyLabel, errorMessage }: HomeViewProps) {
   return (
-    <ul className="flex flex-col gap-3">
-      {events.map((event) => (
-        <EventCard key={event.id} {...event} />
-      ))}
-    </ul>
-  );
-}
-
-export function HomeView({ title, login, listLabel, emptyLabel, errorMessage, events }: HomeViewProps) {
-  return (
-    <ScreenFrame
-      title={title}
-      trailing={
-        <a href={login.href} className="font-semibold hover:underline">
-          {login.label}
-        </a>
-      }
-    >
-      <h2 className="type-body1 text-muted-foreground">{listLabel}</h2>
-      {renderContent({ errorMessage, emptyLabel, events })}
-    </ScreenFrame>
+    <div className="flex min-h-screen flex-col bg-signal-disable">
+      <Navbar {...nav} />
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+        <HeroSection {...hero} />
+        <section className="mt-10">
+          <div className="mb-6">
+            <h2 className="type-h3 text-foreground">{eventList.title}</h2>
+            <p className="type-body1 text-muted-foreground">{eventList.subtitle}</p>
+          </div>
+          {errorMessage && (
+            <div className="rounded-lg bg-signal-bg-error p-4 text-signal-error">{errorMessage}</div>
+          )}
+          {!errorMessage && events.length === 0 && (
+            <p className="type-body1 text-muted-foreground">{emptyLabel}</p>
+          )}
+          {events.length > 0 && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {events.map((event) => (
+                <EventCard key={event.id} {...event} />
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+      <Footer {...footer} />
+    </div>
   );
 }

@@ -9,10 +9,30 @@ import type { HomeViewProps } from "../views/HomeView";
  * Kebijakan cache (`use cache`, `cacheLife`) milik route di `app/`, bukan di sini.
  */
 export async function loadHomeViewProps({ listEventsUseCase }: CatalogDependencies): Promise<HomeViewProps> {
-  const base = {
-    title: t("home.title"),
-    login: { label: t("home.login"), href: "/login" },
-    listLabel: t("home.list.label"),
+  const base: Omit<HomeViewProps, "events" | "errorMessage"> = {
+    nav: {
+      items: [
+        { label: t("home.nav.explore"), href: "/", active: true },
+        { label: t("home.nav.myTickets"), href: "/tickets" },
+        { label: t("home.nav.help"), href: "/help" },
+      ],
+      loginHref: "/login",
+      loginLabel: t("home.login"),
+    },
+    hero: {
+      eyebrow: t("home.hero.eyebrow"),
+      headline: t("home.hero.headline"),
+      subtext: t("home.hero.subtext"),
+    },
+    eventList: {
+      title: t("home.list.title"),
+      subtitle: t("home.list.subtitle"),
+    },
+    footer: {
+      copyright: t("home.footer.copyright"),
+      tagline: t("home.footer.tagline"),
+      infoBanner: t("home.footer.infoBanner"),
+    },
     emptyLabel: t("home.empty"),
   };
   try {

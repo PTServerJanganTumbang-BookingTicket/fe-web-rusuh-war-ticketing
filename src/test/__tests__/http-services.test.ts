@@ -8,7 +8,7 @@ import { setupMockServer, setupTestContainer, TEST_APP_ORIGIN } from "../support
 const server = setupMockServer();
 const { eventService, queueService, bookingService, sessionService } = setupTestContainer().cradle;
 
-const listEventsUseCase = () => eventService.list();
+const listEventsUseCase = () => eventService.getEvents();
 const getQueueStateUseCase = (eventId: string) => queueService.getState(eventId);
 const getBookingSessionUseCase = (eventId: string) => bookingService.getSession(eventId);
 
