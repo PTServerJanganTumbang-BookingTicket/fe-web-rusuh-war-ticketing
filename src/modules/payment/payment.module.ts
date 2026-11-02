@@ -1,30 +1,33 @@
+/**
+ * Payment Module - API Contracts v2.1
+ *
+ * DI registration for payment module components
+ */
+
 import { asFunction, type NameAndRegistrationPair } from "awilix";
 import { createGetOrderUseCase } from "./application/get-order.use-case";
-import type { OrderProtocol } from "./domain/order.protocol";
-import type { OrderUpdatesProtocol } from "./domain/order-updates.protocol";
-import type { PaymentSimulatorProtocol } from "./domain/payment-simulator.protocol";
-import { createSimulatePaymentOutcomeUseCase } from "./application/simulate-payment-outcome.use-case";
+import { createGetAvailableMethodsUseCase } from "./application/get-available-methods.use-case";
 import { createStartPaymentUseCase } from "./application/start-payment.use-case";
+import { createRetryPaymentUseCase } from "./application/retry-payment.use-case";
 import { createWatchOrderUseCase } from "./application/watch-order.use-case";
 import type { PaymentDependencies } from "./application/payment.dependencies";
+import type { OrderProtocol } from "./domain/order.protocol";
 import { createHttpOrderService } from "./data/http-order.service";
-import { createHttpPaymentSimulatorService } from "./data/http-payment-simulator.service";
-import { createSseOrderUpdatesService } from "./data/sse-order-updates.service";
 
 export type PaymentRegistry = PaymentDependencies & {
   orderService: OrderProtocol;
-  orderUpdatesService: OrderUpdatesProtocol;
-  paymentSimulatorService: PaymentSimulatorProtocol;
 };
 
 export function paymentModule(): NameAndRegistrationPair<PaymentRegistry> {
   return {
+    // Services
     orderService: asFunction(createHttpOrderService).singleton(),
-    orderUpdatesService: asFunction(createSseOrderUpdatesService).singleton(),
-    paymentSimulatorService: asFunction(createHttpPaymentSimulatorService).singleton(),
+
+    // Use cases
     getOrderUseCase: asFunction(createGetOrderUseCase).singleton(),
-    watchOrderUseCase: asFunction(createWatchOrderUseCase).singleton(),
+    getAvailableMethodsUseCase: asFunction(createGetAvailableMethodsUseCase).singleton(),
     startPaymentUseCase: asFunction(createStartPaymentUseCase).singleton(),
-    simulatePaymentOutcomeUseCase: asFunction(createSimulatePaymentOutcomeUseCase).singleton(),
+    retryPaymentUseCase: asFunction(createRetryPaymentUseCase).singleton(),
+    watchOrderUseCase: asFunction(createWatchOrderUseCase).singleton(),
   };
 }

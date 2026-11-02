@@ -1,60 +1,92 @@
 import { describe, expect, it } from "vitest";
-import type { Order, PaymentMethod, PaymentOutcome } from "../../domain/order.model";
+import type { Order, PaymentMethod, BankCode } from "../../domain/order.model";
 import { createGetOrderUseCase } from "../get-order.use-case";
 import type { OrderProtocol } from "../../domain/order.protocol";
-import type { PaymentSimulatorProtocol } from "../../domain/payment-simulator.protocol";
-import { createSimulatePaymentOutcomeUseCase } from "../simulate-payment-outcome.use-case";
 import { createStartPaymentUseCase } from "../start-payment.use-case";
+import { createWatchOrderUseCase } from "../watch-order.use-case";
 
 const order: Order = {
-  orderId: "RB-1",
+  bookingId: "RB-1",
   eventName: "Konser A",
-  items: [{ name: "VIP", quantity: 1 }],
+  items: [{ category: "VIP", priceIdr: 1_500_000, nikMasked: "3201•••••••0001" }],
   totalIdr: 1_500_000,
-  expiresAt: "2026-10-19T10:10:00.000Z",
-  serverNow: "2026-10-19T10:00:00.000Z",
-  status: "awaiting_method",
+  paymentTtl: {
+    expiresAt: "2026-10-19T10:10:00.000Z",
+    ttlSeconds: 600,
+    serverTime: "2026-10-19T10:00:00.000Z",
+  },
+  status: "PENDING_PAYMENT",
 };
 
 function setupFakes() {
   const calls: unknown[][] = [];
   const orderService: OrderProtocol = {
-    get: async (orderId) => {
-      calls.push(["get", orderId]);
+    getOrder: async (bookingId) => {
+      calls.push(["getOrder", bookingId]);
       return order;
     },
-    initiatePayment: async (orderId: string, method: PaymentMethod) => {
-      calls.push(["initiatePayment", orderId, method]);
-      return { ...order, status: "pending", method };
+    getAvailableMethods: async (bookingId) => {
+      calls.push(["getAvailableMethods", bookingId]);
+      return [
+        {
+          id: "bank_transfer",
+          name: "Bank Transfer",
+          description: "VA",
+          iconUrl: "",
+          enabled: true,
+          banks: [],
+        },
+        { id: "gopay", name: "GoPay", description: "E-Wallet", iconUrl: "", enabled: true },
+      ];
+    },
+    initiatePayment: async (bookingId: string, method: PaymentMethod, bank?: BankCode) => {
+      calls.push(["initiatePayment", bookingId, method, bank]);
+      return { ...order, status: "AWAITING_PAYMENT" as const, method };
+    },
+    retryPayment: async (bookingId: string, method: PaymentMethod, bank?: BankCode) => {
+      calls.push(["retryPayment", bookingId, method, bank]);
+      return { ...order, status: "AWAITING_PAYMENT" as const, method, attempt: 2 };
+    },
+    getPaymentStatus: async (bookingId: string) => {
+      calls.push(["getPaymentStatus", bookingId]);
+      return { status: "PENDING" as const, serverTime: "2026-10-19T10:00:00.000Z", ttlSeconds: 600 };
     },
   };
-  const paymentSimulatorService: PaymentSimulatorProtocol = {
-    simulate: async (orderId: string, outcome: PaymentOutcome) => {
-      calls.push(["simulate", orderId, outcome]);
-      return { ...order, status: outcome === "success" ? "paid" : "failed" };
-    },
-  };
-  return { calls, orderService, paymentSimulatorService };
+  return { calls, orderService };
 }
 
-describe("use case pembayaran", () => {
+describe("use case pembayaran v2.1", () => {
   it("createGetOrderUseCase membaca order dari OrderProtocol", async () => {
     const { calls, orderService } = setupFakes();
     expect(await createGetOrderUseCase({ orderService })("RB-1")).toBe(order);
-    expect(calls).toEqual([["get", "RB-1"]]);
+    expect(calls).toEqual([["getOrder", "RB-1"]]);
   });
 
-  it("createStartPaymentUseCase meneruskan metode yang dipilih", async () => {
+  it("createStartPaymentUseCase meneruskan metode bank_transfer dengan bank code", async () => {
     const { calls, orderService } = setupFakes();
-    const result = await createStartPaymentUseCase({ orderService })("RB-1", "e_wallet");
-    expect(result.status).toBe("pending");
-    expect(calls).toEqual([["initiatePayment", "RB-1", "e_wallet"]]);
+    const result = await createStartPaymentUseCase({ orderService })({
+      bookingId: "RB-1",
+      method: "bank_transfer",
+      bank: "bca",
+    });
+    expect(result.status).toBe("AWAITING_PAYMENT");
+    expect(calls).toEqual([["initiatePayment", "RB-1", "bank_transfer", "bca"]]);
   });
 
-  it("createSimulatePaymentOutcomeUseCase hanya bergantung pada PaymentSimulatorProtocol", async () => {
-    const { calls, paymentSimulatorService } = setupFakes();
-    const result = await createSimulatePaymentOutcomeUseCase({ paymentSimulatorService })("RB-1", "fail");
-    expect(result.status).toBe("failed");
-    expect(calls).toEqual([["simulate", "RB-1", "fail"]]);
+  it("createStartPaymentUseCase meneruskan metode gopay tanpa bank code", async () => {
+    const { calls, orderService } = setupFakes();
+    const result = await createStartPaymentUseCase({ orderService })({
+      bookingId: "RB-1",
+      method: "gopay",
+    });
+    expect(result.status).toBe("AWAITING_PAYMENT");
+    expect(calls).toEqual([["initiatePayment", "RB-1", "gopay", undefined]]);
+  });
+
+  it("createWatchOrderUseCase memanggil getPaymentStatus untuk polling", async () => {
+    const { calls, orderService } = setupFakes();
+    const result = await createWatchOrderUseCase({ orderService })("RB-1");
+    expect(result.status).toBe("PENDING");
+    expect(calls).toEqual([["getPaymentStatus", "RB-1"]]);
   });
 });

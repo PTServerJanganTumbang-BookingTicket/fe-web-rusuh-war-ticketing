@@ -1,11 +1,17 @@
+/**
+ * Payment module dependencies - API Contracts v2.1
+ */
+
 import type { GetOrderUseCase } from "./get-order.use-case";
-import type { SimulatePaymentOutcomeUseCase } from "./simulate-payment-outcome.use-case";
+import type { GetAvailableMethodsUseCase } from "./get-available-methods.use-case";
 import type { StartPaymentUseCase } from "./start-payment.use-case";
+import type { RetryPaymentUseCase } from "./retry-payment.use-case";
 import type { WatchOrderUseCase } from "./watch-order.use-case";
 
 export type PaymentDependencies = {
   getOrderUseCase: GetOrderUseCase;
-  watchOrderUseCase: WatchOrderUseCase;
+  getAvailableMethodsUseCase: GetAvailableMethodsUseCase;
   startPaymentUseCase: StartPaymentUseCase;
-  simulatePaymentOutcomeUseCase: SimulatePaymentOutcomeUseCase;
+  retryPaymentUseCase: RetryPaymentUseCase;
+  watchOrderUseCase: WatchOrderUseCase;
 };
