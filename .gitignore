@@ -48,3 +48,4 @@ blob-report/
 
 # compiled email templates
 /emails/dist/
+node_modules
