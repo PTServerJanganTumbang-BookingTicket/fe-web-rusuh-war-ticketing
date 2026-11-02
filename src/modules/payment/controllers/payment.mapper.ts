@@ -9,35 +9,31 @@ import { COUNTDOWN_URGENT_AT_MS } from "@/core/domain/time/countdown.constants";
 import { formatMmSs } from "@/core/domain/time/format-mm-ss.utils";
 import { formatIdr } from "@/core/controllers/format-currency.utils";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
-import type {
-  AvailableMethod,
-  BankCode,
-  Order,
-  PaymentInstruction,
-  PaymentMethod,
-} from "../domain/order.model";
+import type { Order, PaymentInstruction, PaymentMethod } from "../domain/order.model";
 import type { PaymentResultViewProps } from "../views/PaymentResultView";
-import type { PaymentInstructionView, PaymentMethodOption, PaymentViewProps } from "../views/PaymentView";
+import type { PaymentInstructionView, PaymentViewProps } from "../views/PaymentView";
 
-// Method display info
+/** i18n keys per metode pembayaran */
 const METHOD_LABELS: Record<PaymentMethod, MessageKey> = {
   bank_transfer: "payment.method.bank_transfer",
   gopay: "payment.method.gopay",
 };
 
-type Common = { order: Order; remainingMs: number };
-
-export type PaymentViewInput = Common & {
-  availableMethods: AvailableMethod[];
-  selectedMethod: PaymentMethod | null;
-  selectedBank: BankCode | null;
+export type PaymentViewInput = {
+  order: Order;
+  remainingMs: number;
+  selectedMethod: PaymentMethod;
   paying: boolean;
   copied: boolean;
   onSelectMethod: (method: PaymentMethod) => void;
-  onSelectBank: (bank: BankCode) => void;
   onPay: () => void;
   onCopy: (text: string) => void;
-  onRetry?: () => void;
+  /** Hanya mode mock: kontrol simulasi Midtrans. */
+  mock?: {
+    onSuccess: () => void;
+    onFail: () => void;
+    busy: boolean;
+  };
 };
 
 function toInstructionView(
@@ -48,9 +44,9 @@ function toInstructionView(
   switch (instruction.type) {
     case "bank_transfer":
       return {
-        type: "bank_transfer",
+        type: "virtual_account",
         label: t("payment.va.label", { bank: instruction.bank.toUpperCase() }),
-        vaNumber: instruction.vaNumber,
+        number: instruction.vaNumber,
         copy: {
           label: copied ? t("payment.va.copied") : t("payment.va.copy"),
           onClick: () => onCopy(instruction.vaNumber),
@@ -58,38 +54,13 @@ function toInstructionView(
       };
     case "gopay":
       return {
-        type: "gopay",
-        qrUrl: instruction.qrUrl,
-        deeplinkUrl: instruction.deeplinkUrl,
+        type: "qr",
+        seed: instruction.qrUrl,
         qrLabel: t("payment.qr.label"),
         hint: t("payment.qr.hint"),
+        fakeNote: t("payment.qr.fake"),
       };
   }
-}
-
-function toMethodOptions(
-  methods: AvailableMethod[],
-  selectedMethod: PaymentMethod | null,
-  selectedBank: BankCode | null,
-  onSelectMethod: (method: PaymentMethod) => void,
-  onSelectBank: (bank: BankCode) => void,
-): PaymentMethodOption[] {
-  return methods.map((method) => ({
-    id: method.id,
-    label: t(METHOD_LABELS[method.id]),
-    description: method.description,
-    iconUrl: method.iconUrl,
-    enabled: method.enabled,
-    selected: selectedMethod === method.id,
-    onSelect: () => onSelectMethod(method.id),
-    banks: method.banks?.map((bank) => ({
-      code: bank.code,
-      name: bank.name,
-      iconUrl: bank.iconUrl,
-      selected: selectedBank === bank.code,
-      onSelect: () => onSelectBank(bank.code),
-    })),
-  }));
 }
 
 /** Tahap pilih metode (wireframe 9.4) dan tahap menunggu pembayaran. */
@@ -114,23 +85,18 @@ export function toPaymentViewProps(input: PaymentViewInput): PaymentViewProps {
       ? undefined
       : {
           label: t("payment.method.label"),
-          options: toMethodOptions(
-            input.availableMethods,
-            input.selectedMethod,
-            input.selectedBank,
-            input.onSelectMethod,
-            input.onSelectBank,
-          ),
+          options: (["bank_transfer", "gopay"] as const).map((id) => ({
+            id,
+            label: t(METHOD_LABELS[id]),
+            selected: input.selectedMethod === id,
+            onSelect: () => input.onSelectMethod(id),
+          })),
         },
     pay: showInstruction
       ? undefined
       : {
           label: input.paying ? t("payment.paying") : t("payment.pay"),
-          disabled:
-            input.paying ||
-            remainingMs <= 0 ||
-            !input.selectedMethod ||
-            (input.selectedMethod === "bank_transfer" && !input.selectedBank),
+          disabled: input.paying || remainingMs <= 0,
           onClick: input.onPay,
         },
     pending:
@@ -141,10 +107,15 @@ export function toPaymentViewProps(input: PaymentViewInput): PaymentViewProps {
             instruction: toInstructionView(order.instruction, input.copied, input.onCopy),
           }
         : undefined,
-    retry: input.onRetry
+    mockControls: input.mock
       ? {
-          label: t("payment.retry"),
-          onClick: input.onRetry,
+          title: t("payment.mock.title"),
+          success: {
+            label: t("payment.mock.success"),
+            onClick: input.mock.onSuccess,
+            disabled: input.mock.busy,
+          },
+          fail: { label: t("payment.mock.fail"), onClick: input.mock.onFail, disabled: input.mock.busy },
         }
       : undefined,
   };

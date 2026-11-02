@@ -22,8 +22,8 @@ export interface OrderProtocol {
   /** POST /payments/{id} - Inisiasi pembayaran dengan metode yang dipilih */
   initiatePayment(bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order>;
 
-  /** POST /payments/{id}/retry - Cancel transaksi lama dan retry (untuk ganti metode) */
-  retryPayment(bookingId: string): Promise<Order>;
+  /** POST /payments/{id}/retry - Cancel transaksi lama dan inisiasi ulang dengan metode baru */
+  retryPayment(bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order>;
 
   /** GET /payments/{id}/status - Polling status pembayaran */
   getPaymentStatus(bookingId: string): Promise<PaymentStatusResult>;

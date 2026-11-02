@@ -39,8 +39,10 @@ export function createHttpOrderService({ httpClient }: { httpClient: HttpClient 
       return httpClient.post(`/payments/${encodeURIComponent(bookingId)}`, body, orderSchema);
     },
 
-    retryPayment(bookingId: string): Promise<Order> {
-      return httpClient.post(`/payments/${encodeURIComponent(bookingId)}/retry`, {}, orderSchema);
+    retryPayment(bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order> {
+      const body: { method: PaymentMethod; bank?: BankCode } = { method };
+      if (bank) body.bank = bank;
+      return httpClient.post(`/payments/${encodeURIComponent(bookingId)}/retry`, body, orderSchema);
     },
 
     getPaymentStatus(bookingId: string): Promise<PaymentStatusResult> {

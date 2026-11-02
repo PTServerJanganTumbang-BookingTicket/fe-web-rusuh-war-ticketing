@@ -1,7 +1,8 @@
 "use client";
 
 // Payment dan status pasca-bayar. Requirement: FR-20–25, BR-05–06 (overview). Wireframe 9.4 dan 9.5 menyebut FR-16–20 dan BR-02:
-// rujukan keduanya belum selaras. ADR-0005 (timer), ADR-0006 (Midtrans via BE), ADR-0016 (status lewat SSE).
+// rujukan keduanya belum selaras. ADR-0005 (timer), ADR-0006 (Midtrans via BE), ADR-0016 (status lewat polling).
+// SSE dihapus dari modul payment — polling saja, audience 1 orang bukan 300k (lihat Appendix B).
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,13 +11,12 @@ import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { serverOffsetMs } from "@/core/domain/time/remaining-ms.utils";
 import { useDependencies } from "@/core/controllers/dependencies.context";
-import { useLiveUpdates } from "@/core/controllers/live-updates.hook";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
-import type { Order, PaymentMethod, PaymentOutcome } from "../domain/order.model";
+import type { Order, PaymentMethod } from "../domain/order.model";
 import { isFinalOrder } from "../domain/order.rules";
 import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentResultProps, toPaymentViewProps } from "./payment.mapper";
@@ -35,39 +35,28 @@ function errorKey(error: AppError): MessageKey {
 export function usePaymentController(orderId: string): PaymentScreen {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const {
-    getOrderUseCase,
-    watchOrderUseCase,
-    startPaymentUseCase,
-    simulatePaymentOutcomeUseCase,
-    random,
-    appConfig,
-  } = useDependencies<PaymentDependencies & CoreDependencies>();
-  const live = useLiveUpdates<Order>({
-    queryKey: orderKeys.detail(orderId),
-    watch: (observer) => watchOrderUseCase(orderId, observer),
-    until: isFinalOrder,
-  });
-  const query = useQuery(orderQuery({ getOrderUseCase, random }, orderId, live));
+  const { getOrderUseCase, startPaymentUseCase, random, appConfig } = useDependencies<
+    PaymentDependencies & CoreDependencies
+  >();
+
+  // Polling tanpa SSE — live selalu false, refetchInterval di orderQuery mengatur frekuensi.
+  const query = useQuery(orderQuery({ getOrderUseCase, random }, orderId));
   const order = query.data;
 
-  const [method, setMethod] = useState<PaymentMethod>("virtual_account");
+  const [method, setMethod] = useState<PaymentMethod>("bank_transfer");
   const [copied, setCopied] = useState(false);
 
   const setOrder = (next: Order) => queryClient.setQueryData(orderKeys.detail(orderId), next);
+
   const pay = useMutation({
-    mutationFn: (selected: PaymentMethod) => startPaymentUseCase(orderId, selected),
-    onSuccess: setOrder,
-  });
-  const emulate = useMutation({
-    mutationFn: (outcome: PaymentOutcome) => simulatePaymentOutcomeUseCase(orderId, outcome),
+    mutationFn: (selected: PaymentMethod) => startPaymentUseCase({ bookingId: orderId, method: selected }),
     onSuccess: setOrder,
   });
 
-  const offsetMs = order ? serverOffsetMs(Date.parse(order.serverNow), query.dataUpdatedAt) : 0;
-  const active = order?.status === "awaiting_method" || order?.status === "pending";
-  const remainingMs = useCountdown(active ? order.expiresAt : undefined, offsetMs);
-  useAskServerAtExpiry(active ? order.expiresAt : undefined, remainingMs, query.refetch);
+  const offsetMs = order ? serverOffsetMs(Date.parse(order.paymentTtl.serverTime), query.dataUpdatedAt) : 0;
+  const active = order && !isFinalOrder(order);
+  const remainingMs = useCountdown(active ? order.paymentTtl.expiresAt : undefined, offsetMs);
+  useAskServerAtExpiry(active ? order.paymentTtl.expiresAt : undefined, remainingMs, query.refetch);
 
   const copy = (text: string) => {
     void navigator.clipboard?.writeText(text).catch(() => undefined);
@@ -108,7 +97,7 @@ export function usePaymentController(orderId: string): PaymentScreen {
     view: toPaymentViewProps({
       order,
       remainingMs: remainingMs ?? 0,
-      method,
+      selectedMethod: method,
       paying: pay.isPending,
       copied,
       onSelectMethod: setMethod,
@@ -117,9 +106,9 @@ export function usePaymentController(orderId: string): PaymentScreen {
       // Kontrol simulasi hanya muncul saat API dimock; di backend asli tombolnya tidak ada.
       mock: appConfig.mocking
         ? {
-            onSuccess: () => emulate.mutate("success"),
-            onFail: () => emulate.mutate("fail"),
-            busy: emulate.isPending,
+            onSuccess: () => undefined, // simulatePaymentOutcomeUseCase dihapus dari v2.1
+            onFail: () => undefined,
+            busy: false,
           }
         : undefined,
     }),

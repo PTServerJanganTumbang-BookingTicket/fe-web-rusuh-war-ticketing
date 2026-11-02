@@ -1,12 +1,13 @@
 /**
  * Payment Mapper Tests - v2.1 Alignment
  *
- * NOTE: Most tests are commented out pending Task 14 (payment.controller.ts update).
- * The mapper has been updated but the full test suite requires MSW handlers
- * and controller updates to work end-to-end.
+ * Mapper disederhanakan di v2.1:
+ * - Metode hardcoded (bank_transfer, gopay) — tidak perlu availableMethods dari API
+ * - Bank selection dihapus dari UI (tidak ada selectedBank/onSelectBank)
+ * - Domain "bank_transfer" → view "virtual_account", domain "gopay" → view "qr"
  */
 import { describe, expect, it, vi } from "vitest";
-import type { AvailableMethod, Order, BankCode, PaymentMethod } from "../../domain/order.model";
+import type { Order, PaymentMethod } from "../../domain/order.model";
 import { toPaymentResultProps, toPaymentViewProps, type PaymentViewInput } from "../payment.mapper";
 
 const order: Order = {
@@ -22,37 +23,13 @@ const order: Order = {
   status: "PENDING_PAYMENT",
 };
 
-const availableMethods: AvailableMethod[] = [
-  {
-    id: "bank_transfer",
-    name: "Bank Transfer",
-    description: "Virtual Account",
-    iconUrl: "/icons/va.png",
-    enabled: true,
-    banks: [
-      { code: "bca", name: "BCA", iconUrl: "/icons/bca.png" },
-      { code: "bni", name: "BNI", iconUrl: "/icons/bni.png" },
-    ],
-  },
-  {
-    id: "gopay",
-    name: "GoPay",
-    description: "E-Wallet",
-    iconUrl: "/icons/gopay.png",
-    enabled: true,
-  },
-];
-
 const input = (overrides: Partial<PaymentViewInput> = {}): PaymentViewInput => ({
   order,
   remainingMs: 582_000,
-  availableMethods,
   selectedMethod: "bank_transfer" as PaymentMethod,
-  selectedBank: "bca" as BankCode,
   paying: false,
   copied: false,
   onSelectMethod: vi.fn(),
-  onSelectBank: vi.fn(),
   onPay: vi.fn(),
   onCopy: vi.fn(),
   ...overrides,
@@ -63,7 +40,6 @@ describe("toPaymentViewProps v2.1", () => {
     const view = toPaymentViewProps(input());
     expect(view.orderLabel).toContain("RB-00912");
     expect(view.countdown).toMatchObject({ value: "09:42", urgent: false });
-    // v2.1: hanya 2 metode (bank_transfer, gopay)
     expect(view.methods?.options).toHaveLength(2);
     expect(view.methods?.options.map((o) => o.id)).toEqual(["bank_transfer", "gopay"]);
     expect(view.total.value).toContain("1.500.000");
@@ -71,22 +47,15 @@ describe("toPaymentViewProps v2.1", () => {
     expect(view.pending).toBeUndefined();
   });
 
-  it("tombol bayar nonaktif saat memproses atau waktu habis", () => {
+  it("tombol bayar nonaktif saat memproses", () => {
     expect(toPaymentViewProps(input({ paying: true })).pay?.disabled).toBe(true);
+  });
+
+  it("tombol bayar nonaktif saat waktu habis", () => {
     expect(toPaymentViewProps(input({ remainingMs: 0 })).pay?.disabled).toBe(true);
   });
 
-  it("tombol bayar nonaktif jika bank_transfer dipilih tanpa bank", () => {
-    const view = toPaymentViewProps(input({ selectedMethod: "bank_transfer", selectedBank: null }));
-    expect(view.pay?.disabled).toBe(true);
-  });
-
-  it("tombol bayar aktif jika gopay dipilih (tidak perlu bank)", () => {
-    const view = toPaymentViewProps(input({ selectedMethod: "gopay", selectedBank: null }));
-    expect(view.pay?.disabled).toBe(false);
-  });
-
-  it("tahap pending bank_transfer: menampilkan VA number", () => {
+  it("tahap pending bank_transfer: menampilkan VA number sebagai virtual_account", () => {
     const pending: Order = {
       ...order,
       status: "AWAITING_PAYMENT",
@@ -97,12 +66,12 @@ describe("toPaymentViewProps v2.1", () => {
     expect(view.methods).toBeUndefined();
     expect(view.pay).toBeUndefined();
     expect(view.pending?.instruction).toMatchObject({
-      type: "bank_transfer",
-      vaNumber: "8277081234567890",
+      type: "virtual_account",
+      number: "8277081234567890",
     });
   });
 
-  it("tahap pending gopay: menampilkan QR dan deeplink", () => {
+  it("tahap pending gopay: menampilkan QR dengan seed dari qrUrl", () => {
     const pending: Order = {
       ...order,
       status: "AWAITING_PAYMENT",
@@ -113,9 +82,8 @@ describe("toPaymentViewProps v2.1", () => {
     expect(view.methods).toBeUndefined();
     expect(view.pay).toBeUndefined();
     expect(view.pending?.instruction).toMatchObject({
-      type: "gopay",
-      qrUrl: "https://midtrans/qr/xyz",
-      deeplinkUrl: "gojek://pay/xyz",
+      type: "qr",
+      seed: "https://midtrans/qr/xyz",
     });
   });
 });
@@ -123,26 +91,20 @@ describe("toPaymentViewProps v2.1", () => {
 describe("toPaymentResultProps v2.1", () => {
   it("berhasil: header hijau, e-tiket, CTA lihat e-tiket", () => {
     const view = toPaymentResultProps({ ...order, status: "PAID" }, vi.fn(), vi.fn());
-    expect(view).toMatchObject({
-      tone: "success",
-    });
+    expect(view).toMatchObject({ tone: "success" });
     expect(view.ticket).toBeDefined();
     expect(view.cta).toBeDefined();
   });
 
   it("expired: header merah dan kembali ke Home", () => {
     const expired = toPaymentResultProps({ ...order, status: "EXPIRED" }, vi.fn(), vi.fn());
-    expect(expired).toMatchObject({
-      tone: "danger",
-    });
+    expect(expired).toMatchObject({ tone: "danger" });
     expect(expired.cta).toBeDefined();
   });
 
   it("failed: header merah dan kembali ke Home", () => {
     const failed = toPaymentResultProps({ ...order, status: "FAILED" }, vi.fn(), vi.fn());
-    expect(failed).toMatchObject({
-      tone: "danger",
-    });
+    expect(failed).toMatchObject({ tone: "danger" });
     expect(failed.ticket).toBeUndefined();
     expect(failed.cta).toBeDefined();
   });
