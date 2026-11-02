@@ -143,11 +143,15 @@ export type User = {
   consentTimestamp: string;
 };
 
-export type NikFriend = {
+export type SavedNik = {
   id: string;
-  maskedNik: string;
-  addedAt: string;
+  nikMasked: string;    // "3171********22"
+  label: string;        // Nama alias ("Budi")
+  verifiedAt: string;   // ISO timestamp — always set (DB: CHECK verified_at IS NOT NULL)
+  status: 'VERIFIED';   // Only verified entries are stored
 };
+
+// REMOVE NikFriend type — replaced by SavedNik above
 
 export type NikValidationStatus = 
   | 'VALID' 
@@ -158,14 +162,41 @@ export type NikValidationStatus =
 ```typescript
 // auth/domain/auth.protocol.ts
 export interface AuthProtocol {
-  login(email: string, password: string): Promise<User>;
-  register(data: RegisterData): Promise<User>;
-  validateNik(nik: string): Promise<NikValidationStatus>;
-  getNikFriends(): Promise<NikFriend[]>;
-  addNikFriend(nik: string): Promise<NikFriend>;
-  removeNikFriend(id: string): Promise<void>;
-  requestVerificationLink(email: string): Promise<void>;
+  // Magic link flow (replaces password login)
+  requestMagicLink(email: string): Promise<void>;           // POST /auth/magic-link
+  resendMagicLink(email: string): Promise<void>;            // POST /auth/magic-link/resend
+  verifyMagicLink(token: string): Promise<AuthResult>;      // GET /auth/verify
+  
+  // Registration with consent (required by UU PDP)
+  register(data: RegisterData): Promise<void>;              // POST /auth/register
+  
+  // Saved NIKs (replaces NIK friends — Dukcapil called on add, not on checkout)
+  getSavedNiks(): Promise<SavedNik[]>;                      // GET /accounts/me/saved-niks
+  addSavedNik(nik: string, label: string): Promise<SavedNik>; // POST /accounts/me/saved-niks
+  removeSavedNik(id: string): Promise<void>;                // DELETE /accounts/me/saved-niks/{id}
 }
+
+export type AuthResult = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: User;
+  redirectContext?: BookingRedirectContext; // BR-09: restore in-progress booking
+};
+
+export type BookingRedirectContext = {
+  type: 'booking';
+  eventId: string;
+  bookingId?: string;
+  message: string;
+};
+
+export type RegisterData = {
+  email: string;
+  nik: string;
+  name: string;
+  consent: { accepted: true; policyVersion: string }; // Wajib, checkbox tidak boleh pre-checked
+};
 ```
 
 ```typescript
@@ -281,51 +312,111 @@ export function useHomeController() {
 
 ```typescript
 // queue/domain/queue-state.model.ts
-// Ref: Req 3 AC3a — status 'waiting_slot' saat posisi 0 tapi belum ada slot
-export type QueueState =
+// Ref: claim-token endpoint REMOVED in v2.0 (ADR-005 Appendix C #1)
+// Grant is now pushed via SSE 'grant' event; access_token fetched from GET /queue/me
+
+export type WaitingRoomState =
   | {
       status: 'waiting';
       eventName: string;
       position: number;
-      joinedPosition: number; // Posisi awal untuk progress bar
+      joinedPosition: number; // Initial position for progress bar
       etaSeconds: number;
-      retryAfterMs: number;
+      ratePerMin: number;
+      paused: boolean;        // BR-21: show banner when true, position NOT lost
     }
   | {
-      status: 'waiting_slot'; // NEW: posisi = 0 tapi belum ada slot (Req 3 AC3a)
+      status: 'granted';      // 'grant' SSE event received; fetching access_token
       eventName: string;
-      pollIntervalMs: 1000; // 1 second polling untuk claim-token
-      message: string; // "Giliran Anda sudah tiba — menunggu kasir tersedia"
-    }
-  | { 
-      status: 'admitted'; 
-      eventName: string; 
-      accessToken: string; 
-      expiresAt: string;
     }
   | {
-      status: 'paused'; // NEW: sistem dalam pause admission (BR-21)
+      status: 'admitted';
+      eventName: string;
+      accessToken: string;
+      bookingExpiresAt: string;
+      serverTime: string;
+    }
+  | {
+      status: 'sold_out_temporary'; // state: SOLD_OUT on SSE — reversible, stay connected
       eventName: string;
       position: number;
-      pausedAt: string;
-      reason: 'circuit_breaker_open';
+    }
+  | {
+      status: 'sold_out_final';     // 'sold-out' SSE event — MUST close stream
+      eventName: string;
     };
 ```
 
 ```typescript
 // queue/domain/queue.protocol.ts
 export interface QueueProtocol {
-  getQueueState(eventId: string): Promise<QueueState>;
-  joinQueue(eventId: string, captchaToken: string): Promise<QueueState>; // captchaToken required (Req 3.22)
-  claimToken(eventId: string): Promise<QueueState>;
-  cancelQueue(eventId: string): Promise<void>;
+  joinQueue(eventId: string, captchaToken: string): Promise<QueueJoinResult>; // POST /events/{id}/queue/join
+  getMyQueueState(eventId: string): Promise<CustomerQueueState>;              // GET /events/{id}/queue/me (re-entrancy)
+  getNowServing(eventId: string): Promise<NowServingResult>;                  // GET /events/{id}/queue/serving (polling fallback)
+  cancelQueue(eventId: string): Promise<void>;                               // implicit on leave
+  // NOTE: claimToken REMOVED (ADR-005 v2.0) — grant pushed via SSE, access_token fetched from getMyQueueState
 }
 
+export type QueueJoinResult = {
+  ticketNo: number;
+  nowServing: number;
+  position: number;
+  estimatedWaitMinutes: number;
+  sseUrl: string;
+  rejoined?: boolean;
+  state?: CustomerStateValue; // If rejoined and already past QUEUED
+};
+
+// State of THIS customer (from GET /queue/me)
+export type CustomerStateValue = 'QUEUED' | 'GRANTED' | 'SELECTING' | 'AWAITING_PAYMENT' | 'CONFIRMED' | 'EXPIRED';
+
+export type CustomerQueueState =
+  | { state: 'QUEUED'; ticketNo: number; nowServing: number }
+  | { state: 'GRANTED'; accessToken: string; bookingExpiresAt: string; serverTime: string }
+  | { state: 'SELECTING'; accessToken: string; bookingId: string; bookingExpiresAt: string; serverTime: string }
+  | { state: 'AWAITING_PAYMENT'; accessToken: string; bookingId: string; paymentExpiresAt: string; paymentRef: string; serverTime: string }
+  | { state: 'CONFIRMED'; bookingId: string }
+  | { state: 'EXPIRED' };
+
+export type NowServingResult = {
+  nowServing: number;
+  ratePerMin: number;
+  paused: boolean;
+  serverTime: string;
+  pollAfterMs: number; // Server-driven interval (10s/5s/2s/1s based on position)
+};
+
 // queue/domain/queue-updates.protocol.ts
+// SSE stream: GET /events/{eventId}/queue/stream
+// Auth: cookie queue_token (web) or Authorization header (mobile) — NEVER query string
+
+export type QueueSsePayload = {
+  nowServing: number;
+  state: 'SCHEDULED' | 'OPEN' | 'SOLD_OUT' | 'CLOSED'; // Sale lifecycle
+  ratePerMin: number;  // For ETA calculation (BR-11)
+  paused: boolean;     // BR-21: admission paused (circuit breaker OPEN)
+  serverTime: string;  // ISO-8601 — client syncs clock offset (BR-10)
+};
+
+// Event: grant (empty payload) — giliran customer tiba, access_token di GET /queue/me
+export type GrantSseEvent = Record<never, never>;
+
+// Event: status — data STALENESS indicator (NOT queue status, NOT connection status)
+export type StatusSseEvent = {
+  stale: boolean;
+  reason: 'redis_disconnected' | 'no_admission_updates';
+};
+
+// Event: sold-out — sale permanently closed; client MUST call eventSource.close()
+export type SoldOutSseEvent = { message: string };
+
 export interface QueueUpdatesProtocol {
   subscribe(
     eventId: string,
-    observer: Observer<{ nowServing: number }>
+    observer: Observer<QueueSsePayload>,
+    onGrant: () => void,        // Fired on 'grant' event → call getMyQueueState
+    onStalenessChange: (event: StatusSseEvent) => void,
+    onSoldOut: () => void       // MUST call eventSource.close() here
   ): Unsubscribe;
 }
 ```
@@ -372,8 +463,7 @@ export function createWatchQueueStateUseCase({
 
 ```typescript
 // queue/application/join-queue-with-captcha.use-case.ts
-// Ref: Req 3.22, Req 12.4 — CAPTCHA tak terlihat saat join antrian
-export type JoinQueueWithCaptchaUseCase = (eventId: string) => Promise<QueueState>;
+export type JoinQueueWithCaptchaUseCase = (eventId: string) => Promise<QueueJoinResult>;
 
 export function createJoinQueueWithCaptchaUseCase({
   queueService,
@@ -383,35 +473,25 @@ export function createJoinQueueWithCaptchaUseCase({
   captchaService: CaptchaProtocol;
 }): JoinQueueWithCaptchaUseCase {
   return async (eventId) => {
-    // Get or refresh CAPTCHA token
+    // Token prefetched before sale_starts_at (Req 3.22); refresh on failure
     const captchaToken = await captchaService.prefetchToken();
-    // Join queue with CAPTCHA token
     return queueService.joinQueue(eventId, captchaToken);
   };
 }
 ```
 
 ```typescript
-// queue/application/claim-slot.use-case.ts
-// Ref: Req 3 AC3a — polling 1 detik saat posisi 0 menunggu slot
-export type ClaimSlotUseCase = (eventId: string) => Promise<QueueState>;
+// queue/application/get-customer-queue-state.use-case.ts
+// Ref: BR-09 re-entrancy — GET /events/{id}/queue/me
+// Called on: page load, SSE 'grant' event, when 'paused' changes on SSE payload
+export type GetCustomerQueueStateUseCase = (eventId: string) => Promise<CustomerQueueState>;
 
-export function createClaimSlotUseCase({ queueService }: { queueService: QueueProtocol }): ClaimSlotUseCase {
-  return async (eventId) => {
-    const state = await queueService.claimToken(eventId);
-
-    // If still waiting for slot, return waiting_slot state
-    if (state.status === 'waiting_slot') {
-      return {
-        status: 'waiting_slot',
-        eventName: state.eventName,
-        pollIntervalMs: 1000, // 1 second polling per AC3a
-        message: 'Giliran Anda sudah tiba — menunggu kasir tersedia. Anda akan diarahkan otomatis segera.',
-      };
-    }
-
-    return state;
-  };
+export function createGetCustomerQueueStateUseCase({
+  queueService,
+}: {
+  queueService: QueueProtocol;
+}): GetCustomerQueueStateUseCase {
+  return (eventId) => queueService.getMyQueueState(eventId);
 }
 ```
 
@@ -425,26 +505,36 @@ export function createClaimSlotUseCase({ queueService }: { queueService: QueuePr
 
 ```typescript
 // booking/domain/booking-session.model.ts
+// Source: GET /events/{event_id}/tickets (replaces /events/{id}/booking/session)
 export type TicketCategory = {
   id: string;
   name: string;
+  description: string;
   priceIdr: number;
-  stock: number; // 0 = habis
+  available: number;         // 0 = habis
+  maxPerOrder: number;       // 0 if sold out
 };
 
-export type BookingQuota = { 
-  max: number; 
-  used: number; 
-  remaining: number;
+export type BookingRules = {
+  maxTicketsPerOrder: number; // 3 (BR-01)
+  oneNikPerTicket: boolean;   // true (BR-02)
 };
 
 export type BookingSession = {
-  eventName: string;
-  expiresAt: string; // Server timestamp (ADR-0005)
-  serverNow: string;
-  maskedNik: string;
-  quota: BookingQuota;
+  event: {
+    id: string;
+    name: string;
+    date: string;
+    venue: string;
+    imageUrl: string;
+  };
+  session: {
+    expiresAt: string;   // Server timestamp (ADR-0005)
+    ttlSeconds: number;  // Remaining seconds
+    serverTime: string;  // For clock offset calculation
+  };
   categories: TicketCategory[];
+  rules: BookingRules;
 };
 ```
 
@@ -454,14 +544,64 @@ export type AttendeeInfo = {
   ticketIndex: number;
   categoryId: string;
   nik: string;
-  nikSource: 'manual' | 'self' | 'friend';
-  nikValidationStatus: 'pending' | 'valid' | 'invalid' | 'duplicate';
+  holderEmail: string;         // Per-ticket email (FR-26: e-ticket delivered to each holder)
+  nikSource: 'manual' | 'self' | 'saved'; // 'friend' renamed to 'saved' (saved-niks)
+  nikValidationStatus: 'pending' | 'valid' | 'invalid' | 'already_used';
+  // 'already_used' is INDICATIVE (not a reservation) — real enforcement is atomic at POST /bookings
 };
 
 export type BookingFormState = {
   attendees: AttendeeInfo[];
-  buyerEmail: string;
+  contactEmail: string;       // Renamed from buyerEmail (matches API field: contact_email)
   emailValid: boolean;
+};
+```
+
+```typescript
+// booking/domain/booking.protocol.ts
+export interface BookingProtocol {
+  getSession(eventId: string): Promise<BookingSession>;          // GET /events/{id}/tickets
+  validateNik(nik: string): Promise<NikValidationResult>;        // POST /nik/validate
+  submitBooking(data: BookingSubmitData): Promise<BookingResult>; // POST /bookings
+  getBooking(bookingId: string): Promise<BookingDetail>;         // GET /bookings/{id}
+  // NOTE: separate stock endpoint REMOVED — stock comes with getSession and polling refetch
+  // NOTE: quota endpoint REMOVED — quota enforced server-side atomically
+}
+
+export type NikValidationResult =
+  | { valid: true; source: 'registered' | 'saved' | 'verified' }
+  | { valid: true; alreadyUsed: true; reason: 'NIK_ALREADY_USED' }
+  | { valid: false; reason: 'NIK_NOT_FOUND' | 'NIK_INACTIVE' | 'DUKCAPIL_UNAVAILABLE' };
+
+// Fail-closed: DUKCAPIL_UNAVAILABLE blocks booking, not fallback (ADR-005 §8)
+
+export type BookingSubmitData = {
+  eventId: string;
+  tickets: Array<{
+    categoryId: string;
+    nik: string;
+    holderEmail: string; // Per-ticket (FR-26)
+  }>;
+  contactEmail: string;  // Overall contact
+  termsVersion: string;
+};
+
+export type BookingResult = {
+  bookingId: string;
+  status: 'PENDING_PAYMENT';
+  paymentTtl: { expiresAt: string; ttlSeconds: number; serverTime: string };
+  redirectUrl: string;
+};
+
+export type BookingDetail = {
+  bookingId: string;
+  status: 'PENDING_PAYMENT' | 'PAID' | 'EXPIRED' | 'CANCELLED';
+  event: { id: string; name: string; date: string; venue: string };
+  tickets: Array<{ category: string; priceIdr: number; nikMasked: string; ticketId?: string; eticketUrl?: string }>;
+  summary: { quantity: number; total: number };
+  paymentTtl?: { expiresAt: string; ttlSeconds: number; serverTime: string };
+  paidAt?: string;
+  paymentMethod?: string;
 };
 ```
 
@@ -596,100 +736,112 @@ export function createSubmitBookingUseCase({ bookingService }: { bookingService:
 
 ```typescript
 // payment/domain/order.model.ts
-export type PaymentMethod = 'virtual_account' | 'e_wallet';
+// Source: POST /payments/{booking_id} response
+
+export type PaymentMethod = 'bank_transfer' | 'gopay'; // bank_transfer = VA (BCA/BNI/BRI/CIMB)
+
+export type BankCode = 'bca' | 'bni' | 'bri' | 'cimb';
 
 export type PaymentInstruction =
-  | { type: 'virtual_account'; bank: string; number: string; expiry: string }
-  | { type: 'qr'; payload: string }
-  | { type: 'deeplink'; url: string };
+  | { type: 'bank_transfer'; bank: BankCode; vaNumber: string }  // VA number only; expiry = payment TTL
+  | { type: 'gopay'; qrUrl: string; deeplinkUrl: string };       // Desktop: qrUrl; mobile: deeplinkUrl
 
-export type OrderStatus = 
-  | 'awaiting_method' 
-  | 'pending' 
-  | 'paid' 
-  | 'failed' 
-  | 'expired';
+export type AvailableMethod = {
+  id: PaymentMethod;
+  name: string;
+  description: string;
+  iconUrl: string;
+  enabled: boolean;                          // false when breaker OPEN
+  banks?: Array<{ code: BankCode; name: string; iconUrl: string }>; // Only for bank_transfer
+};
+
+// Payment status from GET /payments/{id}/status polling
+export type PaymentStatusResult =
+  | { status: 'PENDING'; serverTime: string; ttlSeconds: number }
+  | { status: 'PAID'; paidAt: string; redirectUrl: string }
+  | { status: 'FAILED'; reason: string; canRetry: boolean; attempt: number; paymentExpiresAt: string; serverTime: string }
+  | { status: 'EXPIRED'; expiredAt: string };
+
+export type OrderStatus =
+  | 'PENDING_PAYMENT'   // booking status: customer hasn't paid yet
+  | 'AWAITING_PAYMENT'  // payment initiated, waiting gateway confirmation
+  | 'PENDING_CANCELLATION' // TTL expired, grace period (show "verifying...")
+  | 'PAID'
+  | 'FAILED'
+  | 'EXPIRED';
 
 export type OrderItem = {
-  categoryName: string;
-  quantity: number;
+  category: string;
   priceIdr: number;
-  attendeeNik: string;
+  nikMasked: string;
 };
 
 export type Order = {
-  orderId: string;
+  bookingId: string;
   eventName: string;
   items: OrderItem[];
   totalIdr: number;
-  expiresAt: string; // Server timestamp
-  serverNow: string;
+  paymentTtl: { expiresAt: string; ttlSeconds: number; serverTime: string };
   status: OrderStatus;
   method?: PaymentMethod;
   instruction?: PaymentInstruction;
+  attempt?: number;
 };
 ```
 
 ```typescript
 // payment/domain/payment.constants.ts
-/** BR-05: TTL_Pembayaran dalam detik */
+/** BR-05: TTL_Pembayaran dalam detik — starts from POST /bookings, not from page open */
 export const TTL_PAYMENT_SECONDS = 600; // 10 menit
 
 /** BR-10: Grace period dalam detik */
 export const GRACE_PERIOD_SECONDS = 30;
 
-/** Polling interval saat SSE tidak tersambung (ADR-0016) */
+/** Polling interval for payment status (no SSE for payment) */
 export const PAYMENT_STATUS_POLL_INTERVAL_MS = 3_000;
+
+/** Minimum remaining TTL to allow method switch (PAYMENT_WINDOW_CLOSED guard) */
+export const MIN_RETRY_REMAINING_SECONDS = 60;
 ```
 
 ```typescript
 // payment/domain/order.rules.ts
-export function isFinalOrderStatus(status: OrderStatus): boolean {
-  return status === 'paid' || status === 'failed' || status === 'expired';
+export function isFinalOrder(order: Order): boolean {
+  return order.status === 'PAID' || order.status === 'FAILED' || order.status === 'EXPIRED';
 }
 
-// Ref: Req 6 AC19 — bisa ganti metode selama status AWAITING_PAYMENT atau PENDING
-export function canChangePaymentMethod(status: OrderStatus): boolean {
-  return status === 'awaiting_method' || status === 'pending';
+// Ganti metode: cancel pending → POST /payments/{id}/retry → POST /payments/{id} with new method
+// Can retry when booking is HELD with prior attempt (payment_status: FAILED from polling)
+export function canRetryPayment(status: PaymentStatusResult['status']): boolean {
+  return status === 'FAILED';
+}
+
+// Can initiate new payment when booking is HELD (before any attempt, or after deny/cancel)
+export function canInitiatePayment(order: Order): boolean {
+  return order.status === 'PENDING_PAYMENT';
 }
 ```
 
 ```typescript
 // payment/domain/order.protocol.ts
 export interface OrderProtocol {
-  getOrder(orderId: string): Promise<Order>;
-  selectPaymentMethod(orderId: string, method: PaymentMethod): Promise<Order>;
-  /** Ref: Req 6 AC19 — ganti metode pembayaran yang sudah dipilih */
-  changePaymentMethod(orderId: string, newMethod: PaymentMethod): Promise<Order>;
-  cancelPayment(orderId: string): Promise<void>;
+  getOrder(bookingId: string): Promise<Order>;                                   // GET /bookings/{id}
+  getAvailableMethods(bookingId: string): Promise<AvailableMethod[]>;            // GET /payments/{id}/methods
+  initiatePayment(bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order>; // POST /payments/{id}
+  retryPayment(bookingId: string): Promise<Order>;                               // POST /payments/{id}/retry (cancel & switch)
+  getPaymentStatus(bookingId: string): Promise<PaymentStatusResult>;             // GET /payments/{id}/status
 }
 
-// payment/domain/order-updates.protocol.ts
-export interface OrderUpdatesProtocol {
-  subscribe(orderId: string, observer: Observer<Order>): Unsubscribe;
-}
+// NOTE: OrderUpdatesProtocol (SSE) REMOVED for payment
+// Payment status uses polling only — audience is 1 person, not 300k (see Appendix B)
+// NOTE: changePaymentMethod use case REMOVED — replaced by retryPayment flow:
+//   1. Call retryPayment() → cancels pending transaction → booking returns to HELD
+//   2. Call initiatePayment() with new method
 ```
 
 ```typescript
-// payment/application/change-payment-method.use-case.ts
-// Ref: Req 6 AC19 — use case untuk ganti metode pembayaran
-export type ChangePaymentMethodUseCase = (orderId: string, newMethod: PaymentMethod) => Promise<Order>;
-
-export function createChangePaymentMethodUseCase({ orderService }: { orderService: OrderProtocol }): ChangePaymentMethodUseCase {
-  return async (orderId, newMethod) => {
-    const order = await orderService.get(orderId);
-
-    if (!canChangePaymentMethod(order.status)) {
-      throw new AppFailure({
-        kind: 'api',
-        code: 'PAYMENT_METHOD_CHANGE_NOT_ALLOWED',
-        status: 400,
-      });
-    }
-
-    return orderService.changePaymentMethod(orderId, newMethod);
-  };
-}
+// payment/application/change-payment-method.use-case.ts REMOVED
+// Replaced by retryPayment flow: retryPayment() → initiatePayment() with new method
 ```
 
 ---
@@ -702,23 +854,56 @@ export function createChangePaymentMethodUseCase({ orderService }: { orderServic
 
 ```typescript
 // core/domain/app-error.ts
+// Aligned with API Contracts Appendix A
 export type ApiErrorCode =
-  | 'NIK_INVALID'
-  | 'QUOTA_EXCEEDED'
-  | 'STOCK_INSUFFICIENT'
-  | 'ACCESS_EXPIRED'
-  | 'QUEUE_TOKEN_INVALID'
-  | 'QUEUE_FULL'
-  | 'SLOT_TAKEN_OVER'
-  | 'PAYMENT_EXPIRED'
-  | 'NIK_ALREADY_USED'
-  | 'DUPLICATE_NIK_IN_REQUEST'
-  | 'HOLD_EXPIRED'
-  | 'INVALID_NIK_FORMAT'
-  | 'DUKCAPIL_UNAVAILABLE'
-  | 'CAPTCHA_INVALID'           // Req 3.22
-  | 'ADMISSION_PAUSED'          // BR-21
-  | 'PAYMENT_METHOD_CHANGE_NOT_ALLOWED'; // Req 6 AC19
+  // NIK errors
+  | 'NIK_ALREADY_USED'          // NIK sudah digunakan untuk event ini
+  | 'NIK_NOT_FOUND'             // NIK tidak terdaftar di Dukcapil
+  | 'NIK_INACTIVE'              // NIK terdaftar tapi status tidak aktif
+  | 'NIK_VALIDATION_FAILED'     // Validasi NIK ke Dukcapil gagal
+  | 'NIK_UNVERIFIED'            // NIK belum lolos POST /nik/validate
+  | 'DUKCAPIL_UNAVAILABLE'      // Fail-closed: payment diblokir
+  | 'NIK_ALREADY_REGISTERED'    // NIK sudah terikat ke akun lain (global)
+  | 'NIK_ALREADY_SAVED'         // NIK sudah ada di saved-niks akun ini
+  | 'MAX_SAVED_NIKS_REACHED'    // Saved-niks sudah 5 entri
+  // Booking/stock errors
+  | 'QTY_EXCEEDED'              // Melebihi 3 tiket per transaksi (BR-01)
+  | 'QTY_INVALID'               // Jumlah tiket bukan ≥ 1
+  | 'INSUFFICIENT_STOCK'        // Stok tidak mencukupi
+  | 'STOCK_UNINITIALIZED'       // 503: kunci stok hilang dari Redis
+  | 'STOCK_NEGATIVE'            // 503: guard terakhir menyala
+  | 'TICKETS_UNAVAILABLE'       // Tiket sudah habis
+  | 'BOOKING_EXPIRED'           // TTL booking habis
+  | 'HOLD_EXPIRED'              // Hold sudah expired
+  // Payment errors
+  | 'PAYMENT_ALREADY_INITIATED' // Charge sudah berjalan; response lama diputar ulang
+  | 'PAYMENT_ALREADY_SETTLED'   // Pembayaran lama sudah lunas saat cancel dicoba
+  | 'PAYMENT_WINDOW_CLOSED'     // TTL habis atau sisa terlalu pendek untuk ganti metode
+  | 'PAYMENT_EXPIRED'           // TTL pembayaran habis
+  | 'MAX_ATTEMPTS_EXCEEDED'     // Batas percobaan pembayaran per booking
+  | 'BANK_NOT_SUPPORTED'        // Bank di luar bca/bni/bri/cimb
+  // Queue errors
+  | 'QUEUE_FULL'                // Antrian mencapai kapasitas 300k
+  | 'CAPTCHA_REQUIRED'          // captcha_token tidak disertakan
+  | 'CAPTCHA_INVALID'           // Token CAPTCHA invalid/expired/used
+  | 'ADMISSION_PAUSED'          // BR-21: circuit breaker OPEN
+  // Auth errors
+  | 'CONSENT_REQUIRED'          // Persetujuan PDP belum diberikan
+  | 'TERMS_NOT_ACCEPTED'        // T&C belum diterima
+  | 'TOKEN_EXPIRED'             // Access token expired
+  | 'TOKEN_INVALID'             // Access token invalid
+  | 'TOO_MANY_REQUESTS'         // Rate limited
+  // Access errors
+  | 'ACCESS_EXPIRED'            // Access token (queue slot) expired
+  | 'SLOT_TAKEN_OVER';          // Retain for backward compat (maps to TOKEN_INVALID)
+
+// REMOVED codes (map to above):
+// QUOTA_EXCEEDED → QTY_EXCEEDED
+// STOCK_INSUFFICIENT → INSUFFICIENT_STOCK
+// QUEUE_TOKEN_INVALID → TOKEN_INVALID
+// DUPLICATE_NIK_IN_REQUEST → frontend-only validation, no server code
+// INVALID_NIK_FORMAT → 400 without specific code in API contracts
+// PAYMENT_METHOD_CHANGE_NOT_ALLOWED → use retryPayment flow instead
 
 export type AppError =
   | { kind: 'api'; code: ApiErrorCode; status: number }
@@ -893,150 +1078,162 @@ export function useLiveUpdates<T>(
 ### API Request/Response DTOs
 
 ```typescript
-// Event List Response
+// Note: ALL API responses use {meta: {code, message}, data: ...} wrapper
+// The HttpClient adapter handles unwrapping — domain models see only data payload
+
+// Event List — GET /events
 interface EventListResponse {
   events: Array<{
     id: string;
     name: string;
     date: string;
-    venue: string;
     imageUrl: string;
     status: 'AVAILABLE' | 'SELLING_OUT_FAST' | 'SOLD_OUT';
     queueState: 'NOT_OPEN' | 'DIRECT' | 'OPEN' | 'FULL';
+    queueDepth: number;
+    queueCapacity: number;      // 300000
+    saleStartsAt: string;       // ISO-8601
     display: {
       enabled: boolean;
-      action: 'queue' | 'book' | 'disabled';
-      labelKey: string;
-      badgeKey?: string;
+      action: 'JOIN_QUEUE' | 'GO_TO_TICKETS' | 'NONE';
+      labelKey: string;         // i18n key (not text — FR-32 / multi-language)
+      badgeKey: string | null;
     };
+    minPrice: number | null;
+    maxPrice: number | null;
   }>;
 }
 
-// Queue State Response
-interface QueueStateResponse {
-  status: 'waiting' | 'admitted';
-  eventName: string;
-  position?: number;
-  joinedPosition?: number;
-  etaSeconds?: number;
-  retryAfterSeconds?: number;
-  accessToken?: string;
-  expiresAt?: string;
+// Event Detail — GET /events/{id}
+// Includes captcha.site_key for prefetching token before sale_starts_at
+interface EventDetailResponse {
+  // ... all EventListResponse fields +
+  time: string;
+  description: string;
+  captcha: {
+    provider: 'turnstile';
+    siteKey: string; // Public key; used to load widget and prefetch token
+  };
+  ticketCategories: Array<{
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    available: number;
+    status: 'AVAILABLE' | 'SOLD_OUT';
+  }>;
 }
 
-// Booking Session Response
-interface BookingSessionResponse {
-  eventName: string;
-  expiresAt: string;
-  serverNow: string;
-  maskedNik: string;
-  quota: {
-    max: number;
-    used: number;
-    remaining: number;
+// Queue Join — POST /events/{id}/queue/join
+interface QueueJoinRequest {
+  captchaToken: string; // Required — prefetched before sale_starts_at
+}
+
+// Ticket Selection — GET /events/{id}/tickets (requires access_token)
+interface TicketSelectionResponse {
+  event: { id: string; name: string; date: string; venue: string; imageUrl: string };
+  session: {
+    expiresAt: string;    // Countdown anchor (ADR-0005, BR-03: from granted_at)
+    ttlSeconds: number;   // Remaining
+    serverTime: string;   // For clock offset
   };
   categories: Array<{
     id: string;
     name: string;
-    priceIdr: number;
-    stock: number;
+    description: string;
+    price: number;
+    available: number;
+    maxPerOrder: number;
   }>;
+  rules: { maxTicketsPerOrder: 3; oneNikPerTicket: true };
 }
 
-// Submit Booking Request
+// NIK Validation — POST /nik/validate
+interface NikValidateRequest { nik: string }
+// Success response: {valid: true, source: 'registered'|'saved'|'verified'}
+// Already used: {valid: true, alreadyUsed: true, reason: 'NIK_ALREADY_USED'}
+// Invalid: {valid: false, reason: 'NIK_NOT_FOUND'|'NIK_INACTIVE'|'DUKCAPIL_UNAVAILABLE'}
+
+// Submit Booking — POST /bookings
 interface SubmitBookingRequest {
   eventId: string;
   tickets: Array<{
     categoryId: string;
-    nikAttendee: string;
+    nik: string;
+    holderEmail: string; // Per-ticket email for e-ticket delivery (FR-26)
   }>;
-  buyerEmail: string;
+  contactEmail: string;  // Overall contact
+  termsVersion: string;
 }
 
-// Order Response
-interface OrderResponse {
-  orderId: string;
-  eventName: string;
-  items: Array<{
-    categoryName: string;
-    quantity: number;
-    priceIdr: number;
-    attendeeNik: string;
+// Payment Methods — GET /payments/{id}/methods
+interface PaymentMethodsResponse {
+  methods: Array<{
+    id: 'bank_transfer' | 'gopay';
+    name: string;
+    enabled: boolean;
+    banks?: Array<{ code: 'bca'|'bni'|'bri'|'cimb'; name: string; iconUrl: string }>;
   }>;
-  totalIdr: number;
-  expiresAt: string;
-  serverNow: string;
-  status: 'awaiting_method' | 'pending' | 'paid' | 'failed' | 'expired';
-  method?: 'virtual_account' | 'e_wallet';
-  instruction?: PaymentInstruction;
 }
 
-// NIK Validation Request
-interface NikValidationRequest {
-  nik: string;
-  eventId: string;
+// Initiate Payment — POST /payments/{id}
+interface InitiatePaymentRequest {
+  method: 'bank_transfer' | 'gopay';
+  bank?: 'bca' | 'bni' | 'bri' | 'cimb'; // Required for bank_transfer
 }
+// Response instructions:
+// bank_transfer: { bank: 'bca', vaNumber: '8801234567890' }
+// gopay: { qrUrl: string, deeplinkUrl: string }  (desktop: qrUrl; mobile: deeplinkUrl)
 
-// NIK Validation Response
-interface NikValidationResponse {
-  valid: boolean;
-  dukcapilStatus: 'VALID' | 'INVALID' | 'PENDING_DUKCAPIL_VALIDATION';
-  availabilityStatus: 'AVAILABLE' | 'ALREADY_USED';
-  errorCode?: 'NIK_INVALID' | 'NIK_ALREADY_USED';
-}
+// Payment Status Poll — GET /payments/{id}/status
+// status: 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED'
+// PENDING_CANCELLATION maps to PENDING (show "verifying...", not expired screen)
 
-// API Error Response
+// API Error Response (meta wrapper)
 interface ApiErrorResponse {
-  errorCode: ApiErrorCode;
-  message: string;
-  details?: Record<string, unknown>;
+  meta: { code: string; message: string };
+  data: null;
 }
 ```
 
 ### SSE Event Payloads
 
 ```typescript
-// Queue SSE: /events/{eventId}/queue/stream
-// Event name: 'queue'
-interface QueueSseEvent {
+// Queue SSE: GET /events/{eventId}/queue/stream
+// Auth: Cookie queue_token (web) | Authorization header (mobile) — NEVER query string
+
+// Default event (unnamed) — on nowServing change, paused change, or every 10s heartbeat
+interface QueueDefaultSseEvent {
   nowServing: number;
-  timestamp: string;
-  // NEW: sistem pause state (BR-21)
-  admissionPaused?: boolean;
-  pausedAt?: string;
+  state: 'SCHEDULED' | 'OPEN' | 'SOLD_OUT' | 'CLOSED';
+  ratePerMin: number;     // For ETA: P/R * 60 * 1.2 (BR-11)
+  paused: boolean;        // BR-21: true → show banner, DO NOT lose position
+  serverTime: string;     // BR-10: client syncs offset from this
 }
 
-// Order SSE: /orders/{orderId}/stream
-// Event name: 'order'
-interface OrderSseEvent {
-  orderId: string;
-  status: OrderStatus;
-  expiresAt: string;
-  serverNow: string;
-  method?: PaymentMethod;
-  instruction?: PaymentInstruction;
-  // NEW: TTL extension saat pause (BR-22)
-  pauseExtendedAt?: string; // Timestamp when TTL was extended due to pause
+// Event: 'grant' — customer's turn arrived; access_token NOT sent via SSE
+// Client response: call GET /events/{id}/queue/me to get access_token
+interface GrantSseEvent {} // empty payload
+
+// Event: 'status' — DATA staleness indicator (NOT queue status, NOT connection status)
+// Sent ONLY on transition; {stale: false} follows when data flows again
+// Client MUST NOT reconnect on this — 300k simultaneous reconnects would cascade
+interface StatusSseEvent {
+  stale: boolean;
+  reason: 'redis_disconnected' | 'no_admission_updates';
 }
 
-// NEW: System SSE: /system/health/stream
-// Event name: 'health'
-// Ref: BR-21 (pause admission), BR-22 (TTL extension)
-interface SystemHealthSseEvent {
-  admissionPaused: boolean;
-  pausedAt?: string; // ISO timestamp when pause started
-  dukcapilCircuitBreaker: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
-  paymentCircuitBreaker: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
-  timestamp: string;
+// Event: 'sold-out' — sale PERMANENTLY closed (state: CLOSED, after 930s)
+// Client MUST call eventSource.close() — server rejects new connections with 410 Gone
+// NOTE: state: SOLD_OUT is NOT this event — SOLD_OUT is reversible (booking expirations)
+interface SoldOutSseEvent {
+  message: string;
 }
 
-// NEW: Sold Out Final SSE Event (catalog)
-// Ref: BR-20 — sold out menjadi final setelah 930 detik
-interface SoldOutFinalSseEvent {
-  eventId: string;
-  finalAt: string;
-  reason: 'timeout_930s';
-}
+// Keepalive: `: keepalive` comment every 15s — NOT a named event, does not trigger handlers
+
+// Payment status: polling only (GET /payments/{id}/status every 3s)
+// NO SSE for payment — audience is 1 person, not 300k (see API contracts Appendix B)
 ```
 
 ---
@@ -1047,26 +1244,41 @@ interface SoldOutFinalSseEvent {
 
 | Method | Path | Purpose | Auth | Module |
 |--------|------|---------|------|--------|
-| GET | `/events` | List semua event | - | catalog |
-| GET | `/events/{eventId}` | Detail event | - | catalog |
-| GET | `/events/{eventId}/queue` | Status antrian | Cookie | queue |
-| POST | `/events/{eventId}/queue/join` | Join antrian | Cookie | queue |
-| POST | `/events/{eventId}/queue/claim` | Claim token saat posisi 0 | Cookie | queue |
-| DELETE | `/events/{eventId}/queue` | Batal antrian | Cookie | queue |
-| GET | `/events/{eventId}/booking/session` | Session booking + kategori | Access Token | booking |
-| GET | `/events/{eventId}/booking/stock` | Refresh stok saja | Access Token | booking |
-| POST | `/events/{eventId}/booking/validate-nik` | Validasi NIK (on-blur) | Access Token | booking |
-| POST | `/events/{eventId}/booking/submit` | Submit booking → create order | Access Token | booking |
-| GET | `/orders/{orderId}` | Status order | Cookie | payment |
-| POST | `/orders/{orderId}/payment` | Pilih metode pembayaran | Cookie | payment |
-| PUT | `/orders/{orderId}/payment/method` | Ganti metode pembayaran (Req 6 AC19) | Cookie | payment |
-| DELETE | `/orders/{orderId}/payment` | Batalkan pembayaran | Cookie | payment |
-| GET | `/api/quota/{nik}/{eventId}` | Cek sisa kuota NIK | Cookie | booking |
-| GET | `/me` | Profile user (masked NIK) | Cookie | auth |
-| GET | `/me/nik-friends` | Daftar NIK teman | Cookie | auth |
-| POST | `/me/nik-friends` | Tambah NIK teman | Cookie | auth |
-| DELETE | `/me/nik-friends/{id}` | Hapus NIK teman | Cookie | auth |
-| GET | `/time` | Server time untuk offset | - | core |
+| POST | `/auth/magic-link` | Request login link via email | - | auth |
+| POST | `/auth/magic-link/resend` | Resend login link | - | auth |
+| GET | `/auth/verify` | Verify magic link token → set session | Cookie | auth |
+| POST | `/auth/register` | Register account (NIK + consent required) | - | auth |
+| GET | `/accounts/me/saved-niks` | List saved NIKs (max 5) | Cookie | auth |
+| POST | `/accounts/me/saved-niks` | Add NIK to saved list (Dukcapil called here) | Cookie | auth |
+| DELETE | `/accounts/me/saved-niks/{id}` | Remove saved NIK | Cookie | auth |
+| GET | `/events` | List all events | - | catalog |
+| GET | `/events/{event_id}` | Event detail + captcha.site_key | - | catalog |
+| POST | `/events/{event_id}/queue/join` | Join queue (captcha_token required) | Cookie | queue |
+| GET | `/events/{event_id}/queue/me` | Re-entrancy: get current state + access_token | Cookie | queue |
+| GET | `/events/{event_id}/queue/serving` | Now-serving + poll interval (fallback) | Cookie | queue |
+| GET | `/events/{event_id}/tickets` | Ticket selection page (categories + session TTL) | AccessToken | booking |
+| POST | `/nik/validate` | Validate NIK against Dukcapil (fail-closed) | AccessToken | booking |
+| POST | `/bookings` | Submit booking → atomic hold all-or-nothing | AccessToken | booking |
+| GET | `/bookings/{booking_id}` | Booking detail (PENDING_PAYMENT / PAID) | Cookie | booking |
+| GET | `/payments/{booking_id}/methods` | Available payment methods | AccessToken | payment |
+| POST | `/payments/{booking_id}` | Initiate payment (bank_transfer or gopay) | AccessToken | payment |
+| POST | `/payments/{booking_id}/retry` | Cancel pending payment → switch method | AccessToken | payment |
+| GET | `/payments/{booking_id}/status` | Poll payment status (3s interval) | AccessToken | payment |
+| GET | `/users/me/tickets` | My tickets list | Cookie | ticket |
+| GET | `/tickets/{ticket_id}/eticket` | E-ticket with QR code | Cookie | ticket |
+| GET | `/admin/reconciliation/disputed` | Disputed payments for manual refund | AdminAuth | dashboard |
+| GET | `/time` | Server time for clock sync | - | core |
+
+Note: Removed endpoints vs design.md v1:
+- `DELETE /events/{eventId}/queue` — cancel is implicit in join flow
+- `GET /events/{eventId}/booking/stock` — stock comes with getSession, polled via refetch
+- `POST /events/{eventId}/booking/validate-nik` → replaced by `POST /nik/validate`
+- `POST /events/{eventId}/booking/submit` → replaced by `POST /bookings`
+- `GET /api/quota/{nik}/{eventId}` — quota enforced server-side atomically
+- `GET /orders/{orderId}` → replaced by `GET /bookings/{booking_id}`
+- `POST /orders/{orderId}/payment` → replaced by `POST /payments/{booking_id}`
+- `DELETE /orders/{orderId}/payment` → replaced by `POST /payments/{booking_id}/retry`
+- `GET /me/nik-friends` etc → replaced by `/accounts/me/saved-niks`
 
 ### SSE Endpoints
 
