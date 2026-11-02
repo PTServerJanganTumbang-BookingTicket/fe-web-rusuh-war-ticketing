@@ -1,13 +1,13 @@
-import { asClass, asFunction, asValue, type NameAndRegistrationPair } from "awilix";
+import { asFunction, asValue, type NameAndRegistrationPair } from "awilix";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import type { SessionProtocol } from "@/core/domain/session.protocol";
 import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
-import { FetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
+import { createFetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
 import type { HttpClient } from "@/core/data/http/http.client";
 import { createMathRandomService } from "@/core/data/math-random.service";
 import { createHttpSessionService } from "@/core/data/session/http-session.service";
-import { EventSourceStreamClient, type EventSourceFactory } from "@/core/data/sse/event-source-stream.client";
+import { createEventSourceStreamClient, type EventSourceFactory } from "@/core/data/sse/event-source-stream.client";
 import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
 import { createSystemClockService } from "@/core/data/system-clock.service";
 
@@ -31,9 +31,9 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     fetchFn: asValue(lateBoundFetch),
     clock: asFunction(createSystemClockService).singleton(),
     random: asFunction(createMathRandomService).singleton(),
-    httpClient: asClass(FetchHttpClient).singleton(),
+    httpClient: asFunction(createFetchHttpClient).singleton(),
     eventSourceFactory: asValue(browserEventSource),
-    eventStreamClient: asClass(EventSourceStreamClient).singleton(),
+    eventStreamClient: asFunction(createEventSourceStreamClient).singleton(),
     sessionService: asFunction(createHttpSessionService).singleton(),
     startSessionUseCase: asFunction(createStartSessionUseCase).singleton(),
   };
