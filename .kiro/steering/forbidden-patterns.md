@@ -22,7 +22,8 @@ Larangan keras dan anti-pattern. Referensi: `docs/ai/steering/architecture-rules
 10. **Jangan edit `src/core/data/http/generated/`** — Regenerate dari OpenAPI
 11. **Jangan tulis angka bisnis langsung** — Taruh di `*.constants.ts`
 12. **Jangan pakai hex/rgb di views** — Pakai token Signal DS
-13. **Jangan buat class component** — Pakai functional component (kecuali error boundary)
+13. **Jangan buat class component** — Pakai functional component. Untuk error boundary, gunakan `react-error-boundary` (bukan class sendiri).
+14. **Jangan gunakan `asClass` di Awilix** — Semua registrasi memakai `asFunction` atau `asValue`. Tidak ada pengecualian.
 
 ## Larangan TypeScript
 

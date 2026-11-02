@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { setupFakeEventSources } from "@/test/fake-event-source";
-import { EventSourceStreamClient } from "../event-source-stream.client";
+import { createEventSourceStreamClient } from "../event-source-stream.client";
 
 const appConfig = {
   apiBaseUrl: "https://api.test",
@@ -12,14 +12,14 @@ const appConfig = {
 
 function setup() {
   const fakes = setupFakeEventSources();
-  const client = new EventSourceStreamClient({ appConfig, eventSourceFactory: fakes.factory });
+  const client = createEventSourceStreamClient({ appConfig, eventSourceFactory: fakes.factory });
   const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
   const unsubscribe = client.open("/things/1/stream", "thing", z.object({ n: z.number() }), observer);
   const source = fakes.sources[0]!;
   return { observer, unsubscribe, source };
 }
 
-describe("EventSourceStreamClient", () => {
+describe("createEventSourceStreamClient", () => {
   it("membuka URL API dengan cookie, tanpa token di URL", () => {
     const { source } = setup();
     expect(source.url).toBe("https://api.test/things/1/stream");

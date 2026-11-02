@@ -1,6 +1,6 @@
 # ADR-0006: Payment via Midtrans Core API dengan UI sendiri
 
-- **Status**: Proposed
+- **Status**: Accepted — lihat ADR-0022 untuk pola UI renderer
 - **Tanggal**: 2026-10-18
 - **Pengambil keputusan**: Tim FE Web, disepakati dengan BE
 - **Requirement terkait**: FR-20, FR-21, FR-24, FR-25, NFR-07, NFR-08

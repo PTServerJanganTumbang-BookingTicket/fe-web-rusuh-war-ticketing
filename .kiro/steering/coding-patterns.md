@@ -6,7 +6,7 @@ description: Pola penulisan kode wajib berbasis functional programming. Aktifkan
 
 # Coding Patterns
 
-Proyek ini menggunakan **functional programming** secara konsisten. Tidak ada class di lapisan `application`, `data`, atau `controllers`. Pengecualian satu-satunya adalah `.client.ts` di lapisan `data` (transport layer) dan error boundary React.
+Proyek ini menggunakan **functional programming** secara konsisten. Tidak ada class di lapisan `application`, `data`, atau `controllers`. Tidak ada pengecualian — termasuk transport layer dan error boundary.
 
 ---
 
@@ -88,6 +88,86 @@ export class HttpOrderService implements OrderProtocol {
 - Return type adalah protocol/interface (bukan class): `): OrderProtocol {`
 - DI: `asFunction(createXxxService).singleton()` — **bukan** `asClass`
 - Service tanpa deps juga pakai factory: `export function createSystemClockService(): ClockProtocol { return { now: () => Date.now() }; }`
+
+---
+
+## Transport Client — Factory Function Returning Object Literal
+
+Transport layer (`*.client.ts` di `core/data`) juga menggunakan factory function, sama dengan service.
+
+### ✅ Benar
+```typescript
+// core/data/http/fetch-http.client.ts
+export function createFetchHttpClient({ appConfig, fetchFn }: { appConfig: AppConfig; fetchFn: FetchFn }): HttpClient {
+  return {
+    get: (path, schema) => request(fetchFn, appConfig.apiBaseUrl, path, schema),
+    post: (path, body, schema) => request(fetchFn, appConfig.apiBaseUrl, path, schema, { method: "POST", ... }),
+  };
+}
+
+// core/data/sse/event-source-stream.client.ts
+export function createEventSourceStreamClient({ appConfig, eventSourceFactory }: Deps): EventStreamClient {
+  return {
+    open(path, event, schema, observer) {
+      const source = eventSourceFactory(`${appConfig.apiBaseUrl}${path}`, { withCredentials: true });
+      source.addEventListener(event, (msg) => { /* ... */ });
+      return () => source.close();
+    },
+  };
+}
+```
+
+### ❌ Salah
+```typescript
+// DILARANG — class di transport layer
+export class FetchHttpClient implements HttpClient { ... }
+export class EventSourceStreamClient implements EventStreamClient { ... }
+```
+
+### DI Registration
+```typescript
+// core.module.ts
+httpClient: asFunction(createFetchHttpClient).singleton(),       // ✅ asFunction
+eventStreamClient: asFunction(createEventSourceStreamClient).singleton(), // ✅ asFunction
+```
+
+`asClass` tidak diizinkan untuk transport client.
+
+---
+
+## Error Boundary — Gunakan `react-error-boundary`
+
+React 19 masih memerlukan class component secara internal untuk error boundary (`getDerivedStateFromError` adalah lifecycle class-only). **Jangan tulis class error boundary sendiri.** Gunakan library `react-error-boundary` yang menyembunyikan class di balik API functional:
+
+### ✅ Benar
+```typescript
+// views/SomeContainer.tsx
+import { ErrorBoundary } from "react-error-boundary";
+
+export function SomeContainer() {
+  return (
+    <ErrorBoundary fallback={<ErrorFallback />}>
+      <SomeView />
+    </ErrorBoundary>
+  );
+}
+
+function ErrorFallback() {
+  return <StatusView tone="error" title="Terjadi kesalahan" />;
+}
+```
+
+### ❌ Salah
+```typescript
+// DILARANG — jangan tulis class error boundary sendiri
+class MyErrorBoundary extends React.Component {
+  static getDerivedStateFromError(error: Error) { ... }
+  componentDidCatch(error: Error, info: React.ErrorInfo) { ... }
+  render() { ... }
+}
+```
+
+`react-error-boundary` juga menyediakan `useErrorBoundary()` hook untuk trigger error dari dalam functional component.
 
 ---
 
@@ -197,10 +277,7 @@ orderService: asClass(HttpOrderService).singleton(),
 getOrderUseCase: asClass(GetOrderUseCase).singleton(),
 ```
 
-### Pengecualian `asClass`
-`asClass` hanya boleh untuk `.client.ts` di `core/data` yang merupakan transport layer:
-- `FetchHttpClient` (`fetch-http.client.ts`)
-- `EventSourceStreamClient` (`event-source-stream.client.ts`)
+
 
 ---
 
@@ -239,10 +316,10 @@ function addTicket(state: SelectionState, ticketId: string): SelectionState {
 | `data/` | Factory → object literal | `createHttpOrderService()` |
 | `controllers/` | Custom hook | `usePaymentController()` |
 | `views/` | React component (fungsi) | `PaymentView` |
-| `data/*.client.ts` | ⚠️ Class diizinkan | `FetchHttpClient`, `EventSourceStreamClient` |
-| React error boundary | ⚠️ Class diizinkan | `ErrorBoundary` |
+| `data/*.client.ts` | Factory → object literal | `createFetchHttpClient()`, `createEventSourceStreamClient()` |
+| React error boundary | `react-error-boundary` | `<ErrorBoundary fallback={...}>` |
 
-**Jika menemukan class di luar dua pengecualian di atas → refactor ke functional.**
+**Jika menemukan class → refactor ke functional. Tidak ada pengecualian.**
 
 ---
 
