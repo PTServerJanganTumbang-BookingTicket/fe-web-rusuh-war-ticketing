@@ -36,7 +36,13 @@ async function request<T>(
 }
 
 /** Satu-satunya pintu HTTP ke backend. Semua kegagalan dipetakan ke AppFailure, semua sukses diparse zod. */
-export function createFetchHttpClient({ appConfig, fetchFn }: { appConfig: AppConfig; fetchFn: FetchFn }): HttpClient {
+export function createFetchHttpClient({
+  appConfig,
+  fetchFn,
+}: {
+  appConfig: AppConfig;
+  fetchFn: FetchFn;
+}): HttpClient {
   return {
     get: (path, schema) => request(fetchFn, appConfig.apiBaseUrl, path, schema),
     post: (path, body, schema) =>
