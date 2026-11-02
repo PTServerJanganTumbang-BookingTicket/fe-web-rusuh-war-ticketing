@@ -60,6 +60,8 @@ export const id = {
   "payment.method.virtual_account": "Virtual Account",
   "payment.method.e_wallet": "E-Wallet",
   "payment.method.bank_transfer": "Transfer Bank",
+  "payment.method.gopay": "GoPay",
+  "payment.retry": "Coba Lagi",
   "payment.total": "Total Bayar",
   "payment.pay": "Bayar Sekarang",
   "payment.paying": "Memproses…",
