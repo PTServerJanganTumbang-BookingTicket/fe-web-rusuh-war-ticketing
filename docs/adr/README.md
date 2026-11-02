@@ -9,7 +9,7 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0003](0003-presentation-pattern-viewmodel-hooks.md) | Pola presentasi: ViewModel sebagai custom hook, bukan MVVM berbasis class | Proposed |
 | [0004](0004-server-state-tanstack-query.md) | Server state dengan TanStack Query | Proposed |
 | [0005](0005-server-authoritative-time.md) | Countdown server-authoritative | Proposed |
-| [0006](0006-payment-midtrans-core-api.md) | Payment via Midtrans Core API dengan UI sendiri | Proposed |
+| [0006](0006-payment-midtrans-core-api.md) | Payment via Midtrans Core API dengan UI sendiri | Accepted |
 | [0007](0007-rendering-strategy.md) | Strategi rendering per halaman | Proposed |
 | [0008](0008-webview-payment-embed.md) | Payment page sebagai embed WebView untuk mobile | Proposed |
 | [0009](0009-contract-first-openapi-msw.md) | Contract-first dengan OpenAPI dan MSW | Proposed |
@@ -22,6 +22,7 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0016](0016-realtime-updates-sse.md) | Pembaruan antrian dan status pembayaran lewat SSE, polling sebagai cadangan | Proposed |
 | [0018](0018-trunk-based-development.md) | Trunk-Based Development dengan Release Train | Accepted |
 | [0021](0021-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
+| [0022](0022-payment-instruction-renderer.md) | Payment UI — Composable Instruction Renderer | Accepted |
 
 ## Status
 
