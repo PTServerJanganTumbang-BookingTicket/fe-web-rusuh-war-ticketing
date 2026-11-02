@@ -1,31 +1,44 @@
-import { t } from "@/core/i18n/t.utils";
+import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { Event, EventStatus } from "../domain/event.model";
 import type { EventCardProps } from "../views/EventCard";
 
-const tone: Record<EventStatus, EventCardProps["statusTone"]> = {
-  upcoming: "info",
-  on_sale: "success",
-  sold_out: "danger",
+const statusTone: Record<EventStatus, EventCardProps["statusTone"]> = {
+  AVAILABLE: "success",
+  SELLING_OUT_FAST: "info",
+  SOLD_OUT: "danger",
 };
 
-// "25 Des 2026"
-const date = new Intl.DateTimeFormat("id-ID", {
+const dateFormatter = new Intl.DateTimeFormat("id-ID", {
   day: "2-digit",
   month: "short",
   year: "numeric",
   timeZone: "Asia/Jakarta",
 });
 
+function resolveCta(eventId: string, display: Event["display"]): EventCardProps["cta"] {
+  if (!display.enabled || display.action === "disabled") {
+    return { label: t(display.labelKey as MessageKey) };
+  }
+  const href = display.action === "queue" ? `/events/${eventId}/queue` : `/events/${eventId}/book`;
+  return { label: t(display.labelKey as MessageKey), href };
+}
+
 export function toEventCardProps(event: Event): EventCardProps {
-  const available = event.status === "on_sale";
+  const { id, name, date, venue, status, display, imageUrl } = event;
+  const statusLabelKey = display.badgeKey
+    ? (display.badgeKey as MessageKey)
+    : (`home.event.status.${status}` as MessageKey);
+
   return {
-    id: event.id,
-    name: event.name,
-    meta: `${date.format(new Date(event.startsAt))} · ${event.venue}`,
-    statusLabel: t(`home.event.status.${event.status}`),
-    statusTone: tone[event.status],
-    cta: available
-      ? { label: t("home.event.cta"), href: `/events/${event.id}/queue` }
-      : { label: t("home.event.unavailable") },
+    id,
+    name,
+    imageUrl: imageUrl || "/images/placeholder-event.jpg",
+    location: venue.split(" ")[0] || "JAKARTA",
+    category: "LIVE MUSIC",
+    date: dateFormatter.format(new Date(date)),
+    venue,
+    statusLabel: t(statusLabelKey),
+    statusTone: statusTone[status],
+    cta: resolveCta(id, display),
   };
 }

@@ -1,26 +1,37 @@
+/**
+ * Home Page — Client-side polling untuk real-time event updates.
+ *
+ * Strategi rendering (ADR-0007):
+ * - CatalogContainer adalah Client Component dengan polling 5s
+ * - Menggunakan TanStack Query untuk caching dan real-time updates
+ *
+ * Ini memenuhi:
+ * - Req 1.4: Data ter-refresh dalam ≤5 detik (via client polling)
+ * - UX: Loading state yang baik saat pertama kali load
+ *
+ * Catatan arsitektur:
+ * - Sebelumnya menggunakan pure SSR dengan ISR revalidate 15s
+ * - Diubah ke client polling untuk memenuhi Req 1.4 (≤5s refresh)
+ * - ISR 15s tidak cukup untuk requirement real-time updates
+ */
+
 import { Suspense } from "react";
-import { cacheLife } from "next/cache";
-import { getServerDependencies } from "@/di/server-dependencies";
-import { loadHomeViewProps } from "@/modules/catalog/controllers/home.loader";
-import { HomeView } from "@/modules/catalog/views/HomeView";
+import { CatalogContainer } from "@/modules/catalog/views/CatalogContainer";
 import { ScreenLoading } from "@/core/views/ScreenLoading";
 
-async function homeViewProps() {
-  "use cache";
-  // ISR pendek (ADR-0007). stale ≥ 30 dtk dan expire ≥ 5 mnt agar tetap masuk static shell.
-  cacheLife({ stale: 60, revalidate: 15, expire: 600 });
-  return loadHomeViewProps(getServerDependencies());
-}
-
-// Home adalah Server Component statis, jadi tidak memakai hook controller (ADR-0003, ADR-0007).
-async function Home() {
-  return <HomeView {...await homeViewProps()} />;
-}
-
+/**
+ * HomePage — Root page component.
+ *
+ * Menggunakan CatalogContainer (Client Component) untuk:
+ * - Polling setiap 5s untuk memenuhi Req 1.4
+ * - Handle error dan loading state secara client-side
+ * - Real-time status updates (AVAILABLE, SELLING_OUT_FAST, SOLD_OUT)
+ * - Redirect ke queue/book sesuai queue_state
+ */
 export default function HomePage() {
   return (
     <Suspense fallback={<ScreenLoading />}>
-      <Home />
+      <CatalogContainer />
     </Suspense>
   );
 }

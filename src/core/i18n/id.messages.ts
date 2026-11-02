@@ -3,14 +3,40 @@ export const id = {
   "common.placeholder": "Layar ini belum dibangun.",
   "home.title": "Rusuh Booking Tiket",
   "home.login": "Login",
+  // Navigation
+  "home.nav.explore": "Jelajahi event",
+  "home.nav.myTickets": "Tiket saya",
+  "home.nav.help": "Bantuan",
+  // Hero Section
+  "home.hero.eyebrow": "LOREM IPSUM",
+  "home.hero.headline": "Energi panggung. Cerita yang kamu bawa pulang.",
+  "home.hero.subtext": "Kami bukan sekadar jual tiket, tapi mengantar kamu ke momen yang tak tergantikan.",
+  // Event List Section
   "home.list.label": "Daftar Event",
+  "home.list.title": "Event Mendatang",
+  "home.list.subtitle": "Temukan pengalaman seru yang menunggumu",
+  // Event Card
   "home.empty": "Belum ada acara.",
   "home.event.cta": "Beli Tiket →",
+  "home.event.cta.queue": "Beli Tiket →",
+  "home.event.cta.book": "Beli Tiket →",
   "home.event.unavailable": "Tidak Tersedia",
+  "home.event.queueFull": "Antrian Penuh",
+  "home.event.notOpen": "Belum Dibuka",
   "home.event.status.upcoming": "SEGERA",
   "home.event.status.on_sale": "AVAILABLE",
   "home.event.status.sold_out": "SOLD OUT",
+  "home.event.status.AVAILABLE": "AVAILABLE",
+  "home.event.status.SELLING_OUT_FAST": "SELLING OUT",
+  "home.event.status.SOLD_OUT": "SOLD OUT",
+  "home.event.badge.queueFull": "ANTRIAN PENUH",
+  "home.event.badge.notOpen": "BELUM DIBUKA",
   "home.error": "Daftar acara belum bisa dimuat. Coba lagi sebentar lagi.",
+  // Footer
+  "home.footer.copyright": "© 2024 Rusuh Booking Tiket",
+  "home.footer.tagline": "Aman & terpercaya",
+  "home.footer.infoBanner": "Pembelian tiket dijamin aman dengan verifikasi NIK dan enkripsi data.",
+  // Queue
   "queue.title": "Ruang Tunggu",
   "queue.loading.message": "Mengecek posisi antrianmu…",
   "queue.position.label": "Posisi antrian Anda saat ini",
@@ -25,7 +51,9 @@ export const id = {
   "queue.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "queue.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
   "queue.error.QUEUE_TOKEN_INVALID": "Sesi antrianmu tidak valid. Masuk antrian lagi dari awal.",
+  // Login
   "login.title": "Masuk",
+  // Booking
   "booking.title": "Pilih tiket",
   "booking.loading": "Menyiapkan sesi bookingmu…",
   "booking.header.timer": "Booking {time}",
@@ -50,6 +78,7 @@ export const id = {
   "booking.error.QUEUE_TOKEN_INVALID": "Sesi antrianmu tidak valid. Masuk antrian lagi dari awal.",
   "booking.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "booking.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
+  // Payment
   "payment.title": "Pembayaran",
   "payment.loading": "Menyiapkan pembayaranmu…",
   "payment.header.order": "Order #{orderId}",
@@ -96,6 +125,7 @@ export const id = {
   "payment.error.title": "Pembayaran bermasalah",
   "payment.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "payment.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
+  // Ticket
   "ticket.title": "E-tiket",
 } as const;
 
