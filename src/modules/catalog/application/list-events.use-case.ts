@@ -9,5 +9,5 @@ export function createListEventsUseCase({
 }: {
   eventService: EventProtocol;
 }): ListEventsUseCase {
-  return () => eventService.list();
+  return () => eventService.getEvents();
 }

@@ -15,30 +15,49 @@ export function isScenario(value: string | null | undefined): value is Scenario 
   );
 }
 
+// API v2.1 format dengan display block
 const events = [
   {
     id: "evt-konser-rusuh",
     name: "Konser A — Jakarta",
     venue: "GBK",
-    startsAt: "2026-12-25T12:00:00.000Z",
-    status: "on_sale",
-    minPriceIdr: 500_000,
+    date: "2026-12-25T12:00:00.000Z",
+    imageUrl: "/images/event-1.jpg",
+    status: "AVAILABLE",
+    queueState: "OPEN",
+    display: {
+      enabled: true,
+      action: "queue",
+      labelKey: "home.event.cta",
+    },
   },
   {
     id: "evt-konser-b",
     name: "Konser B — Bandung",
     venue: "GOR Saparua",
-    startsAt: "2027-01-10T12:00:00.000Z",
-    status: "sold_out",
-    minPriceIdr: 500_000,
+    date: "2027-01-10T12:00:00.000Z",
+    imageUrl: "/images/event-2.jpg",
+    status: "SOLD_OUT",
+    queueState: "FULL",
+    display: {
+      enabled: false,
+      action: "disabled",
+      labelKey: "home.event.unavailable",
+    },
   },
   {
     id: "evt-konser-c",
     name: "Konser C — Surabaya",
     venue: "GOR",
-    startsAt: "2027-02-02T12:00:00.000Z",
-    status: "on_sale",
-    minPriceIdr: 500_000,
+    date: "2027-02-02T12:00:00.000Z",
+    imageUrl: "/images/event-3.jpg",
+    status: "SELLING_OUT_FAST",
+    queueState: "OPEN",
+    display: {
+      enabled: true,
+      action: "queue",
+      labelKey: "home.event.cta",
+    },
   },
 ];
 
@@ -78,14 +97,12 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
   const bookingTtlMs = scenario === "booking-expiring" ? 75_000 : 5 * 60_000;
   const paymentTtlMs = scenario === "payment-expiring" ? 45_000 : 10 * 60_000;
   const orders = new Map<string, MockOrder>();
-  // Pelanggan stream order per orderId; dipanggil setiap status berubah (ADR-0016).
   const orderWatchers = new Map<string, Set<() => void>>();
   const publishOrder = (orderId: string) => orderWatchers.get(orderId)?.forEach((push) => push());
 
-  // Setiap pembacaan (GET atau tick stream) memajukan antrian satu langkah.
   const nextQueueState = (eventId: string) => {
-    orders.clear(); // antrian baru berarti order baru
-    bookingExpiry.delete(eventId); // masuk antrian lagi berarti booking berikutnya mendapat TTL baru
+    orders.clear();
+    bookingExpiry.delete(eventId);
     const polls = (pollCount.get(eventId) ?? 0) + 1;
     pollCount.set(eventId, polls);
 
@@ -115,7 +132,6 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
       status: "awaiting_method" as const,
     };
     orders.set(orderId, order);
-    // Server yang memutuskan kedaluwarsa (ADR-0005); hanya order yang belum selesai yang bisa expired.
     if ((order.status === "awaiting_method" || order.status === "pending") && Date.now() >= order.expiresAt)
       order.status = "expired";
     return order;
@@ -133,13 +149,10 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
     instruction: order.instruction,
   });
 
-  // MSW hanya bisa membuat handler SSE bila EventSource ada (browser). Node (test, mock sisi server Next)
-  // tidak mengonsumsi stream, jadi cukup handler HTTP.
   const streamHandlers =
     typeof EventSource === "undefined"
       ? []
       : [
-          // Server mengirim snapshot saat tersambung, lalu posisi baru tiap tick; ditutup setelah admitted.
           sse<{ queue: unknown }>(
             `${MOCK_API_BASE_URL}/events/:eventId/queue/stream`,
             ({ params, client, request }) => {
@@ -157,7 +170,6 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
               push();
             },
           ),
-          // Snapshot saat tersambung, lalu setiap perubahan status; ditutup di status akhir (ADR-0016).
           sse<{ order: unknown }>(
             `${MOCK_API_BASE_URL}/orders/:orderId/stream`,
             ({ params, client, request }) => {
@@ -193,10 +205,7 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
       const expiresAt = bookingExpiry.get(eventId) ?? now + bookingTtlMs;
       bookingExpiry.set(eventId, expiresAt);
 
-      // Setelah TTL habis server yang memutuskan, bukan klien (ADR-0005).
       if (now >= expiresAt) {
-        // Slot dilepas: antrian mulai dari awal agar alur "kembali ke ruang tunggu" bisa diuji ulang.
-        // Entri expiry dibiarkan supaya request berikutnya dengan token lama tetap 410, seperti server asli.
         pollCount.delete(eventId);
         return HttpResponse.json({ code: "ACCESS_EXPIRED" }, { status: 410 });
       }
@@ -214,7 +223,6 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
     http.get(`${MOCK_API_BASE_URL}/orders/:orderId`, ({ params }) => {
       const orderId = String(params.orderId);
       const order = orderFor(orderId);
-      // Pembacaan bisa mengubah status menjadi expired; pelanggan stream ikut diberi tahu.
       publishOrder(orderId);
       return HttpResponse.json(orderBody(orderId, order));
     }),
@@ -236,7 +244,6 @@ export function createHandlers(scenario: Scenario = DEFAULT_SCENARIO) {
       return HttpResponse.json(orderBody(orderId, order));
     }),
 
-    // Hanya mock: menggantikan notifikasi Midtrans ke BE.
     http.post(`${MOCK_API_BASE_URL}/mock/orders/:orderId/outcome`, async ({ params, request }) => {
       const orderId = String(params.orderId);
       const order = orderFor(orderId);
