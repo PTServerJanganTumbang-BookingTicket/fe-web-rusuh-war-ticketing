@@ -7,7 +7,10 @@ import { createFetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http
 import type { HttpClient } from "@/core/data/http/http.client";
 import { createMathRandomService } from "@/core/data/math-random.service";
 import { createHttpSessionService } from "@/core/data/session/http-session.service";
-import { createEventSourceStreamClient, type EventSourceFactory } from "@/core/data/sse/event-source-stream.client";
+import {
+  createEventSourceStreamClient,
+  type EventSourceFactory,
+} from "@/core/data/sse/event-source-stream.client";
 import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
 import { createSystemClockService } from "@/core/data/system-clock.service";
 
