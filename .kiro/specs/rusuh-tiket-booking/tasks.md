@@ -211,12 +211,15 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 - [ ] 15. Checkpoint — payment module `@owner:akbar`
 
 - [ ] 16. Buat auth module — domain dan application layers [NEW] `@owner:muzaki`
+  - _Desain: ADR-0023 (Proposed). Tunggu BE menyepakati usulan perubahan kontrak di ADR-0023, terutama cara token magic link sampai ke verifikasi, sebelum 16.4, 16.7, dan 17.1_
   - [ ] 16.1 Buat user.model.ts `@owner:muzaki`
   - [ ] 16.2 Buat auth.protocol.ts `@owner:muzaki`
   - [ ] 16.3 Buat nik-validation.rules.ts `@owner:muzaki`
   - [ ] 16.4 Buat request-magic-link.use-case.ts `@owner:muzaki`
   - [ ] 16.5 Buat validate-nik.use-case.ts (auth) `@owner:muzaki`
+    - _Cek dulu apakah cukup memakai validasi NIK booking (`POST /nik/validate`, task 7.1)_
   - [ ] 16.6 Tulis property tests nik-validation.rules `@owner:muzaki`
+  - [ ] 16.7 Buat resend-magic-link.use-case.ts dan verify-magic-link.use-case.ts `@owner:muzaki`
 
 - [ ] 17. Buat auth module — data, controller, views, dan module [NEW] `@owner:muzaki`
   - [ ] 17.1 Buat http-auth.service.ts `@owner:muzaki`
@@ -243,6 +246,7 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [ ] 19.2 Update login page.tsx `@owner:muzaki`
   - [ ] 19.3 Buat register page.tsx `@owner:muzaki`
   - [ ] 19.4 Buat verify page.tsx `@owner:muzaki`
+    - _Token akun disimpan lewat route same-origin di cookie httpOnly, tidak di URL atau `localStorage` (ADR-0023)_
   - [ ] 19.5 Update book page.tsx `@owner:muzaki`
   - [ ] 19.6 Update pay page.tsx — rename orderId → bookingId `@owner:akbar`
   - [ ] 19.7 Update ticket page.tsx `@owner:akbar`
@@ -274,11 +278,12 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [x] 24.6 Update Home page.tsx `@owner:akbar`
 
 - [ ] 25. HTML email templates [NEW] `@owner:muzaki`
-  - [ ] 25.1 Buat ticket-issued.mjml `@owner:muzaki`
+  - [x] 25.1 Buat ticket-issued.mjml `@owner:muzaki`
     - _Requirements: 7.2, 7.3_
-  - [ ] 25.2 Buat booking-expired.mjml `@owner:muzaki`
+  - [x] 25.2 Buat booking-expired.mjml `@owner:muzaki`
   - [ ] 25.3 Buat payment-reminder.mjml `@owner:muzaki`
-  - [ ] 25.4 Update emails/build.mjs `@owner:muzaki`
+  - [x] 25.4 Update emails/build.mjs `@owner:muzaki`
+  - [x] 25.5 Buat login-link.mjml dan verify-register.mjml (ADR-0023) `@owner:muzaki`
 
 ## Owner Summary
 
