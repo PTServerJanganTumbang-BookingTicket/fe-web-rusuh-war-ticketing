@@ -16,9 +16,9 @@ Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen Rea
 | Reducer | `<konsep>.reducer.ts` | `<konsep>Reducer`, event `SCREAMING_SNAKE` di `type` | `selectionReducer`, `{ type: 'ADD_TICKET' }` |
 | Konstanta bisnis | `<m>.constants.ts` | `SCREAMING_SNAKE`, satuan di akhir (`_MS`, `_SECONDS`) | `MAX_TICKETS_PER_NIK`, `STOCK_REFRESH_INTERVAL_MS` |
 | Protocol | `<nama>.protocol.ts` | `<Nama>Protocol`, tanpa awalan `I` | `OrderProtocol`, `ClockProtocol` |
-| Use case | `<kata-kerja>-<benda>.use-case.ts` | Kelas `<KataKerja><Benda>UseCase`, satu method `execute` | `StartPaymentUseCase` |
+| Use case | `<kata-kerja>-<benda>.use-case.ts` | Factory `create<KataKerja><Benda>UseCase`, tipe `<KataKerja><Benda>UseCase` | `createStartPaymentUseCase` |
 | Irisan dependensi controller | `<m>.dependencies.ts` | `<M>Dependencies` | `PaymentDependencies` |
-| Service | `<teknologi>-<nama>.service.ts` | Kelas `<Teknologi><Nama>Service` | `http-order.service.ts` → `HttpOrderService` |
+| Service | `<teknologi>-<nama>.service.ts` | Factory `create<Teknologi><Nama>Service` | `http-order.service.ts` → `createHttpOrderService` |
 | Client transport | `<teknologi>-<nama>.client.ts` | Interface `<Nama>Client`, kelas `<Teknologi><Nama>Client` | `HttpClient`, `FetchHttpClient` |
 | Schema zod | `<nama>.schema.ts` | `<nama>Schema` | `orderSchema` |
 | Helper murni | `<nama>.utils.ts` | Fungsi camelCase | `remaining-ms.utils.ts` → `remainingMs` |
@@ -84,11 +84,11 @@ Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen Rea
 
 - Fungsi di `domain` murni dan menerima `now` sebagai parameter bila butuh waktu. Di controller, jam diambil dari `clock` di container, acak dari `random`.
 
-## Kelas, use case, dan DI (ADR-0014, ADR-0015)
+## Factory, use case, dan DI (ADR-0014, ADR-0015)
 
-- Kelas hanya untuk use case, service, dan client. Komponen dan controller tetap fungsi.
-- Constructor menerima satu objek dependensi dan menyimpannya ke field `private readonly`: `constructor({ orderService }: { orderService: OrderProtocol })`. Tidak ada parameter posisi (Awilix mode PROXY).
-- Dependensi constructor bertipe protocol (interface), bukan kelas service.
+- Use case dan service adalah fungsi dari factory. Kelas hanya untuk client transport (`FetchHttpClient`, `EventSourceStreamClient`) dan `AppFailure`. Komponen dan controller tetap fungsi.
+- Factory menerima satu objek dependensi: `createStartPaymentUseCase({ orderService }: { orderService: OrderProtocol })`. Tidak ada parameter posisi (Awilix mode PROXY).
+- Dependensi bertipe protocol (interface), bukan implementasi service.
 - Use case dan service tidak menangkap error; biarkan `AppFailure` naik ke controller.
 - Tidak ada `import` dari `awilix` di luar `src/di` dan `*.module.ts`.
 - Impor di dalam satu modul memakai path relatif; impor ke `core`, `di`, atau dari `app` memakai alias `@/`.

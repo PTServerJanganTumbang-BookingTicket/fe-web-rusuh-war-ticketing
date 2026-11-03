@@ -101,3 +101,16 @@ Pemilik usulan: **K** = klien, **BE** = backend, **FE** = FE web, **M** = mobile
 | Q21 | E-tiket guest: email diinput di layar mana (booking atau payment), dan apakah divalidasi? | Reversal | K, FE | `product.md`, modul `booking` |
 | Q22 | Kontrak SSE (path, nama event, heartbeat, penutupan di status akhir, CORS dengan credentials) disetujui BE? Apakah stream antrian juga membawa status queue open/closed (Q10)? | Reversal | BE | ADR-0016 |
 | Q23 | Polling stok 5 detik saat flash crowd: BE sanggup dengan cache Redis TTL 5 detik? Interval dengan jitter seperti sekarang? | 13 | BE | `bookingQueries.ts` |
+
+## 5. Pembaruan (2026-11-01)
+
+Jawaban yang ditemukan di repo [`documentations`](https://github.com/PTServerJanganTumbang-BookingTicket/documentations):
+
+| # | Jawaban | Sumber |
+|---|---|---|
+| Q1 | Ya. Login bersifat opsional, dikonfirmasi CEO | `requirement/update-requirement-rusuh-booking-tiket.md` §2 |
+| Q2 | "ADR-005" adalah keputusan arsitektur tingkat solusi, bukan ADR-0005 FE | `adr/ADR-005-final-architecture-decision.md` |
+| Q3 | Sebagian. Tamu mengisi NIK per tiket. Batas 3 tiket dihitung per transaksi, dan 1 NIK untuk 1 tiket | `requirement/update-requirement-rusuh-booking-tiket.md` §3 |
+| Q4 | Dokumen ada, dengan rumusan BR-07 yang diluruskan | `requirement/update-requirement-rusuh-booking-tiket.md` §3.3 |
+
+Keputusan "Nomor kursi tidak diimplementasikan" di §2 berbeda dengan Req 7 AC1. Template e-tiket mengikuti keputusan rapat dan kontrak §6.2, yang tidak memuat nomor kursi.

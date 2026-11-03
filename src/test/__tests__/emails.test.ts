@@ -12,10 +12,10 @@ const PLACEHOLDERS: Record<string, string[]> = {
     "eventVenue",
     "bookingCode",
     "#tickets",
+    "ticketId",
     "qrCodeUrl",
     "category",
-    "seatNumber",
-    "attendeeNik",
+    "nikMasked",
     "/tickets",
     "supportEmail",
   ],
@@ -43,7 +43,8 @@ describe("template email", () => {
 
     const block = html.slice(html.indexOf("{{#tickets}}"), html.indexOf("{{/tickets}}"));
     expect(block).toContain('src="{{qrCodeUrl}}"');
-    expect(block).toContain("{{attendeeNik}}");
+    expect(block).toContain("{{nikMasked}}");
+    expect(html).not.toContain("seatNumber");
     expect(html.indexOf("{{#tickets}}")).toBeLessThan(html.indexOf("{{/tickets}}"));
   });
 

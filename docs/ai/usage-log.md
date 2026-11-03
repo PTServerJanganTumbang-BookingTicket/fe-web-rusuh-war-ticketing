@@ -279,3 +279,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: ADR-0018, `.kiro/steering/git-workflow.md`, `.github/workflows/ci.yml`, serta `Dockerfile`, `/api/health`, dan ADR packaging dari `origin/main`.
 - **Output**: `Dockerfile`, `.dockerignore`, `/api/health`, `output: "standalone"`, dan job `image` di CI dipulihkan untuk struktur satu aplikasi (ADR-0021). `develop` dihapus dari CI, pesan lima commit lama ditulis ulang ke format `[NO-JIRA]` tanpa mengubah isi, ADR-0018 berstatus Accepted dan mencatat bagian yang belum tersedia.
 - **Review manusia**: Menunggu review PR ke `main`. Proteksi branch perlu diatur admin. Security scan, auto-deploy Dev, feature flag, trigger `release/*`, mergeback otomatis, dan font Poppins self-hosted belum dikerjakan.
+
+## 2026-11-01 — Penyelarasan dokumen dengan kontrak API
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menyelaraskan dokumen FE dengan kontrak API dan requirement terbaru di repo `documentations`, dan menyiapkan rancangan login magic link.
+- **Input**: `api/api-contracts.md`, `api/rusuh-booking-openapi.yaml`, dan `requirement/update-requirement-rusuh-booking-tiket.md` di repo `documentations`; kode FE; MoM 2026-10-28.
+- **Output**: ADR-0023 (Proposed) mengikuti endpoint magic link dari kontrak, dengan usulan perubahan kontrak. Bagian API di `design.md` diganti tautan dan peta ke kontrak. `auth-login-register.md`, `overview.md`, `product.md`, steering, dan skill diselaraskan: login opsional, BR-01, BR-02, factory use case, dan folder `__tests__`. Catatan bertanggal di ADR-0009, ADR-0010, ADR-0011, ADR-0016, dan MoM. Template e-tiket memakai `ticketId` dan `nikMasked`, tanpa nomor kursi. Kode FE belum diintegrasikan ke kontrak.
+- **Review manusia**: Menunggu review. Usulan perubahan kontrak di ADR-0023 dan kode error pada response perlu dibahas dengan BE. `.kiro/specs/.../requirements.md` belum diselaraskan dengan update requirement, dan contoh kode lama di `design.md` hanya ditandai lewat catatan di awal dokumen.

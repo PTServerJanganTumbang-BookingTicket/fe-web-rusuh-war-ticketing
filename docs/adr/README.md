@@ -20,9 +20,13 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0014](0014-modular-clean-architecture-solid.md) | Clean Architecture per modul: domain, application, data, controllers, views | Proposed |
 | [0015](0015-dependency-injection-awilix.md) | Dependency injection dengan Awilix di composition root | Proposed |
 | [0016](0016-realtime-updates-sse.md) | Pembaruan antrian dan status pembayaran lewat SSE, polling sebagai cadangan | Proposed |
+| [0017](0017-design-system-selection.md) | Pemilihan Shadcn + Radix UI dengan Signal Theme sebagai Design System | Accepted |
 | [0018](0018-trunk-based-development.md) | Trunk-Based Development dengan Release Train | Accepted |
+| [0019](0019-agent-precommit-validation.md) | Agent Pre-Commit Validation Hook | Accepted |
+| [0020](0020-test-file-organization.md) | Unit Test File Organization dalam Folder `__tests__` | Accepted |
 | [0021](0021-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
 | [0022](0022-payment-instruction-renderer.md) | Payment UI — Composable Instruction Renderer | Accepted |
+| [0023](0023-passwordless-login-email.md) | Login magic link mengikuti kontrak API, dengan token disimpan lewat route same-origin | Proposed |
 
 ## Status
 

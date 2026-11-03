@@ -23,11 +23,11 @@ Contoh di bawah memakai modul `ticket` dengan sumber daya `Ticket`.
    - `ticket.rules.ts`: aturan murni, dengan `ticket.rules.test.ts` di sebelahnya.
    - `ticket.constants.ts`: angka bisnis, masing-masing dengan rujukan requirement atau ADR.
    - `ticket.protocol.ts`: `interface TicketProtocol { get(id: string): Promise<Ticket> }`.
-3. **Application**: use case `get-ticket.use-case.ts` (kelas `GetTicketUseCase`, `constructor({ ticketService }: { ticketService: TicketProtocol })`, `execute`), dan `ticket.dependencies.ts`:
+3. **Application**: use case `get-ticket.use-case.ts` (`createGetTicketUseCase({ ticketService }: { ticketService: TicketProtocol }): GetTicketUseCase`), dan `ticket.dependencies.ts`:
    ```ts
    export type TicketDependencies = { getTicketUseCase: GetTicketUseCase };
    ```
-4. **Data**: `ticket.schema.ts` (`ticketSchema = z.object({...}) satisfies z.ZodType<Ticket>`) dan `http-ticket.service.ts` (`class HttpTicketService implements TicketProtocol`, memanggil `HttpClient` dengan `ticketSchema`).
+4. **Data**: `ticket.schema.ts` (`ticketSchema = z.object({...}) satisfies z.ZodType<Ticket>`) dan `http-ticket.service.ts` (`createHttpTicketService({ httpClient }: { httpClient: HttpClient }): TicketProtocol`, memanggil `HttpClient` dengan `ticketSchema`).
 5. **Registrasi** `src/modules/ticket/ticket.module.ts`:
    ```ts
    export type TicketRegistry = TicketDependencies & { ticketService: TicketProtocol };
