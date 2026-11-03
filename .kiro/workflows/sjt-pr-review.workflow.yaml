@@ -1,0 +1,32 @@
+name: SJT PR Review
+description: Automated code review sebelum merge
+
+inputs:
+  pr_number:
+    description: "Pull Request number"
+    required: true
+
+steps:
+  - id: fetch
+    name: "Fetch PR Changes"
+    prompt: "Get diff dari PR #{{pr_number}} menggunakan gh pr diff"
+
+  - id: architecture
+    name: "Architecture Review"
+    dependsOn: [fetch]
+    prompt: "Verify changes comply with Clean Architecture layers (no cross-layer imports)"
+
+  - id: patterns
+    name: "Pattern Review"
+    dependsOn: [fetch]
+    prompt: "Check for forbidden patterns sesuai .kiro/steering/forbidden-patterns.md"
+
+  - id: tests
+    name: "Test Coverage Review"
+    dependsOn: [fetch]
+    prompt: "Verify test coverage untuk changed files"
+
+  - id: summary
+    name: "Generate Review Summary"
+    dependsOn: [architecture, patterns, tests]
+    prompt: "Generate review summary dengan approval/request-changes recommendation"
