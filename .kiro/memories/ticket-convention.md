@@ -6,8 +6,8 @@
 [SJT-XXX][Actor] type(scope): description
 
 ## Current Ticket Counter
-Last used: SJT-022
-Next available: SJT-023
+Last used: SJT-023
+Next available: SJT-024
 
 ## Ticket History
 
@@ -23,6 +23,7 @@ Next available: SJT-023
 | SJT-020 | Akbar | docs | kiro | add API contract alignment specs and memory |
 | SJT-021 | Akbar | feat | ticket | add ticket module with my-tickets and e-ticket views |
 | SJT-022 | Akbar | chore | kiro | add memories and workflows configuration |
+| SJT-023 | Akbar | chore | kiro | add backlog update workflow and github project memory |
 
 ## Actors
 

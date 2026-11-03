@@ -27,7 +27,16 @@ steps:
     dependsOn: [implement]
     prompt: "Run npm run lint && npm run typecheck && npm run test --run untuk Task {{task_number}}."
 
+  - id: update_tasks
+    name: "Update Tasks.md"
+    dependsOn: [verify]
+    prompt: |
+      Update tasks.md untuk mark Task {{task_number}} sebagai completed:
+      1. Ubah `- [ ] {{task_number}}.` menjadi `- [x] {{task_number}}.`
+      2. Ubah semua subtask `- [ ] {{task_number}}.X` menjadi `- [x] {{task_number}}.X`
+      3. Stage perubahan tasks.md
+
   - id: commit
     name: "Commit Phase"
-    dependsOn: [verify]
-    prompt: "Commit dengan format [{{ticket_id}}][{{actor}}] type(scope): subject"
+    dependsOn: [update_tasks]
+    prompt: "Commit dengan format [{{ticket_id}}][{{actor}}] type(scope): subject. Include tasks.md update dalam commit."

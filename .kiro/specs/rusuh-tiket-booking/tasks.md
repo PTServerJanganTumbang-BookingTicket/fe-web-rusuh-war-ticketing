@@ -228,15 +228,15 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [ ] 17.7 Update di/container.ts `@owner:muzaki`
   - [ ] 17.8 Tulis integration tests auth `@owner:muzaki`
 
-- [ ] 18. Buat ticket module [NEW] `@owner:akbar`
-  - [ ] 18.1 Buat ticket.model.ts dan ticket.protocol.ts `@owner:akbar`
+- [x] 18. Buat ticket module [NEW] `@owner:akbar`
+  - [x] 18.1 Buat ticket.model.ts dan ticket.protocol.ts `@owner:akbar`
     - _Requirements: 7.1, 7.5_
-  - [ ] 18.2 Buat get-ticket.use-case.ts dan get-my-tickets.use-case.ts `@owner:akbar`
-  - [ ] 18.3 Buat http-ticket.service.ts `@owner:akbar`
-  - [ ] 18.4 Buat ticket.controller.ts `@owner:akbar`
-  - [ ] 18.5 Buat TicketView.tsx `@owner:akbar`
-  - [ ] 18.6 Update TicketContainer.tsx `@owner:akbar`
-  - [ ] 18.7 Buat ticket.module.ts `@owner:akbar`
+  - [x] 18.2 Buat get-ticket.use-case.ts dan get-my-tickets.use-case.ts `@owner:akbar`
+  - [x] 18.3 Buat http-ticket.service.ts `@owner:akbar`
+  - [x] 18.4 Buat ticket.controller.ts `@owner:akbar`
+  - [x] 18.5 Buat TicketView.tsx `@owner:akbar`
+  - [x] 18.6 Update TicketContainer.tsx `@owner:akbar`
+  - [x] 18.7 Buat ticket.module.ts `@owner:akbar`
 
 - [ ] 19. Update app route pages [ALIGN + NEW]
   - [ ] 19.1 Update queue page.tsx `@owner:muzaki`
