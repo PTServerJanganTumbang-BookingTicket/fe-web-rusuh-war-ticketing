@@ -1,0 +1,59 @@
+name: SJT Backlog Update
+description: Update GitHub Project backlog after PR merge
+
+inputs:
+  pr_number:
+    description: "PR number yang sudah di-merge (e.g., 39)"
+    required: true
+  new_status:
+    description: "Status baru untuk item di backlog"
+    required: true
+    default: "Done"
+
+steps:
+  - id: verify_merge
+    name: "Verify PR Merged"
+    prompt: |
+      Jalankan: gh pr view {{pr_number}} --json state,mergedAt,title
+
+      Verifikasi:
+      1. PR state adalah "MERGED"
+      2. Catat title untuk cross-reference dengan backlog item
+
+  - id: find_item
+    name: "Find Backlog Item"
+    dependsOn: [verify_merge]
+    prompt: |
+      Cari item di GitHub Project yang terkait dengan PR ini.
+
+      Jalankan: gh project item-list 2 --owner PTServerJanganTumbang-BookingTicket --format json
+
+      Cari item berdasarkan:
+      1. Linked PR number ({{pr_number}})
+      2. Title yang match dengan ticket ID dari PR title
+      3. Catat item ID untuk update
+
+  - id: update_status
+    name: "Update Item Status"
+    dependsOn: [find_item]
+    prompt: |
+      Update status item ke "{{new_status}}" menggunakan gh project item-edit.
+
+      Status field ID: PVTSSF_lADOFGitZc4Bp3OczhoQ3J4
+      Status options:
+        - Backlog: f75ad846
+        - Ready: 61e4505c
+        - In progress: 47fc9ee4
+        - In review: df73e18b
+        - Done: 98236657
+
+      Command format:
+      gh project item-edit --project-id PVT_kwDOFGitZc4Bp3Oc --id <ITEM_ID> --field-id PVTSSF_lADOFGitZc4Bp3OczhoQ3J4 --single-select-option-id <STATUS_OPTION_ID>
+
+  - id: update_memory
+    name: "Update Ticket Convention"
+    dependsOn: [update_status]
+    prompt: |
+      Update .kiro/memories/ticket-convention.md untuk mencatat bahwa ticket sudah Done.
+
+      Jika ada ticket baru yang perlu ditambahkan ke history, tambahkan juga.
