@@ -1,0 +1,35 @@
+name: SJT Module Alignment
+description: Alignment module existing ke API contract v2.1
+
+inputs:
+  module_name:
+    description: "Module name (queue/booking/payment)"
+    required: true
+  owner:
+    description: "Owner (akbar/muzaki)"
+    required: true
+
+steps:
+  - id: domain
+    name: "Domain Layer Alignment"
+    prompt: "Align models, protocols, rules di src/modules/{{module_name}}/domain sesuai design.md dan api-contract-alignment.md"
+
+  - id: application
+    name: "Application Layer Alignment"
+    dependsOn: [domain]
+    prompt: "Update use cases di src/modules/{{module_name}}/application sesuai protocol changes"
+
+  - id: data
+    name: "Data Layer Alignment"
+    dependsOn: [application]
+    prompt: "Update services dan schemas di src/modules/{{module_name}}/data sesuai API endpoints baru"
+
+  - id: controller
+    name: "Controller Layer Alignment"
+    dependsOn: [data]
+    prompt: "Update controller, mapper, queries di src/modules/{{module_name}}/controllers"
+
+  - id: checkpoint
+    name: "Module Checkpoint"
+    dependsOn: [controller]
+    prompt: "Run full test suite untuk {{module_name}} module dan verify all acceptance criteria"
