@@ -51,6 +51,10 @@ export const id = {
   "queue.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "queue.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
   "queue.error.QUEUE_TOKEN_INVALID": "Sesi antrianmu tidak valid. Masuk antrian lagi dari awal.",
+  "queue.error.QUEUE_FULL": "Antrian sedang penuh. Coba lagi beberapa saat lagi.",
+  "queue.ended.expired": "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
+  "queue.ended.confirmed": "Pembayaranmu sudah selesai. Lihat tiketmu di halaman Tiket saya.",
+  "queue.ended.closed": "Penjualan tiket untuk acara ini sudah ditutup.",
   // Login
   "login.title": "Masuk",
   // Booking
@@ -74,6 +78,7 @@ export const id = {
   "booking.expired.cta": "Antre lagi",
   "booking.expired.redirecting": "Waktu booking habis. Mengembalikanmu ke ruang tunggu…",
   "booking.error.title": "Sesi booking bermasalah",
+  "booking.nik.perTicket": "Diisi per tiket",
   "booking.error.ACCESS_EXPIRED": "Waktu booking habis. Kamu perlu kembali ke ruang tunggu.",
   "booking.error.QUEUE_TOKEN_INVALID": "Sesi antrianmu tidak valid. Masuk antrian lagi dari awal.",
   "booking.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",

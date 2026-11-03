@@ -257,8 +257,9 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [ ] 20.3 Tambahkan payment message keys `@owner:akbar`
   - [ ] 20.4 Tulis i18n property tests `@owner:muzaki`
 
-- [ ] 21. MSW mock handlers [ALIGN] `@owner:shared`
-  - [ ] 21.1 Update handlers.ts — all v2.1 endpoints `@owner:shared`
+- [x] 21. MSW mock handlers [ALIGN] `@owner:shared`
+  - [x] 21.1 Update handlers.ts — all v2.1 endpoints `@owner:shared`
+    - _Handler per tag di `src/mocks/api/`, diuji terhadap contoh `src/core/data/http/openapi.json`_
 
 - [ ] 22. Checkpoint — full application `@owner:shared`
 
@@ -308,12 +309,15 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memastikan compatibility dengan API contract.
 
-- [ ] 26. Core HTTP client — API contract alignment [ALIGN] `@owner:shared`
-  - [ ] 26.1 Update `http-client.ts` dengan auth headers support (X-Grant-Token, X-Device-Id, X-Queue-Token)
+- [x] 26. Core HTTP client — API contract alignment [ALIGN] `@owner:shared`
+  - [x] 26.1 Update `http-client.ts` dengan auth headers support (X-Grant-Token, X-Device-Id, X-Queue-Token)
     - _Requirements: API contract Authentication section_
-  - [ ] 26.2 Buat `api-response.schema.ts` untuk wrap/unwrap `{meta, data}` pattern
-  - [ ] 26.3 Tambah snake_case → camelCase transformer di response parsing
-  - [ ] 26.4 Update error handling untuk parse `meta.code` dan `meta.message`
+  - [x] 26.2 Buat `api-response.schema.ts` untuk wrap/unwrap `{meta, data}` pattern
+    - _Envelope dibuka di `fetch-http.client.ts`; tidak ada file schema terpisah_
+  - [x] 26.3 Tambah snake_case → camelCase transformer di response parsing
+    - _Per schema zod modul (`.transform()`), bukan transformer generik_
+  - [x] 26.4 Update error handling untuk parse `meta.code` dan `meta.message`
+    - _Service memetakan status HTTP per endpoint lewat `RequestOptions.errorCodes`_
 
 - [ ] 27. Queue module types alignment [ALIGN] `@owner:muzaki`
   - [ ] 27.1 Update `QueueJoinResult` — tambah `event: { id, name }`

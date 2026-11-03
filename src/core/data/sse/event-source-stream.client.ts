@@ -1,7 +1,6 @@
-import type { z } from "zod";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { Observer, Unsubscribe } from "@/core/domain/live-updates.protocol";
-import type { EventStreamClient } from "./event-stream.client";
+import type { EventStreamClient, StreamSchemas } from "./event-stream.client";
 
 /** Bagian EventSource yang dipakai. Memudahkan fake di test (Node tidak punya EventSource bawaan). */
 export type EventSourceLike = {
@@ -32,16 +31,18 @@ export function createEventSourceStreamClient({
   eventSourceFactory: EventSourceFactory;
 }): EventStreamClient {
   return {
-    open<T>(path: string, event: string, schema: z.ZodType<T>, observer: Observer<T>): Unsubscribe {
+    open<T>(path: string, schemas: StreamSchemas<T>, observer: Observer<T>): Unsubscribe {
       const source = eventSourceFactory(`${appConfig.apiBaseUrl}${path}`, { withCredentials: true });
       source.addEventListener("open", () => observer.connected());
       // Browser mencoba menyambung ulang sendiri; selama itu controller kembali ke polling.
       source.addEventListener("error", () => observer.disconnected());
-      source.addEventListener(event, (message) => {
-        const parsed = schema.safeParse(parseJson(message.data));
-        // Payload rusak diabaikan; snapshot berikutnya (stream atau polling) yang menjadi sumber kebenaran.
-        if (parsed.success) observer.next(parsed.data);
-      });
+      for (const [event, schema] of Object.entries(schemas)) {
+        source.addEventListener(event, (message) => {
+          const parsed = schema.safeParse(parseJson(message.data));
+          // Payload rusak diabaikan; snapshot berikutnya (stream atau polling) yang menjadi sumber kebenaran.
+          if (parsed.success) observer.next(parsed.data);
+        });
+      }
       return () => source.close();
     },
   };

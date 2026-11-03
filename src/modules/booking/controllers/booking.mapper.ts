@@ -41,7 +41,7 @@ export function toBookingViewProps({
     },
     nik: {
       label: t("booking.nik.label"),
-      maskedValue: session.maskedNik,
+      maskedValue: session.maskedNik ?? t("booking.nik.perTicket"),
       hint: t("booking.nik.hint", { remaining: quotaLeft, max: session.quota.max }),
     },
     categoriesLabel: t("booking.categories.label"),

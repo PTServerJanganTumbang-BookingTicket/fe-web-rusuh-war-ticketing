@@ -5,12 +5,11 @@ import { eventListSchema, eventDetailSchema } from "./event.schema";
 
 export function createHttpEventService({ httpClient }: { httpClient: HttpClient }): EventProtocol {
   return {
-    async getEvents(): Promise<Event[]> {
-      const { events } = await httpClient.get("/events", eventListSchema);
-      return events;
+    getEvents(): Promise<Event[]> {
+      return httpClient.get("/events", eventListSchema);
     },
-    async getEvent(eventId: string): Promise<Event> {
-      return httpClient.get(`/events/${eventId}`, eventDetailSchema);
+    getEvent(eventId: string): Promise<Event> {
+      return httpClient.get(`/events/${encodeURIComponent(eventId)}`, eventDetailSchema);
     },
   };
 }

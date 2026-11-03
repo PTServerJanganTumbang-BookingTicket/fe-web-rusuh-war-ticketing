@@ -19,6 +19,7 @@ import type { QueueViewProps } from "../views/QueueView";
 function errorKey(error: AppError): MessageKey {
   if (error.kind === "network") return "queue.error.network";
   if (error.kind === "api" && error.code === "QUEUE_TOKEN_INVALID") return "queue.error.QUEUE_TOKEN_INVALID";
+  if (error.kind === "api" && error.code === "QUEUE_FULL") return "queue.error.QUEUE_FULL";
   return "queue.error.unknown";
 }
 
@@ -30,7 +31,7 @@ export function useQueueController(eventId: string): QueueViewProps {
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
     watch: (observer) => watchQueueStateUseCase(eventId, observer),
-    until: (state) => state.status === "admitted",
+    until: (state) => state.status !== "waiting",
   });
   const queue = useQuery(queuePositionQuery({ getQueueStateUseCase, random }, eventId, live));
   const enter = useMutation({
@@ -63,6 +64,10 @@ export function useQueueController(eventId: string): QueueViewProps {
   }
 
   if (data?.status === "waiting") return toWaitingViewProps(data);
+
+  if (data?.status === "ended") {
+    return { title, eventName: data.eventName, state: "error", message: t(`queue.ended.${data.reason}`) };
+  }
 
   if (queue.isError) {
     return { title, state: "error", message: t(errorKey(toAppError(queue.error))) };

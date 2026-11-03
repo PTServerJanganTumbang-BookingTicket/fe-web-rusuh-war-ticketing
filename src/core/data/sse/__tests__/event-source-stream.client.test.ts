@@ -14,7 +14,11 @@ function setup() {
   const fakes = setupFakeEventSources();
   const client = createEventSourceStreamClient({ appConfig, eventSourceFactory: fakes.factory });
   const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
-  const unsubscribe = client.open("/things/1/stream", "thing", z.object({ n: z.number() }), observer);
+  const unsubscribe = client.open(
+    "/things/1/stream",
+    { thing: z.object({ n: z.number() }), ping: z.undefined().transform(() => ({ n: 0 })) },
+    observer,
+  );
   const source = fakes.sources[0]!;
   return { observer, unsubscribe, source };
 }
@@ -42,6 +46,12 @@ describe("createEventSourceStreamClient", () => {
     source.emit("lain", { n: 2 });
     expect(observer.next).toHaveBeenCalledTimes(1);
     expect(observer.next).toHaveBeenCalledWith({ n: 1 });
+  });
+
+  it("mendengarkan setiap event yang punya schema, termasuk event tanpa data", () => {
+    const { observer, source } = setup();
+    source.emit("ping");
+    expect(observer.next).toHaveBeenCalledWith({ n: 0 });
   });
 
   it("unsubscribe menutup EventSource", () => {

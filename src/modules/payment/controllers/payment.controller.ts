@@ -18,6 +18,7 @@ import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
 import type { Order, PaymentMethod } from "../domain/order.model";
 import { isFinalOrder } from "../domain/order.rules";
+import { DEFAULT_VA_BANK } from "../domain/payment.constants";
 import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentResultProps, toPaymentViewProps } from "./payment.mapper";
 import type { PaymentResultViewProps } from "../views/PaymentResultView";
@@ -49,7 +50,12 @@ export function usePaymentController(orderId: string): PaymentScreen {
   const setOrder = (next: Order) => queryClient.setQueryData(orderKeys.detail(orderId), next);
 
   const pay = useMutation({
-    mutationFn: (selected: PaymentMethod) => startPaymentUseCase({ bookingId: orderId, method: selected }),
+    mutationFn: (selected: PaymentMethod) =>
+      startPaymentUseCase({
+        bookingId: orderId,
+        method: selected,
+        bank: selected === "bank_transfer" ? DEFAULT_VA_BANK : undefined,
+      }),
     onSuccess: setOrder,
   });
 
