@@ -1911,3 +1911,230 @@ sequenceDiagram
 - [ADR-0012: Signal DS](../../../docs/adr/0012-signal-ds-tokens-and-primitives.md)
 - [Architecture Overview](../../../docs/architecture/overview.md)
 - [ADR-0022: Payment UI — Composable Instruction Renderer](../../../docs/adr/0022-payment-instruction-renderer.md)
+
+---
+
+## Appendix A: API Contract Alignment (v2.4)
+
+> **Reference**: `docs/api/api-contract.md` — canonical API contract dari Apidog export.
+
+Bagian ini mendokumentasikan perubahan type definitions untuk alignment dengan API contract terbaru.
+
+### A.1 Authentication Headers
+
+API contract menggunakan multiple authentication schemes yang perlu diakomodasi di HttpClient:
+
+```typescript
+// core/data/http/http-client-config.ts
+export type AuthHeaders = {
+  // Cookie-based (auto-handled by browser)
+  queueToken?: never; // HttpOnly cookie 'queue_token'
+  
+  // Header-based (manual)
+  authorization?: string;     // Bearer {access_token} — sesi akun
+  grantToken?: string;        // X-Grant-Token: gt_... — slot booking
+  deviceId?: string;          // X-Device-Id — pengikatan device untuk tamu
+  queueTokenHeader?: string;  // X-Queue-Token — mobile (no cookie)
+};
+
+// Protocol parameters yang membutuhkan headers:
+export interface BookingProtocol {
+  getSession(eventId: string, grantToken: string, deviceId?: string): Promise<BookingSession>;
+  validateNik(nik: string, grantToken: string, deviceId?: string): Promise<NikValidationResult>;
+  submitBooking(data: BookingSubmitData, grantToken: string, deviceId?: string): Promise<BookingResult>;
+  getBooking(bookingId: string, grantToken: string, deviceId?: string): Promise<BookingDetail>;
+}
+
+export interface OrderProtocol {
+  getAvailableMethods(bookingId: string, grantToken: string, deviceId?: string): Promise<AvailableMethod[]>;
+  initiatePayment(bookingId: string, method: PaymentMethod, bank?: BankCode, grantToken: string, deviceId?: string): Promise<Order>;
+  retryPayment(bookingId: string, grantToken: string, deviceId?: string): Promise<RetryPaymentResult>;
+  getPaymentStatus(bookingId: string, grantToken: string, deviceId?: string): Promise<PaymentStatusResult>;
+}
+```
+
+### A.2 Updated Type Definitions
+
+#### QueueJoinResult — Tambah event info
+
+```typescript
+// queue/domain/queue.protocol.ts
+export type QueueJoinResult = {
+  ticketNo: number;
+  nowServing: number;
+  position: number;
+  estimatedWaitMinutes: number;
+  sseUrl: string;
+  rejoined?: boolean;
+  state?: CustomerStateValue;
+  // NEW: Event info dari API contract
+  event: {
+    id: string;
+    name: string;
+  };
+};
+```
+
+#### CustomerQueueState — Grant menggunakan grant_token, bukan access_token
+
+```typescript
+// queue/domain/queue.protocol.ts
+export type CustomerQueueState =
+  | { state: 'QUEUED'; ticketNo: number; nowServing: number }
+  // CHANGED: grantToken instead of accessToken (API contract v2.4)
+  | { state: 'GRANTED'; grantToken: string; bookingExpiresAt: string; serverTime: string }
+  | { state: 'SELECTING'; grantToken: string; bookingId: string; bookingExpiresAt: string; serverTime: string }
+  | { state: 'AWAITING_PAYMENT'; grantToken: string; bookingId: string; paymentExpiresAt: string; paymentRef: string; serverTime: string }
+  | { state: 'CONFIRMED'; bookingId: string }
+  | { state: 'EXPIRED' };
+```
+
+#### NikValidationResult — Tambah name dan status
+
+```typescript
+// booking/domain/booking.protocol.ts
+export type NikValidationResult =
+  | { 
+      valid: true; 
+      source: 'registered' | 'saved' | 'verified';
+      name: string;     // NEW: Nama dari Dukcapil
+      status: 'ACTIVE'; // NEW: Status NIK
+    }
+  | { valid: true; alreadyUsed: true; reason: 'NIK_ALREADY_USED' }
+  | { valid: false; reason: 'NIK_NOT_FOUND' | 'NIK_INACTIVE' | 'DUKCAPIL_UNAVAILABLE' };
+```
+
+#### BookingResult — Tambah event, tickets dengan holder_name, summary
+
+```typescript
+// booking/domain/booking.protocol.ts
+export type BookingResult = {
+  bookingId: string;
+  status: 'PENDING_PAYMENT';
+  // NEW: Event info
+  event: {
+    id: string;
+    name: string;
+    date: string;
+    venue: string;
+  };
+  // NEW: Ticket details with holder name
+  tickets: Array<{
+    category: string;
+    price: number;
+    nikMasked: string;
+    holderName: string; // NEW: Nama dari Dukcapil saat validasi
+  }>;
+  // NEW: Summary
+  summary: {
+    subtotal: number;
+    serviceFee: number;
+    total: number;
+  };
+  paymentTtl: { expiresAt: string; ttlSeconds: number; serverTime: string };
+  redirectUrl: string;
+};
+```
+
+#### RetryPaymentResult — New type untuk cancel & switch
+
+```typescript
+// payment/domain/order.protocol.ts
+export type RetryPaymentResult = {
+  bookingId: string;
+  status: 'HELD';
+  attempt: number;
+  cancelledOrderId: string;
+  paymentExpiresAt: string;
+  serverTime: string;
+};
+```
+
+#### Ticket Module Types — E-ticket dengan QR
+
+```typescript
+// ticket/domain/ticket.model.ts
+export type Ticket = {
+  ticketId: string;
+  bookingId: string;
+  event: {
+    id: string;
+    name: string;
+    date: string;
+    venue: string;
+    imageUrl: string;
+  };
+  category: string;
+  price: number;
+  status: 'VALID' | 'USED' | 'EXPIRED';
+  eticketUrl: string;
+};
+
+export type ETicket = {
+  ticketId: string;
+  event: {
+    name: string;
+    date: string;
+    time: string;
+    venue: string;
+  };
+  category: string;
+  holder: {
+    nikMasked: string;
+  };
+  qrCode: string;       // data:image/png;base64,...
+  qrValue: string;      // TKT-001|evt_konser_a|3171xxxxxxxxxx22
+  instructions: string; // Tunjukkan QR code...
+};
+
+// ticket/domain/ticket.protocol.ts
+export interface TicketProtocol {
+  getMyTickets(status?: 'upcoming' | 'past' | 'all'): Promise<Ticket[]>;
+  getETicket(ticketId: string, token?: string): Promise<ETicket>;
+}
+```
+
+### A.3 API Endpoint Mapping
+
+| Design.md Endpoint | API Contract Endpoint | Perubahan |
+|--------------------|----------------------|-----------|
+| `GET /events/{id}/booking/session` | `GET /events/{event_id}/tickets` | Path berubah |
+| `POST /events/{id}/booking/validate-nik` | `POST /nik/validate` | Path berubah, X-Grant-Token wajib |
+| `POST /events/{id}/booking/submit` | `POST /bookings` | Path berubah |
+| `GET /orders/{orderId}` | `GET /bookings/{booking_id}` | Gunakan bookingId |
+| `POST /orders/{orderId}/payment` | `POST /payments/{booking_id}` | Path berubah |
+| `DELETE /orders/{orderId}/payment` | `POST /payments/{booking_id}/retry` | Method berubah, path berubah |
+| `GET /me/nik-friends/*` | `GET /accounts/me/saved-niks` | Nama berubah: friends → saved-niks |
+| — | `GET /tickets/{ticket_id}/eticket` | Endpoint baru |
+
+### A.4 Response Schema Alignment
+
+Semua response API menggunakan wrapper `{ meta: { code, message }, data: ... }`. HttpClient adapter harus:
+
+1. Unwrap response dan return hanya `data` payload ke domain
+2. Handle error dari `meta.code` yang bukan 2xx
+3. Map snake_case ke camelCase (e.g., `holder_name` → `holderName`)
+
+```typescript
+// core/data/http/api-response.schema.ts
+export const apiResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+  z.object({
+    meta: z.object({
+      code: z.number(),
+      message: z.string(),
+    }),
+    data: dataSchema,
+  });
+
+// Transform di http-client.ts
+const response = await fetch(url);
+const json = await response.json();
+const parsed = apiResponseSchema(dataSchema).parse(json);
+if (parsed.meta.code >= 400) {
+  throw new AppFailure({ kind: 'api', code: parsed.meta.message, status: parsed.meta.code });
+}
+return parsed.data;
+```
+
+---
+
