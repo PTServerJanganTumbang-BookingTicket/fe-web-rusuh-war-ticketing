@@ -1,7 +1,5 @@
 /**
- * Payment order Zod schemas - API Contracts v2.1
- *
- * Parse and validate API responses for payment module
+ * Payment Zod schemas. Bentuk mengikuti kontrak (`data` dalam snake_case), lalu dipetakan ke model domain.
  */
 
 import { z } from "zod";
@@ -9,7 +7,6 @@ import type {
   AvailableMethod,
   BankCode,
   Order,
-  OrderItem,
   OrderStatus,
   PaymentInstruction,
   PaymentMethod,
@@ -17,123 +14,166 @@ import type {
   PaymentTtl,
 } from "../domain/order.model";
 
-// =============================================================================
-// Base Type Schemas
-// =============================================================================
-
 const bankCodeSchema = z.enum(["bca", "bni", "bri", "cimb"]) satisfies z.ZodType<BankCode>;
 
 const paymentMethodSchema = z.enum(["bank_transfer", "gopay"]) satisfies z.ZodType<PaymentMethod>;
 
-const orderStatusSchema = z.enum([
-  "PENDING_PAYMENT",
-  "AWAITING_PAYMENT",
-  "PENDING_CANCELLATION",
-  "PAID",
-  "FAILED",
-  "EXPIRED",
-]) satisfies z.ZodType<OrderStatus>;
+/** `instructions` kontrak tidak punya diskriminator; bentuknya ditentukan `method`. */
+const instructionsSchema = z.union([
+  z.object({ bank: bankCodeSchema, va_number: z.string() }),
+  z.object({ qr_url: z.string(), deeplink_url: z.string() }),
+]);
+
+function toInstruction(instructions: z.infer<typeof instructionsSchema>): PaymentInstruction {
+  if ("va_number" in instructions)
+    return { type: "bank_transfer", bank: instructions.bank, vaNumber: instructions.va_number };
+  return { type: "gopay", qrUrl: instructions.qr_url, deeplinkUrl: instructions.deeplink_url };
+}
 
 // =============================================================================
-// Payment Instruction Schema (discriminated union)
+// Booking (GET /bookings/{booking_id})
 // =============================================================================
 
-const instructionSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("bank_transfer"),
-    bank: bankCodeSchema,
-    vaNumber: z.string(),
-  }),
-  z.object({
-    type: z.literal("gopay"),
-    qrUrl: z.string(),
-    deeplinkUrl: z.string(),
-  }),
-]) satisfies z.ZodType<PaymentInstruction>;
+const ttlSchema = z
+  .object({ expires_at: z.string(), ttl_seconds: z.number(), server_time: z.string() })
+  .transform((ttl): PaymentTtl => ({
+    expiresAt: ttl.expires_at,
+    ttlSeconds: ttl.ttl_seconds,
+    serverTime: ttl.server_time,
+  }));
+
+/** Booking belum bayar membawa `payment_ttl`; booking PAID membawa `paid_at`. */
+export const bookingSchema = z
+  .object({
+    booking_id: z.string(),
+    status: z.enum(["PENDING_PAYMENT", "PAID", "EXPIRED"]),
+    event: z.object({ name: z.string() }),
+    tickets: z.array(z.object({ category: z.string(), price: z.number(), nik_masked: z.string() })),
+    summary: z.object({ total: z.number() }),
+    payment_ttl: ttlSchema.optional(),
+    paid_at: z.string().optional(),
+  })
+  .transform((booking) => {
+    const paidAt = booking.paid_at ?? "";
+    return {
+      bookingId: booking.booking_id,
+      status: booking.status,
+      eventName: booking.event.name,
+      items: booking.tickets.map((ticket) => ({
+        category: ticket.category,
+        priceIdr: ticket.price,
+        nikMasked: ticket.nik_masked,
+      })),
+      totalIdr: booking.summary.total,
+      // Booking yang sudah dibayar tidak punya TTL lagi; countdown tidak ditampilkan untuk status akhir.
+      paymentTtl: booking.payment_ttl ?? { expiresAt: paidAt, ttlSeconds: 0, serverTime: paidAt },
+    };
+  });
+
+export type BookingDto = z.infer<typeof bookingSchema>;
 
 // =============================================================================
-// Order Item Schema
+// Payment (POST /payments/{booking_id}, POST /payments/{booking_id}/retry)
 // =============================================================================
 
-const orderItemSchema = z.object({
-  category: z.string(),
-  priceIdr: z.number(),
-  nikMasked: z.string(),
-}) satisfies z.ZodType<OrderItem>;
+export const initiatedPaymentSchema = z
+  .object({ method: paymentMethodSchema, instructions: instructionsSchema })
+  .transform((payment) => ({ method: payment.method, instruction: toInstruction(payment.instructions) }));
+
+export type InitiatedPayment = z.infer<typeof initiatedPaymentSchema>;
+
+export const retriedPaymentSchema = z.object({ attempt: z.number() });
 
 // =============================================================================
-// Payment TTL Schema
+// Available Methods (GET /payments/{booking_id}/methods)
 // =============================================================================
 
-const paymentTtlSchema = z.object({
-  expiresAt: z.string(),
-  ttlSeconds: z.number(),
-  serverTime: z.string(),
-}) satisfies z.ZodType<PaymentTtl>;
+export const availableMethodsSchema = z
+  .object({
+    methods: z.array(
+      z.object({
+        id: paymentMethodSchema,
+        name: z.string(),
+        description: z.string(),
+        icon_url: z.string(),
+        enabled: z.boolean(),
+        banks: z.array(z.object({ code: bankCodeSchema, name: z.string(), icon_url: z.string() })).optional(),
+      }),
+    ),
+  })
+  .transform(({ methods }): AvailableMethod[] =>
+    methods.map((method) => ({
+      id: method.id,
+      name: method.name,
+      description: method.description,
+      iconUrl: method.icon_url,
+      enabled: method.enabled,
+      banks: method.banks?.map((bank) => ({ code: bank.code, name: bank.name, iconUrl: bank.icon_url })),
+    })),
+  );
 
 // =============================================================================
-// Order Schema (full response)
+// Payment Status (GET /payments/{booking_id}/status)
 // =============================================================================
 
-/** Bentuk response order dari GET /bookings/{id} dan POST /payments/{id} */
-export const orderSchema = z.object({
-  bookingId: z.string(),
-  eventName: z.string(),
-  items: z.array(orderItemSchema),
-  totalIdr: z.number(),
-  paymentTtl: paymentTtlSchema,
-  status: orderStatusSchema,
-  method: paymentMethodSchema.optional(),
-  instruction: instructionSchema.optional(),
-  attempt: z.number().optional(),
-}) satisfies z.ZodType<Order>;
+export const paymentStatusResultSchema = z
+  .discriminatedUnion("status", [
+    z.object({ status: z.literal("PENDING"), server_time: z.string(), ttl_seconds: z.number() }),
+    z.object({ status: z.literal("PAID"), paid_at: z.string(), redirect_url: z.string() }),
+    z.object({
+      status: z.literal("FAILED"),
+      reason: z.string(),
+      can_retry: z.boolean(),
+      attempt: z.number(),
+      payment_expires_at: z.string(),
+      server_time: z.string(),
+    }),
+    // Kontrak belum memberi contoh EXPIRED; waktu server dipakai sebagai waktu kedaluwarsa.
+    z.object({ status: z.literal("EXPIRED"), server_time: z.string() }),
+  ])
+  .transform((result): PaymentStatusResult => {
+    switch (result.status) {
+      case "PENDING":
+        return { status: "PENDING", serverTime: result.server_time, ttlSeconds: result.ttl_seconds };
+      case "PAID":
+        return { status: "PAID", paidAt: result.paid_at, redirectUrl: result.redirect_url };
+      case "FAILED":
+        return {
+          status: "FAILED",
+          reason: result.reason,
+          canRetry: result.can_retry,
+          attempt: result.attempt,
+          paymentExpiresAt: result.payment_expires_at,
+          serverTime: result.server_time,
+        };
+      case "EXPIRED":
+        return { status: "EXPIRED", expiredAt: result.server_time };
+    }
+  });
 
-// =============================================================================
-// Available Methods Schema (GET /payments/{id}/methods)
-// =============================================================================
+function orderStatusOf(
+  booking: BookingDto,
+  status: PaymentStatusResult | undefined,
+  payment: InitiatedPayment | undefined,
+): OrderStatus {
+  if (booking.status !== "PENDING_PAYMENT") return booking.status;
+  if (status && status.status !== "PENDING") return status.status;
+  return payment ? "AWAITING_PAYMENT" : "PENDING_PAYMENT";
+}
 
-const bankOptionSchema = z.object({
-  code: bankCodeSchema,
-  name: z.string(),
-  iconUrl: z.string(),
-});
-
-export const availableMethodSchema = z.object({
-  id: paymentMethodSchema,
-  name: z.string(),
-  description: z.string(),
-  iconUrl: z.string(),
-  enabled: z.boolean(),
-  banks: z.array(bankOptionSchema).optional(),
-}) satisfies z.ZodType<AvailableMethod>;
-
-export const availableMethodsSchema = z.array(availableMethodSchema);
-
-// =============================================================================
-// Payment Status Schema (GET /payments/{id}/status polling)
-// =============================================================================
-
-export const paymentStatusResultSchema = z.discriminatedUnion("status", [
-  z.object({
-    status: z.literal("PENDING"),
-    serverTime: z.string(),
-    ttlSeconds: z.number(),
-  }),
-  z.object({
-    status: z.literal("PAID"),
-    paidAt: z.string(),
-    redirectUrl: z.string(),
-  }),
-  z.object({
-    status: z.literal("FAILED"),
-    reason: z.string(),
-    canRetry: z.boolean(),
-    attempt: z.number(),
-    paymentExpiresAt: z.string(),
-    serverTime: z.string(),
-  }),
-  z.object({
-    status: z.literal("EXPIRED"),
-    expiredAt: z.string(),
-  }),
-]) satisfies z.ZodType<PaymentStatusResult>;
+/**
+ * Order domain dari booking, status pembayaran, dan pembayaran yang terakhir dimulai di tab ini.
+ * Kontrak tidak mengembalikan instruksi lewat GET, jadi instruksi hanya ada setelah `POST /payments`.
+ */
+export function toOrder(
+  booking: BookingDto,
+  status?: PaymentStatusResult,
+  payment?: InitiatedPayment,
+): Order {
+  const order: Order = { ...booking, status: orderStatusOf(booking, status, payment) };
+  if (status?.status === "PENDING")
+    order.paymentTtl = { ...order.paymentTtl, serverTime: status.serverTime, ttlSeconds: status.ttlSeconds };
+  if (status?.status === "FAILED") return { ...order, method: payment?.method, attempt: status.attempt };
+  if (order.status !== "AWAITING_PAYMENT" || !payment) return order;
+  return { ...order, method: payment.method, instruction: payment.instruction };
+}

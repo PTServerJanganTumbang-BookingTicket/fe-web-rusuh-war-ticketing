@@ -1,36 +1,46 @@
 import { z } from "zod";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import { AppFailure, parseApiErrorCode } from "@/core/domain/app-error";
-import type { HttpClient } from "./http.client";
+import type { HttpClient, RequestOptions } from "./http.client";
 
-const errorBody = z.object({ code: z.string() });
+/** Pembungkus semua response kontrak. `data` tidak ada pada sebagian response sukses (mis. POST /auth/magic-link). */
+const envelopeSchema = z.object({
+  meta: z.object({ code: z.number(), message: z.string() }),
+  data: z.unknown().optional(),
+});
 
 export type FetchFn = typeof fetch;
 
 async function request<T>(
   fetchFn: FetchFn,
-  baseUrl: string,
-  path: string,
+  url: string,
   schema: z.ZodType<T>,
-  init?: RequestInit,
+  init: RequestInit,
+  options: RequestOptions = {},
 ): Promise<T> {
   let response: Response;
   try {
-    response = await fetchFn(`${baseUrl}${path}`, init);
+    // `include`: cookie `queue_token` milik host API harus ikut (kontrak, QueueTokenCookie).
+    response = await fetchFn(url, {
+      ...init,
+      credentials: "include",
+      headers: { ...init.headers, ...options.headers },
+    });
   } catch {
     throw new AppFailure({ kind: "network" });
   }
 
-  const body: unknown = await response.json().catch(() => undefined);
+  const envelope = envelopeSchema.safeParse(await response.json().catch(() => undefined));
 
   if (!response.ok) {
-    const code = parseApiErrorCode(errorBody.safeParse(body).data?.code);
+    const code = options.errorCodes?.[response.status] ?? parseApiErrorCode(envelope.data?.meta.message);
     throw new AppFailure(
       code ? { kind: "api", code, status: response.status } : { kind: "unknown", status: response.status },
     );
   }
 
-  const parsed = schema.safeParse(body);
+  if (!envelope.success) throw new AppFailure({ kind: "invalid_response" });
+  const parsed = schema.safeParse(envelope.data.data);
   if (!parsed.success) throw new AppFailure({ kind: "invalid_response" });
   return parsed.data;
 }
@@ -44,12 +54,15 @@ export function createFetchHttpClient({
   fetchFn: FetchFn;
 }): HttpClient {
   return {
-    get: (path, schema) => request(fetchFn, appConfig.apiBaseUrl, path, schema),
-    post: (path, body, schema) =>
-      request(fetchFn, appConfig.apiBaseUrl, path, schema, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      }),
+    get: (path, schema, options) =>
+      request(fetchFn, `${appConfig.apiBaseUrl}${path}`, schema, { method: "GET" }, options),
+    post: (path, body, schema, options) =>
+      request(
+        fetchFn,
+        `${appConfig.apiBaseUrl}${path}`,
+        schema,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+        options,
+      ),
   };
 }

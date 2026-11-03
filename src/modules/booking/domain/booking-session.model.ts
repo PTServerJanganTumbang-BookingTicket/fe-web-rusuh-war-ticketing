@@ -14,8 +14,8 @@ export type BookingSession = {
   expiresAt: string;
   /** Jam server saat response dibuat, untuk menghitung offset. */
   serverNow: string;
-  /** NIK akun dalam bentuk tersamar (ADR-0011). */
-  maskedNik: string;
+  /** NIK akun dalam bentuk tersamar (ADR-0011). `null` bila server tidak mengirimnya (kontrak v2.1, login opsional). */
+  maskedNik: string | null;
   quota: BookingQuota;
   categories: TicketCategory[];
 };

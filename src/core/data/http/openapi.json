@@ -1,0 +1,4105 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Rusuh Tiket Booking App",
+    "description": "Rusuh Booking Tiket API",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Accounts"
+    },
+    {
+      "name": "Events"
+    },
+    {
+      "name": "Queue"
+    },
+    {
+      "name": "Booking"
+    },
+    {
+      "name": "NIK"
+    },
+    {
+      "name": "Payment"
+    },
+    {
+      "name": "User"
+    },
+    {
+      "name": "Admin"
+    }
+  ],
+  "paths": {
+    "/auth/magic-link": {
+      "post": {
+        "summary": "Request Magic Link (Login)",
+        "deprecated": false,
+        "description": "Mengirim login link ke email.",
+        "operationId": "requestMagicLink",
+        "tags": ["Authentication"],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              },
+              "example": {
+                "email": "you@example.com"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Login link sent to email",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Login link sent to your email"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Login link sent to your email"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 429
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Please wait before requesting another link"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "retry_after": {
+                          "type": "integer",
+                          "example": 60
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 429,
+                    "message": "Please wait before requesting another link"
+                  },
+                  "data": {
+                    "retry_after": 60
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/magic-link/resend": {
+      "post": {
+        "summary": "Resend Magic Link",
+        "deprecated": false,
+        "description": "Kirim ulang login link.",
+        "operationId": "resendMagicLink",
+        "tags": ["Authentication"],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              },
+              "example": {
+                "email": "you@example.com"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "New login link sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "New login link sent"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "New login link sent"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/verify": {
+      "get": {
+        "summary": "Verify Magic Link Token",
+        "deprecated": false,
+        "description": "Verifikasi token dari link email.",
+        "operationId": "verifyMagicLink",
+        "tags": ["Authentication"],
+        "parameters": [
+          {
+            "name": "magic_token",
+            "in": "cookie",
+            "description": "Token dari email link",
+            "required": true,
+            "example": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Login successful"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "access_token": {
+                          "type": "string",
+                          "example": "eyJhbG..."
+                        },
+                        "refresh_token": {
+                          "type": "string",
+                          "example": "eyJhbG..."
+                        },
+                        "expires_in": {
+                          "type": "integer",
+                          "example": 22740
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "usr_123"
+                            },
+                            "email": {
+                              "type": "string",
+                              "example": "you@example.com"
+                            },
+                            "nik": {
+                              "type": "string",
+                              "example": "3171xxxxxxxxxx22"
+                            }
+                          }
+                        },
+                        "redirect_context": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "example": "booking"
+                            },
+                            "event_id": {
+                              "type": "string",
+                              "example": "evt_konser_a"
+                            },
+                            "booking_id": {
+                              "type": "string",
+                              "example": "RB-00912"
+                            },
+                            "message": {
+                              "type": "string",
+                              "example": "Booking context restored"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Login successful"
+                  },
+                  "data": {
+                    "access_token": "eyJhbG...",
+                    "refresh_token": "eyJhbG...",
+                    "expires_in": 22740,
+                    "user": {
+                      "id": "usr_123",
+                      "email": "you@example.com",
+                      "nik": "3171xxxxxxxxxx22"
+                    },
+                    "redirect_context": {
+                      "type": "booking",
+                      "event_id": "evt_konser_a",
+                      "booking_id": "RB-00912",
+                      "message": "Booking context restored"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "required": false,
+                "description": "access_token cookie",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired magic token",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Refresh Session",
+        "deprecated": false,
+        "description": "Menukar refresh token dengan pasangan token baru.\n\nAccess token berlaku 22740 detik (= GRANT_TOKEN_TTL_SECONDS, diturunkan dari perjalanan customer per ADR-005 §7), lebih lama daripada perjalanan maksimum 930 detik — sehingga endpoint ini TIDAK dipanggil di tengah journey. Ia ada untuk sesi berumur hari (refresh token 30 hari), bukan untuk menambal token yang terlalu pendek. Refresh yang gagal di halaman pembayaran akan memutus customer, dan NFR-02 melarangnya.\n\nROTASI: setiap panggilan mengembalikan refresh token baru dan menghanguskan yang dikirim. Klien wajib mengganti salinan simpanannya; bila tidak, panggilan berikutnya terbaca sebagai pemutaran ulang.\n\nPEMUTARAN ULANG mencabut seluruh keluarga token: token sekali-pakai yang muncul dua kali berarti kredensial bocor, dan yang memegang mata rantai terbaru bisa jadi penyerang (OAuth 2.0 BCP §4.13).\n\nToken dikirim di body, bukan header Authorization — pada endpoint ini ia adalah objek permintaan, dan menjauhkannya dari header itu mencegahnya tercatat oleh proxy yang me-log header.\n\nRequirement: FR-31, BR-09, NFR-02, NFR-07",
+        "operationId": "refreshSession",
+        "tags": ["Authentication"],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refresh_token"],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string",
+                    "description": "Refresh token opaque dari GET /auth/verify atau dari panggilan refresh sebelumnya"
+                  }
+                }
+              },
+              "example": {
+                "refresh_token": "8Kq2mN9vL4wX1yB6cF3dH5jG0aZpR7tS"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Session refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Session refreshed"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "access_token": {
+                          "type": "string",
+                          "description": "JWT HS256, berlaku expires_in detik",
+                          "example": "eyJhbG..."
+                        },
+                        "refresh_token": {
+                          "type": "string",
+                          "description": "Pengganti yang baru — token yang dikirim sudah hangus",
+                          "example": "wB3nT8kM2pQ7vF1xJ9cL5gH4dZ6yA0sR"
+                        },
+                        "expires_in": {
+                          "type": "integer",
+                          "description": "Masa berlaku access token dalam detik",
+                          "example": 22740
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Session refreshed"
+                  },
+                  "data": {
+                    "access_token": "eyJhbG...",
+                    "refresh_token": "wB3nT8kM2pQ7vF1xJ9cL5gH4dZ6yA0sR",
+                    "expires_in": 22740
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "VALIDATION_ERROR — field refresh_token kosong atau absen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 400
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "refresh_token is required"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "TOKEN_INVALID (token sudah pernah dipakai — seluruh keluarga dicabut — atau akun sudah tidak ada) atau TOKEN_EXPIRED (kedaluwarsa, dicabut, tidak dikenal). Pesannya sama agar penyerang tidak diberi tahu bahwa ia memicu deteksi pencurian.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Session ended; please sign in again"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 401,
+                    "message": "Session ended; please sign in again"
+                  },
+                  "data": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Register Account",
+        "deprecated": false,
+        "description": "Buat akun baru dengan email dan NIK.",
+        "operationId": "registerAccount",
+        "tags": ["Authentication"],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "nik", "consent"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "nik": {
+                    "type": "string",
+                    "minLength": 16,
+                    "maxLength": 16
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "consent": {
+                    "type": "object",
+                    "required": ["accepted", "policy_version"],
+                    "properties": {
+                      "accepted": {
+                        "type": "boolean"
+                      },
+                      "policy_version": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "email": "alex@example.com",
+                "nik": "3171xxxxxxxxxx22",
+                "name": "ALEX",
+                "consent": {
+                  "accepted": true,
+                  "policy_version": "2026-10-01"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Verification link sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Verification link sent to your email"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user_id": {
+                          "type": "string",
+                          "example": "usr_456"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Verification link sent to your email"
+                  },
+                  "data": {
+                    "user_id": "usr_456"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 400
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "NIK must be exactly 16 digits"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 400,
+                    "message": "NIK must be exactly 16 digits"
+                  },
+                  "data": {}
+                }
+              }
+            },
+            "headers": {}
+          },
+          "409": {
+            "description": "NIK already registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "NIK already registered to another account"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 409,
+                    "message": "NIK already registered to another account"
+                  },
+                  "data": {}
+                }
+              }
+            },
+            "headers": {}
+          },
+          "422": {
+            "description": "Consent required",
+            "headers": {}
+          },
+          "429": {
+            "description": "Rate limited",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/accounts/me/saved-niks": {
+      "get": {
+        "summary": "List Saved NIKs",
+        "deprecated": false,
+        "description": "NIK tersimpan.",
+        "operationId": "listSavedNiks",
+        "tags": ["Accounts"],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of saved NIKs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "max_entries": {
+                          "type": "integer",
+                          "example": 5
+                        },
+                        "saved_niks": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "snk_1"
+                              },
+                              "nik_masked": {
+                                "type": "string",
+                                "example": "3171********22"
+                              },
+                              "label": {
+                                "type": "string",
+                                "example": "Budi"
+                              },
+                              "verified_at": {
+                                "type": "string",
+                                "example": "2026-10-20T08:11:00Z"
+                              },
+                              "status": {
+                                "type": "string",
+                                "example": "VERIFIED"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "max_entries": 5,
+                    "saved_niks": [
+                      {
+                        "id": "snk_1",
+                        "nik_masked": "3171********22",
+                        "label": "Budi",
+                        "verified_at": "2026-10-20T08:11:00Z",
+                        "status": "VERIFIED"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Add Saved NIK",
+        "deprecated": false,
+        "description": "Tambah NIK tersimpan.",
+        "operationId": "addSavedNik",
+        "tags": ["Accounts"],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nik", "label"],
+                "properties": {
+                  "nik": {
+                    "type": "string",
+                    "minLength": 16,
+                    "maxLength": 16
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "nik": "3171xxxxxxxxxx33",
+                "label": "Budi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "NIK saved",
+            "headers": {}
+          },
+          "409": {
+            "description": "Conflict",
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/accounts/me/saved-niks/{id}": {
+      "delete": {
+        "summary": "Delete Saved NIK",
+        "deprecated": false,
+        "description": "Hapus NIK tersimpan.",
+        "operationId": "deleteSavedNik",
+        "tags": ["Accounts"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "snk_1",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "NIK deleted",
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "List Events",
+        "deprecated": false,
+        "description": "Daftar event.",
+        "operationId": "listEvents",
+        "tags": ["Events"],
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["all", "available", "upcoming"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "totalData": {
+                              "type": "integer",
+                              "example": 2
+                            },
+                            "totalPage": {
+                              "type": "integer",
+                              "example": 1
+                            },
+                            "limit": {
+                              "type": "integer",
+                              "example": 10
+                            },
+                            "offset": {
+                              "type": "integer",
+                              "example": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "evt_konser_a"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Konser A"
+                          },
+                          "category": {
+                            "type": "string",
+                            "example": "LIVE MUSIC"
+                          },
+                          "location": {
+                            "type": "object",
+                            "properties": {
+                              "venue": {
+                                "type": "string",
+                                "example": "GBK"
+                              },
+                              "city": {
+                                "type": "string",
+                                "example": "Jakarta"
+                              }
+                            }
+                          },
+                          "date": {
+                            "type": "string",
+                            "example": "2026-12-25"
+                          },
+                          "image_url": {
+                            "type": "string",
+                            "example": "https://cdn.rusuh.id/events/konser-a.jpg"
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "SELLING_OUT_FAST"
+                          },
+                          "queue_state": {
+                            "type": "string",
+                            "example": "FULL"
+                          },
+                          "queue_depth": {
+                            "type": "integer",
+                            "example": 300000
+                          },
+                          "queue_capacity": {
+                            "type": "integer",
+                            "example": 300000
+                          },
+                          "sale_starts_at": {
+                            "type": "string",
+                            "example": "2026-11-10T02:00:00Z"
+                          },
+                          "display": {
+                            "type": "object",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean",
+                                "example": false
+                              },
+                              "action": {
+                                "type": "string",
+                                "example": "NONE"
+                              },
+                              "label_key": {
+                                "type": "string",
+                                "example": "queue_full"
+                              },
+                              "badge_key": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            }
+                          },
+                          "min_price": {
+                            "type": "integer",
+                            "example": 500000
+                          },
+                          "max_price": {
+                            "type": "integer",
+                            "example": 1500000
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success",
+                    "pagination": {
+                      "totalData": 2,
+                      "totalPage": 1,
+                      "limit": 10,
+                      "offset": 0
+                    }
+                  },
+                  "data": [
+                    {
+                      "id": "evt_konser_a",
+                      "name": "Konser A",
+                      "category": "LIVE MUSIC",
+                      "location": {
+                        "venue": "GBK",
+                        "city": "Jakarta"
+                      },
+                      "date": "2026-12-25",
+                      "image_url": "https://cdn.rusuh.id/events/konser-a.jpg",
+                      "status": "SELLING_OUT_FAST",
+                      "queue_state": "FULL",
+                      "queue_depth": 300000,
+                      "queue_capacity": 300000,
+                      "sale_starts_at": "2026-11-10T02:00:00Z",
+                      "display": {
+                        "enabled": false,
+                        "action": "NONE",
+                        "label_key": "queue_full",
+                        "badge_key": null
+                      },
+                      "min_price": 500000,
+                      "max_price": 1500000
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/events/{event_id}": {
+      "get": {
+        "summary": "Get Event Detail",
+        "deprecated": false,
+        "description": "Detail event.",
+        "operationId": "getEvent",
+        "tags": ["Events"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "evt_konser_a"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Konser A"
+                        },
+                        "category": {
+                          "type": "string",
+                          "example": "LIVE MUSIC"
+                        },
+                        "location": {
+                          "type": "object",
+                          "properties": {
+                            "venue": {
+                              "type": "string",
+                              "example": "GBK"
+                            },
+                            "city": {
+                              "type": "string",
+                              "example": "Jakarta"
+                            }
+                          }
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-12-25"
+                        },
+                        "time": {
+                          "type": "string",
+                          "example": "19:00"
+                        },
+                        "image_url": {
+                          "type": "string",
+                          "example": "https://cdn.rusuh.id/events/konser-a.jpg"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "Energi panggung."
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "AVAILABLE"
+                        },
+                        "queue_state": {
+                          "type": "string",
+                          "example": "OPEN"
+                        },
+                        "queue_depth": {
+                          "type": "integer",
+                          "example": 1248
+                        },
+                        "queue_capacity": {
+                          "type": "integer",
+                          "example": 300000
+                        },
+                        "sale_starts_at": {
+                          "type": "string",
+                          "example": "2026-11-10T02:00:00Z"
+                        },
+                        "display": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean",
+                              "example": true
+                            },
+                            "action": {
+                              "type": "string",
+                              "example": "JOIN_QUEUE"
+                            },
+                            "label_key": {
+                              "type": "string",
+                              "example": "join_queue"
+                            },
+                            "badge_key": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          }
+                        },
+                        "ticket_categories": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "cat_vip"
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "VIP"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "Lebih dekat."
+                              },
+                              "price": {
+                                "type": "integer",
+                                "example": 1500000
+                              },
+                              "available": {
+                                "type": "integer",
+                                "example": 12
+                              },
+                              "status": {
+                                "type": "string",
+                                "example": "AVAILABLE"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "id": "evt_konser_a",
+                    "name": "Konser A",
+                    "category": "LIVE MUSIC",
+                    "location": {
+                      "venue": "GBK",
+                      "city": "Jakarta"
+                    },
+                    "date": "2026-12-25",
+                    "time": "19:00",
+                    "image_url": "https://cdn.rusuh.id/events/konser-a.jpg",
+                    "description": "Energi panggung.",
+                    "status": "AVAILABLE",
+                    "queue_state": "OPEN",
+                    "queue_depth": 1248,
+                    "queue_capacity": 300000,
+                    "sale_starts_at": "2026-11-10T02:00:00Z",
+                    "display": {
+                      "enabled": true,
+                      "action": "JOIN_QUEUE",
+                      "label_key": "join_queue",
+                      "badge_key": null
+                    },
+                    "ticket_categories": [
+                      {
+                        "id": "cat_vip",
+                        "name": "VIP",
+                        "description": "Lebih dekat.",
+                        "price": 1500000,
+                        "available": 12,
+                        "status": "AVAILABLE"
+                      },
+                      {
+                        "id": "cat_festival",
+                        "name": "Festival",
+                        "description": "Area festival.",
+                        "price": 850000,
+                        "available": 240,
+                        "status": "AVAILABLE"
+                      },
+                      {
+                        "id": "cat_tribune",
+                        "name": "Tribune",
+                        "description": "Area tribun.",
+                        "price": 500000,
+                        "available": 0,
+                        "status": "SOLD_OUT"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "Event not found",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/events/{event_id}/queue/join": {
+      "post": {
+        "summary": "Join Queue",
+        "deprecated": false,
+        "description": "Join queue.",
+        "operationId": "joinQueue",
+        "tags": ["Queue"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Acak 128 bit dari klien, disimpan server sebagai HMAC pada keterlibatan dan dicocokkan pada setiap panggilan ber-grant. WAJIB bila tidak login — grant tanpa pengikatan tidak dapat diikat belakangan, jadi tamu yang tidak mengirimnya ditolak DI SINI dengan 400 DEVICE_ID_REQUIRED, bukan nanti.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Bearer {access_token} bila login. Satu-satunya tempat di jalur antrian yang menerimanya: BR-07 lewat acct:{ev}:{account_id}, dan account_id pada keterlibatan — yang menjadi bookings.account_id pada INSERT saat GRANT.",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Joined queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Successfully joined queue"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ticket_no": {
+                          "type": "integer",
+                          "example": 32748
+                        },
+                        "now_serving": {
+                          "type": "integer",
+                          "example": 31500
+                        },
+                        "position": {
+                          "type": "integer",
+                          "example": 1248
+                        },
+                        "estimated_wait_minutes": {
+                          "type": "integer",
+                          "example": 4
+                        },
+                        "sse_url": {
+                          "type": "string",
+                          "example": "/queue/stream"
+                        },
+                        "event": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "evt_konser_a"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "Konser A"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "joined": {
+                    "summary": "New queue position",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Successfully joined queue"
+                      },
+                      "data": {
+                        "ticket_no": 32748,
+                        "now_serving": 31500,
+                        "position": 1248,
+                        "estimated_wait_minutes": 4,
+                        "sse_url": "/queue/stream",
+                        "event": {
+                          "id": "evt_konser_a",
+                          "name": "Konser A"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "required": false,
+                "description": "queue_token cookie",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Queue full",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 503
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Antrian sedang penuh"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "queue_state": {
+                          "type": "string",
+                          "example": "FULL"
+                        },
+                        "queue_capacity": {
+                          "type": "integer",
+                          "example": 300000
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 503,
+                    "message": "Antrian sedang penuh"
+                  },
+                  "data": {
+                    "queue_state": "FULL",
+                    "queue_capacity": 300000
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/events/{event_id}/queue/stream": {
+      "get": {
+        "summary": "Queue Status Stream (SSE)",
+        "deprecated": false,
+        "description": "SSE stream.",
+        "operationId": "queueStream",
+        "tags": ["Queue"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Queue-Token",
+            "in": "header",
+            "description": "Token ruang tunggu — untuk mobile. Web pakai cookie queue_token, karena EventSource tidak dapat menyetel header request.",
+            "required": false,
+            "example": "qt_xyz789",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "initial_snapshot": {
+                    "summary": "Snapshot",
+                    "value": "id: 31600\ndata: {\"nowServing\":31600,\"state\":\"OPEN\",\"ratePerMin\":318,\"paused\":false,\"serverTime\":\"2026-10-24T13:10:00.412Z\"}\n"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "410": {
+            "description": "Sold out",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/events/{event_id}/queue/me": {
+      "get": {
+        "summary": "Get Queue State (Re-entrancy)",
+        "deprecated": false,
+        "description": "Re-entrancy.",
+        "operationId": "getQueueMe",
+        "tags": ["Queue"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Queue-Token",
+            "in": "header",
+            "description": "Token ruang tunggu — untuk mobile. Web memakai cookie queue_token.",
+            "required": false,
+            "example": "qt_xyz789",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Bearer {access_token} — pemulihan lintas perangkat untuk customer login (cookie hilang, incognito, app di-install ulang). Tamu tidak punya ini.",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "example": "QUEUED"
+                        },
+                        "ticket_no": {
+                          "type": "integer",
+                          "example": 31842
+                        },
+                        "now_serving": {
+                          "type": "integer",
+                          "example": 31600
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "queued": {
+                    "summary": "Masih mengantre",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Success"
+                      },
+                      "data": {
+                        "state": "QUEUED",
+                        "ticket_no": 31842,
+                        "now_serving": 31600
+                      }
+                    }
+                  },
+                  "granted": {
+                    "summary": "Giliran tiba",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Success"
+                      },
+                      "data": {
+                        "state": "GRANTED",
+                        "grant_token": "gt_abc123",
+                        "booking_expires_at": "2026-10-23T13:15:00Z",
+                        "server_time": "2026-10-23T13:10:00Z"
+                      }
+                    }
+                  },
+                  "expired": {
+                    "summary": "Expired",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Success"
+                      },
+                      "data": {
+                        "state": "EXPIRED"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/events/{event_id}/queue/serving": {
+      "get": {
+        "summary": "Get Now Serving (Polling Fallback)",
+        "deprecated": false,
+        "description": "Polling fallback.",
+        "operationId": "getNowServing",
+        "tags": ["Queue"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Now serving",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "now_serving": {
+                          "type": "integer",
+                          "example": 31600
+                        },
+                        "rate_per_min": {
+                          "type": "integer",
+                          "example": 318
+                        },
+                        "paused": {
+                          "type": "boolean",
+                          "example": false
+                        },
+                        "server_time": {
+                          "type": "string",
+                          "example": "2026-10-24T13:10:00.412Z"
+                        },
+                        "poll_after_ms": {
+                          "type": "integer",
+                          "example": 5000
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "now_serving": 31600,
+                    "rate_per_min": 318,
+                    "paused": false,
+                    "server_time": "2026-10-24T13:10:00.412Z",
+                    "poll_after_ms": 5000
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/events/{event_id}/tickets": {
+      "get": {
+        "summary": "Get Ticket Selection Page",
+        "deprecated": false,
+        "description": "Ticket selection.",
+        "operationId": "getTicketSelection",
+        "tags": ["Booking"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "event": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "evt_konser_a"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "Konser A"
+                            },
+                            "date": {
+                              "type": "string",
+                              "example": "2026-12-25"
+                            },
+                            "venue": {
+                              "type": "string",
+                              "example": "GBK, Jakarta"
+                            },
+                            "image_url": {
+                              "type": "string",
+                              "example": "https://cdn.rusuh.id/events/konser-a.jpg"
+                            }
+                          }
+                        },
+                        "session": {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "example": "2026-10-23T13:15:00Z"
+                            },
+                            "ttl_seconds": {
+                              "type": "integer",
+                              "example": 287
+                            },
+                            "server_time": {
+                              "type": "string",
+                              "example": "2026-10-23T13:10:13Z"
+                            }
+                          }
+                        },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "cat_vip"
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "VIP"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "Lebih dekat."
+                              },
+                              "price": {
+                                "type": "integer",
+                                "example": 1500000
+                              },
+                              "available": {
+                                "type": "integer",
+                                "example": 12
+                              },
+                              "max_per_order": {
+                                "type": "integer",
+                                "example": 3
+                              }
+                            }
+                          }
+                        },
+                        "rules": {
+                          "type": "object",
+                          "properties": {
+                            "max_tickets_per_order": {
+                              "type": "integer",
+                              "example": 3
+                            },
+                            "one_nik_per_ticket": {
+                              "type": "boolean",
+                              "example": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "event": {
+                      "id": "evt_konser_a",
+                      "name": "Konser A",
+                      "date": "2026-12-25",
+                      "venue": "GBK, Jakarta",
+                      "image_url": "https://cdn.rusuh.id/events/konser-a.jpg"
+                    },
+                    "session": {
+                      "expires_at": "2026-10-23T13:15:00Z",
+                      "ttl_seconds": 287,
+                      "server_time": "2026-10-23T13:10:13Z"
+                    },
+                    "categories": [
+                      {
+                        "id": "cat_vip",
+                        "name": "VIP",
+                        "description": "Lebih dekat.",
+                        "price": 1500000,
+                        "available": 12,
+                        "max_per_order": 3
+                      },
+                      {
+                        "id": "cat_festival",
+                        "name": "Festival",
+                        "description": "Area festival.",
+                        "price": 850000,
+                        "available": 240,
+                        "max_per_order": 3
+                      },
+                      {
+                        "id": "cat_tribune",
+                        "name": "Tribune",
+                        "description": "Area tribun.",
+                        "price": 500000,
+                        "available": 0,
+                        "max_per_order": 0
+                      }
+                    ],
+                    "rules": {
+                      "max_tickets_per_order": 3,
+                      "one_nik_per_ticket": true
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bookings": {
+      "post": {
+        "summary": "Create Booking",
+        "deprecated": false,
+        "description": "Create booking.",
+        "operationId": "createBooking",
+        "tags": ["Booking"],
+        "parameters": [
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["event_id", "tickets", "contact_email", "terms_version"],
+                "properties": {
+                  "event_id": {
+                    "type": "string"
+                  },
+                  "tickets": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "items": {
+                      "type": "object",
+                      "required": ["category_id", "nik", "holder_email"],
+                      "properties": {
+                        "category_id": {
+                          "type": "string"
+                        },
+                        "nik": {
+                          "type": "string",
+                          "minLength": 16,
+                          "maxLength": 16
+                        },
+                        "holder_email": {
+                          "type": "string",
+                          "format": "email"
+                        }
+                      }
+                    }
+                  },
+                  "contact_email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "terms_version": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "event_id": "evt_konser_a",
+                "tickets": [
+                  {
+                    "category_id": "cat_vip",
+                    "nik": "3171xxxxxxxxxx22",
+                    "holder_email": "buyer@example.com"
+                  }
+                ],
+                "contact_email": "buyer@example.com",
+                "terms_version": "2026-10-01"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 201
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Booking created successfully"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking_id": {
+                          "type": "string",
+                          "example": "RB-00912"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "PENDING_PAYMENT"
+                        },
+                        "event": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "evt_konser_a"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "Konser A"
+                            },
+                            "date": {
+                              "type": "string",
+                              "example": "2026-12-25"
+                            },
+                            "venue": {
+                              "type": "string",
+                              "example": "GBK, Jakarta"
+                            }
+                          }
+                        },
+                        "tickets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "category": {
+                                "type": "string",
+                                "example": "VIP"
+                              },
+                              "price": {
+                                "type": "integer",
+                                "example": 1500000
+                              },
+                              "nik_masked": {
+                                "type": "string",
+                                "example": "3171********xx22"
+                              },
+                              "holder_name": {
+                                "type": "string",
+                                "example": "JOHN DOE"
+                              }
+                            }
+                          }
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "subtotal": {
+                              "type": "integer",
+                              "example": 2350000
+                            },
+                            "service_fee": {
+                              "type": "integer",
+                              "example": 0
+                            },
+                            "total": {
+                              "type": "integer",
+                              "example": 2350000
+                            }
+                          }
+                        },
+                        "payment_ttl": {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "example": "2026-10-23T13:25:00Z"
+                            },
+                            "ttl_seconds": {
+                              "type": "integer",
+                              "example": 600
+                            },
+                            "server_time": {
+                              "type": "string",
+                              "example": "2026-10-23T13:15:00Z"
+                            }
+                          }
+                        },
+                        "redirect_url": {
+                          "type": "string",
+                          "example": "/bookings/RB-00912/payment"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 201,
+                    "message": "Booking created successfully"
+                  },
+                  "data": {
+                    "booking_id": "RB-00912",
+                    "status": "PENDING_PAYMENT",
+                    "event": {
+                      "id": "evt_konser_a",
+                      "name": "Konser A",
+                      "date": "2026-12-25",
+                      "venue": "GBK, Jakarta"
+                    },
+                    "tickets": [
+                      {
+                        "category": "VIP",
+                        "price": 1500000,
+                        "nik_masked": "3171********xx22",
+                        "holder_name": "JOHN DOE"
+                      },
+                      {
+                        "category": "Festival",
+                        "price": 850000,
+                        "nik_masked": "3171********xx33",
+                        "holder_name": "JANE DOE"
+                      }
+                    ],
+                    "summary": {
+                      "subtotal": 2350000,
+                      "service_fee": 0,
+                      "total": 2350000
+                    },
+                    "payment_ttl": {
+                      "expires_at": "2026-10-23T13:25:00Z",
+                      "ttl_seconds": 600,
+                      "server_time": "2026-10-23T13:15:00Z"
+                    },
+                    "redirect_url": "/bookings/RB-00912/payment"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 400
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Maximum 3 tickets per order"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "examples": {
+                  "max_tickets": {
+                    "summary": "Max tickets",
+                    "value": {
+                      "meta": {
+                        "code": 400,
+                        "message": "Maximum 3 tickets per order"
+                      },
+                      "data": {}
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "NIK sudah digunakan untuk event ini"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "examples": {
+                  "nik_taken": {
+                    "summary": "NIK taken",
+                    "value": {
+                      "meta": {
+                        "code": 409,
+                        "message": "NIK sudah digunakan untuk event ini"
+                      },
+                      "data": {}
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bookings/{booking_id}": {
+      "get": {
+        "summary": "Get Booking Detail",
+        "deprecated": false,
+        "description": "Booking detail.",
+        "operationId": "getBooking",
+        "tags": ["Booking"],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "RB-00912",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking_id": {
+                          "type": "string",
+                          "example": "RB-00912"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "PENDING_PAYMENT"
+                        },
+                        "event": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "evt_konser_a"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "Konser A"
+                            },
+                            "date": {
+                              "type": "string",
+                              "example": "2026-12-25"
+                            },
+                            "venue": {
+                              "type": "string",
+                              "example": "GBK, Jakarta"
+                            },
+                            "image_url": {
+                              "type": "string",
+                              "example": "https://cdn.rusuh.id/events/konser-a.jpg"
+                            }
+                          }
+                        },
+                        "tickets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "category": {
+                                "type": "string",
+                                "example": "VIP"
+                              },
+                              "price": {
+                                "type": "integer",
+                                "example": 1500000
+                              },
+                              "nik_masked": {
+                                "type": "string",
+                                "example": "3171********xx22"
+                              }
+                            }
+                          }
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "quantity": {
+                              "type": "integer",
+                              "example": 1
+                            },
+                            "price_per_ticket": {
+                              "type": "integer",
+                              "example": 1500000
+                            },
+                            "total": {
+                              "type": "integer",
+                              "example": 1500000
+                            }
+                          }
+                        },
+                        "payment_ttl": {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "example": "2026-10-23T13:25:00Z"
+                            },
+                            "ttl_seconds": {
+                              "type": "integer",
+                              "example": 342
+                            },
+                            "server_time": {
+                              "type": "string",
+                              "example": "2026-10-23T13:19:18Z"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "pending_payment": {
+                    "summary": "Pending payment",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Success"
+                      },
+                      "data": {
+                        "booking_id": "RB-00912",
+                        "status": "PENDING_PAYMENT",
+                        "event": {
+                          "id": "evt_konser_a",
+                          "name": "Konser A",
+                          "date": "2026-12-25",
+                          "venue": "GBK, Jakarta",
+                          "image_url": "https://cdn.rusuh.id/events/konser-a.jpg"
+                        },
+                        "tickets": [
+                          {
+                            "category": "VIP",
+                            "price": 1500000,
+                            "nik_masked": "3171********xx22"
+                          }
+                        ],
+                        "summary": {
+                          "quantity": 1,
+                          "price_per_ticket": 1500000,
+                          "total": 1500000
+                        },
+                        "payment_ttl": {
+                          "expires_at": "2026-10-23T13:25:00Z",
+                          "ttl_seconds": 342,
+                          "server_time": "2026-10-23T13:19:18Z"
+                        }
+                      }
+                    }
+                  },
+                  "paid": {
+                    "summary": "Paid",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Success"
+                      },
+                      "data": {
+                        "booking_id": "RB-00912",
+                        "status": "PAID",
+                        "event": {
+                          "id": "evt_konser_a",
+                          "name": "Konser A",
+                          "date": "2026-12-25",
+                          "venue": "GBK, Jakarta",
+                          "image_url": "https://cdn.rusuh.id/events/konser-a.jpg"
+                        },
+                        "tickets": [
+                          {
+                            "ticket_id": "TKT-001",
+                            "category": "VIP",
+                            "price": 1500000,
+                            "nik_masked": "3171********xx22",
+                            "eticket_url": "/tickets/TKT-001/eticket"
+                          }
+                        ],
+                        "summary": {
+                          "quantity": 1,
+                          "total": 1500000
+                        },
+                        "paid_at": "2026-10-23T13:20:00Z",
+                        "payment_method": "Virtual Account"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/bookings/{booking_id}/tickets": {
+      "get": {
+        "summary": "Get Booking Tickets",
+        "deprecated": false,
+        "description": "Booking tickets.",
+        "operationId": "getBookingTickets",
+        "tags": ["Booking"],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "RB-00912",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tickets in booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ticket_id": {
+                            "type": "string",
+                            "example": "TKT-001"
+                          },
+                          "category": {
+                            "type": "string",
+                            "example": "VIP"
+                          },
+                          "price": {
+                            "type": "integer",
+                            "example": 1500000
+                          },
+                          "nik_masked": {
+                            "type": "string",
+                            "example": "3171********xx22"
+                          },
+                          "eticket_url": {
+                            "type": "string",
+                            "example": "/tickets/TKT-001/eticket"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": [
+                    {
+                      "ticket_id": "TKT-001",
+                      "category": "VIP",
+                      "price": 1500000,
+                      "nik_masked": "3171********xx22",
+                      "eticket_url": "/tickets/TKT-001/eticket"
+                    },
+                    {
+                      "ticket_id": "TKT-002",
+                      "category": "Festival",
+                      "price": 850000,
+                      "nik_masked": "3171********xx33",
+                      "eticket_url": "/tickets/TKT-002/eticket"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/nik/validate": {
+      "post": {
+        "summary": "Validate NIK",
+        "deprecated": false,
+        "description": "Validate NIK.",
+        "operationId": "validateNik",
+        "tags": ["NIK"],
+        "parameters": [
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nik"],
+                "properties": {
+                  "nik": {
+                    "type": "string",
+                    "minLength": 16,
+                    "maxLength": 16
+                  }
+                }
+              },
+              "example": {
+                "nik": "3171xxxxxxxxxx22"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "NIK is valid"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "nik": {
+                          "type": "string",
+                          "example": "3171xxxxxxxxxx22"
+                        },
+                        "valid": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "JOHN DOE"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "ACTIVE"
+                        },
+                        "source": {
+                          "type": "string",
+                          "example": "verified"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "valid": {
+                    "summary": "NIK valid",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "NIK is valid"
+                      },
+                      "data": {
+                        "nik": "3171xxxxxxxxxx22",
+                        "valid": true,
+                        "name": "JOHN DOE",
+                        "status": "ACTIVE",
+                        "source": "verified"
+                      }
+                    }
+                  },
+                  "not_found": {
+                    "summary": "NIK not found",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "NIK not found"
+                      },
+                      "data": {
+                        "nik": "0000000000000000",
+                        "valid": false,
+                        "reason": "NIK_NOT_FOUND"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "400": {
+            "description": "Invalid NIK format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 400
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "NIK must be exactly 16 digits"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 400,
+                    "message": "NIK must be exactly 16 digits"
+                  },
+                  "data": {}
+                }
+              }
+            },
+            "headers": {}
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 429
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Please wait before validating another NIK"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "retry_after": {
+                          "type": "integer",
+                          "example": 5
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 429,
+                    "message": "Please wait before validating another NIK"
+                  },
+                  "data": {
+                    "retry_after": 5
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/payments/{booking_id}/methods": {
+      "get": {
+        "summary": "Get Payment Methods",
+        "deprecated": false,
+        "description": "Payment methods.",
+        "operationId": "getPaymentMethods",
+        "tags": ["Payment"],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "RB-00912",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "methods": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "bank_transfer"
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "Transfer Bank / Virtual Account"
+                              },
+                              "description": {
+                                "type": "string",
+                                "example": "Verifikasi otomatis."
+                              },
+                              "icon_url": {
+                                "type": "string",
+                                "example": "https://cdn.rusuh.id/icons/bank.svg"
+                              },
+                              "enabled": {
+                                "type": "boolean",
+                                "example": true
+                              },
+                              "banks": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "example": "bca"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "example": "BCA"
+                                    },
+                                    "icon_url": {
+                                      "type": "string",
+                                      "example": "https://cdn.rusuh.id/icons/bca.svg"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "methods": [
+                      {
+                        "id": "bank_transfer",
+                        "name": "Transfer Bank / Virtual Account",
+                        "description": "Verifikasi otomatis.",
+                        "icon_url": "https://cdn.rusuh.id/icons/bank.svg",
+                        "enabled": true,
+                        "banks": [
+                          {
+                            "code": "bca",
+                            "name": "BCA",
+                            "icon_url": "https://cdn.rusuh.id/icons/bca.svg"
+                          },
+                          {
+                            "code": "bni",
+                            "name": "BNI",
+                            "icon_url": "https://cdn.rusuh.id/icons/bni.svg"
+                          },
+                          {
+                            "code": "bri",
+                            "name": "BRI",
+                            "icon_url": "https://cdn.rusuh.id/icons/bri.svg"
+                          },
+                          {
+                            "code": "cimb",
+                            "name": "CIMB Niaga",
+                            "icon_url": "https://cdn.rusuh.id/icons/cimb.svg"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "gopay",
+                        "name": "E-Wallet (GoPay / QRIS)",
+                        "description": "Scan QR.",
+                        "icon_url": "https://cdn.rusuh.id/icons/ewallet.svg",
+                        "enabled": true
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/payments/{booking_id}": {
+      "post": {
+        "summary": "Initiate Payment",
+        "deprecated": false,
+        "description": "Initiate payment.",
+        "operationId": "initiatePayment",
+        "tags": ["Payment"],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "RB-00912",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["method"],
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["bank_transfer", "gopay"]
+                  },
+                  "bank": {
+                    "type": "string",
+                    "enum": ["bca", "bni", "bri", "cimb"]
+                  }
+                }
+              },
+              "examples": {
+                "bank_transfer": {
+                  "value": {
+                    "method": "bank_transfer",
+                    "bank": "bca"
+                  },
+                  "summary": "Bank Transfer"
+                },
+                "gopay": {
+                  "value": {
+                    "method": "gopay"
+                  },
+                  "summary": "GoPay"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Payment initiated"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "payment_id": {
+                          "type": "string",
+                          "example": "RB-00912:1"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "bank_transfer"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "PENDING"
+                        },
+                        "instructions": {
+                          "type": "object",
+                          "properties": {
+                            "bank": {
+                              "type": "string",
+                              "example": "bca"
+                            },
+                            "va_number": {
+                              "type": "string",
+                              "example": "8801234567890"
+                            }
+                          }
+                        },
+                        "ttl": {
+                          "type": "object",
+                          "properties": {
+                            "expires_at": {
+                              "type": "string",
+                              "example": "2026-10-25T10:25:00Z"
+                            },
+                            "ttl_seconds": {
+                              "type": "integer",
+                              "example": 540
+                            },
+                            "server_time": {
+                              "type": "string",
+                              "example": "2026-10-25T10:16:00Z"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "bank_transfer": {
+                    "summary": "VA BCA",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Payment initiated"
+                      },
+                      "data": {
+                        "payment_id": "RB-00912:1",
+                        "method": "bank_transfer",
+                        "status": "PENDING",
+                        "instructions": {
+                          "bank": "bca",
+                          "va_number": "8801234567890"
+                        },
+                        "ttl": {
+                          "expires_at": "2026-10-25T10:25:00Z",
+                          "ttl_seconds": 540,
+                          "server_time": "2026-10-25T10:16:00Z"
+                        }
+                      }
+                    }
+                  },
+                  "gopay": {
+                    "summary": "GoPay",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Payment initiated"
+                      },
+                      "data": {
+                        "payment_id": "RB-00912:1",
+                        "method": "gopay",
+                        "status": "PENDING",
+                        "instructions": {
+                          "qr_url": "https://api.midtrans.com/v2/gopay/.../qr-code",
+                          "deeplink_url": "https://gojek.link/..."
+                        },
+                        "ttl": {
+                          "expires_at": "2026-10-25T10:25:00Z",
+                          "ttl_seconds": 540,
+                          "server_time": "2026-10-25T10:16:00Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/payments/{booking_id}/retry": {
+      "post": {
+        "summary": "Cancel & Switch Payment Method",
+        "deprecated": false,
+        "description": "Cancel and switch payment.",
+        "operationId": "retryPayment",
+        "tags": ["Payment"],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "RB-00912",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Previous payment cancelled"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking_id": {
+                          "type": "string",
+                          "example": "RB-00912"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "HELD"
+                        },
+                        "attempt": {
+                          "type": "integer",
+                          "example": 2
+                        },
+                        "cancelled_order_id": {
+                          "type": "string",
+                          "example": "RB-00912:1"
+                        },
+                        "payment_expires_at": {
+                          "type": "string",
+                          "example": "2026-10-25T10:25:00Z"
+                        },
+                        "server_time": {
+                          "type": "string",
+                          "example": "2026-10-25T10:23:10Z"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Previous payment cancelled"
+                  },
+                  "data": {
+                    "booking_id": "RB-00912",
+                    "status": "HELD",
+                    "attempt": 2,
+                    "cancelled_order_id": "RB-00912:1",
+                    "payment_expires_at": "2026-10-25T10:25:00Z",
+                    "server_time": "2026-10-25T10:23:10Z"
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/payments/{booking_id}/status": {
+      "get": {
+        "summary": "Get Payment Status",
+        "deprecated": false,
+        "description": "Payment status.",
+        "operationId": "getPaymentStatus",
+        "tags": ["Payment"],
+        "parameters": [
+          {
+            "name": "booking_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "RB-00912",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Grant-Token",
+            "in": "header",
+            "description": "Grant slot dari GET /queue/me. Wajib — ini yang menjaga endpoint ini.",
+            "required": true,
+            "example": "gt_abc123",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Id",
+            "in": "header",
+            "description": "Pengikatan device untuk grant anonim — WAJIB bila pemanggil tidak login. Acak 128 bit dari klien; server menyimpan HMAC-nya. Tidak cocok → 401 DEVICE_MISMATCH.",
+            "required": false,
+            "example": "d3f1a9c4b70e42f88a1c5e6072b9d4af",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Payment pending"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "example": "PENDING"
+                        },
+                        "server_time": {
+                          "type": "string",
+                          "example": "2026-10-23T13:22:00Z"
+                        },
+                        "ttl_seconds": {
+                          "type": "integer",
+                          "example": 180
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "pending": {
+                    "summary": "Pending",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Payment pending"
+                      },
+                      "data": {
+                        "status": "PENDING",
+                        "server_time": "2026-10-23T13:22:00Z",
+                        "ttl_seconds": 180
+                      }
+                    }
+                  },
+                  "paid": {
+                    "summary": "Paid",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Payment successful"
+                      },
+                      "data": {
+                        "status": "PAID",
+                        "paid_at": "2026-10-23T13:23:00Z",
+                        "redirect_url": "/bookings/RB-00912/success"
+                      }
+                    }
+                  },
+                  "failed": {
+                    "summary": "Failed",
+                    "value": {
+                      "meta": {
+                        "code": 200,
+                        "message": "Payment failed"
+                      },
+                      "data": {
+                        "status": "FAILED",
+                        "reason": "Kartu ditolak penerbit",
+                        "can_retry": true,
+                        "attempt": 2,
+                        "payment_expires_at": "2026-10-25T10:25:00Z",
+                        "server_time": "2026-10-25T10:19:40Z"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/payments/webhook": {
+      "post": {
+        "summary": "Payment Gateway Webhook",
+        "deprecated": false,
+        "description": "Payment webhook.",
+        "operationId": "paymentWebhook",
+        "tags": ["Payment"],
+        "parameters": [
+          {
+            "name": "X-Callback-Signature",
+            "in": "header",
+            "description": "HMAC SHA512",
+            "required": true,
+            "example": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              },
+              "example": {
+                "event_id": "evt_9f2a1c7b",
+                "transaction_id": "pay_123",
+                "external_id": "RB-00912",
+                "status": "PAID",
+                "paid_amount": 1500000,
+                "paid_at": "2026-10-24T13:23:00Z",
+                "payment_method": "va"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Callback processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Callback processed"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Callback processed"
+                  },
+                  "data": {}
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": []
+      }
+    },
+    "/users/me/tickets": {
+      "get": {
+        "summary": "Get My Tickets",
+        "deprecated": false,
+        "description": "My tickets.",
+        "operationId": "getMyTickets",
+        "tags": ["User"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["upcoming", "past", "all"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tickets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "totalData": {
+                              "type": "integer",
+                              "example": 1
+                            },
+                            "totalPage": {
+                              "type": "integer",
+                              "example": 1
+                            },
+                            "limit": {
+                              "type": "integer",
+                              "example": 10
+                            },
+                            "offset": {
+                              "type": "integer",
+                              "example": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ticket_id": {
+                            "type": "string",
+                            "example": "TKT-001"
+                          },
+                          "booking_id": {
+                            "type": "string",
+                            "example": "RB-00912"
+                          },
+                          "event": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "evt_konser_a"
+                              },
+                              "name": {
+                                "type": "string",
+                                "example": "Konser A"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-12-25"
+                              },
+                              "venue": {
+                                "type": "string",
+                                "example": "GBK"
+                              },
+                              "image_url": {
+                                "type": "string",
+                                "example": "https://cdn.rusuh.id/events/konser-a.jpg"
+                              }
+                            }
+                          },
+                          "category": {
+                            "type": "string",
+                            "example": "VIP"
+                          },
+                          "price": {
+                            "type": "integer",
+                            "example": 1500000
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "VALID"
+                          },
+                          "eticket_url": {
+                            "type": "string",
+                            "example": "/tickets/TKT-001/eticket"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success",
+                    "pagination": {
+                      "totalData": 1,
+                      "totalPage": 1,
+                      "limit": 10,
+                      "offset": 0
+                    }
+                  },
+                  "data": [
+                    {
+                      "ticket_id": "TKT-001",
+                      "booking_id": "RB-00912",
+                      "event": {
+                        "id": "evt_konser_a",
+                        "name": "Konser A",
+                        "date": "2026-12-25",
+                        "venue": "GBK",
+                        "image_url": "https://cdn.rusuh.id/events/konser-a.jpg"
+                      },
+                      "category": "VIP",
+                      "price": 1500000,
+                      "status": "VALID",
+                      "eticket_url": "/tickets/TKT-001/eticket"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/tickets/{ticket_id}/eticket": {
+      "get": {
+        "summary": "Get E-Ticket",
+        "deprecated": false,
+        "description": "E-ticket with QR.",
+        "operationId": "getEticket",
+        "tags": ["User"],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "example": "TKT-001",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "t",
+            "in": "query",
+            "description": "Token e-tiket dari tautan email. Alternatif Authorization untuk pemegang NIK dan pembeli tamu, yang umumnya tidak punya akun (FR-26).",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "E-ticket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ticket_id": {
+                          "type": "string",
+                          "example": "TKT-001"
+                        },
+                        "event": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "example": "Konser A"
+                            },
+                            "date": {
+                              "type": "string",
+                              "example": "2026-12-25"
+                            },
+                            "time": {
+                              "type": "string",
+                              "example": "19:00"
+                            },
+                            "venue": {
+                              "type": "string",
+                              "example": "GBK, Jakarta"
+                            }
+                          }
+                        },
+                        "category": {
+                          "type": "string",
+                          "example": "VIP"
+                        },
+                        "holder": {
+                          "type": "object",
+                          "properties": {
+                            "nik_masked": {
+                              "type": "string",
+                              "example": "3171********xx22"
+                            }
+                          }
+                        },
+                        "qr_code": {
+                          "type": "string",
+                          "example": "data:image/png;base64,iVBORw0KGgo..."
+                        },
+                        "qr_value": {
+                          "type": "string",
+                          "example": "TKT-001|evt_konser_a|3171xxxxxxxxxx22"
+                        },
+                        "instructions": {
+                          "type": "string",
+                          "example": "Tunjukkan QR code dan identitas pemegang saat masuk venue."
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "ticket_id": "TKT-001",
+                    "event": {
+                      "name": "Konser A",
+                      "date": "2026-12-25",
+                      "time": "19:00",
+                      "venue": "GBK, Jakarta"
+                    },
+                    "category": "VIP",
+                    "holder": {
+                      "nik_masked": "3171********xx22"
+                    },
+                    "qr_code": "data:image/png;base64,iVBORw0KGgo...",
+                    "qr_value": "TKT-001|evt_konser_a|3171xxxxxxxxxx22",
+                    "instructions": "Tunjukkan QR code dan identitas pemegang saat masuk venue."
+                  }
+                }
+              }
+            },
+            "headers": {}
+          },
+          "404": {
+            "description": "Not found",
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/reconciliation/disputed": {
+      "get": {
+        "summary": "Disputed Payment Reconciliation",
+        "deprecated": false,
+        "description": "Disputed payments.",
+        "operationId": "getDisputedPayments",
+        "tags": ["Admin"],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "description": "",
+            "required": true,
+            "example": "evt_konser_a",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disputed payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "integer",
+                          "example": 200
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Success"
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "disputed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "booking_id": {
+                                "type": "string",
+                                "example": "RB-00912"
+                              },
+                              "order_id": {
+                                "type": "string",
+                                "example": "RB-00912:2"
+                              },
+                              "gateway_event_id": {
+                                "type": "string",
+                                "example": "evt_9f2a1c7b"
+                              },
+                              "gross_amount": {
+                                "type": "integer",
+                                "example": 1500000
+                              },
+                              "payment_type": {
+                                "type": "string",
+                                "example": "bank_transfer"
+                              },
+                              "paid_at": {
+                                "type": "string",
+                                "example": "2026-10-26T10:25:48Z"
+                              },
+                              "cancelled_at": {
+                                "type": "string",
+                                "example": "2026-10-26T10:25:30Z"
+                              },
+                              "contact_email": {
+                                "type": "string",
+                                "example": "buyer@example.com"
+                              },
+                              "refund_status": {
+                                "type": "string",
+                                "example": "PENDING_MANUAL"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "meta": {
+                    "code": 200,
+                    "message": "Success"
+                  },
+                  "data": {
+                    "disputed": [
+                      {
+                        "booking_id": "RB-00912",
+                        "order_id": "RB-00912:2",
+                        "gateway_event_id": "evt_9f2a1c7b",
+                        "gross_amount": 1500000,
+                        "payment_type": "bank_transfer",
+                        "paid_at": "2026-10-26T10:25:48Z",
+                        "cancelled_at": "2026-10-26T10:25:30Z",
+                        "contact_email": "buyer@example.com",
+                        "refund_status": "PENDING_MANUAL"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "responses": {},
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token JWT sesi akun (22740 detik), diterbitkan GET /auth/verify atau POST /auth/refresh. Satu-satunya kredensial yang menempati slot Authorization. TIDAK dikirim ke endpoint booking/payment sama sekali: sejak v2.4 bookings.account_id diambil dari keterlibatan pada INSERT saat GRANT, bukan dari kredensial klien saat checkout."
+      },
+      "QueueTokenCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "queue_token",
+        "description": "Cookie HttpOnly queue_token — posisi dalam antrian. Dipakai web, termasuk SSE stream karena EventSource tidak dapat menyetel header request. Mobile memakai X-Queue-Token. Max-Age adalah batas atas: keadaan terminal menghapus kredensialnya lebih cepat, dan CONFIRMED menggantinya dengan nisan settled:{uuid} yang tidak memulihkan apa pun."
+      },
+      "GrantToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Grant-Token",
+        "description": "Grant slot opaque (gt_...), dari GET /events/{event_id}/queue/me setelah event grant. Membuktikan pemegangnya punya slot, bukan siapa dirinya — tamu mendapatkannya juga. Wajib pada seluruh endpoint booking dan payment. Tersimpan di Redis, jadi satu DEL mencabutnya."
+      },
+      "QueueTokenHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Queue-Token",
+        "description": "Token ruang tunggu yang sama, untuk klien mobile tanpa cookie store. Bukan Authorization: slot itu milik sesi akun."
+      },
+      "ETicketToken": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "t",
+        "description": "HMAC bertanda tangan atas satu ticket_id + kedaluwarsa, dikirim pada tautan di email e-tiket. Tanpa identitas akun, lingkup satu tiket, berlaku sampai tanggal event + 1 hari. Ada karena FR-26 mengirim tiket ke masing-masing pemegang NIK, dan pemegang NIK umumnya tidak punya akun — rute yang hanya menerima sesi akun membuat tombol di email mereka menjawab 401."
+      }
+    }
+  },
+  "servers": [],
+  "security": []
+}

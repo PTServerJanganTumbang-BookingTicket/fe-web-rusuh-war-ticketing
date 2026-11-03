@@ -1,10 +1,12 @@
 import { asFunction, asValue, type NameAndRegistrationPair } from "awilix";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
+import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { SessionProtocol } from "@/core/domain/session.protocol";
 import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
 import { createFetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
 import type { HttpClient } from "@/core/data/http/http.client";
+import { createWebStorageCredentialStoreService } from "@/core/data/credentials/web-storage-credential-store.service";
 import { createMathRandomService } from "@/core/data/math-random.service";
 import { createHttpSessionService } from "@/core/data/session/http-session.service";
 import {
@@ -20,6 +22,7 @@ export type CoreRegistry = CoreDependencies & {
   eventSourceFactory: EventSourceFactory;
   eventStreamClient: EventStreamClient;
   sessionService: SessionProtocol;
+  credentialStore: CredentialStoreProtocol;
 };
 
 // `fetch` dibungkus supaya dibaca saat dipanggil: MSW dan test mengganti `globalThis.fetch` setelah container dibuat.
@@ -37,6 +40,7 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     httpClient: asFunction(createFetchHttpClient).singleton(),
     eventSourceFactory: asValue(browserEventSource),
     eventStreamClient: asFunction(createEventSourceStreamClient).singleton(),
+    credentialStore: asFunction(createWebStorageCredentialStoreService).singleton(),
     sessionService: asFunction(createHttpSessionService).singleton(),
     startSessionUseCase: asFunction(createStartSessionUseCase).singleton(),
   };

@@ -1,16 +1,19 @@
 // Service HTTP di `data/` diuji terhadap MSW, di-resolve dari container yang sama dengan produksi.
 import { describe, expect, it, vi } from "vitest";
+import { asValue } from "awilix";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { AppFailure } from "@/core/domain/app-error";
-import { setupMockServer, setupTestContainer, TEST_APP_ORIGIN } from "../support";
+import { setupFakeEventSources } from "../fake-event-source";
+import {
+  admitToQueue,
+  OPEN_EVENT_ID,
+  setupMockServer,
+  setupTestContainer,
+  TEST_APP_ORIGIN,
+} from "../support";
 
 const server = setupMockServer();
-const { eventService, queueService, bookingService, sessionService } = setupTestContainer().cradle;
-
-const listEventsUseCase = () => eventService.getEvents();
-const getQueueStateUseCase = (eventId: string) => queueService.getState(eventId);
-const getBookingSessionUseCase = (eventId: string) => bookingService.getSession(eventId);
 
 async function failureOf(promise: Promise<unknown>) {
   const thrown: unknown = await promise.catch((e: unknown) => e);
@@ -18,125 +21,323 @@ async function failureOf(promise: Promise<unknown>) {
   return (thrown as AppFailure).error;
 }
 
-describe("listEventsUseCase", () => {
-  it("mem-parse response valid", async () => {
-    const events = await listEventsUseCase();
-    expect(events.length).toBeGreaterThan(0);
-    expect(events[0]).toMatchObject({ id: expect.any(String), status: expect.any(String) });
+const envelope = (data: unknown, code = 200, message = "Success") =>
+  HttpResponse.json({ meta: { code, message }, data }, { status: code });
+
+/** Membuat booking lewat API mock, karena FE belum punya alur submit booking (tasks.md 7.2). */
+async function createBooking(grantToken: string, deviceId: string) {
+  const response = await fetch(`${MOCK_API_BASE_URL}/bookings`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-grant-token": grantToken, "x-device-id": deviceId },
+    body: JSON.stringify({
+      event_id: OPEN_EVENT_ID,
+      tickets: [{ category_id: "cat_vip", nik: "3171000000000022", holder_email: "a@b.co" }],
+      contact_email: "a@b.co",
+      terms_version: "2026-10-01",
+    }),
+  });
+  const { data } = (await response.json()) as { data: { booking_id: string } };
+  return data.booking_id;
+}
+
+describe("eventService", () => {
+  const { eventService } = setupTestContainer().cradle;
+
+  it("membuka envelope dan memetakan event kontrak ke model domain", async () => {
+    const events = await eventService.getEvents();
+    expect(events.map((event) => event.id)).toEqual(["evt_konser_a", "evt_konser_b", "evt_konser_c"]);
+    expect(events[0]).toEqual({
+      id: "evt_konser_a",
+      name: "Konser A",
+      date: "2026-12-25",
+      venue: "GBK, Jakarta",
+      imageUrl: "/images/event-1.jpg",
+      status: "AVAILABLE",
+      queueState: "OPEN",
+      display: { enabled: true, action: "queue", labelKey: "home.event.cta.queue", badgeKey: undefined },
+    });
+    expect(events[2]?.display).toEqual({
+      enabled: false,
+      action: "disabled",
+      labelKey: "home.event.notOpen",
+      badgeKey: "home.event.badge.notOpen",
+    });
   });
 
-  it("response dengan bentuk salah menjadi invalid_response", async () => {
-    server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => HttpResponse.json({ events: [{ id: 1 }] })));
-    expect(await failureOf(listEventsUseCase())).toEqual({ kind: "invalid_response" });
+  it("data dengan bentuk salah menjadi invalid_response", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => envelope([{ id: 1 }])));
+    expect(await failureOf(eventService.getEvents())).toEqual({ kind: "invalid_response" });
   });
 
-  it.each([
-    ["QUEUE_TOKEN_INVALID", 401],
-    ["ACCESS_EXPIRED", 410],
-  ])("memetakan error code %s", async (code, status) => {
-    server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => HttpResponse.json({ code }, { status })));
-    expect(await failureOf(listEventsUseCase())).toEqual({ kind: "api", code, status });
+  it("response tanpa envelope menjadi invalid_response", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => HttpResponse.json([])));
+    expect(await failureOf(eventService.getEvents())).toEqual({ kind: "invalid_response" });
   });
 
-  it("error tanpa code dikenal menjadi unknown", async () => {
+  it("meta.message yang sama dengan kode error FE dikenali", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => envelope({}, 401, "QUEUE_TOKEN_INVALID")));
+    expect(await failureOf(eventService.getEvents())).toEqual({
+      kind: "api",
+      code: "QUEUE_TOKEN_INVALID",
+      status: 401,
+    });
+  });
+
+  it("error tanpa kode dikenal menjadi unknown", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => HttpResponse.text("boom", { status: 503 })));
-    expect(await failureOf(listEventsUseCase())).toEqual({ kind: "unknown", status: 503 });
+    expect(await failureOf(eventService.getEvents())).toEqual({ kind: "unknown", status: 503 });
   });
 
   it("gagal jaringan menjadi network", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events`, () => HttpResponse.error()));
-    expect(await failureOf(listEventsUseCase())).toEqual({ kind: "network" });
+    expect(await failureOf(eventService.getEvents())).toEqual({ kind: "network" });
   });
 });
 
-describe("getQueueStateUseCase", () => {
-  it("memetakan waiting dengan retryAfterMs", async () => {
-    expect(await getQueueStateUseCase("evt-1")).toEqual({
+describe("queueService", () => {
+  it("join dengan X-Device-Id lalu memetakan QUEUED ke waiting", async () => {
+    const container = setupTestContainer();
+    let deviceId: string | null = null;
+    server.events.on("request:start", ({ request }) => {
+      if (request.url.endsWith("/queue/join")) deviceId = request.headers.get("x-device-id");
+    });
+    expect(await container.cradle.queueService.getState(OPEN_EVENT_ID)).toEqual({
       status: "waiting",
-      eventName: "Konser A — Jakarta",
-      position: 1248,
+      eventName: "Konser A",
+      position: 832,
       joinedPosition: 1248,
-      etaSeconds: 240,
-      retryAfterMs: 2000,
+      etaSeconds: 160,
+      retryAfterMs: 5000,
+    });
+    server.events.removeAllListeners();
+    expect(deviceId).toBe(container.cradle.credentialStore.deviceId());
+  });
+
+  it("memetakan GRANTED ke admitted dengan grant token", async () => {
+    const container = setupTestContainer();
+    const token = await admitToQueue(container);
+    expect(token).toMatch(/^gt_/);
+    expect(container.cradle.credentialStore.grantToken()).toBe(token);
+  });
+
+  it("join hanya sekali per event; poll berikutnya hanya /queue/me", async () => {
+    const { queueService } = setupTestContainer().cradle;
+    const joins = vi.fn();
+    server.events.on("request:start", ({ request }) => {
+      if (request.url.endsWith("/queue/join")) joins();
+    });
+    await queueService.getState(OPEN_EVENT_ID);
+    await queueService.getState(OPEN_EVENT_ID);
+    server.events.removeAllListeners();
+    expect(joins).toHaveBeenCalledTimes(1);
+  });
+
+  it("antrian penuh (503) menjadi QUEUE_FULL", async () => {
+    const { queueService } = setupTestContainer().cradle;
+    expect(await failureOf(queueService.getState("evt_konser_b"))).toEqual({
+      kind: "api",
+      code: "QUEUE_FULL",
+      status: 503,
     });
   });
 
-  it("memetakan admitted pada giliran akhir", async () => {
-    server.use(
-      http.get(`${MOCK_API_BASE_URL}/events/:id/queue`, () =>
-        HttpResponse.json({
-          status: "admitted",
-          eventName: "Konser A",
-          accessToken: "tok",
-          expiresAt: "2026-10-19T10:10:00.000Z",
-        }),
-      ),
-    );
-    expect(await getQueueStateUseCase("evt-1")).toEqual({
-      status: "admitted",
-      eventName: "Konser A",
-      accessToken: "tok",
-      expiresAt: "2026-10-19T10:10:00.000Z",
+  it("401 dari /queue/me menjadi QUEUE_TOKEN_INVALID", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({}, 401, "Unauthorized")));
+    const { queueService } = setupTestContainer().cradle;
+    expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toEqual({
+      kind: "api",
+      code: "QUEUE_TOKEN_INVALID",
+      status: 401,
     });
   });
 });
 
-describe("getBookingSessionUseCase", () => {
-  it("mem-parse sesi booking dengan kuota dan kategori", async () => {
-    const session = await getBookingSessionUseCase("evt-1");
+describe("bookingService", () => {
+  it("mengirim grant dan memetakan pemilihan tiket ke sesi booking", async () => {
+    const container = setupTestContainer();
+    await admitToQueue(container);
+    const session = await container.cradle.bookingService.getSession(OPEN_EVENT_ID);
+    expect(session.eventName).toBe("Konser A");
+    expect(session.maskedNik).toBeNull();
     expect(session.quota).toEqual({ max: 3, used: 0, remaining: 3 });
-    expect(session.categories.map((c) => c.id)).toEqual(["vip", "festival", "tribune"]);
-    expect(session.maskedNik).toContain("•");
+    expect(session.categories).toEqual([
+      { id: "cat_vip", name: "VIP", priceIdr: 1_500_000, stock: 12 },
+      { id: "cat_festival", name: "Festival", priceIdr: 850_000, stock: 240 },
+      { id: "cat_tribune", name: "Tribune", priceIdr: 500_000, stock: 0 },
+    ]);
   });
 
-  it("memetakan ACCESS_EXPIRED dari server", async () => {
-    server.use(
-      http.get(`${MOCK_API_BASE_URL}/events/:id/booking-session`, () =>
-        HttpResponse.json({ code: "ACCESS_EXPIRED" }, { status: 410 }),
-      ),
-    );
-    expect(await failureOf(getBookingSessionUseCase("evt-1"))).toEqual({
+  it("tanpa grant: 401 menjadi ACCESS_EXPIRED", async () => {
+    const { bookingService } = setupTestContainer().cradle;
+    expect(await failureOf(bookingService.getSession(OPEN_EVENT_ID))).toEqual({
       kind: "api",
       code: "ACCESS_EXPIRED",
-      status: 410,
+      status: 401,
     });
   });
 });
 
-describe("pembayaran v2.1", () => {
-  // TODO: Update MSW handlers to return v2.1 response shape, then re-enable these tests
-  // Current handlers may still return old shape which will cause test failures
+describe("orderService", () => {
+  async function setupBooking() {
+    const container = setupTestContainer();
+    const token = await admitToQueue(container);
+    const bookingId = await createBooking(token, container.cradle.credentialStore.deviceId());
+    return { ...container.cradle, bookingId };
+  }
 
-  it.skip("order baru menunggu pemilihan metode (status: PENDING_PAYMENT)", async () => {
-    // After MSW handlers updated:
-    // const order = await getOrderUseCase("RB-T1");
-    // expect(order).toMatchObject({ bookingId: "RB-T1", status: "PENDING_PAYMENT", totalIdr: 1_500_000 });
-    // expect(order.instruction).toBeUndefined();
-    expect(true).toBe(true);
+  it("booking baru menunggu pemilihan metode", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    const order = await orderService.getOrder(bookingId);
+    expect(order).toMatchObject({
+      bookingId,
+      eventName: "Konser A",
+      status: "PENDING_PAYMENT",
+      totalIdr: 1_500_000,
+      items: [{ category: "VIP", priceIdr: 1_500_000, nikMasked: "3171********xx22" }],
+    });
+    expect(order.instruction).toBeUndefined();
+    expect(order.paymentTtl.ttlSeconds).toBeGreaterThan(0);
   });
 
-  it.skip("memilih bank_transfer dengan bank code menghasilkan instruksi VA", async () => {
-    // After MSW handlers updated:
-    // const order = await initiatePayment("RB-T2", "bank_transfer", "bca");
-    // expect(order.status).toBe("AWAITING_PAYMENT");
-    // expect(order.instruction?.type).toBe("bank_transfer");
-    expect(true).toBe(true);
+  it("metode tersedia dipetakan ke camelCase", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    const methods = await orderService.getAvailableMethods(bookingId);
+    expect(methods.map((method) => method.id)).toEqual(["bank_transfer", "gopay"]);
+    expect(methods[0]?.banks?.[0]).toEqual({ code: "bca", name: "BCA", iconUrl: "/icons/bca.svg" });
   });
 
-  it.skip("memilih gopay menghasilkan instruksi QR", async () => {
-    // After MSW handlers updated:
-    // const order = await initiatePayment("RB-T3", "gopay");
-    // expect(order.status).toBe("AWAITING_PAYMENT");
-    // expect(order.instruction?.type).toBe("gopay");
-    expect(true).toBe(true);
+  it("bank_transfer menghasilkan instruksi VA yang bertahan saat order di-poll ulang", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    const order = await orderService.initiatePayment(bookingId, "bank_transfer", "bca");
+    expect(order.status).toBe("AWAITING_PAYMENT");
+    expect(order.instruction).toMatchObject({ type: "bank_transfer", bank: "bca" });
+    expect((await orderService.getOrder(bookingId)).instruction).toEqual(order.instruction);
   });
 
-  // Note: Simulation tests removed - PaymentSimulatorProtocol removed in v2.1
-  // Payment status is now polled via orderService.getPaymentStatus()
+  it("retry membatalkan pembayaran lalu memulai metode baru", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    await orderService.initiatePayment(bookingId, "bank_transfer", "bni");
+    const order = await orderService.retryPayment(bookingId, "gopay");
+    expect(order.method).toBe("gopay");
+    expect(order.instruction?.type).toBe("gopay");
+  });
+
+  it("pembayaran berhasil dari webhook: order PAID tanpa TTL", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    await orderService.initiatePayment(bookingId, "gopay");
+    await fetch(`${MOCK_API_BASE_URL}/payments/webhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-callback-signature": "sig" },
+      body: JSON.stringify({ external_id: bookingId, status: "PAID" }),
+    });
+    expect(await orderService.getPaymentStatus(bookingId)).toMatchObject({ status: "PAID" });
+    expect((await orderService.getOrder(bookingId)).status).toBe("PAID");
+  });
+});
+
+describe("orderService: status akhir", () => {
+  it("pembayaran gagal dari webhook: order FAILED dengan nomor percobaan", async () => {
+    const container = setupTestContainer();
+    const token = await admitToQueue(container);
+    const bookingId = await createBooking(token, container.cradle.credentialStore.deviceId());
+    const { orderService } = container.cradle;
+    await orderService.initiatePayment(bookingId, "bank_transfer", "bri");
+    await fetch(`${MOCK_API_BASE_URL}/payments/webhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-callback-signature": "sig" },
+      body: JSON.stringify({ external_id: bookingId, status: "FAILED" }),
+    });
+    expect(await orderService.getOrder(bookingId)).toMatchObject({
+      status: "FAILED",
+      method: "bank_transfer",
+      attempt: 1,
+    });
+  });
+
+  it("status EXPIRED memakai waktu server sebagai waktu kedaluwarsa", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/payments/:id/status`, () =>
+        envelope({ status: "EXPIRED", server_time: "2026-10-19T10:30:00Z" }),
+      ),
+    );
+    const { orderService } = setupTestContainer().cradle;
+    expect(await orderService.getPaymentStatus("RB-1")).toEqual({
+      status: "EXPIRED",
+      expiredAt: "2026-10-19T10:30:00Z",
+    });
+  });
+});
+
+describe("ticketService", () => {
+  it("e-tiket lewat `?t=` dari email dipetakan ke model domain", async () => {
+    const { ticketService } = setupTestContainer().cradle;
+    const eticket = await ticketService.getETicket("TKT-001", "signed");
+    expect(eticket).toMatchObject({
+      id: "TKT-001",
+      event: { id: "evt_konser_a", name: "Konser A", venue: "GBK, Jakarta" },
+      category: "VIP",
+      nik: "3171********xx22",
+      status: "ISSUED",
+    });
+  });
+
+  it("tiket saya butuh sesi akun; tanpa Bearer server menjawab 401", async () => {
+    const { ticketService } = setupTestContainer().cradle;
+    expect(await failureOf(ticketService.getMyTickets())).toEqual({ kind: "unknown", status: 401 });
+  });
+
+  it("daftar tiket: VALID menjadi ISSUED", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/users/me/tickets`, () =>
+        envelope([
+          {
+            ticket_id: "TKT-9",
+            booking_id: "RB-9",
+            event: { id: "evt_konser_a", name: "Konser A", date: "2026-12-25", venue: "GBK" },
+            category: "VIP",
+            price: 1,
+            status: "VALID",
+            eticket_url: "/tickets/TKT-9/eticket",
+          },
+          {
+            ticket_id: "TKT-10",
+            booking_id: "RB-9",
+            event: { id: "evt_konser_a", name: "Konser A", date: "2026-12-25", venue: "GBK" },
+            category: "VIP",
+            price: 1,
+            status: "USED",
+            eticket_url: "/tickets/TKT-10/eticket",
+          },
+        ]),
+      ),
+    );
+    const { ticketService } = setupTestContainer().cradle;
+    const result = await ticketService.getMyTickets();
+    expect(result.total).toBe(2);
+    expect(result.tickets.map((ticket) => ticket.status)).toEqual(["ISSUED", "USED"]);
+  });
+});
+
+describe("pemetaan /queue/me", () => {
+  it.each([
+    [
+      { state: "AWAITING_PAYMENT", grant_token: "gt_x", payment_expires_at: "2026-10-19T10:20:00Z" },
+      { status: "admitted", accessToken: "gt_x", expiresAt: "2026-10-19T10:20:00Z" },
+    ],
+    [
+      { state: "CONFIRMED", booking_id: "RB-1" },
+      { status: "ended", reason: "confirmed" },
+    ],
+    [{ state: "EXPIRED" }, { status: "ended", reason: "expired" }],
+  ])("%o", async (data, expected) => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope(data)));
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ eventName: "Konser A", ...expected });
+  });
 });
 
 describe("sessionService", () => {
-  it("mengirim access token ke route same-origin", async () => {
+  it("menyimpan grant untuk header dan mengirimnya ke route same-origin", async () => {
     let received: unknown;
     server.use(
       http.post(`${TEST_APP_ORIGIN}/api/session/start`, async ({ request }) => {
@@ -144,11 +345,14 @@ describe("sessionService", () => {
         return new HttpResponse(null, { status: 204 });
       }),
     );
+    const { sessionService, credentialStore } = setupTestContainer().cradle;
     await sessionService.start("tok");
     expect(received).toEqual({ accessToken: "tok" });
+    expect(credentialStore.grantToken()).toBe("tok");
   });
 
   it("gagal dari route menjadi unknown, gagal jaringan menjadi network", async () => {
+    const { sessionService } = setupTestContainer().cradle;
     server.use(
       http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 500 })),
     );
@@ -159,28 +363,34 @@ describe("sessionService", () => {
   });
 });
 
-describe("service SSE", () => {
-  it("queueUpdatesService membuka stream antrian dan memetakan retryAfter ke ms", async () => {
-    const { setupFakeEventSources } = await import("../fake-event-source");
-    const { asValue } = await import("awilix");
+describe("queueUpdatesService", () => {
+  it("now_serving dari stream dihitung jadi posisi, `grant` mengambil token dari /queue/me", async () => {
     const fakes = setupFakeEventSources();
-    const { queueUpdatesService } = setupTestContainer({
-      eventSourceFactory: asValue(fakes.factory),
-    }).cradle;
+    const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
+    const { queueUpdatesService, queueService } = container.cradle;
+    await queueService.getState(OPEN_EVENT_ID);
     const next = vi.fn();
-    queueUpdatesService.watch("evt 1", { next, connected: vi.fn(), disconnected: vi.fn() });
+    queueUpdatesService.watch(OPEN_EVENT_ID, { next, connected: vi.fn(), disconnected: vi.fn() });
     const source = fakes.find("/queue/stream")!;
-    expect(source.url).toBe(`${MOCK_API_BASE_URL}/events/evt%201/queue/stream`);
-    source.emit("queue", {
-      status: "waiting",
-      eventName: "Konser A",
-      position: 10,
-      joinedPosition: 20,
-      etaSeconds: 30,
-      retryAfterSeconds: 2,
-    });
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ status: "waiting", retryAfterMs: 2000 }));
+    expect(source.url).toBe(`${MOCK_API_BASE_URL}/events/${OPEN_EVENT_ID}/queue/stream`);
 
-    // Note: orderUpdatesService SSE test removed - v2.1 uses polling for payment status
+    source.emit("message", { nowServing: 32_648 });
+    expect(next).toHaveBeenLastCalledWith(expect.objectContaining({ status: "waiting", position: 100 }));
+
+    // Dua poll lagi sampai giliran; `grant` memicu panggilan /queue/me yang memajukan antrian.
+    await queueService.getState(OPEN_EVENT_ID);
+    source.emit("grant", {});
+    await vi.waitFor(() =>
+      expect(next).toHaveBeenLastCalledWith(expect.objectContaining({ status: "admitted" })),
+    );
+  });
+
+  it("sold-out mengakhiri antrian", () => {
+    const fakes = setupFakeEventSources();
+    const { queueUpdatesService } = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) }).cradle;
+    const next = vi.fn();
+    queueUpdatesService.watch(OPEN_EVENT_ID, { next, connected: vi.fn(), disconnected: vi.fn() });
+    fakes.find("/queue/stream")!.emit("sold-out", { message: "Penjualan sudah ditutup" });
+    expect(next).toHaveBeenCalledWith({ status: "ended", eventName: "", reason: "closed" });
   });
 });

@@ -1,4 +1,5 @@
-// Katalog error code dari kontrak BE (ADR-0009).
+// Katalog error code FE (ADR-0009). Kontrak belum membawa kode di body, jadi service memetakan status HTTP
+// per endpoint ke kode ini (`RequestOptions.errorCodes`); `meta.message` yang sama persis juga dikenali.
 export type ApiErrorCode =
   | "NIK_INVALID"
   | "QUOTA_EXCEEDED"
@@ -6,7 +7,8 @@ export type ApiErrorCode =
   | "ACCESS_EXPIRED"
   | "QUEUE_TOKEN_INVALID"
   | "SLOT_TAKEN_OVER"
-  | "PAYMENT_EXPIRED";
+  | "PAYMENT_EXPIRED"
+  | "QUEUE_FULL";
 
 export type AppError =
   | { kind: "api"; code: ApiErrorCode; status: number }
@@ -22,6 +24,7 @@ const API_ERROR_CODES: readonly string[] = [
   "QUEUE_TOKEN_INVALID",
   "SLOT_TAKEN_OVER",
   "PAYMENT_EXPIRED",
+  "QUEUE_FULL",
 ];
 
 export function parseApiErrorCode(value: unknown): ApiErrorCode | undefined {

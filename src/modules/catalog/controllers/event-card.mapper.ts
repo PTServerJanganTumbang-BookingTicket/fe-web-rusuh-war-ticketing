@@ -33,7 +33,7 @@ export function toEventCardProps(event: Event): EventCardProps {
     id,
     name,
     imageUrl: imageUrl || "/images/placeholder-event.jpg",
-    location: venue.split(" ")[0] || "JAKARTA",
+    location: venue.split(",")[0]?.trim() || "JAKARTA",
     category: "LIVE MUSIC",
     date: dateFormatter.format(new Date(date)),
     venue,
