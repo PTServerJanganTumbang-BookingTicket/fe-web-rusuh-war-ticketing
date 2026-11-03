@@ -174,15 +174,15 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 - [ ] 10. Checkpoint — booking module `@owner:muzaki`
 
-- [ ] 11. Align payment module — domain layer [ALIGN] `@owner:akbar`
-  - [ ] 11.1 Tulis ulang order.model.ts — PaymentMethod, PaymentInstruction, BankCode, OrderStatus `@owner:akbar`
+- [x] 11. Align payment module — domain layer [ALIGN] `@owner:akbar`
+  - [x] 11.1 Tulis ulang order.model.ts — PaymentMethod, PaymentInstruction, BankCode, OrderStatus `@owner:akbar`
     - _Requirements: 6.1, 6.3, 6.7, 6.11, 6.13, 6.16, BR-05_
-  - [ ] 11.2 Tulis ulang order.protocol.ts — getAvailableMethods, retryPayment, getPaymentStatus `@owner:akbar`
+  - [x] 11.2 Tulis ulang order.protocol.ts — getAvailableMethods, retryPayment, getPaymentStatus `@owner:akbar`
     - _Requirements: 6.3, 6.11, 6.12, 6.19_
-  - [ ] 11.3 Hapus order-updates.protocol.ts (SSE removed, polling-only) `@owner:akbar`
-  - [ ] 11.4 Update order.rules.ts — canRetryPayment, canInitiatePayment, isFinalOrder `@owner:akbar`
+  - [x] 11.3 Hapus order-updates.protocol.ts (SSE removed, polling-only) `@owner:akbar`
+  - [x] 11.4 Update order.rules.ts — canRetryPayment, canInitiatePayment, isFinalOrder `@owner:akbar`
     - _Requirements: 6.7, 6.8, 6.19_
-  - [ ] 11.5 Update payment.constants.ts — PAYMENT_STATUS_POLL_INTERVAL_MS, MIN_RETRY_REMAINING_SECONDS `@owner:akbar`
+  - [x] 11.5 Update payment.constants.ts — PAYMENT_STATUS_POLL_INTERVAL_MS, MIN_RETRY_REMAINING_SECONDS `@owner:akbar`
     - _Requirements: 6.1, 6.7, 6.13, 6.19, BR-05, BR-06_
 
 - [ ] 12. Align payment module — application layer [ALIGN + NEW] `@owner:akbar`
