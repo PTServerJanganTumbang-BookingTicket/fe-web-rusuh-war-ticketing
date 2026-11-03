@@ -25,7 +25,7 @@ steps:
   - id: verify
     name: "Verification Phase"
     dependsOn: [implement]
-    prompt: "Run npm run lint && npm run typecheck && npm run test --run untuk Task {{task_number}}."
+    prompt: "Run npm run lint && npm run typecheck && npm run test --run untuk Task {{task_number}}. Catat hasil test count."
 
   - id: update_tasks
     name: "Update Tasks.md"
@@ -40,3 +40,22 @@ steps:
     name: "Commit Phase"
     dependsOn: [update_tasks]
     prompt: "Commit dengan format [{{ticket_id}}][{{actor}}] type(scope): subject. Include tasks.md update dalam commit."
+
+  - id: update_pr_body
+    name: "Update PR Body"
+    dependsOn: [commit]
+    prompt: |
+      Jika sudah ada PR untuk branch ini, update PR body dengan template dari pr-body-template.md:
+
+      1. Cek apakah ada PR: `gh pr view --json number,body 2>/dev/null`
+      2. Jika ada PR, update body dengan `gh pr edit <PR_NUMBER> --body "..."`
+      3. PR body harus include:
+         - ## Summary: Deskripsi task dari tasks.md
+         - ## Changes: Group files by layer (Domain/Application/Data/Controller/View)
+         - ## Tasks Completed: Copy dari tasks.md dengan checkbox format
+         - ## Test Results: Lint/TypeCheck/Test results dari verification step
+         - ## Related: Ticket ID dan requirements references
+
+      Jika belum ada PR, skip step ini (PR akan dibuat manual atau di workflow lain).
+
+      Contoh format lihat di .kiro/memories/pr-body-template.md
