@@ -1,0 +1,34 @@
+name: SJT Structured Commit
+description: Create commit dengan convention enforcement
+
+inputs:
+  ticket_id:
+    description: "Ticket ID (e.g., SJT-016)"
+    required: true
+  actor:
+    description: "Actor name in Capital Case (Akbar/Muzaki)"
+    required: true
+  type:
+    description: "Commit type (feat/fix/chore/refactor/test/docs)"
+    required: true
+  scope:
+    description: "Module scope (payment/booking/queue/catalog/auth/ticket/core/di)"
+    required: true
+  description:
+    description: "Commit description"
+    required: true
+
+steps:
+  - id: validate
+    name: "Validate Staged Changes"
+    prompt: "Run git status dan verify ada files yang staged"
+
+  - id: verify
+    name: "Run Verification"
+    dependsOn: [validate]
+    prompt: "Run npm run lint && npm run typecheck untuk staged files"
+
+  - id: commit
+    name: "Create Commit"
+    dependsOn: [verify]
+    prompt: "Commit dengan message: [{{ticket_id}}][{{actor}}] {{type}}({{scope}}): {{description}}"

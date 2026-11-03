@@ -1,0 +1,45 @@
+name: SJT New Module Creation
+description: Build module baru dari scratch (auth, ticket)
+
+inputs:
+  module_name:
+    description: "Module name (auth/ticket)"
+    required: true
+  owner:
+    description: "Owner (akbar/muzaki)"
+    required: true
+
+steps:
+  - id: scaffold
+    name: "Scaffold Module Structure"
+    prompt: "Create directory structure: src/modules/{{module_name}}/{domain,application,data,controllers,views}"
+
+  - id: domain
+    name: "Build Domain Layer"
+    dependsOn: [scaffold]
+    prompt: "Create models, protocols, rules, constants di src/modules/{{module_name}}/domain"
+
+  - id: application
+    name: "Build Application Layer"
+    dependsOn: [domain]
+    prompt: "Create use cases di src/modules/{{module_name}}/application implementing protocols"
+
+  - id: data
+    name: "Build Data Layer"
+    dependsOn: [application]
+    prompt: "Create HTTP services, schemas di src/modules/{{module_name}}/data"
+
+  - id: controllers
+    name: "Build Controllers"
+    dependsOn: [data]
+    prompt: "Create controller, mapper, queries di src/modules/{{module_name}}/controllers"
+
+  - id: views
+    name: "Build Views"
+    dependsOn: [controllers]
+    prompt: "Create React components di src/modules/{{module_name}}/views using Signal UI"
+
+  - id: register
+    name: "Register Module"
+    dependsOn: [views]
+    prompt: "Create {{module_name}}.module.ts dan register di src/infrastructure/di/container.ts"

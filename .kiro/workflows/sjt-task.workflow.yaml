@@ -1,0 +1,33 @@
+name: SJT Task Execution
+description: Workflow granular per-task dari tasks.md
+
+inputs:
+  task_number:
+    description: "Task number dari tasks.md (e.g., 11, 12, 24)"
+    required: true
+  ticket_id:
+    description: "Ticket ID untuk commit (e.g., SJT-016)"
+    required: true
+  actor:
+    description: "Actor name in Capital Case (Akbar/Muzaki)"
+    required: true
+
+steps:
+  - id: prepare
+    name: "Preparation Phase"
+    prompt: "Baca Task {{task_number}} dari tasks.md, identifikasi dependencies dan files yang terlibat."
+
+  - id: implement
+    name: "Implementation Phase"
+    dependsOn: [prepare]
+    prompt: "Implementasi Task {{task_number}} sesuai Clean Architecture: domain-application-data-controller-view."
+
+  - id: verify
+    name: "Verification Phase"
+    dependsOn: [implement]
+    prompt: "Run npm run lint && npm run typecheck && npm run test --run untuk Task {{task_number}}."
+
+  - id: commit
+    name: "Commit Phase"
+    dependsOn: [verify]
+    prompt: "Commit dengan format [{{ticket_id}}][{{actor}}] type(scope): subject"
