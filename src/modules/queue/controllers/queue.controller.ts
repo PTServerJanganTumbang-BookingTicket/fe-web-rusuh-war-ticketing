@@ -10,11 +10,12 @@ import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useLiveUpdates } from "@/core/controllers/live-updates.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
+import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
 import type { QueueDependencies } from "../application/queue.dependencies";
 import type { QueueState } from "../domain/queue-state.model";
-import { queueKeys, queuePositionQuery } from "./queue.queries";
-import { toWaitingViewProps } from "./queue.mapper";
-import type { QueueViewProps } from "../views/QueueView";
+import { queueEventQuery, queueKeys, queuePositionQuery } from "./queue.queries";
+import { toQueueViewProps, toWaitingStatus } from "./queue.mapper";
+import type { QueueStatusProps, QueueViewProps } from "../views/QueueView";
 
 function errorKey(error: AppError): MessageKey {
   if (error.kind === "network") return "queue.error.network";
@@ -25,20 +26,20 @@ function errorKey(error: AppError): MessageKey {
 
 export function useQueueController(eventId: string): QueueViewProps {
   const router = useRouter();
-  const { getQueueStateUseCase, watchQueueStateUseCase, startSessionUseCase, random } = useDependencies<
-    QueueDependencies & CoreDependencies
-  >();
+  const { getQueueStateUseCase, getQueueEventUseCase, watchQueueStateUseCase, startSessionUseCase, random } =
+    useDependencies<QueueDependencies & CoreDependencies>();
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
     watch: (observer) => watchQueueStateUseCase(eventId, observer),
     until: (state) => state.status !== "waiting",
   });
   const queue = useQuery(queuePositionQuery({ getQueueStateUseCase, random }, eventId, live));
+  // Detail event hanya pelengkap: gagal memuatnya tidak menghentikan antrian.
+  const event = useQuery(queueEventQuery({ getQueueEventUseCase }, eventId));
   const enter = useMutation({
     mutationFn: (accessToken: string) => startSessionUseCase(accessToken),
     onSuccess: () => router.push(`/events/${eventId}/book`),
   });
-  const title = t("queue.title");
   const data = queue.data;
 
   // Giliran tiba: masuk otomatis (FR-06–08). Tombol hanya muncul sebagai cadangan bila penyimpanan sesi gagal.
@@ -51,27 +52,42 @@ export function useQueueController(eventId: string): QueueViewProps {
     mutate(admittedToken);
   }, [admittedToken, mutate]);
 
+  const page = (status: QueueStatusProps) =>
+    toQueueViewProps({
+      chrome: toSiteChrome(),
+      eventName: event.data?.name ?? (data?.eventName || undefined),
+      event: event.data,
+      status,
+    });
+
   if (data?.status === "admitted") {
-    return {
-      title,
-      eventName: data.eventName,
+    return page({
       state: "admitted",
+      badge: { label: t("queue.badge.admitted"), tone: "info" },
       message: enter.isError ? t(errorKey(toAppError(enter.error))) : t("queue.admitted.message"),
       action: enter.isError
         ? { label: t("queue.admitted.retry"), onClick: () => mutate(data.accessToken) }
         : undefined,
-    };
+    });
   }
 
-  if (data?.status === "waiting") return toWaitingViewProps(data);
+  if (data?.status === "waiting") return page(toWaitingStatus(data));
 
   if (data?.status === "ended") {
-    return { title, eventName: data.eventName, state: "error", message: t(`queue.ended.${data.reason}`) };
+    return page({
+      state: "error",
+      badge: { label: t("queue.badge.error"), tone: "error" },
+      message: t(`queue.ended.${data.reason}`),
+    });
   }
 
   if (queue.isError) {
-    return { title, state: "error", message: t(errorKey(toAppError(queue.error))) };
+    return page({
+      state: "error",
+      badge: { label: t("queue.badge.error"), tone: "error" },
+      message: t(errorKey(toAppError(queue.error))),
+    });
   }
 
-  return { title, state: "loading", message: t("queue.loading.message") };
+  return page({ state: "loading", message: t("queue.loading.message") });
 }

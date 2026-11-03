@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { HttpClient } from "@/core/data/http/http.client";
 import type { AuthProtocol } from "../domain/auth.protocol";
-import type { Account, LoginResult, RegisterInput } from "../domain/account.model";
-import { loginResultSchema, sessionSchema } from "./account.schema";
+import type { Account, EventSummary, LoginResult, RegisterInput } from "../domain/account.model";
+import { eventSummarySchema, loginResultSchema, sessionSchema } from "./account.schema";
 
 /**
  * Endpoint anonim (minta link, kirim ulang, register) dipanggil langsung ke BE. Verifikasi, sesi, dan keluar
@@ -59,6 +59,10 @@ export function createHttpAuthService({
 
     async signOut(): Promise<void> {
       await bffHttpClient.post("/auth/logout", {}, z.unknown());
+    },
+
+    getEventSummary(eventId: string): Promise<EventSummary> {
+      return httpClient.get(`/events/${encodeURIComponent(eventId)}`, eventSummarySchema);
     },
   };
 }

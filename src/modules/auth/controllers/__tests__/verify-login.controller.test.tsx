@@ -27,11 +27,22 @@ describe("useVerifyLoginController", () => {
     const container = setupTestContainer();
     const { result } = renderHook(() => useVerifyLoginController(), { wrapper: createWrapper(container) });
 
-    expect(result.current.confirm?.label).toBe("Masuk sekarang");
+    const screen = result.current;
+    if (screen.kind !== "confirm") throw new Error("bukan layar konfirmasi");
+    expect(screen.confirm.label).toBe("Masuk sekarang");
     expect(verifyCalls).toBe(0);
-    act(() => result.current.confirm?.onClick());
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-00912/pay"));
+    act(() => screen.confirm.onClick());
+    await waitFor(() => expect(result.current.kind).toBe("done"));
     expect(verifyCalls).toBe(1);
+    const done = result.current;
+    if (done.kind !== "done") throw new Error("belum selesai");
+    expect(done.primary).toEqual({ label: "Kembali ke booking", href: "/orders/RB-00912/pay" });
+    expect(done.secondary?.href).toBe("/");
+    await waitFor(() =>
+      expect(result.current.kind === "done" && result.current.booking?.title).toBe("Konser A — Jakarta"),
+    );
+    // Tidak ada redirect otomatis: customer memilih sendiri lewat tombol (desain "You're logged in").
+    expect(replace).not.toHaveBeenCalled();
     expect(await container.cradle.getAccountUseCase()).toEqual({
       email: "you@example.com",
       nikMasked: "3171********xx22",
@@ -41,8 +52,10 @@ describe("useVerifyLoginController", () => {
   it("tanpa token: pesan link tidak lengkap dan tautan minta link baru", () => {
     window.history.replaceState(null, "", "/login/verify");
     const { result } = renderHook(() => useVerifyLoginController(), { wrapper: createWrapper() });
-    expect(result.current.error).toBe("Link login tidak lengkap. Minta link baru dari halaman masuk.");
-    expect(result.current.requestNew?.href).toBe("/login");
+    const screen = result.current;
+    if (screen.kind !== "failed") throw new Error("bukan layar gagal");
+    expect(screen.message).toBe("Link login tidak lengkap. Minta link baru dari halaman masuk.");
+    expect(screen.requestNew.href).toBe("/login");
   });
 
   it("link ditolak BE: pesan link tidak berlaku, tanpa pindah halaman", async () => {
@@ -53,9 +66,11 @@ describe("useVerifyLoginController", () => {
     );
     window.history.replaceState(null, "", "/login/verify#token=expired");
     const { result } = renderHook(() => useVerifyLoginController(), { wrapper: createWrapper() });
-    act(() => result.current.confirm?.onClick());
+    act(() => result.current.kind === "confirm" && result.current.confirm.onClick());
     await waitFor(() =>
-      expect(result.current.error).toBe("Link login tidak berlaku atau sudah dipakai. Minta link baru."),
+      expect(result.current.kind === "failed" && result.current.message).toBe(
+        "Link login tidak berlaku atau sudah dipakai. Minta link baru.",
+      ),
     );
     expect(replace).not.toHaveBeenCalled();
   });

@@ -35,14 +35,15 @@ const grantedMe = (grantToken: string) =>
 describe("useQueueController", () => {
   it("join lalu menampilkan posisi, estimasi, dan progress dari /queue/me", async () => {
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    expect(result.current.state).toBe("loading");
+    expect(result.current.status.state).toBe("loading");
 
     // Join di posisi 1.248; poll /queue/me pertama memajukan antrian 416 langkah.
-    await waitFor(() => expect(result.current.state).toBe("waiting"));
-    expect(result.current.eventName).toBe("Konser A");
-    expect(result.current.position?.value).toBe("#832");
-    expect(result.current.eta?.value).toBe("± 3 menit");
-    expect(result.current.progress?.percent).toBe(33);
+    await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+    expect(result.current.subtitle).toBe("Kamu sudah masuk antrean resmi Konser A.");
+    await waitFor(() => expect(result.current.event?.name).toBe("Konser A — Jakarta"));
+    expect(result.current.status.position?.value).toBe("#832");
+    expect(result.current.status.eta?.value).toBe("± 3 menit");
+    expect(result.current.status.progress?.percent).toBe(33);
   });
 
   it("saat giliran tiba menyimpan grant satu kali lalu pindah ke Detail Ticket", async () => {
@@ -64,7 +65,7 @@ describe("useQueueController", () => {
     expect(started).toHaveBeenCalledTimes(1);
     expect(started).toHaveBeenCalledWith({ accessToken: "gt_1" });
     expect(container.cradle.credentialStore.grantToken()).toBe("gt_1");
-    expect(result.current.state).toBe("admitted");
+    expect(result.current.status.state).toBe("admitted");
   });
 
   it("gagal menyimpan sesi: tampil pesan dan tombol coba lagi, tanpa pindah halaman", async () => {
@@ -75,21 +76,21 @@ describe("useQueueController", () => {
     );
 
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.action?.label).toBe("Coba lagi"));
+    await waitFor(() => expect(result.current.status.action?.label).toBe("Coba lagi"));
     expect(push).not.toHaveBeenCalled();
   });
 
   it("jaringan gagal: state error dengan pesan jaringan, bukan pesan mentah", async () => {
     server.use(http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () => HttpResponse.error()));
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.state).toBe("error"));
-    expect(result.current.message).toBe("Koneksi bermasalah. Kami mencoba lagi otomatis.");
+    await waitFor(() => expect(result.current.status.state).toBe("error"));
+    expect(result.current.status.message).toBe("Koneksi bermasalah. Kami mencoba lagi otomatis.");
   });
 
   it("antrian penuh (503) memakai pesan QUEUE_FULL", async () => {
     const { result } = renderHook(() => useQueueController("evt_konser_b"), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.state).toBe("error"));
-    expect(result.current.message).toBe("Antrian sedang penuh. Coba lagi beberapa saat lagi.");
+    await waitFor(() => expect(result.current.status.state).toBe("error"));
+    expect(result.current.status.message).toBe("Antrian sedang penuh. Coba lagi beberapa saat lagi.");
   });
 
   it("grant kedaluwarsa: antrian berakhir dengan pesan, tanpa pindah halaman", async () => {
@@ -100,8 +101,10 @@ describe("useQueueController", () => {
       ),
     );
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.state).toBe("error"));
-    expect(result.current.message).toBe("Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.");
+    await waitFor(() => expect(result.current.status.state).toBe("error"));
+    expect(result.current.status.message).toBe(
+      "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
+    );
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -115,7 +118,7 @@ describe("useQueueController", () => {
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
       wrapper: createWrapper(container),
     });
-    await waitFor(() => expect(result.current.state).toBe("waiting"));
+    await waitFor(() => expect(result.current.status.state).toBe("waiting"));
     const stream = fakes.find(`/events/${OPEN_EVENT_ID}/queue/stream`)!;
 
     // Tiket customer 32.748; now_serving 32.648 berarti posisi 100.
@@ -123,7 +126,7 @@ describe("useQueueController", () => {
       stream.emit("open");
       stream.emit("message", { nowServing: 32_648, state: "OPEN", ratePerMin: 318, paused: false });
     });
-    expect(result.current.position?.value).toBe("#100");
+    expect(result.current.status.position?.value).toBe("#100");
 
     server.use(grantedMe("gt_sse"));
     act(() => stream.emit("grant", {}));

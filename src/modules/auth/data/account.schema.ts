@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Account, LoginResult, SavedNikList } from "../domain/account.model";
+import type { Account, EventSummary, LoginResult, SavedNikList } from "../domain/account.model";
 
 const accountSchema = z
   .object({ email: z.string(), nik_masked: z.string() })
@@ -7,8 +7,32 @@ const accountSchema = z
 
 /** `data` dari route same-origin `POST /api/auth/verify`. Token akun tidak pernah ada di sini. */
 export const loginResultSchema = z
-  .object({ redirect_path: z.string() })
-  .transform((result): LoginResult => ({ redirectPath: result.redirect_path }));
+  .object({
+    redirect_path: z.string(),
+    booking: z.object({ event_id: z.string().optional(), booking_id: z.string().optional() }).nullable(),
+  })
+  .transform((result): LoginResult => ({
+    redirectPath: result.redirect_path,
+    booking: result.booking
+      ? { eventId: result.booking.event_id, bookingId: result.booking.booking_id }
+      : null,
+  }));
+
+/** `data` dari `GET /events/{event_id}`, hanya bagian yang dipakai kartu konteks booking. */
+export const eventSummarySchema = z
+  .object({
+    name: z.string(),
+    location: z.object({ venue: z.string(), city: z.string() }),
+    date: z.string(),
+    image_url: z.string(),
+  })
+  .transform((event): EventSummary => ({
+    name: event.name,
+    city: event.location.city,
+    venue: event.location.venue,
+    date: event.date,
+    imageUrl: event.image_url,
+  }));
 
 /** `data` dari `GET /api/auth/session`. */
 export const sessionSchema = z

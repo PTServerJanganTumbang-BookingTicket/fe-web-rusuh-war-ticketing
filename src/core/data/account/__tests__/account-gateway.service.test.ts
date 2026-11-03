@@ -61,6 +61,7 @@ describe("accountGateway.verify", () => {
     const body = (await response.json()) as { data: Record<string, unknown> };
     expect(body.data).toEqual({
       redirect_path: "/orders/RB-00912/pay",
+      booking: { event_id: "evt_konser_a", booking_id: "RB-00912" },
       account: { email: "you@example.com", nik_masked: "3171********xx22" },
     });
     expect(JSON.stringify(body)).not.toMatch(/at_|rt_/);

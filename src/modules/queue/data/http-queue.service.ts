@@ -1,9 +1,16 @@
 import type { HttpClient } from "@/core/data/http/http.client";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { QueueProtocol } from "../domain/queue.protocol";
+import type { QueueEvent } from "../domain/queue-event.model";
 import type { QueueState } from "../domain/queue-state.model";
 import type { QueueTicketCache } from "./memory-queue-ticket.service";
-import { queueJoinSchema, queueMeSchema, toQueueState, type QueueTicket } from "./queue-state.schema";
+import {
+  queueEventSchema,
+  queueJoinSchema,
+  queueMeSchema,
+  toQueueState,
+  type QueueTicket,
+} from "./queue-state.schema";
 
 const queuePath = (eventId: string) => `/events/${encodeURIComponent(eventId)}/queue`;
 
@@ -38,6 +45,10 @@ export function createHttpQueueService({
         errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
       });
       return toQueueState(ticket, me);
+    },
+
+    getEvent(eventId: string): Promise<QueueEvent> {
+      return httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueEventSchema);
     },
   };
 }

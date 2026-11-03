@@ -1,12 +1,19 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { createWrapper, setupMockServer } from "@/test/support";
 import { useLoginController } from "../login.controller";
 
+let search = "";
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(search) }));
+
 const server = setupMockServer();
+
+afterEach(() => {
+  search = "";
+});
 
 function mount() {
   const hook = renderHook(() => useLoginController(), { wrapper: createWrapper() });
@@ -24,11 +31,37 @@ function mount() {
 }
 
 describe("useLoginController", () => {
-  it("email tidak valid: galat di field, tanpa request", () => {
+  it("form awal: tombol mati sampai email diisi, fokus saja tidak memunculkan galat", () => {
     const { form } = mount();
-    act(() => form().email.onChange("bukan-email"));
-    act(() => form().submit.onSubmit());
+    expect(form().submit.disabled).toBe(true);
+    expect(form().email.error).toBeUndefined();
+    expect(form().inboxHint).toBe("Klik link di inbox-mu untuk menyelesaikan login.");
+    act(() => form().email.onChange("you@example.com"));
+    expect(form().submit.disabled).toBe(false);
+  });
+
+  it("email tidak valid: galat setelah field ditinggalkan, tombol diblokir", () => {
+    const { form } = mount();
+    act(() => form().email.onChange("you@"));
+    expect(form().email.error).toBeUndefined();
+    act(() => form().email.onBlur());
     expect(form().email.error).toBe("Masukkan alamat email yang valid.");
+    expect(form().submit.disabled).toBe(true);
+  });
+
+  it("kirim dengan Enter saat kosong: email wajib diisi", () => {
+    const { form } = mount();
+    act(() => form().submit.onSubmit());
+    expect(form().email.error).toBe("Alamat email wajib diisi.");
+  });
+
+  it("sesi berakhir: judul dan tombol berbeda, tanpa tautan daftar", () => {
+    search = "session=expired";
+    const { form } = mount();
+    expect(form().variant).toBe("expired");
+    expect(form().heading).toBe("Sesimu sudah berakhir");
+    expect(form().submit.label).toBe("Kirim link login baru");
+    expect(form().register).toBeUndefined();
   });
 
   it("mengirim link lalu menampilkan layar cek email dengan jeda kirim ulang", async () => {
@@ -44,7 +77,9 @@ describe("useLoginController", () => {
     act(() => form().submit.onSubmit());
     await waitFor(() => expect(result.current.kind).toBe("sent"));
     expect(body).toEqual({ email: "you@example.com" });
-    expect(sent().message).toContain("you@example.com");
+    // Pesan generik: tidak menyebut email dan tidak membedakan akun terdaftar atau tidak.
+    expect(sent().message).not.toContain("you@example.com");
+    expect(sent().notice.title).toBe("Link aman, bukan kata sandi.");
     expect(sent().resend.disabled).toBe(true);
     expect(sent().resend.label).toMatch(/^Kirim ulang dalam \d+ detik$/);
     // Mode mock: tautan pengganti email menuju layar verifikasi dengan token di fragmen.

@@ -141,13 +141,20 @@ export function createAccountGatewayService({
       if (!parsed.success) return envelope(502, "Unexpected verify response");
       const { user, redirect_context: context } = parsed.data.data;
       const account = { email: user.email, nik_masked: user.nik };
-      return envelope(200, "Login successful", { redirect_path: redirectPathFor(context), account }, [
-        ...tokenCookies(parsed.data.data),
-        serializeCookie(ACCOUNT_PROFILE_COOKIE, JSON.stringify(account), {
-          maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
-          secure,
-        }),
-      ]);
+      const booking =
+        context?.type === "booking" ? { event_id: context.event_id, booking_id: context.booking_id } : null;
+      return envelope(
+        200,
+        "Login successful",
+        { redirect_path: redirectPathFor(context), booking, account },
+        [
+          ...tokenCookies(parsed.data.data),
+          serializeCookie(ACCOUNT_PROFILE_COOKIE, JSON.stringify(account), {
+            maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
+            secure,
+          }),
+        ],
+      );
     },
 
     session(request) {
