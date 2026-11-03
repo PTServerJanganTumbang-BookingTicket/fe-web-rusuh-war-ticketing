@@ -6,9 +6,9 @@ inputs:
     description: "PR number yang sudah di-merge (e.g., 39)"
     required: true
   new_status:
-    description: "Status baru untuk item di backlog"
+    description: "Status baru untuk item di backlog (default: In review untuk sanity testing)"
     required: true
-    default: "Done"
+    default: "In review"
 
 steps:
   - id: verify_merge
@@ -44,16 +44,18 @@ steps:
         - Backlog: f75ad846
         - Ready: 61e4505c
         - In progress: 47fc9ee4
-        - In review: df73e18b
+        - In review: df73e18b (DEFAULT - untuk sanity testing sebelum Done)
         - Done: 98236657
 
       Command format:
       gh project item-edit --project-id PVT_kwDOFGitZc4Bp3Oc --id <ITEM_ID> --field-id PVTSSF_lADOFGitZc4Bp3OczhoQ3J4 --single-select-option-id <STATUS_OPTION_ID>
 
+      CATATAN: Default ke "In review" untuk memungkinkan sanity testing sebelum di-mark Done.
+
   - id: update_memory
     name: "Update Ticket Convention"
     dependsOn: [update_status]
     prompt: |
-      Update .kiro/memories/ticket-convention.md untuk mencatat bahwa ticket sudah Done.
+      Update .kiro/memories/ticket-convention.md untuk mencatat bahwa ticket sudah In review/Done.
 
       Jika ada ticket baru yang perlu ditambahkan ke history, tambahkan juga.

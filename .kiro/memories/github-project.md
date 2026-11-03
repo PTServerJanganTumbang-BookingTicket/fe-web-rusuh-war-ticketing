@@ -21,8 +21,20 @@ Field ID: `PVTSSF_lADOFGitZc4Bp3OczhoQ3J4`
 | Backlog | f75ad846 | Item baru, belum dikerjakan |
 | Ready | 61e4505c | Siap dikerjakan, dependencies clear |
 | In progress | 47fc9ee4 | Sedang dikerjakan |
-| In review | df73e18b | PR created, menunggu review |
-| Done | 98236657 | PR merged, task complete |
+| In review | df73e18b | PR merged, menunggu sanity testing |
+| Done | 98236657 | Sanity testing passed, task fully complete |
+
+## Task Lifecycle Flow
+
+```
+Backlog → Ready → In progress → In review → Done
+                                    ↑
+                              PR merged,
+                          sanity testing
+```
+
+**PENTING**: Setelah PR merge, task **HARUS** masuk ke "In review" dulu untuk sanity testing.
+Task hanya boleh dipindah ke "Done" setelah sanity testing passed.
 
 ## Size Field
 
@@ -64,12 +76,19 @@ gh project item-create 2 --owner PTServerJanganTumbang-BookingTicket --title "<T
 
 ## Workflow Integration
 
-Setelah PR merge, update backlog dengan:
+### Setelah PR Merge (Default: In review)
+```
+/workflow sjt-backlog-update pr_number=<PR_NUMBER>
+```
+Default akan ke "In review" untuk sanity testing.
+
+### Setelah Sanity Testing Pass (Manual: Done)
 ```
 /workflow sjt-backlog-update pr_number=<PR_NUMBER> new_status=Done
 ```
+Atau manual dengan gh CLI.
 
-Atau manual:
+### Manual Update
 1. `gh pr view <PR_NUMBER> --json state` - verifikasi merged
 2. `gh project item-list 2 --owner PTServerJanganTumbang-BookingTicket` - cari item
-3. `gh project item-edit ...` - update status ke Done
+3. `gh project item-edit ...` - update status ke In review/Done
