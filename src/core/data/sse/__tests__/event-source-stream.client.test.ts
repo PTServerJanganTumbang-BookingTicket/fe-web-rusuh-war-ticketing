@@ -8,6 +8,7 @@ const appConfig = {
   appBaseUrl: "",
   mocking: false,
   bookingExpiry: "queue",
+  secureCookies: false,
 } as const;
 
 function setup() {

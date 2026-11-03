@@ -8,7 +8,13 @@ export type ApiErrorCode =
   | "QUEUE_TOKEN_INVALID"
   | "SLOT_TAKEN_OVER"
   | "PAYMENT_EXPIRED"
-  | "QUEUE_FULL";
+  | "QUEUE_FULL"
+  | "RATE_LIMITED"
+  | "NIK_ALREADY_REGISTERED"
+  | "CONSENT_REQUIRED"
+  | "LOGIN_LINK_INVALID"
+  | "UNAUTHENTICATED"
+  | "SAVED_NIK_REJECTED";
 
 export type AppError =
   | { kind: "api"; code: ApiErrorCode; status: number }
@@ -25,6 +31,12 @@ const API_ERROR_CODES: readonly string[] = [
   "SLOT_TAKEN_OVER",
   "PAYMENT_EXPIRED",
   "QUEUE_FULL",
+  "RATE_LIMITED",
+  "NIK_ALREADY_REGISTERED",
+  "CONSENT_REQUIRED",
+  "LOGIN_LINK_INVALID",
+  "UNAUTHENTICATED",
+  "SAVED_NIK_REJECTED",
 ];
 
 export function parseApiErrorCode(value: unknown): ApiErrorCode | undefined {

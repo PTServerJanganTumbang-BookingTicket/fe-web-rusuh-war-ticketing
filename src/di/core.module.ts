@@ -6,6 +6,10 @@ import type { SessionProtocol } from "@/core/domain/session.protocol";
 import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
 import { createFetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
 import type { HttpClient } from "@/core/data/http/http.client";
+import {
+  createAccountGatewayService,
+  type AccountGateway,
+} from "@/core/data/account/account-gateway.service";
 import { createWebStorageCredentialStoreService } from "@/core/data/credentials/web-storage-credential-store.service";
 import { createMathRandomService } from "@/core/data/math-random.service";
 import { createHttpSessionService } from "@/core/data/session/http-session.service";
@@ -19,6 +23,9 @@ import { createSystemClockService } from "@/core/data/system-clock.service";
 export type CoreRegistry = CoreDependencies & {
   fetchFn: FetchFn;
   httpClient: HttpClient;
+  /** Klien ke route same-origin `/api` (token akun di cookie httpOnly, ADR-0023). */
+  bffHttpClient: HttpClient;
+  accountGateway: AccountGateway;
   eventSourceFactory: EventSourceFactory;
   eventStreamClient: EventStreamClient;
   sessionService: SessionProtocol;
@@ -38,6 +45,11 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     clock: asFunction(createSystemClockService).singleton(),
     random: asFunction(createMathRandomService).singleton(),
     httpClient: asFunction(createFetchHttpClient).singleton(),
+    bffHttpClient: asFunction(({ appConfig: config, fetchFn }: { appConfig: AppConfig; fetchFn: FetchFn }) =>
+      createFetchHttpClient({ appConfig: { ...config, apiBaseUrl: `${config.appBaseUrl}/api` }, fetchFn }),
+    ).singleton(),
+    // Hanya dipakai route `app/api/auth` dan `app/api/account` di server.
+    accountGateway: asFunction(createAccountGatewayService).singleton(),
     eventSourceFactory: asValue(browserEventSource),
     eventStreamClient: asFunction(createEventSourceStreamClient).singleton(),
     credentialStore: asFunction(createWebStorageCredentialStoreService).singleton(),

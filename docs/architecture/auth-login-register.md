@@ -2,6 +2,8 @@
 
 Status: **login dan register belum diimplementasikan.** Yang ada hanya rute `/login` berisi placeholder dan mekanisme cookie sesi. Dokumen ini memisahkan dengan tegas: (A) apa yang sudah ada di kode, (B) rancangan yang belum dibangun, dan (C) yang masih terbuka. Tanggal acuan: 2026-11-01.
 
+> **Pembaruan 2026-11-03** (branch `feature/account-management`): login magic link, verifikasi link, register, halaman akun dengan Daftar NIK Teman, dan Tiket Saya dengan sesi akun sudah dibangun mengikuti ADR-0023 opsi 2. Token akun disimpan route same-origin (`src/app/api/auth/*`, `src/app/api/account/*`, logikanya di `src/core/data/account/account-gateway.service.ts`) di cookie httpOnly `account_token`, `account_refresh`, dan `account_profile`. Link email diarahkan ke `/login/verify#token=...` dan token baru dipakai saat tombol ditekan (usulan 1 dan 2), lalu diteruskan ke `GET /auth/verify` sebagai cookie `magic_token` sesuai kontrak. Refresh memakai `POST /auth/refresh` yang kini ada di kontrak. Logout hanya menghapus cookie di FE karena kontrak belum punya endpoint logout. Bagian A dan B di bawah mencatat keadaan sebelum pembaruan ini.
+
 Sumber kebenaran endpoint adalah [kontrak API §1](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/api/api-contracts.md) di repo `documentations`.
 
 ## A. Yang sudah ada di kode

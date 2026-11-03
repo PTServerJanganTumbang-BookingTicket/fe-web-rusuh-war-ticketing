@@ -1,7 +1,8 @@
-import { t } from "@/core/i18n/t.utils";
-import { ScreenPlaceholder } from "@/components/ui/layout/ScreenPlaceholder";
+"use client";
 
-// Placeholder: Controller dan View menyusul (skill new-feature-screen).
+import { useLoginController } from "../controllers/login.controller";
+import { LoginView } from "./LoginView";
+
 export function LoginContainer() {
-  return <ScreenPlaceholder title={t("login.title")} description={t("common.placeholder")} />;
+  return <LoginView {...useLoginController()} />;
 }

@@ -9,4 +9,6 @@ export type AppConfig = {
   /** API dimock dengan MSW; kontrol simulasi hanya muncul di mode ini. */
   mocking: boolean;
   bookingExpiry: BookingExpiryMode;
+  /** Cookie akun memakai atribut `Secure` (production). Hanya dibaca route same-origin di server. */
+  secureCookies: boolean;
 };

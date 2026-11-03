@@ -8,5 +8,6 @@ export function readAppConfig(): AppConfig {
     mocking: process.env.NEXT_PUBLIC_API_MOCKING === "enabled",
     // Toggle uji: "screen" menampilkan layar sesi berakhir; selain itu kembali ke ruang tunggu (ADR-0005).
     bookingExpiry: process.env.NEXT_PUBLIC_BOOKING_EXPIRY === "screen" ? "screen" : "queue",
+    secureCookies: process.env.NODE_ENV === "production",
   };
 }

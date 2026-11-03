@@ -31,6 +31,7 @@ async function request<T>(
   }
 
   const envelope = envelopeSchema.safeParse(await response.json().catch(() => undefined));
+  if (response.status === 204) return schema.parse(undefined);
 
   if (!response.ok) {
     const code = options.errorCodes?.[response.status] ?? parseApiErrorCode(envelope.data?.meta.message);
@@ -64,5 +65,8 @@ export function createFetchHttpClient({
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
         options,
       ),
+    delete: async (path, options) => {
+      await request(fetchFn, `${appConfig.apiBaseUrl}${path}`, z.unknown(), { method: "DELETE" }, options);
+    },
   };
 }

@@ -31,6 +31,7 @@ function TicketContent() {
   const ticketCards = tickets.map(toTicketCardProps);
 
   const getErrorMessage = (): string | undefined => {
+    if (error?.kind === "api" && error.code === "UNAUTHENTICATED") return t("ticket.error.UNAUTHENTICATED");
     if (error) return t("ticket.error");
     if (isLoading && tickets.length === 0) return t("common.loading");
     return undefined;
