@@ -174,25 +174,25 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 - [ ] 10. Checkpoint — booking module `@owner:muzaki`
 
-- [ ] 11. Align payment module — domain layer [ALIGN] `@owner:akbar`
-  - [ ] 11.1 Tulis ulang order.model.ts — PaymentMethod, PaymentInstruction, BankCode, OrderStatus `@owner:akbar`
+- [x] 11. Align payment module — domain layer [ALIGN] `@owner:akbar`
+  - [x] 11.1 Tulis ulang order.model.ts — PaymentMethod, PaymentInstruction, BankCode, OrderStatus `@owner:akbar`
     - _Requirements: 6.1, 6.3, 6.7, 6.11, 6.13, 6.16, BR-05_
-  - [ ] 11.2 Tulis ulang order.protocol.ts — getAvailableMethods, retryPayment, getPaymentStatus `@owner:akbar`
+  - [x] 11.2 Tulis ulang order.protocol.ts — getAvailableMethods, retryPayment, getPaymentStatus `@owner:akbar`
     - _Requirements: 6.3, 6.11, 6.12, 6.19_
-  - [ ] 11.3 Hapus order-updates.protocol.ts (SSE removed, polling-only) `@owner:akbar`
-  - [ ] 11.4 Update order.rules.ts — canRetryPayment, canInitiatePayment, isFinalOrder `@owner:akbar`
+  - [x] 11.3 Hapus order-updates.protocol.ts (SSE removed, polling-only) `@owner:akbar`
+  - [x] 11.4 Update order.rules.ts — canRetryPayment, canInitiatePayment, isFinalOrder `@owner:akbar`
     - _Requirements: 6.7, 6.8, 6.19_
-  - [ ] 11.5 Update payment.constants.ts — PAYMENT_STATUS_POLL_INTERVAL_MS, MIN_RETRY_REMAINING_SECONDS `@owner:akbar`
+  - [x] 11.5 Update payment.constants.ts — PAYMENT_STATUS_POLL_INTERVAL_MS, MIN_RETRY_REMAINING_SECONDS `@owner:akbar`
     - _Requirements: 6.1, 6.7, 6.13, 6.19, BR-05, BR-06_
 
-- [ ] 12. Align payment module — application layer [ALIGN + NEW] `@owner:akbar`
-  - [ ] 12.1 Tulis ulang watch-order.use-case.ts → polling-based `@owner:akbar`
+- [x] 12. Align payment module — application layer [ALIGN + NEW] `@owner:akbar`
+  - [x] 12.1 Tulis ulang watch-order.use-case.ts → polling-based `@owner:akbar`
     - _Requirements: 6.12, 6.13_
-  - [ ] 12.2 Update get-order.use-case.ts — rename orderId → bookingId `@owner:akbar`
-  - [ ] 12.3 Update start-payment.use-case.ts — add BankCode param `@owner:akbar`
-  - [ ] 12.4 Buat get-available-methods.use-case.ts [NEW] `@owner:akbar`
-  - [ ] 12.5 Buat retry-payment.use-case.ts [NEW] `@owner:akbar`
-  - [ ] 12.6 Update payment.use-cases.test.ts — Property 11 `@owner:akbar`
+  - [x] 12.2 Update get-order.use-case.ts — rename orderId → bookingId `@owner:akbar`
+  - [x] 12.3 Update start-payment.use-case.ts — add BankCode param `@owner:akbar`
+  - [x] 12.4 Buat get-available-methods.use-case.ts [NEW] `@owner:akbar`
+  - [x] 12.5 Buat retry-payment.use-case.ts [NEW] `@owner:akbar`
+  - [x] 12.6 Update payment.use-cases.test.ts — Property 11 `@owner:akbar`
 
 - [ ] 13. Align payment module — data layer [ALIGN] `@owner:akbar`
   - [ ] 13.1 Rename sse-order-updates.service.ts → http-payment-status.service.ts `@owner:akbar`
