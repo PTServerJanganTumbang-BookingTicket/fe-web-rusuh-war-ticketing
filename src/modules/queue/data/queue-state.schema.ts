@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { QUEUE_POLL_FALLBACK_MS } from "../domain/queue.constants";
+import type { QueueEvent } from "../domain/queue-event.model";
 import type { QueueState } from "../domain/queue-state.model";
 
 /** `data` dari `POST /events/{event_id}/queue/join`. */
@@ -80,3 +81,21 @@ export function toQueueState(ticket: QueueTicket, me: QueueMe): QueueState {
       return { status: "ended", eventName, reason: "expired" };
   }
 }
+
+/** `data` dari `GET /events/{event_id}`, hanya bagian yang dipakai kartu event di Waiting Room. */
+export const queueEventSchema = z
+  .object({
+    name: z.string(),
+    category: z.string(),
+    location: z.object({ venue: z.string(), city: z.string() }),
+    date: z.string(),
+    image_url: z.string(),
+  })
+  .transform((event): QueueEvent => ({
+    name: event.name,
+    category: event.category,
+    city: event.location.city,
+    venue: event.location.venue,
+    date: event.date,
+    imageUrl: event.image_url,
+  }));

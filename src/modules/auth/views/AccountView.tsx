@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { ScreenFrame } from "@/components/ui/layout/ScreenFrame";
-import { Alert, Button, Card, CardContent, describedBy, Field, Input } from "@/components/ui/primitives";
+import { Alert, Button, Card, CardContent } from "@/components/ui/primitives";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 type TextField = { label: string; value: string; error?: string; onChange: (value: string) => void };
 
@@ -135,29 +137,37 @@ function AddSavedNikForm({
   return (
     <form noValidate onSubmit={onSubmit} className="flex flex-col gap-3 rounded-lg border border-input p-4">
       <h3 className="type-body1 font-semibold">{title}</h3>
-      <Field id="saved-label" label={label.label} error={label.error}>
-        <Input
-          id="saved-label"
-          value={label.value}
-          aria-invalid={Boolean(label.error)}
-          aria-describedby={describedBy("saved-label", label)}
-          onChange={(event) => label.onChange(event.target.value)}
-        />
-      </Field>
-      <Field id="saved-nik" label={nik.label} error={nik.error}>
-        <Input
-          id="saved-nik"
-          inputMode="numeric"
-          autoComplete="off"
-          value={nik.value}
-          aria-invalid={Boolean(nik.error)}
-          aria-describedby={describedBy("saved-nik", nik)}
-          onChange={(event) => nik.onChange(event.target.value)}
-        />
-      </Field>
+      <TextInput id="saved-label" field={label} />
+      <TextInput id="saved-nik" field={nik} inputMode="numeric" autoComplete="off" />
       <Button type="submit" disabled={submit.disabled}>
         {submit.label}
       </Button>
     </form>
+  );
+}
+
+function TextInput({
+  id,
+  field,
+  ...input
+}: {
+  id: string;
+  field: TextField;
+  inputMode?: "numeric";
+  autoComplete?: string;
+}) {
+  return (
+    <Field data-invalid={Boolean(field.error)}>
+      <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
+      <Input
+        id={id}
+        value={field.value}
+        aria-invalid={Boolean(field.error)}
+        aria-describedby={field.error ? `${id}-error` : undefined}
+        onChange={(event) => field.onChange(event.target.value)}
+        {...input}
+      />
+      {field.error ? <FieldError id={`${id}-error`}>{field.error}</FieldError> : null}
+    </Field>
   );
 }

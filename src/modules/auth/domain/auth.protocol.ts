@@ -1,4 +1,4 @@
-import type { Account, LoginResult, RegisterInput } from "./account.model";
+import type { Account, EventSummary, LoginResult, RegisterInput } from "./account.model";
 
 /** Login magic link dan register sesuai kontrak §1 (ADR-0023). */
 export interface AuthProtocol {
@@ -10,4 +10,6 @@ export interface AuthProtocol {
   /** `null` berarti tamu. */
   getAccount(): Promise<Account | null>;
   signOut(): Promise<void>;
+  /** Event booking yang dipulihkan setelah login (kartu konteks). */
+  getEventSummary(eventId: string): Promise<EventSummary>;
 }

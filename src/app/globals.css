@@ -1,5 +1,10 @@
 @import "tailwindcss";
 @import "../components/ui/signal.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/* Komponen shadcn (components.json) memakai token Signal dari signal.css; preset shadcn tidak menimpa tema (ADR-0012, ADR-0017). */
+
+@custom-variant dark (&:is(.dark *));
 
 /* ── Signal UI Core CSS Variables ── */
 /* Diperlukan oleh @signal-web-ui/core untuk styling komponen web. */

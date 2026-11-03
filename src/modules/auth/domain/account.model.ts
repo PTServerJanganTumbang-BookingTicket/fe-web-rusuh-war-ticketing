@@ -14,5 +14,8 @@ export type RegisterInput = {
   policyVersion: string;
 };
 
-/** Tujuan setelah login, sudah berupa path internal yang dibangun server (BR-09). */
-export type LoginResult = { redirectPath: string };
+/** Tujuan setelah login, sudah berupa path internal yang dibangun server, plus booking yang dipulihkan (BR-09). */
+export type LoginResult = { redirectPath: string; booking: { eventId?: string; bookingId?: string } | null };
+
+/** Ringkasan event untuk kartu konteks booking setelah login. */
+export type EventSummary = { name: string; city: string; venue: string; date: string; imageUrl: string };

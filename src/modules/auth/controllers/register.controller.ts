@@ -11,6 +11,7 @@ import type { AuthDependencies } from "../application/auth.dependencies";
 import { isEmail, isNikFormat } from "../domain/account.rules";
 import { PRIVACY_POLICY_VERSION } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
+import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
 import type { RegisterViewProps } from "../views/RegisterView";
 
 export function useRegisterController(): RegisterViewProps {
@@ -24,12 +25,12 @@ export function useRegisterController(): RegisterViewProps {
   const register = useMutation({
     mutationFn: () => registerAccountUseCase({ email, nik, name, policyVersion: PRIVACY_POLICY_VERSION }),
   });
-  const title = t("register.title");
+  const chrome = toSiteChrome();
 
   if (register.isSuccess) {
     return {
+      ...chrome,
       kind: "done",
-      title,
       heading: t("register.done.title"),
       message: t("register.done.message", { email: email.trim() }),
     };
@@ -52,13 +53,21 @@ export function useRegisterController(): RegisterViewProps {
     : undefined;
 
   return {
+    ...chrome,
     kind: "form",
-    title,
+    heading: t("register.heading"),
     intro: t("register.intro"),
     error,
-    email: { label: t("register.email.label"), value: email, error: errors.email, onChange: setEmail },
+    email: {
+      label: t("register.email.label"),
+      required: true,
+      value: email,
+      error: errors.email,
+      onChange: setEmail,
+    },
     nik: {
       label: t("register.nik.label"),
+      required: true,
       hint: t("register.nik.hint"),
       value: nik,
       error: errors.nik,
@@ -74,12 +83,13 @@ export function useRegisterController(): RegisterViewProps {
     },
     submit: {
       label: register.isPending ? t("register.submitting") : t("register.submit"),
-      disabled: register.isPending,
+      busy: register.isPending,
       onSubmit: () => {
         setSubmitted(true);
         if (valid) register.mutate();
       },
     },
+    requiredNote: t("login.required"),
     login: { prompt: t("register.login.prompt"), label: t("register.login.link"), href: "/login" },
   };
 }
