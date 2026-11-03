@@ -212,24 +212,28 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 - [ ] 16. Buat auth module — domain dan application layers [NEW] `@owner:muzaki`
   - _Desain: ADR-0023 (Proposed). Tunggu BE menyepakati usulan perubahan kontrak di ADR-0023, terutama cara token magic link sampai ke verifikasi, sebelum 16.4, 16.7, dan 17.1_
-  - [ ] 16.1 Buat user.model.ts `@owner:muzaki`
-  - [ ] 16.2 Buat auth.protocol.ts `@owner:muzaki`
-  - [ ] 16.3 Buat nik-validation.rules.ts `@owner:muzaki`
-  - [ ] 16.4 Buat request-magic-link.use-case.ts `@owner:muzaki`
+  - [x] 16.1 Buat user.model.ts `@owner:muzaki`
+    - _Jadi `account.model.ts` (Account, SavedNik, RegisterInput)_
+  - [x] 16.2 Buat auth.protocol.ts `@owner:muzaki`
+  - [x] 16.3 Buat nik-validation.rules.ts `@owner:muzaki`
+    - _Jadi `account.rules.ts` (`isEmail`, `isNikFormat`)_
+  - [x] 16.4 Buat request-magic-link.use-case.ts `@owner:muzaki`
   - [ ] 16.5 Buat validate-nik.use-case.ts (auth) `@owner:muzaki`
     - _Cek dulu apakah cukup memakai validasi NIK booking (`POST /nik/validate`, task 7.1)_
   - [ ] 16.6 Tulis property tests nik-validation.rules `@owner:muzaki`
-  - [ ] 16.7 Buat resend-magic-link.use-case.ts dan verify-magic-link.use-case.ts `@owner:muzaki`
+  - [x] 16.7 Buat resend-magic-link.use-case.ts dan verify-magic-link.use-case.ts `@owner:muzaki`
+    - _`verify-login.use-case.ts` lewat route same-origin `/api/auth/verify`_
 
-- [ ] 17. Buat auth module — data, controller, views, dan module [NEW] `@owner:muzaki`
-  - [ ] 17.1 Buat http-auth.service.ts `@owner:muzaki`
-  - [ ] 17.2 Buat login.controller.ts `@owner:muzaki`
-  - [ ] 17.3 Buat register.controller.ts `@owner:muzaki`
-  - [ ] 17.4 Update LoginContainer.tsx `@owner:muzaki`
-  - [ ] 17.5 Buat RegisterContainer.tsx `@owner:muzaki`
-  - [ ] 17.6 Buat auth.module.ts `@owner:muzaki`
-  - [ ] 17.7 Update di/container.ts `@owner:muzaki`
-  - [ ] 17.8 Tulis integration tests auth `@owner:muzaki`
+- [x] 17. Buat auth module — data, controller, views, dan module [NEW] `@owner:muzaki`
+  - [x] 17.1 Buat http-auth.service.ts `@owner:muzaki`
+  - [x] 17.2 Buat login.controller.ts `@owner:muzaki`
+  - [x] 17.3 Buat register.controller.ts `@owner:muzaki`
+  - [x] 17.4 Update LoginContainer.tsx `@owner:muzaki`
+  - [x] 17.5 Buat RegisterContainer.tsx `@owner:muzaki`
+  - [x] 17.6 Buat auth.module.ts `@owner:muzaki`
+  - [x] 17.7 Update di/container.ts `@owner:muzaki`
+  - [x] 17.8 Tulis integration tests auth `@owner:muzaki`
+    - _Test controller login, verify, register, akun, dan gateway `/api` dengan MSW_
 
 - [x] 18. Buat ticket module [NEW] `@owner:akbar`
   - [x] 18.1 Buat ticket.model.ts dan ticket.protocol.ts `@owner:akbar`
@@ -243,9 +247,10 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 - [ ] 19. Update app route pages [ALIGN + NEW]
   - [ ] 19.1 Update queue page.tsx `@owner:muzaki`
-  - [ ] 19.2 Update login page.tsx `@owner:muzaki`
-  - [ ] 19.3 Buat register page.tsx `@owner:muzaki`
-  - [ ] 19.4 Buat verify page.tsx `@owner:muzaki`
+  - [x] 19.2 Update login page.tsx `@owner:muzaki`
+  - [x] 19.3 Buat register page.tsx `@owner:muzaki`
+  - [x] 19.4 Buat verify page.tsx `@owner:muzaki`
+    - _`/login/verify#token=...`; ditambah `/account` dan `/tickets`_
     - _Token akun disimpan lewat route same-origin di cookie httpOnly, tidak di URL atau `localStorage` (ADR-0023)_
   - [ ] 19.5 Update book page.tsx `@owner:muzaki`
   - [ ] 19.6 Update pay page.tsx — rename orderId → bookingId `@owner:akbar`
@@ -253,7 +258,7 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 - [ ] 20. Update i18n message keys [ALIGN]
   - [ ] 20.1 Tambahkan queue message keys `@owner:muzaki`
-  - [ ] 20.2 Tambahkan auth message keys `@owner:muzaki`
+  - [x] 20.2 Tambahkan auth message keys `@owner:muzaki`
   - [ ] 20.3 Tambahkan payment message keys `@owner:akbar`
   - [ ] 20.4 Tulis i18n property tests `@owner:muzaki`
 
@@ -344,8 +349,8 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
   - [ ] 30.4 Buat `ticket.schema.ts` untuk response parsing
 
 - [ ] 31. Auth module saved-niks alignment [ALIGN] `@owner:muzaki`
-  - [ ] 31.1 Rename `NikFriend` → `SavedNik` sesuai API contract
-  - [ ] 31.2 Update endpoint paths: `/me/nik-friends/*` → `/accounts/me/saved-niks`
+  - [x] 31.1 Rename `NikFriend` → `SavedNik` sesuai API contract
+  - [x] 31.2 Update endpoint paths: `/me/nik-friends/*` → `/accounts/me/saved-niks`
   - [ ] 31.3 Update `SavedNik` type — tambah `status: 'VERIFIED'`
 
 ## Updated Dependency Graph

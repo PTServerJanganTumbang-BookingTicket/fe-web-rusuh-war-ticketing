@@ -17,4 +17,6 @@ export type RequestOptions = {
 export interface HttpClient {
   get<T>(path: string, schema: z.ZodType<T>, options?: RequestOptions): Promise<T>;
   post<T>(path: string, body: unknown, schema: z.ZodType<T>, options?: RequestOptions): Promise<T>;
+  /** Sukses tanpa isi (mis. 204) cukup diselesaikan; tidak ada `data` untuk diparse. */
+  delete(path: string, options?: RequestOptions): Promise<void>;
 }

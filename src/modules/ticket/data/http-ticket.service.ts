@@ -7,10 +7,19 @@ import { myTicketsResponseSchema, eTicketSchema } from "./ticket.schema";
  * HTTP implementation of TicketProtocol.
  * Endpoints: GET /users/me/tickets, GET /tickets/{id}/eticket
  */
-export function createHttpTicketService({ httpClient }: { httpClient: HttpClient }): TicketProtocol {
+export function createHttpTicketService({
+  httpClient,
+  bffHttpClient,
+}: {
+  httpClient: HttpClient;
+  bffHttpClient: HttpClient;
+}): TicketProtocol {
   return {
     async getMyTickets(): Promise<MyTicketsResult> {
-      return httpClient.get("/users/me/tickets", myTicketsResponseSchema);
+      // Butuh sesi akun: lewat route same-origin yang menambahkan Bearer dari cookie httpOnly (ADR-0023).
+      return bffHttpClient.get("/account/tickets", myTicketsResponseSchema, {
+        errorCodes: { 401: "UNAUTHENTICATED" },
+      });
     },
 
     async getETicket(ticketId: string, accessToken?: string): Promise<ETicket> {

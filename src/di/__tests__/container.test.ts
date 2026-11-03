@@ -8,6 +8,7 @@ const config = {
   appBaseUrl: "",
   mocking: false,
   bookingExpiry: "queue",
+  secureCookies: false,
 } as const;
 
 describe("composition root", () => {

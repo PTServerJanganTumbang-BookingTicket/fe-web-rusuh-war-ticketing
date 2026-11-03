@@ -281,9 +281,13 @@ describe("ticketService", () => {
     });
   });
 
-  it("tiket saya butuh sesi akun; tanpa Bearer server menjawab 401", async () => {
+  it("tiket saya butuh sesi akun: tamu mendapat UNAUTHENTICATED dari route same-origin", async () => {
     const { ticketService } = setupTestContainer().cradle;
-    expect(await failureOf(ticketService.getMyTickets())).toEqual({ kind: "unknown", status: 401 });
+    expect(await failureOf(ticketService.getMyTickets())).toEqual({
+      kind: "api",
+      code: "UNAUTHENTICATED",
+      status: 401,
+    });
   });
 
   it("daftar tiket: VALID menjadi ISSUED", async () => {
@@ -311,7 +315,8 @@ describe("ticketService", () => {
         ]),
       ),
     );
-    const { ticketService } = setupTestContainer().cradle;
+    const { ticketService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_tickets");
     const result = await ticketService.getMyTickets();
     expect(result.total).toBe(2);
     expect(result.tickets.map((ticket) => ticket.status)).toEqual(["ISSUED", "USED"]);

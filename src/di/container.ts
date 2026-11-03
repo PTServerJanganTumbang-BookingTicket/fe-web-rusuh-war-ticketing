@@ -1,4 +1,5 @@
 import { createContainer, InjectionMode, type AwilixContainer } from "awilix";
+import { authModule, type AuthRegistry } from "@/modules/auth/auth.module";
 import { bookingModule, type BookingRegistry } from "@/modules/booking/booking.module";
 import { catalogModule, type CatalogRegistry } from "@/modules/catalog/catalog.module";
 import { paymentModule, type PaymentRegistry } from "@/modules/payment/payment.module";
@@ -13,7 +14,8 @@ export type AppRegistry = CoreRegistry &
   QueueRegistry &
   BookingRegistry &
   PaymentRegistry &
-  TicketRegistry;
+  TicketRegistry &
+  AuthRegistry;
 
 export type AppContainer = AwilixContainer<AppRegistry>;
 
@@ -31,6 +33,7 @@ export function createAppContainer(appConfig: AppConfig): AppContainer {
     ...bookingModule(),
     ...paymentModule(),
     ...ticketModule(),
+    ...authModule(),
   });
   return container;
 }

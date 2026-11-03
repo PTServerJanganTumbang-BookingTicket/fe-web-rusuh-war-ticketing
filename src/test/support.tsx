@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { asValue, type NameAndRegistrationPair } from "awilix";
+import { http } from "msw";
 import { createAppContainer, type AppContainer, type AppRegistry } from "@/di/container";
 import { server } from "@/mocks/node";
 import { createHandlers, MOCK_API_BASE_URL } from "@/mocks/handlers";
@@ -18,15 +19,58 @@ export const testConfig: AppConfig = {
   // Kontrol simulasi pembayaran hanya ada di mode mock; test controller berjalan di mode itu.
   mocking: true,
   bookingExpiry: "queue",
+  secureCookies: false,
 };
 
 /**
+ * Route same-origin `/api/auth/*` dan `/api/account/*` dijalankan lewat gateway asli dengan cookie jar seperti
+ * browser, jadi test controller melewati lapisan yang sama dengan produksi (ADR-0023).
+ */
+function sameOriginAccountHandlers() {
+  const { accountGateway } = createAppContainer(testConfig).cradle;
+  const jar = new Map<string, string>();
+  const withCookies = async (
+    request: Request,
+    handle: (request: Request) => Response | Promise<Response>,
+  ) => {
+    const headers = new Headers(request.headers);
+    headers.set("cookie", [...jar].map(([name, value]) => `${name}=${value}`).join("; "));
+    const body = request.method === "GET" || request.method === "DELETE" ? undefined : await request.text();
+    const response = await handle(new Request(request.url, { method: request.method, headers, body }));
+    for (const cookie of response.headers.getSetCookie()) {
+      const [pair = "", ...attributes] = cookie.split("; ");
+      const [name = "", ...value] = pair.split("=");
+      if (attributes.includes("Max-Age=0")) jar.delete(name);
+      else jar.set(name, value.join("="));
+    }
+    return response;
+  };
+  const api = `${TEST_APP_ORIGIN}/api`;
+  return [
+    http.post(`${api}/auth/verify`, ({ request }) => withCookies(request, accountGateway.verify)),
+    http.get(`${api}/auth/session`, ({ request }) => withCookies(request, accountGateway.session)),
+    http.post(`${api}/auth/logout`, ({ request }) => withCookies(request, () => accountGateway.logout())),
+    http.all(`${api}/account/*`, ({ request }) =>
+      withCookies(request, (forwarded) =>
+        accountGateway.forward(forwarded, new URL(forwarded.url).pathname.replace("/api/account/", "")),
+      ),
+    ),
+  ];
+}
+
+/** Handler dasar satu test: mock kontrak BE dengan state baru, plus route same-origin dengan cookie jar baru. */
+const freshHandlers = () => [...sameOriginAccountHandlers(), ...createHandlers()];
+
+/**
  * Server MSW bersama: skenario dasar dari `src/mocks`, override per test lewat `server.use`.
- * Handler dibuat ulang tiap test supaya state mock (antrian, booking, stok) tidak bocor antar test.
+ * Handler dibuat ulang tiap test supaya state mock (antrian, booking, stok, sesi akun) tidak bocor antar test.
  */
 export function setupMockServer() {
-  beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
-  afterEach(() => server.resetHandlers(...createHandlers()));
+  beforeAll(() => {
+    server.listen({ onUnhandledFrame: "error" });
+    server.resetHandlers(...freshHandlers());
+  });
+  afterEach(() => server.resetHandlers(...freshHandlers()));
   afterAll(() => server.close());
   return server;
 }
