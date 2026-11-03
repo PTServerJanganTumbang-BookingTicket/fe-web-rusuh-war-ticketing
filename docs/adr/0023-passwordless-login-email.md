@@ -1,4 +1,4 @@
-# ADR-0022: Login magic link mengikuti kontrak API, dengan token disimpan lewat route same-origin
+# ADR-0023: Login magic link mengikuti kontrak API, dengan token disimpan lewat route same-origin
 
 - **Status**: Proposed
 - **Tanggal**: 2026-11-01

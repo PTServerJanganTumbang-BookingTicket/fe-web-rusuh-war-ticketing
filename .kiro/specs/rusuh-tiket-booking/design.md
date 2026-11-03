@@ -175,11 +175,11 @@ export type LoginResult = {
 
 ```typescript
 // auth/domain/auth.protocol.ts
-// Login magic link sesuai kontrak API §1 (ADR-0022, Proposed). Login bersifat opsional.
+// Login magic link sesuai kontrak API §1 (ADR-0023, Proposed). Login bersifat opsional.
 export interface AuthProtocol {
   requestMagicLink(email: string): Promise<void>; // POST /auth/magic-link
   resendMagicLink(email: string): Promise<void>; // POST /auth/magic-link/resend
-  verifyMagicLink(): Promise<LoginResult>; // GET /auth/verify, cara kirim token masih usulan di ADR-0022
+  verifyMagicLink(): Promise<LoginResult>; // GET /auth/verify, cara kirim token masih usulan di ADR-0023
   register(data: RegisterData): Promise<void>; // POST /auth/register
   getSavedNiks(): Promise<NikFriend[]>; // GET /accounts/me/saved-niks
   addSavedNik(nik: string): Promise<NikFriend>; // POST /accounts/me/saved-niks
@@ -1736,10 +1736,10 @@ test('complete booking flow', async ({ page }) => {
 
 ### Authentication & Authorization
 
-1. **Cookie-based session**: `queue_token` dikelola BE. Token akun disimpan route same-origin di cookie HttpOnly, Secure, SameSite=Lax (ADR-0022)
+1. **Cookie-based session**: `queue_token` dikelola BE. Token akun disimpan route same-origin di cookie HttpOnly, Secure, SameSite=Lax (ADR-0023)
 2. **Access token validation at edge (proxy.ts)**: JWT signature verification
-3. **Token tidak di URL**: SSE menggunakan cookie, bukan query param. Pengecualian: one-time code WebView (ADR-0008). Cara token magic link sampai ke verifikasi masih usulan (ADR-0022)
-4. **Login opsional dan tanpa kata sandi**: magic link sesuai kontrak API §1 (ADR-0022)
+3. **Token tidak di URL**: SSE menggunakan cookie, bukan query param. Pengecualian: one-time code WebView (ADR-0008). Cara token magic link sampai ke verifikasi masih usulan (ADR-0023)
+4. **Login opsional dan tanpa kata sandi**: magic link sesuai kontrak API §1 (ADR-0023)
 
 ### Input Validation
 
@@ -1906,7 +1906,7 @@ sequenceDiagram
 - [ADR-0006: Payment via Midtrans Core API](../../../docs/adr/0006-payment-midtrans-core-api.md)
 - [ADR-0004: TanStack Query](../../../docs/adr/0004-server-state-tanstack-query.md)
 - [ADR-0012: Signal DS](../../../docs/adr/0012-signal-ds-tokens-and-primitives.md)
-- [ADR-0022: Login passwordless](../../../docs/adr/0022-passwordless-login-email.md)
+- [ADR-0023: Login passwordless](../../../docs/adr/0023-passwordless-login-email.md)
 - [Architecture Overview](../../../docs/architecture/overview.md)
 - [ADR-0022: Payment UI — Composable Instruction Renderer](../../../docs/adr/0022-payment-instruction-renderer.md)
 

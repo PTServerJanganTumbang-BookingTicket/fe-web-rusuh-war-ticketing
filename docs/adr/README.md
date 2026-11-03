@@ -26,7 +26,7 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0020](0020-test-file-organization.md) | Unit Test File Organization dalam Folder `__tests__` | Accepted |
 | [0021](0021-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
 | [0022](0022-payment-instruction-renderer.md) | Payment UI — Composable Instruction Renderer | Accepted |
-| [0022](0022-passwordless-login-email.md) | Login magic link mengikuti kontrak API, dengan token disimpan lewat route same-origin | Proposed |
+| [0023](0023-passwordless-login-email.md) | Login magic link mengikuti kontrak API, dengan token disimpan lewat route same-origin | Proposed |
 
 ## Status
 

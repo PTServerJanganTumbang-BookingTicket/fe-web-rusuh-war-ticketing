@@ -136,7 +136,7 @@ idle → selecting ──submit──► submitting ──┤
 
 - Tooling (npm, Awilix, TanStack Query, zod, MSW, Playwright) perlu dicek terhadap tech radar. Turborepo tidak lagi dibutuhkan (ADR-0013).
 - Apakah Signal DS menyediakan Tailwind preset, atau kita buat dari token.
-- Login: magic link sesuai kontrak API. Rancangan FE web ada di [ADR-0022](../adr/0022-passwordless-login-email.md).
+- Login: magic link sesuai kontrak API. Rancangan FE web ada di [ADR-0023](../adr/0023-passwordless-login-email.md).
 
 ## 8. Status implementasi (2026-10-19, diperbarui 2026-10-29)
 

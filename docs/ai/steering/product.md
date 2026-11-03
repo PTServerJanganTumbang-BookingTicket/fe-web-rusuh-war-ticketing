@@ -19,7 +19,7 @@ Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumbe
 ## Keputusan klien yang sudah pasti
 
 - Login bersifat opsional, dikonfirmasi CEO. Customer bisa antre dan membeli sebagai tamu. E-tiket dikirim ke email akun atau email yang diinput.
-- Login tanpa kata sandi lewat magic link (kontrak API §1, [ADR-0022](../../adr/0022-passwordless-login-email.md)).
+- Login tanpa kata sandi lewat magic link (kontrak API §1, [ADR-0023](../../adr/0023-passwordless-login-email.md)).
 - BR-01: maksimal 3 tiket per transaksi. BR-02: 1 NIK untuk 1 tiket per event. BR-07: satu keterlibatan aktif per event, hanya untuk customer login.
 - Usulan tim, menunggu konfirmasi: satu sesi login aktif per akun ([ADR-0010](../../adr/0010-login-single-session-progress-persistence.md)). NIK terdaftar terikat ke akun ([ADR-0011](../../adr/0011-nik-linked-to-account.md)).
 - Payment gateway: Midtrans sandbox.

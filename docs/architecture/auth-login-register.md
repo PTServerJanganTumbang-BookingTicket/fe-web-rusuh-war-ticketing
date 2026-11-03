@@ -16,16 +16,16 @@ Sumber kebenaran endpoint adalah [kontrak API §1](https://github.com/PTServerJa
 | i18n | `src/core/i18n/id.messages.ts` | Baru `login.title` |
 | Kode error | `src/core/domain/app-error.ts` | Belum memuat kode error dari kontrak |
 | Mock | `src/mocks/handlers.ts` | Tidak ada handler auth |
-| Register | | Tidak ada rute. Rancangannya di [ADR-0022](../adr/0022-passwordless-login-email.md) |
+| Register | | Tidak ada rute. Rancangannya di [ADR-0023](../adr/0023-passwordless-login-email.md) |
 | Template email | `emails/login-link.mjml`, `emails/verify-register.mjml` | Ada, tetapi belum dipakai BE |
 
 Alur Home → Waiting Room → Booking → Payment bisa dijalani tanpa login. Ini **sesuai keputusan terbaru**: login bersifat opsional ([update requirement §2](https://github.com/PTServerJanganTumbang-BookingTicket/documentations/blob/main/requirement/update-requirement-rusuh-booking-tiket.md)).
 
 ## B. Rancangan yang belum dibangun
 
-Sumber: kontrak API, [ADR-0010](../adr/0010-login-single-session-progress-persistence.md), [ADR-0011](../adr/0011-nik-linked-to-account.md), dan [ADR-0022](../adr/0022-passwordless-login-email.md). Ketiga ADR belum Accepted.
+Sumber: kontrak API, [ADR-0010](../adr/0010-login-single-session-progress-persistence.md), [ADR-0011](../adr/0011-nik-linked-to-account.md), dan [ADR-0023](../adr/0023-passwordless-login-email.md). Ketiga ADR belum Accepted.
 
-### B.0 Metode login ([ADR-0022](../adr/0022-passwordless-login-email.md))
+### B.0 Metode login ([ADR-0023](../adr/0023-passwordless-login-email.md))
 
 Tanpa kata sandi, dan tidak wajib:
 
@@ -48,7 +48,7 @@ Akun memberi tiga hal yang tidak dimiliki tamu: NIK terisi otomatis tanpa panggi
 1. **Login tidak menjadi gerbang.** `proxy.ts` tidak mengarahkan tamu ke `/login`. Halaman yang butuh akun, seperti Daftar NIK Teman dan riwayat tiket, yang meminta login.
 2. **FE tidak membatalkan apa pun** saat token akun tidak berlaku lagi. Customer yang sudah punya slot tetap lanjut memakai `queue_token`.
 3. **`redirect_context`** menentukan tujuan setelah login. FE hanya menerima tipe yang dikenal dan membangun path sendiri.
-4. **Pemindai email** bisa menghanguskan link sekali pakai bila verifikasi lewat `GET`. Usulan perbaikannya ada di ADR-0022.
+4. **Pemindai email** bisa menghanguskan link sekali pakai bila verifikasi lewat `GET`. Usulan perbaikannya ada di ADR-0023.
 
 ### B.3 Rendering dan struktur yang akan dipakai
 
@@ -84,7 +84,7 @@ Route `/login` perlu `AppProviders` (dari `src/di`) di layout `(auth)/login` kar
 
 - **`queue_token`**: cookie milik BE, disetel saat `POST …/queue/join`. FE tidak menyentuhnya.
 - **Access token booking**: diambil lewat `GET …/queue/me` setelah event `grant`.
-- **Token akun**: kontrak mengembalikannya di body. FE web menyimpannya lewat route same-origin di cookie `httpOnly`, `sameSite=lax`, `secure` di production, tidak pernah di URL, `localStorage`, Context, atau log (ADR-0022). Nama cookie belum diputuskan.
+- **Token akun**: kontrak mengembalikannya di body. FE web menyimpannya lewat route same-origin di cookie `httpOnly`, `sameSite=lax`, `secure` di production, tidak pernah di URL, `localStorage`, Context, atau log (ADR-0023). Nama cookie belum diputuskan.
 
 `src/proxy.ts` dan `/api/session/start` masih memakai cookie `access_token` dan perlu diselaraskan saat modul antrian dan booking diintegrasikan.
 
@@ -96,13 +96,13 @@ Route `/login` perlu `AppProviders` (dari `src/di`) di layout `(auth)/login` kar
 
 ### B.6 Yang perlu dari BE
 
-Daftar lengkapnya ada di ADR-0022, bagian "Usulan perubahan kontrak": cara token magic link sampai ke verifikasi, verifikasi yang aman dari pemindai email, endpoint pembaruan token dan logout, endpoint profil, dan penamaan token.
+Daftar lengkapnya ada di ADR-0023, bagian "Usulan perubahan kontrak": cara token magic link sampai ke verifikasi, verifikasi yang aman dari pemindai email, endpoint pembaruan token dan logout, endpoint profil, dan penamaan token.
 
 ## C. Yang masih terbuka
 
 | Pertanyaan | Dampak |
 |---|---|
-| Usulan perubahan kontrak di ADR-0022 | Syarat implementasi auth |
+| Usulan perubahan kontrak di ADR-0023 | Syarat implementasi auth |
 | **Satu sesi aktif per akun** (ADR-0010) tidak ada di kontrak. Masih berlaku? | Penanganan `SESSION_REVOKED`, layar sesi dicabut, `/api/session/end` |
 | Berapa lama magic link berlaku, dan batas kirim ulangnya? | Isi `emails/login-link.mjml` dan layar "cek email" |
 | Apakah verifikasi email saat registrasi langsung membuat customer masuk? | Alur register |
