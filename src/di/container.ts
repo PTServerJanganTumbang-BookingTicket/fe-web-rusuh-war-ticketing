@@ -3,11 +3,17 @@ import { bookingModule, type BookingRegistry } from "@/modules/booking/booking.m
 import { catalogModule, type CatalogRegistry } from "@/modules/catalog/catalog.module";
 import { paymentModule, type PaymentRegistry } from "@/modules/payment/payment.module";
 import { queueModule, type QueueRegistry } from "@/modules/queue/queue.module";
+import { ticketModule, type TicketRegistry } from "@/modules/ticket/ticket.module";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import { coreModule, type CoreRegistry } from "./core.module";
 
 /** Seluruh isi container. Modul baru menambah irisannya di sini dan di `createAppContainer` (ADR-0015). */
-export type AppRegistry = CoreRegistry & CatalogRegistry & QueueRegistry & BookingRegistry & PaymentRegistry;
+export type AppRegistry = CoreRegistry &
+  CatalogRegistry &
+  QueueRegistry &
+  BookingRegistry &
+  PaymentRegistry &
+  TicketRegistry;
 
 export type AppContainer = AwilixContainer<AppRegistry>;
 
@@ -24,6 +30,7 @@ export function createAppContainer(appConfig: AppConfig): AppContainer {
     ...queueModule(),
     ...bookingModule(),
     ...paymentModule(),
+    ...ticketModule(),
   });
   return container;
 }

@@ -126,7 +126,11 @@ export const id = {
   "payment.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "payment.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
   // Ticket
-  "ticket.title": "E-tiket",
+  "ticket.title": "Tiket Saya",
+  "ticket.subtitle": "Semua tiket yang sudah kamu beli",
+  "ticket.empty": "Belum ada tiket. Mulai beli tiket event favoritmu!",
+  "ticket.error": "Tiket belum bisa dimuat. Coba lagi sebentar lagi.",
+  "ticket.eticket.title": "E-Tiket",
 } as const;
 
 export type MessageKey = keyof typeof id;
