@@ -181,8 +181,8 @@ export interface AuthProtocol {
   resendMagicLink(email: string): Promise<void>; // POST /auth/magic-link/resend
   verifyMagicLink(): Promise<LoginResult>; // GET /auth/verify, cara kirim token masih usulan di ADR-0023
   register(data: RegisterData): Promise<void>; // POST /auth/register
-  getSavedNiks(): Promise<NikFriend[]>; // GET /accounts/me/saved-niks
-  addSavedNik(nik: string): Promise<NikFriend>; // POST /accounts/me/saved-niks
+  getSavedNiks(): Promise<SavedNik[]>; // GET /accounts/me/saved-niks
+  addSavedNik(nik: string, label: string): Promise<SavedNik>; // POST /accounts/me/saved-niks
   removeSavedNik(id: string): Promise<void>; // DELETE /accounts/me/saved-niks/{id}
 }
 
