@@ -194,10 +194,10 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [x] 12.5 Buat retry-payment.use-case.ts [NEW] `@owner:akbar`
   - [x] 12.6 Update payment.use-cases.test.ts — Property 11 `@owner:akbar`
 
-- [ ] 13. Align payment module — data layer [ALIGN] `@owner:akbar`
-  - [ ] 13.1 Rename sse-order-updates.service.ts → http-payment-status.service.ts `@owner:akbar`
-  - [ ] 13.2 Tulis ulang http-order.service.ts — new endpoints `@owner:akbar`
-  - [ ] 13.3 Tulis ulang order.schema.ts — new Zod schemas `@owner:akbar`
+- [x] 13. Align payment module — data layer [ALIGN] `@owner:akbar`
+  - [x] 13.1 ~~Rename sse-order-updates.service.ts → http-payment-status.service.ts~~ (N/A: SSE removed, polling via getPaymentStatus in http-order.service) `@owner:akbar`
+  - [x] 13.2 Tulis ulang http-order.service.ts — new endpoints (DONE: all v2.1 endpoints implemented) `@owner:akbar`
+  - [x] 13.3 Tulis ulang order.schema.ts — new Zod schemas (DONE: all schemas aligned with v2.1) `@owner:akbar`
 
 - [ ] 14. Align payment module — controller, views, dan module [ALIGN] `@owner:akbar`
   - [ ] 14.1 Tulis ulang payment.controller.ts — polling, bank selection, retry flow `@owner:akbar`
