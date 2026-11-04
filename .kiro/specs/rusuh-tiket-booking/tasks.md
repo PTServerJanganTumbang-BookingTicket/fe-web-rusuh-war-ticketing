@@ -253,13 +253,13 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
     - _`/login/verify#token=...`; ditambah `/account` dan `/tickets`_
     - _Token akun disimpan lewat route same-origin di cookie httpOnly, tidak di URL atau `localStorage` (ADR-0023)_
   - [ ] 19.5 Update book page.tsx `@owner:muzaki`
-  - [ ] 19.6 Update pay page.tsx — rename orderId → bookingId `@owner:akbar`
+  - [x] 19.6 Update pay page.tsx — rename orderId → bookingId `@owner:akbar`
   - [ ] 19.7 Update ticket page.tsx `@owner:akbar`
 
 - [ ] 20. Update i18n message keys [ALIGN]
   - [ ] 20.1 Tambahkan queue message keys `@owner:muzaki`
   - [x] 20.2 Tambahkan auth message keys `@owner:muzaki`
-  - [ ] 20.3 Tambahkan payment message keys `@owner:akbar`
+  - [x] 20.3 Tambahkan payment message keys `@owner:akbar`
   - [ ] 20.4 Tulis i18n property tests `@owner:muzaki`
 
 - [x] 21. MSW mock handlers [ALIGN] `@owner:shared`
