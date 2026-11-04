@@ -304,48 +304,53 @@ export function PaymentView(props: PaymentViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
       <PageHeader {...header} />
+      {/* Timer di luar grid supaya tetap menempel sampai bawah halaman, juga saat kolom samping turun di mobile. */}
       <div
-        className={cn(
-          "mt-6 grid gap-6 sm:mt-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8",
-          payButton ? "pb-24 lg:pb-0" : undefined,
-        )}
+        className={cn("mt-6 flex flex-col gap-6 sm:mt-8 lg:gap-8", payButton ? "pb-24 lg:pb-0" : undefined)}
       >
-        <div className="flex min-w-0 flex-col gap-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="type-body1 text-muted-foreground">{order.label}</p>
-            <Badge
-              className={cn(
-                "type-body2 h-auto rounded-full px-3 py-1 uppercase",
-                statusTone[order.status.tone],
-              )}
-            >
-              {order.status.label}
-            </Badge>
-          </div>
-          {countdown ? <CountdownBanner {...countdown} /> : null}
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
-          {stage.kind === "select" ? <MethodSelection stage={stage} /> : null}
-          {stage.kind === "pending" ? <PendingPayment stage={stage} /> : null}
-          {stage.kind === "result" ? <PaymentResult stage={stage} /> : null}
-          <Alert variant="success" role="note" className="border-signal-valid">
-            <ShieldCheckIcon />
-            <AlertTitle className="text-foreground">{secure.title}</AlertTitle>
-            <AlertDescription className="text-foreground">{secure.body}</AlertDescription>
-          </Alert>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="type-body1 text-muted-foreground">{order.label}</p>
+          <Badge
+            className={cn(
+              "type-body2 h-auto rounded-full px-3 py-1 uppercase",
+              statusTone[order.status.tone],
+            )}
+          >
+            {order.status.label}
+          </Badge>
         </div>
+        {countdown ? <CountdownBanner {...countdown} /> : null}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+          <div className="flex min-w-0 flex-col gap-6">
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            {stage.kind === "select" ? <MethodSelection stage={stage} /> : null}
+            {stage.kind === "pending" ? <PendingPayment stage={stage} /> : null}
+            {stage.kind === "result" ? <PaymentResult stage={stage} /> : null}
+            <Alert variant="success" role="note" className="border-signal-valid">
+              <ShieldCheckIcon />
+              <AlertTitle className="text-foreground">{secure.title}</AlertTitle>
+              <AlertDescription className="text-foreground">{secure.body}</AlertDescription>
+            </Alert>
+          </div>
 
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
-          {event ? <EventSummaryCard {...event} /> : null}
-          <OrderSummaryCard
-            {...summary}
-            action={payButton ? <div className="hidden lg:block">{payButton}</div> : undefined}
-          />
-          {terms ? <p className="type-body2 text-center text-muted-foreground">{terms}</p> : null}
-        </aside>
+          <aside
+            className={cn(
+              "flex flex-col gap-6 lg:sticky lg:self-start",
+              countdown ? "lg:top-44" : "lg:top-24",
+            )}
+          >
+            {event ? <EventSummaryCard {...event} /> : null}
+            <OrderSummaryCard
+              {...summary}
+              action={payButton ? <div className="hidden lg:block">{payButton}</div> : undefined}
+            />
+            {terms ? <p className="type-body2 text-center text-muted-foreground">{terms}</p> : null}
+          </aside>
+        </div>
       </div>
 
       {payButton ? (

@@ -150,80 +150,83 @@ export function BookingView(props: BookingViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
       <PageHeader {...header} />
-      <div className="mt-6 grid gap-6 pb-24 sm:mt-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8 lg:pb-0">
-        <form id="booking-form" noValidate onSubmit={onSubmit} className="flex min-w-0 flex-col gap-6">
-          <CountdownBanner {...countdown} />
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
+      {/* Timer di luar grid supaya tetap menempel sampai bawah halaman, juga saat kolom samping turun di mobile. */}
+      <div className="mt-6 flex flex-col gap-6 pb-24 sm:mt-8 lg:gap-8 lg:pb-0">
+        <CountdownBanner {...countdown} />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+          <form id="booking-form" noValidate onSubmit={onSubmit} className="flex min-w-0 flex-col gap-6">
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
-          <SectionCard title={buyer.title}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextInput id="buyer-name" field={buyer.name} autoComplete="name" />
-              <TextInput id="buyer-email" field={buyer.email} inputMode="email" autoComplete="email" />
-            </div>
-            <p className="type-body2 text-muted-foreground">{buyer.hint}</p>
-          </SectionCard>
-
-          <section aria-labelledby="categories-title" className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="categories-title" className="type-h5">
-                {categories.title}
-              </h2>
-              <p className="type-body2 text-muted-foreground">{categories.limit}</p>
-            </div>
-            <ul className="flex flex-col gap-3">
-              {categories.items.map((category) => (
-                <CategoryRow key={category.id} {...category} />
-              ))}
-            </ul>
-          </section>
-
-          {holders ? (
-            <SectionCard title={holders.title}>
-              <p className="type-body2 -mt-2 text-muted-foreground">{holders.hint}</p>
-              <ol className="flex flex-col gap-3">
-                {holders.items.map((holder) => (
-                  <li key={holder.id} className="flex flex-col gap-4 rounded-xl border border-border p-4">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="type-body1-bold">{holder.title}</p>
-                      <p className="type-body2 text-muted-foreground tabular-nums">{holder.priceLabel}</p>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <TextInput
-                        id={`nik-${holder.id}`}
-                        field={holder.nik}
-                        inputMode="numeric"
-                        autoComplete="off"
-                      />
-                      <Field>
-                        <FieldLabel htmlFor={`seat-${holder.id}`}>{holder.seat.label}</FieldLabel>
-                        <Input
-                          id={`seat-${holder.id}`}
-                          value={holder.seat.value}
-                          readOnly
-                          className="bg-signal-disable"
-                        />
-                      </Field>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <p className="type-body2 text-muted-foreground">{holders.footnote}</p>
+            <SectionCard title={buyer.title}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextInput id="buyer-name" field={buyer.name} autoComplete="name" />
+                <TextInput id="buyer-email" field={buyer.email} inputMode="email" autoComplete="email" />
+              </div>
+              <p className="type-body2 text-muted-foreground">{buyer.hint}</p>
             </SectionCard>
-          ) : null}
-        </form>
 
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
-          {event ? <EventSummaryCard {...event} /> : null}
-          <OrderSummaryCard {...summary} action={<div className="hidden lg:block">{submitButton}</div>} />
-          <Alert variant="info" role="note" className="border-signal-info">
-            <InfoIcon />
-            <AlertDescription className="text-foreground">{notice}</AlertDescription>
-          </Alert>
-        </aside>
+            <section aria-labelledby="categories-title" className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 id="categories-title" className="type-h5">
+                  {categories.title}
+                </h2>
+                <p className="type-body2 text-muted-foreground">{categories.limit}</p>
+              </div>
+              <ul className="flex flex-col gap-3">
+                {categories.items.map((category) => (
+                  <CategoryRow key={category.id} {...category} />
+                ))}
+              </ul>
+            </section>
+
+            {holders ? (
+              <SectionCard title={holders.title}>
+                <p className="type-body2 -mt-2 text-muted-foreground">{holders.hint}</p>
+                <ol className="flex flex-col gap-3">
+                  {holders.items.map((holder) => (
+                    <li key={holder.id} className="flex flex-col gap-4 rounded-xl border border-border p-4">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="type-body1-bold">{holder.title}</p>
+                        <p className="type-body2 text-muted-foreground tabular-nums">{holder.priceLabel}</p>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <TextInput
+                          id={`nik-${holder.id}`}
+                          field={holder.nik}
+                          inputMode="numeric"
+                          autoComplete="off"
+                        />
+                        <Field>
+                          <FieldLabel htmlFor={`seat-${holder.id}`}>{holder.seat.label}</FieldLabel>
+                          <Input
+                            id={`seat-${holder.id}`}
+                            value={holder.seat.value}
+                            readOnly
+                            className="bg-signal-disable"
+                          />
+                        </Field>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                <p className="type-body2 text-muted-foreground">{holders.footnote}</p>
+              </SectionCard>
+            ) : null}
+          </form>
+
+          <aside className="flex flex-col gap-6 lg:sticky lg:top-44 lg:self-start">
+            {event ? <EventSummaryCard {...event} /> : null}
+            <OrderSummaryCard {...summary} action={<div className="hidden lg:block">{submitButton}</div>} />
+            <Alert variant="info" role="note" className="border-signal-info">
+              <InfoIcon />
+              <AlertDescription className="text-foreground">{notice}</AlertDescription>
+            </Alert>
+          </aside>
+        </div>
       </div>
 
       {/* Mobile: total dan tombol lanjut selalu terlihat di bawah layar. */}

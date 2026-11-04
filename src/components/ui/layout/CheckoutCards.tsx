@@ -14,13 +14,16 @@ export type CountdownBannerProps = {
   urgentLabel?: string;
 };
 
-/** Pengingat batas waktu sesi atau pembayaran. Angka berubah tiap detik, jadi tidak diumumkan (aria-live off). */
+/**
+ * Pengingat batas waktu sesi atau pembayaran. Menempel di bawah navbar (h-16) supaya waktu selalu terlihat.
+ * Angka berubah tiap detik, jadi tidak diumumkan (aria-live off).
+ */
 export function CountdownBanner({ title, hint, value, urgent, urgentLabel }: CountdownBannerProps) {
   return (
     <section
       aria-label={title}
       className={cn(
-        "flex items-center gap-3 rounded-xl border px-4 py-3 sm:px-5 sm:py-4",
+        "sticky top-[4.5rem] z-30 flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm sm:px-5 sm:py-4",
         urgent
           ? "border-signal-error/40 bg-signal-bg-error text-signal-error"
           : "border-signal-warning/40 bg-signal-bg-warning text-signal-warning",
