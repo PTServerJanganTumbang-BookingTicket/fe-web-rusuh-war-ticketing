@@ -1,6 +1,7 @@
 export type TicketCategory = {
   id: string;
   name: string;
+  description: string;
   priceIdr: number;
   /** Sisa stok. 0 berarti habis. */
   stock: number;

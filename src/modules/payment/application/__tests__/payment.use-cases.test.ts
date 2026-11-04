@@ -7,6 +7,7 @@ import { createWatchOrderUseCase } from "../watch-order.use-case";
 
 const order: Order = {
   bookingId: "RB-1",
+  eventId: "evt_konser_a",
   eventName: "Konser A",
   items: [{ category: "VIP", priceIdr: 1_500_000, nikMasked: "3201•••••••0001" }],
   totalIdr: 1_500_000,
@@ -24,6 +25,17 @@ function setupFakes() {
     getOrder: async (bookingId) => {
       calls.push(["getOrder", bookingId]);
       return order;
+    },
+    getEvent: async (eventId) => {
+      calls.push(["getEvent", eventId]);
+      return {
+        name: "Konser A",
+        category: "LIVE MUSIC",
+        city: "Jakarta",
+        venue: "GBK",
+        date: "2026-12-25",
+        imageUrl: "",
+      };
     },
     getAvailableMethods: async (bookingId) => {
       calls.push(["getAvailableMethods", bookingId]);

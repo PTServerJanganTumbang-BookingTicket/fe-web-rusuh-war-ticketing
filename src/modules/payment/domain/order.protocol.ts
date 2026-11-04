@@ -11,6 +11,7 @@
  */
 
 import type { AvailableMethod, BankCode, Order, PaymentMethod, PaymentStatusResult } from "./order.model";
+import type { PaymentEvent } from "./payment-event.model";
 
 export interface OrderProtocol {
   /** GET /bookings/{id} - Ambil detail order/booking */
@@ -27,6 +28,9 @@ export interface OrderProtocol {
 
   /** GET /payments/{id}/status - Polling status pembayaran */
   getPaymentStatus(bookingId: string): Promise<PaymentStatusResult>;
+
+  /** GET /events/{id} - Detail event untuk kartu di halaman pembayaran */
+  getEvent(eventId: string): Promise<PaymentEvent>;
 }
 
 // NOTE: OrderUpdatesProtocol (SSE) REMOVED for payment

@@ -20,6 +20,11 @@ describe("createGetBookingSessionUseCase", () => {
           asked.push(eventId);
           return session;
         },
+        getEvent: async () => {
+          throw new Error("tidak dipakai");
+        },
+        validateNik: async () => ({ status: "not_found" }),
+        submitBooking: async () => ({ bookingId: "RB-1" }),
       },
     });
     expect(await getBookingSessionUseCase("evt-1")).toBe(session);

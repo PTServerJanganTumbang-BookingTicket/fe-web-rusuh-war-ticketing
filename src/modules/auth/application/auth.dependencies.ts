@@ -1,6 +1,7 @@
 import type { RequestMagicLinkUseCase } from "./request-magic-link.use-case";
 import type { ResendMagicLinkUseCase } from "./resend-magic-link.use-case";
 import type { RegisterAccountUseCase } from "./register-account.use-case";
+import type { ResendVerificationUseCase } from "./resend-verification.use-case";
 import type { VerifyLoginUseCase } from "./verify-login.use-case";
 import type { GetAccountUseCase } from "./get-account.use-case";
 import type { GetEventSummaryUseCase } from "./get-event-summary.use-case";
@@ -14,6 +15,7 @@ export type AuthDependencies = {
   requestMagicLinkUseCase: RequestMagicLinkUseCase;
   resendMagicLinkUseCase: ResendMagicLinkUseCase;
   registerAccountUseCase: RegisterAccountUseCase;
+  resendVerificationUseCase: ResendVerificationUseCase;
   verifyLoginUseCase: VerifyLoginUseCase;
   getAccountUseCase: GetAccountUseCase;
   getEventSummaryUseCase: GetEventSummaryUseCase;

@@ -12,6 +12,7 @@ import {
   testConfig,
 } from "@/test/support";
 import { useBookingController } from "../booking.controller";
+import type { BookingViewProps } from "../../views/BookingView";
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -34,43 +35,74 @@ async function readyView() {
 }
 
 describe("useBookingController", () => {
-  it("menampilkan sesi booking: NIK diisi per tiket, tiga kategori, sisa kuota 3/3", async () => {
+  const add = (view: () => BookingViewProps, id: string) =>
+    act(() =>
+      view()
+        .categories.items.find((category) => category.id === id)
+        ?.onAdd(),
+    );
+
+  it("menampilkan Detail Tiket: tiga kategori, event, dan tombol lanjut mati tanpa tiket", async () => {
     const { view } = await readyView();
-    expect(view().eventName).toBe("Konser A");
-    expect(view().nik.maskedValue).toBe("Diisi per tiket");
-    expect(view().nik.hint).toContain("sisa 3/3");
-    expect(view().categories.map((c) => c.name)).toEqual(["VIP", "Festival", "Tribune"]);
+    expect(view().header.heading).toBe("Pilih tempatmu di konser.");
+    expect(view().categories.items.map((category) => category.name)).toEqual(["VIP", "Festival", "Tribune"]);
+    await waitFor(() => expect(view().event?.imageUrl).toBe("/images/concert-placeholder.webp"));
+    expect(view().holders).toBeUndefined();
     expect(view().submit.disabled).toBe(true);
   });
 
-  it("menambah tiket mengubah total dan kuota, dan berhenti di 3", async () => {
-    const { result, view } = await readyView();
-    const add = (id: string) =>
-      act(
-        () =>
-          result.current.kind === "ready" &&
-          view()
-            .categories.find((c) => c.id === id)
-            ?.onAdd(),
-      );
-
-    add("cat_vip");
-    add("cat_vip");
-    add("cat_festival");
-    await waitFor(() => expect(view().total.label).toBe("Total (3 tiket)"));
-    expect(view().nik.hint).toContain("sisa 0/3");
-    expect(view().categories.every((c) => !c.canAdd)).toBe(true);
-    expect(view().submit.disabled).toBe(false);
+  it("menambah tiket membuat slot NIK per tiket dan berhenti di 3", async () => {
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    add(view, "cat_vip");
+    add(view, "cat_festival");
+    await waitFor(() => expect(view().holders?.items).toHaveLength(3));
+    expect(view().summary.footnote).toBe("3 tiket · Maksimal 3 tiket per pesanan");
+    expect(view().categories.items.every((category) => !category.canAdd)).toBe(true);
   });
 
   it("tiket habis tidak bisa ditambah", async () => {
-    const { result, view } = await readyView();
-    act(() =>
-      view()
-        .categories.find((c) => c.id === "cat_tribune")
-        ?.onAdd(),
+    const { view } = await readyView();
+    add(view, "cat_tribune");
+    expect(view().summary.lines).toEqual([]);
+  });
+
+  it("NIK dicek ke Dukcapil saat field ditinggalkan", async () => {
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().holders?.items[0]?.nik.onChange("3171-0000-0000-1234"));
+    expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
+    act(() => view().holders?.items[0]?.nik.onBlur?.());
+    await waitFor(() =>
+      expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama WARGA 1234"),
     );
-    expect(result.current.kind === "ready" && view().total.label).toBe("Total (0 tiket)");
+
+    act(() => view().holders?.items[0]?.nik.onChange("3171000000000099"));
+    act(() => view().holders?.items[0]?.nik.onBlur?.());
+    await waitFor(() => expect(view().holders?.items[0]?.nik.error).toBe("NIK tidak aktif di Dukcapil."));
+  });
+
+  it("submit tanpa data lengkap menampilkan galat, tanpa request", async () => {
+    push.mockClear();
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().submit.onSubmit());
+    expect(view().buyer.name.error).toBe("Isi nama lengkap pemesan.");
+    expect(view().holders?.items[0]?.nik.error).toBe("NIK harus 16 digit angka.");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("submit lengkap membuat booking dan lanjut ke pembayaran", async () => {
+    push.mockClear();
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    add(view, "cat_festival");
+    act(() => view().buyer.name.onChange("Rina"));
+    act(() => view().buyer.email.onChange("rina@example.com"));
+    act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+    act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
+    act(() => view().submit.onSubmit());
+    await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/orders\/RB-\d+\/pay$/)));
   });
 
   it("grant ditolak (401): kembali ke Waiting Room (mode default)", async () => {

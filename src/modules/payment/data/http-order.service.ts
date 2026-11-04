@@ -11,6 +11,7 @@ import { grantHeaders } from "@/core/data/credentials/grant-headers.utils";
 import type { HttpClient, RequestOptions } from "@/core/data/http/http.client";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { OrderProtocol } from "../domain/order.protocol";
+import type { PaymentEvent } from "../domain/payment-event.model";
 import type {
   AvailableMethod,
   BankCode,
@@ -22,6 +23,7 @@ import {
   availableMethodsSchema,
   bookingSchema,
   initiatedPaymentSchema,
+  paymentEventSchema,
   paymentStatusResultSchema,
   retriedPaymentSchema,
   toOrder,
@@ -64,6 +66,10 @@ export function createHttpOrderService({
     getOrder,
     getPaymentStatus,
     initiatePayment,
+
+    getEvent(eventId: string): Promise<PaymentEvent> {
+      return httpClient.get(`/events/${encodeURIComponent(eventId)}`, paymentEventSchema);
+    },
 
     getAvailableMethods(bookingId: string): Promise<AvailableMethod[]> {
       return httpClient.get(`${paymentPath(bookingId)}/methods`, availableMethodsSchema, options());

@@ -112,85 +112,89 @@
 }
 
 /* ── Skala tipografi Signal DS ── */
-.type-h1,
-.type-h2,
-.type-h3,
-.type-h4,
-.type-h5,
-.type-h6 {
+/* `@utility` supaya bisa dipakai dengan varian responsif, mis. `type-h3 sm:type-h2`. */
+@utility type-h1 {
   font-family: var(--font-heading);
   font-weight: 700;
-}
-.type-h1 {
   font-size: 44px;
   line-height: 56px;
 }
-.type-h2 {
+@utility type-h2 {
+  font-family: var(--font-heading);
+  font-weight: 700;
   font-size: 32px;
   line-height: 48px;
 }
-.type-h3 {
+@utility type-h3 {
+  font-family: var(--font-heading);
+  font-weight: 700;
   font-size: 28px;
   line-height: 40px;
 }
-.type-h4 {
+@utility type-h4 {
+  font-family: var(--font-heading);
+  font-weight: 700;
   font-size: 24px;
   line-height: 40px;
 }
-.type-h5 {
+@utility type-h5 {
+  font-family: var(--font-heading);
+  font-weight: 700;
   font-size: 18px;
   line-height: 24px;
 }
-.type-h6 {
+@utility type-h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
   font-size: 16px;
   line-height: 24px;
 }
 
-.type-title-bold {
+@utility type-title-bold {
   font-size: 16px;
   line-height: 24px;
   font-weight: 600;
 }
-.type-title {
+@utility type-title {
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
 }
-.type-body1-bold {
+@utility type-body1-bold {
   font-size: 14px;
   line-height: 20px;
   font-weight: 600;
 }
-.type-body1 {
+@utility type-body1 {
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
 }
-.type-body1-caps-bold {
+@utility type-body1-caps-bold {
   font-size: 14px;
   line-height: 20px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.type-body1-caps {
+@utility type-body1-caps {
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.type-body2-bold {
+@utility type-body2-bold {
   font-size: 12px;
   line-height: 20px;
   font-weight: 600;
 }
-.type-body2 {
+@utility type-body2 {
   font-size: 12px;
   line-height: 20px;
   font-weight: 400;
 }
-.type-strike {
+@utility type-strike {
   font-size: 12px;
   line-height: 20px;
   font-weight: 400;

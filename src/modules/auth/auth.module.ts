@@ -2,6 +2,7 @@ import { asFunction, type NameAndRegistrationPair } from "awilix";
 import { createRequestMagicLinkUseCase } from "./application/request-magic-link.use-case";
 import { createResendMagicLinkUseCase } from "./application/resend-magic-link.use-case";
 import { createRegisterAccountUseCase } from "./application/register-account.use-case";
+import { createResendVerificationUseCase } from "./application/resend-verification.use-case";
 import { createVerifyLoginUseCase } from "./application/verify-login.use-case";
 import { createGetAccountUseCase } from "./application/get-account.use-case";
 import { createGetEventSummaryUseCase } from "./application/get-event-summary.use-case";
@@ -27,6 +28,7 @@ export function authModule(): NameAndRegistrationPair<AuthRegistry> {
     requestMagicLinkUseCase: asFunction(createRequestMagicLinkUseCase).singleton(),
     resendMagicLinkUseCase: asFunction(createResendMagicLinkUseCase).singleton(),
     registerAccountUseCase: asFunction(createRegisterAccountUseCase).singleton(),
+    resendVerificationUseCase: asFunction(createResendVerificationUseCase).singleton(),
     verifyLoginUseCase: asFunction(createVerifyLoginUseCase).singleton(),
     getAccountUseCase: asFunction(createGetAccountUseCase).singleton(),
     getEventSummaryUseCase: asFunction(createGetEventSummaryUseCase).singleton(),

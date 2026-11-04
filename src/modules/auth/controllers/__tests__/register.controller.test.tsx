@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { createWrapper, setupMockServer } from "@/test/support";
 import { useRegisterController } from "../register.controller";
+
+const push = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 
 const server = setupMockServer();
 
@@ -56,7 +59,15 @@ describe("useRegisterController", () => {
     fill({ email: "alex@example.com", nik: "3171000000000044", consent: true });
     act(() => form().name.onChange(" Alex "));
     act(() => form().submit.onSubmit());
-    await waitFor(() => expect(result.current.kind).toBe("done"));
+    // Submit hanya membuka tinjauan; belum ada request sampai dikonfirmasi.
+    expect(body).toBeUndefined();
+    const review = result.current.dialog;
+    if (review?.kind !== "confirm") throw new Error("dialog tinjauan tidak muncul");
+    expect(review.values.map((item) => item.value)).toEqual(["alex@example.com", "3171000000000044", "Alex"]);
+    act(() => review.confirm.onClick());
+    await waitFor(() => expect(result.current.dialog?.kind).toBe("success"));
+    act(() => (result.current.dialog?.kind === "success" ? result.current.dialog.ok.onClick() : undefined));
+    expect(push).toHaveBeenCalledWith("/register/verify-email");
     expect(body).toEqual({
       email: "alex@example.com",
       nik: "3171000000000044",
@@ -69,10 +80,17 @@ describe("useRegisterController", () => {
     const { form, fill, result } = mount();
     fill({ email: "alex@example.com", nik: "3171000000000022", consent: true });
     act(() => form().submit.onSubmit());
+    act(() =>
+      result.current.dialog?.kind === "confirm" ? result.current.dialog.confirm.onClick() : undefined,
+    );
     await waitFor(() =>
-      expect(result.current.kind === "form" && result.current.error).toBe(
+      expect(result.current.dialog?.kind === "confirm" && result.current.dialog.error).toBe(
         "NIK ini sudah terdaftar di akun lain.",
       ),
     );
+    // Galat membuka kunci tanpa menghapus isian; "Ubah data" kembali ke form tanpa request.
+    expect(form().nik.value).toBe("3171000000000022");
+    act(() => (result.current.dialog?.kind === "confirm" ? result.current.dialog.edit.onClick() : undefined));
+    expect(result.current.dialog).toBeUndefined();
   });
 });

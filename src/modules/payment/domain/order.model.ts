@@ -93,6 +93,8 @@ export type PaymentTtl = {
 /** Order detail lengkap */
 export type Order = {
   bookingId: string;
+  /** Untuk kartu event di samping ringkasan pesanan. */
+  eventId: string;
   eventName: string;
   items: OrderItem[];
   totalIdr: number;

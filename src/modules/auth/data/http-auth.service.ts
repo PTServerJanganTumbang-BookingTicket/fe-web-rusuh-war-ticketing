@@ -26,6 +26,12 @@ export function createHttpAuthService({
       await httpClient.post("/auth/magic-link/resend", { email }, z.unknown(), { errorCodes: rateLimited });
     },
 
+    // Kontrak belum punya endpoint kirim ulang verifikasi pendaftaran; sementara memakai kirim ulang link
+    // (`/auth/magic-link/resend`) sampai disepakati BE (ADR-0023, usulan perubahan kontrak).
+    async resendVerification(email: string): Promise<void> {
+      await httpClient.post("/auth/magic-link/resend", { email }, z.unknown(), { errorCodes: rateLimited });
+    },
+
     async register(input: RegisterInput): Promise<void> {
       await httpClient.post(
         "/auth/register",

@@ -13,6 +13,7 @@ import type {
   PaymentStatusResult,
   PaymentTtl,
 } from "../domain/order.model";
+import type { PaymentEvent } from "../domain/payment-event.model";
 
 const bankCodeSchema = z.enum(["bca", "bni", "bri", "cimb"]) satisfies z.ZodType<BankCode>;
 
@@ -47,7 +48,7 @@ export const bookingSchema = z
   .object({
     booking_id: z.string(),
     status: z.enum(["PENDING_PAYMENT", "PAID", "EXPIRED"]),
-    event: z.object({ name: z.string() }),
+    event: z.object({ id: z.string(), name: z.string() }),
     tickets: z.array(z.object({ category: z.string(), price: z.number(), nik_masked: z.string() })),
     summary: z.object({ total: z.number() }),
     payment_ttl: ttlSchema.optional(),
@@ -57,6 +58,7 @@ export const bookingSchema = z
     const paidAt = booking.paid_at ?? "";
     return {
       bookingId: booking.booking_id,
+      eventId: booking.event.id,
       status: booking.status,
       eventName: booking.event.name,
       items: booking.tickets.map((ticket) => ({
@@ -177,3 +179,21 @@ export function toOrder(
   if (order.status !== "AWAITING_PAYMENT" || !payment) return order;
   return { ...order, method: payment.method, instruction: payment.instruction };
 }
+
+/** `data` dari `GET /events/{event_id}`, hanya bagian yang dipakai kartu event. */
+export const paymentEventSchema = z
+  .object({
+    name: z.string(),
+    category: z.string(),
+    location: z.object({ venue: z.string(), city: z.string() }),
+    date: z.string(),
+    image_url: z.string(),
+  })
+  .transform((event): PaymentEvent => ({
+    name: event.name,
+    category: event.category,
+    city: event.location.city,
+    venue: event.location.venue,
+    date: event.date,
+    imageUrl: event.image_url,
+  }));
