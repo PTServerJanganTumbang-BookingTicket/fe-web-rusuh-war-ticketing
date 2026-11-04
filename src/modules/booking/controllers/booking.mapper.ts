@@ -12,6 +12,7 @@ import { duplicateNikSlots, isEmail, isNikFormat, ticketSlots } from "../domain/
 import type { HolderAlias } from "../domain/holder-alias.model";
 import { aliasOptionsFor } from "../domain/ticket-holders.rules";
 import type { BookingViewProps, TicketHolderProps } from "../views/BookingView";
+import type { ActionDialogModel } from "@/core/controllers/modal.hook";
 
 const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -43,6 +44,10 @@ export type BookingViewInput = {
   form: BookingForm;
   submitting: boolean;
   error?: string;
+  /** Modal verifikasi NIK yang sedang terbuka. */
+  dialog?: ActionDialogModel;
+  /** Slot yang field NIK-nya diberi fokus; `n` berubah tiap permintaan. */
+  focusNik?: { slotKey: string; n: number } | null;
   onAdd: (categoryId: string) => void;
   onRemove: (categoryId: string) => void;
   onBuyerName: (value: string) => void;
@@ -128,6 +133,7 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
         // NIK alias ditampilkan tersamar; nilai lengkapnya hanya dikirim ke server.
         value: picked ? picked.nikMasked : nik,
         readOnly: Boolean(picked),
+        focusKey: input.focusNik?.slotKey === slot.key ? input.focusNik.n : undefined,
         error,
         success: error ? undefined : success,
         onChange: (value) => input.onNik(slot.key, value),
@@ -191,6 +197,7 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
       urgentLabel: t("booking.countdown.urgent"),
     },
     error: input.error,
+    dialog: input.dialog,
     buyer: {
       title: t("booking.buyer.title"),
       hint: t("booking.buyer.hint"),

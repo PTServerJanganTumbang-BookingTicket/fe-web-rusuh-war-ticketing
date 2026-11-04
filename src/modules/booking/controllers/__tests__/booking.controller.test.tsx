@@ -83,6 +83,46 @@ describe("useBookingController", () => {
     await waitFor(() => expect(view().holders?.items[0]?.nik.error).toBe("NIK tidak aktif di Dukcapil."));
   });
 
+  it("NIK tidak cocok di Dukcapil membuka modal Periksa NIK; Ubah data memfokus field tiket itu", async () => {
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().holders?.items[0]?.nik.onChange("3171000000000099"));
+    act(() => view().holders?.items[0]?.nik.onBlur?.());
+    await waitFor(() => expect(view().dialog?.title).toBe("Periksa NIK-mu"));
+    const edit = view().dialog?.primary;
+    act(() => edit && "onClick" in edit && edit.onClick());
+    expect(view().dialog).toBeUndefined();
+    expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171000000000099", focusKey: 1 });
+  });
+
+  it("Dukcapil tidak menjawab: modal verifikasi belum tersedia tanpa menyebut NIK salah, coba lagi mengecek ulang", async () => {
+    let attempts = 0;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/nik/validate`, () => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.error();
+        return HttpResponse.json({
+          meta: { code: 200, message: "NIK is valid" },
+          data: { nik: "3171000000001234", valid: true, name: "WARGA 1234", status: "ACTIVE" },
+        });
+      }),
+    );
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+    act(() => view().holders?.items[0]?.nik.onBlur?.());
+    await waitFor(() => expect(view().dialog?.title).toBe("Verifikasi NIK belum tersedia"));
+    expect(view().holders?.items[0]?.nik.error).not.toBe("NIK tidak ditemukan di Dukcapil.");
+    expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
+    const retry = view().dialog?.primary;
+    act(() => retry && "onClick" in retry && retry.onClick());
+    await waitFor(() =>
+      expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama WARGA 1234"),
+    );
+    expect(view().dialog).toBeUndefined();
+    expect(attempts).toBe(2);
+  });
+
   it("submit tanpa data lengkap menampilkan galat, tanpa request", async () => {
     push.mockClear();
     const { view } = await readyView();

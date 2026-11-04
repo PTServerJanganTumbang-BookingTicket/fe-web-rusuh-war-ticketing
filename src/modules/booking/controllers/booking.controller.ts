@@ -14,6 +14,12 @@ import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
+import {
+  toNikMismatchDialog,
+  toNikUnavailableDialog,
+  type NikDialogKind,
+} from "@/core/controllers/nik-dialog.mapper";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
@@ -40,6 +46,10 @@ function errorKey(error: AppError): MessageKey {
 
 export function useBookingController(eventId: string): BookingScreen {
   const siteChrome = useSiteChrome();
+  // Dukcapil tidak menjawab atau menolak NIK satu tiket: modal menyebut tiket mana lewat `slotKey`.
+  const nikModal = useModal<{ kind: NikDialogKind; slotKey: string }>();
+  /** Fokus kembali ke field NIK setelah "Ubah data"; `n` berubah tiap permintaan supaya fokus terulang. */
+  const [focusNik, setFocusNik] = useState<{ slotKey: string; n: number } | null>(null);
   const router = useRouter();
   const {
     getBookingSessionUseCase,
@@ -125,15 +135,53 @@ export function useBookingController(eventId: string): BookingScreen {
   const touch = (field: string) => setTouched((current) => new Set(current).add(field));
 
   // NIK dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
-  const checkNik = (slotKey: string, nik: string = niks[slotKey] ?? "") => {
+  // Tidak cocok atau nonaktif membuka modal "Periksa NIK"; tanpa jawaban membuka modal "Verifikasi belum tersedia"
+  // tanpa menyebut NIK salah. `force` dipakai tombol coba lagi untuk NIK yang sama.
+  const checkNik = (slotKey: string, nik: string = niks[slotKey] ?? "", force = false) => {
     touch(`nik:${slotKey}`);
-    if (!isNikFormat(nik) || checks[slotKey]?.nik === nik) return;
+    if (!isNikFormat(nik) || (!force && checks[slotKey]?.nik === nik)) return;
     setChecks((current) => ({ ...current, [slotKey]: { nik, state: "checking" } }));
     validateNikUseCase(nik).then(
-      (result) => setChecks((current) => ({ ...current, [slotKey]: { nik, state: "done", result } })),
-      () => setChecks((current) => ({ ...current, [slotKey]: { nik, state: "failed" } })),
+      (result) => {
+        setChecks((current) => ({ ...current, [slotKey]: { nik, state: "done", result } }));
+        if (result.status === "not_found" || result.status === "inactive")
+          nikModal.open({ kind: "mismatch", slotKey });
+        else if (nikModal.modal?.slotKey === slotKey) nikModal.close();
+      },
+      () => {
+        setChecks((current) => ({ ...current, [slotKey]: { nik, state: "failed" } }));
+        nikModal.open({ kind: "unavailable", slotKey });
+      },
     );
   };
+
+  // "Ubah data": tutup modal dan kembali ke field NIK dengan isian yang ada. NIK alias tidak bisa diketik, jadi
+  // slot itu kembali ke isian manual yang kosong.
+  const editNik = (slotKey: string) => {
+    nikModal.close();
+    if (aliasPicks[slotKey]) {
+      setAliasPicks((current) => {
+        const next = { ...current };
+        delete next[slotKey];
+        return next;
+      });
+      setNiks((current) => ({ ...current, [slotKey]: "" }));
+    }
+    setFocusNik((current) => ({ slotKey, n: (current?.n ?? 0) + 1 }));
+  };
+
+  let dialog: ActionDialogModel | undefined;
+  const open = nikModal.modal;
+  if (open?.kind === "mismatch") {
+    dialog = toNikMismatchDialog({ onEdit: () => editNik(open.slotKey), onDismiss: nikModal.close });
+  } else if (open?.kind === "unavailable") {
+    dialog = toNikUnavailableDialog({
+      onRetry: () => checkNik(open.slotKey, niks[open.slotKey] ?? "", true),
+      onEdit: () => editNik(open.slotKey),
+      onDismiss: nikModal.close,
+      retrying: checks[open.slotKey]?.state === "checking",
+    });
+  }
 
   return {
     kind: "ready",
@@ -146,6 +194,8 @@ export function useBookingController(eventId: string): BookingScreen {
       remainingMs,
       form,
       submitting: submit.isPending,
+      dialog,
+      focusNik,
       error: submit.isError ? t(errorKey(toAppError(submit.error))) : undefined,
       onAdd: (categoryId) =>
         dispatch({

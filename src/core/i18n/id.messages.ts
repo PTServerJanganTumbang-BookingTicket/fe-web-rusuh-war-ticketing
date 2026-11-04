@@ -2,6 +2,21 @@ export const id = {
   "common.loading": "Memuat…",
   "common.placeholder": "Layar ini belum dibangun.",
   "home.title": "Rusuh Booking Tiket",
+  "dialog.editInformation": "Ubah data",
+  "dialog.nikUnavailable.title": "Verifikasi NIK belum tersedia",
+  "dialog.nikUnavailable.description":
+    "Kami belum bisa memverifikasi NIK-mu sekarang. Data yang kamu isi tetap tersimpan. Periksa lagi atau coba sebentar lagi.",
+  "dialog.nikUnavailable.retry": "Coba lagi",
+  "dialog.nikMismatch.title": "Periksa NIK-mu",
+  "dialog.nikMismatch.description":
+    "NIK tidak cocok dengan data Dukcapil. Periksa lagi data yang kamu isi, lalu coba lagi.",
+  "dialog.loginLink.title": "Link login gagal",
+  "dialog.loginLink.description": "Link login ini tidak valid atau sudah kedaluwarsa. Minta link login baru.",
+  "dialog.loginLink.requestNew": "Minta link login baru",
+  "verify.signedIn.heading": "Kamu sudah masuk",
+  "verify.signedIn.message":
+    "Link ini sudah dipakai, tetapi kamu sudah masuk di perangkat ini. Lanjutkan saja.",
+  "verify.signedIn.account": "Lihat profil",
   "nav.account": "Profil saya ({email})",
   "home.login": "Login",
   // Navigation

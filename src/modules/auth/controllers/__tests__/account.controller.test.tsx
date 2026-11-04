@@ -84,16 +84,46 @@ describe("useAccountController", () => {
     expect(posted).toBe(false);
   });
 
-  it("NIK tidak aktif di Dukcapil ditolak dengan pesan", async () => {
+  it("NIK ditolak Dukcapil: modal Periksa NIK, Ubah data memfokus field NIK dengan isian lama", async () => {
     const { ready } = await mountSignedIn();
     act(() => {
       ready().add?.label.onChange("X");
       ready().add?.nik.onChange("3171000000000099");
     });
     act(() => ready().add?.submit.onSubmit());
-    await waitFor(() =>
-      expect(ready().saved.error).toBe("NIK tidak ditemukan atau tidak aktif di Dukcapil."),
+    await waitFor(() => expect(ready().dialog?.title).toBe("Periksa NIK-mu"));
+    expect(ready().saved.error).toBeUndefined();
+    expect(ready().dialog?.secondary).toBeUndefined();
+    const edit = ready().dialog?.primary;
+    act(() => edit && "onClick" in edit && edit.onClick());
+    expect(ready().dialog).toBeUndefined();
+    expect(ready().add?.nik).toMatchObject({ value: "3171000000000099", focusKey: 1 });
+  });
+
+  it("Dukcapil tidak menjawab: modal verifikasi belum tersedia, isian tetap, coba lagi mengirim ulang", async () => {
+    let attempts = 0;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.error();
+        return HttpResponse.json({ meta: { code: 201, message: "NIK saved" }, data: {} }, { status: 201 });
+      }),
     );
+    const { ready } = await mountSignedIn();
+    act(() => {
+      ready().add?.label.onChange("Sari");
+      ready().add?.nik.onChange("3171000000000044");
+    });
+    act(() => ready().add?.submit.onSubmit());
+    await waitFor(() => expect(ready().dialog?.title).toBe("Verifikasi NIK belum tersedia"));
+    // Timeout tidak pernah menyebut NIK salah, dan isian tidak hilang.
+    expect(ready().add?.nik.error).toBeUndefined();
+    expect(ready().add?.label.value).toBe("Sari");
+    expect(ready().dialog?.secondary?.label).toBe("Ubah data");
+    const retry = ready().dialog?.primary;
+    act(() => retry && "onClick" in retry && retry.onClick());
+    await waitFor(() => expect(ready().dialog).toBeUndefined());
+    expect(attempts).toBe(2);
   });
 
   it("mengubah nama alias tanpa mengirim NIK, lalu form tambah kembali", async () => {

@@ -13,6 +13,9 @@ import type { AuthDependencies } from "../application/auth.dependencies";
 import { authErrorKey } from "./auth-error.mapper";
 import { authKeys } from "./auth.queries";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { useModal } from "@/core/controllers/modal.hook";
+import { sessionAccountQuery } from "@/core/controllers/session.queries";
+import type { CoreDependencies } from "@/core/application/core.dependencies";
 import type { VerifyLoginViewProps } from "../views/VerifyLoginView";
 
 const subscribeToHash = (onChange: () => void) => {
@@ -28,11 +31,21 @@ const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "sho
 export function useVerifyLoginController(): VerifyLoginViewProps {
   const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
-  const { verifyLoginUseCase, getEventSummaryUseCase } = useDependencies<AuthDependencies>();
+  const { verifyLoginUseCase, getEventSummaryUseCase, getSessionAccountUseCase } = useDependencies<
+    AuthDependencies & CoreDependencies
+  >();
+  const session = useQuery(sessionAccountQuery({ getSessionAccountUseCase }));
+  // Desain "I / Already used": link sekali pakai sudah ditukar atau kedaluwarsa.
+  const linkModal = useModal<{ kind: "linkFailed" }>();
   const token = useSyncExternalStore(subscribeToHash, readToken, noTokenOnServer);
   const verify = useMutation({
     mutationFn: (value: string) => verifyLoginUseCase(value),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.account }),
+    onError: (error) => {
+      const appError = toAppError(error);
+      if (appError.kind === "api" && appError.code === "LOGIN_LINK_INVALID")
+        linkModal.open({ kind: "linkFailed" });
+    },
   });
   const eventId = verify.data?.booking?.eventId;
   const event = useQuery({
@@ -43,11 +56,34 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
   const chrome = siteChrome;
   const requestNew = { label: t("verify.requestNew"), href: "/login" };
 
+  // Link gagal tetapi perangkat ini sudah punya sesi (misalnya link diklik dua kali): lanjutkan dengan aman,
+  // tanpa menampilkan galat. Token tidak pernah ditampilkan.
+  if (verify.isError && session.data) {
+    return {
+      ...chrome,
+      kind: "done",
+      heading: t("verify.signedIn.heading"),
+      message: t("verify.signedIn.message"),
+      primary: { label: t("verify.done.explore"), href: "/" },
+      secondary: { label: t("verify.signedIn.account"), href: "/account" },
+    };
+  }
+
   if (token === null || verify.isError) {
     const message = verify.isError
       ? t(authErrorKey(toAppError(verify.error), { LOGIN_LINK_INVALID: "verify.error.LOGIN_LINK_INVALID" }))
       : t("verify.missing");
-    return { ...chrome, kind: "failed", heading: t("verify.failed.heading"), message, requestNew };
+    const dialog =
+      linkModal.modal && !session.isPending
+        ? {
+            tone: "error" as const,
+            title: t("dialog.loginLink.title"),
+            description: t("dialog.loginLink.description"),
+            primary: { label: t("dialog.loginLink.requestNew"), href: "/login" },
+            onDismiss: linkModal.close,
+          }
+        : undefined;
+    return { ...chrome, kind: "failed", heading: t("verify.failed.heading"), message, requestNew, dialog };
   }
 
   if (verify.data) {

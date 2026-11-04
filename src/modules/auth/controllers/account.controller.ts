@@ -7,10 +7,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toAppError } from "@/core/domain/app-error";
+import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
+import {
+  toNikMismatchDialog,
+  toNikUnavailableDialog,
+  type NikDialogKind,
+} from "@/core/controllers/nik-dialog.mapper";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
@@ -47,6 +53,15 @@ function initialsOf(name: string): string {
     .join("");
 }
 
+/**
+ * Galat simpan alias yang ditampilkan sebagai modal NIK: Dukcapil menolak (pasti) atau tidak menjawab (belum
+ * diketahui). Galat lain, misalnya alias sudah tersimpan, tetap tampil di kartu.
+ */
+function nikDialogKindOf(error: AppError): NikDialogKind | null {
+  if (error.kind === "api") return error.code === "NIK_INVALID" ? "mismatch" : null;
+  return "unavailable";
+}
+
 function labelError(error: SavedNikInputError["label"]): string | undefined {
   if (error === "required") return t("account.saved.label.invalid");
   if (error === "too_long") return t("account.saved.label.tooLong", { max: SAVED_NIK_LABEL_MAX_LENGTH });
@@ -55,6 +70,9 @@ function labelError(error: SavedNikInputError["label"]): string | undefined {
 
 export function useAccountController(): AccountViewProps {
   const siteChrome = useSiteChrome();
+  const nikModal = useModal<{ kind: NikDialogKind; target: FormMode }>();
+  /** Berubah tiap "Ubah data" supaya field NIK difokus lagi. */
+  const [focusNik, setFocusNik] = useState(0);
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
@@ -90,8 +108,13 @@ export function useAccountController(): AccountViewProps {
         ? updateSavedNikUseCase(target.id, { label, nik })
         : addSavedNikUseCase(nik, label),
     onSuccess: async () => {
+      nikModal.close();
       resetForm();
       await refreshSaved();
+    },
+    onError: (error, target) => {
+      const kind = nikDialogKindOf(toAppError(error));
+      if (kind) nikModal.open({ kind, target });
     },
   });
   const remove = useMutation({
@@ -135,7 +158,25 @@ export function useAccountController(): AccountViewProps {
 
   const list = saved.data ?? { maxEntries: 0, savedNiks: [] };
   const full = list.savedNiks.length >= list.maxEntries;
-  const failed = save.error ?? remove.error ?? saved.error;
+  // Galat yang sudah tampil sebagai modal tidak diulang di kartu.
+  const saveInline = save.error && !nikDialogKindOf(toAppError(save.error)) ? save.error : null;
+  const failed = saveInline ?? remove.error ?? saved.error;
+  const editNik = () => {
+    nikModal.close();
+    setFocusNik((n) => n + 1);
+  };
+  let dialog: ActionDialogModel | undefined;
+  const openModal = nikModal.modal;
+  if (openModal?.kind === "mismatch") {
+    dialog = toNikMismatchDialog({ onEdit: editNik, onDismiss: nikModal.close });
+  } else if (openModal?.kind === "unavailable") {
+    dialog = toNikUnavailableDialog({
+      onRetry: () => save.mutate(openModal.target),
+      onEdit: editNik,
+      onDismiss: nikModal.close,
+      retrying: save.isPending,
+    });
+  }
   const invalid = submitted ? validateSavedNikInput({ label, nik }, { mode: mode.kind }) : null;
 
   const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "nik"> => ({
@@ -151,6 +192,7 @@ export function useAccountController(): AccountViewProps {
       placeholder: t("booking.holder.nik.placeholder"),
       hint: editing ? t("account.saved.nik.editHint") : undefined,
       value: nik,
+      focusKey: focusNik || undefined,
       error: invalid?.nik ? t("register.nik.invalid") : undefined,
       // Hanya digit: spasi atau tanda baca dari salinan KTP dibuang.
       onChange: (value) => setNik(value.replace(/\D/g, "")),
@@ -247,6 +289,7 @@ export function useAccountController(): AccountViewProps {
             ...formFields(false),
             submit: submitFor({ kind: "create" }),
           },
+    dialog,
     confirmRemove: pendingRemove
       ? {
           title: t("account.saved.confirm.title"),

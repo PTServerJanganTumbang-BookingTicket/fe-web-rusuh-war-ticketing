@@ -49,6 +49,33 @@ describe("useVerifyLoginController", () => {
     });
   });
 
+  it("link sudah dipakai atau kedaluwarsa: modal Link login gagal dengan tautan minta link baru", async () => {
+    window.history.replaceState(null, "", "/login/verify#token=expired");
+    const { result } = renderHook(() => useVerifyLoginController(), { wrapper: createWrapper() });
+    act(() => result.current.kind === "confirm" && result.current.confirm.onClick());
+    await waitFor(() =>
+      expect(result.current.kind === "failed" && result.current.dialog?.title).toBe("Link login gagal"),
+    );
+    const screen = result.current;
+    if (screen.kind !== "failed") throw new Error("bukan layar gagal");
+    expect(screen.dialog?.primary).toEqual({ label: "Minta link login baru", href: "/login" });
+    act(() => screen.dialog?.onDismiss());
+    expect(result.current.kind === "failed" && result.current.dialog).toBeUndefined();
+  });
+
+  it("link sudah dipakai tetapi perangkat sudah masuk: lanjut tanpa galat", async () => {
+    const container = setupTestContainer();
+    await container.cradle.verifyLoginUseCase("mt_first");
+    window.history.replaceState(null, "", "/login/verify#token=expired");
+    const { result } = renderHook(() => useVerifyLoginController(), { wrapper: createWrapper(container) });
+    await waitFor(() => expect(result.current.kind).toBe("confirm"));
+    act(() => result.current.kind === "confirm" && result.current.confirm.onClick());
+    await waitFor(() => expect(result.current.kind).toBe("done"));
+    if (result.current.kind !== "done") throw new Error("belum selesai");
+    expect(result.current.heading).toBe("Kamu sudah masuk");
+    expect(result.current.primary.href).toBe("/");
+  });
+
   it("tanpa token: pesan link tidak lengkap dan tautan minta link baru", () => {
     window.history.replaceState(null, "", "/login/verify");
     const { result } = renderHook(() => useVerifyLoginController(), { wrapper: createWrapper() });

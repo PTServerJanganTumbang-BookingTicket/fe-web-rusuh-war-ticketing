@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { FormEvent, ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import {
   IdCardIcon,
   InfoIcon,
@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 
 type TextField = {
   label: string;
@@ -35,6 +36,8 @@ type TextField = {
   placeholder?: string;
   hint?: string;
   error?: string;
+  /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah data" di modal NIK. */
+  focusKey?: number;
   onChange: (value: string) => void;
 };
 
@@ -89,6 +92,8 @@ export type AccountViewProps = Omit<SiteShellProps, "children"> & { header: Page
         add?: AliasFormProps;
         fullNotice?: string;
         notice: string;
+        /** Modal verifikasi NIK saat menyimpan alias. */
+        dialog?: ActionDialogProps;
         confirmRemove?: {
           title: string;
           description: string;
@@ -155,6 +160,7 @@ function AccountBody(props: AccountViewProps) {
         </Alert>
       </div>
       {props.confirmRemove ? <ConfirmRemoveDialog {...props.confirmRemove} /> : null}
+      {props.dialog ? <ActionDialog {...props.dialog} /> : null}
     </div>
   );
 }
@@ -415,6 +421,10 @@ function TextInput({
   autoComplete?: string;
   maxLength?: number;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (field.focusKey !== undefined) ref.current?.focus();
+  }, [field.focusKey]);
   let describedBy: string | undefined;
   if (field.error) describedBy = `${id}-error`;
   else if (field.hint) describedBy = `${id}-hint`;
@@ -422,6 +432,7 @@ function TextInput({
     <Field data-invalid={Boolean(field.error)}>
       <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
       <Input
+        ref={ref}
         id={id}
         value={field.value}
         placeholder={field.placeholder}

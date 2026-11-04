@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { ArrowRightIcon, IdCardIcon, InfoIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/layout/CheckoutCards";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 import { CategoryRow, type CategoryRowProps } from "./CategoryRow";
 
 export type TextFieldProps = {
@@ -28,6 +29,8 @@ export type TextFieldProps = {
   error?: string;
   /** NIK dari alias: tampil tersamar dan tidak bisa diketik. */
   readOnly?: boolean;
+  /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah data" di modal NIK. */
+  focusKey?: number;
   onChange: (value: string) => void;
   onBlur?: () => void;
 };
@@ -55,6 +58,7 @@ export type BookingViewProps = Omit<SiteShellProps, "children"> & {
   header: PageHeaderProps;
   countdown: CountdownBannerProps;
   error?: string;
+  dialog?: ActionDialogProps;
   buyer: { title: string; name: TextFieldProps; email: TextFieldProps; hint: string };
   categories: { title: string; limit: string; items: CategoryRowProps[] };
   holders?: { title: string; hint: string; items: TicketHolderProps[]; footnote: string };
@@ -82,6 +86,10 @@ function TextInput({
   inputMode?: "numeric" | "email";
   autoComplete?: string;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (field.focusKey !== undefined) ref.current?.focus();
+  }, [field.focusKey]);
   let describedBy: string | undefined;
   if (field.error) describedBy = `${id}-error`;
   else if (field.success || field.hint) describedBy = `${id}-hint`;
@@ -89,6 +97,7 @@ function TextInput({
     <Field data-invalid={Boolean(field.error)}>
       <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
       <Input
+        ref={ref}
         id={id}
         value={field.value}
         placeholder={field.placeholder}
@@ -157,6 +166,7 @@ export function BookingView(props: BookingViewProps) {
     header,
     countdown,
     error,
+    dialog,
     buyer,
     categories,
     holders,
@@ -279,6 +289,7 @@ export function BookingView(props: BookingViewProps) {
           <div className="ml-auto min-w-0 flex-1 sm:max-w-xs">{submitButton}</div>
         </div>
       </div>
+      {dialog ? <ActionDialog {...dialog} /> : null}
     </SiteShell>
   );
 }
