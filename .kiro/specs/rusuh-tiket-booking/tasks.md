@@ -336,11 +336,14 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
   - [ ] 28.3 Update `BookingProtocol` — methods menerima `grantToken`, `deviceId?` parameters
   - [ ] 28.4 Update `booking.schema.ts` — snake_case mapping untuk API response
 
-- [ ] 29. Payment module types alignment [ALIGN] `@owner:akbar`
-  - [ ] 29.1 Buat `RetryPaymentResult` type untuk `POST /payments/{id}/retry`
-  - [ ] 29.2 Update `OrderProtocol` — methods menerima `grantToken`, `deviceId?` parameters
-  - [ ] 29.3 Update `order.schema.ts` — snake_case mapping untuk `instructions.va_number`, dll
-  - [ ] 29.4 Update path: `orderId` → `bookingId` di semua payment endpoints
+- [x] 29. Payment module types alignment [ALIGN] `@owner:akbar`
+  - [x] 29.1 Buat `RetryPaymentResult` type untuk `POST /payments/{id}/retry`
+  - [x] 29.2 Update `OrderProtocol` — methods menerima `grantToken`, `deviceId?` parameters
+    - _N/A: Protocol adalah kontrak bisnis, bukan HTTP details. Credentials diambil dari `CredentialStoreProtocol` via `grantHeaders()` di service layer. Separation of concerns sudah benar._
+  - [x] 29.3 Update `order.schema.ts` — snake_case mapping untuk `instructions.va_number`, dll
+    - _Already complete: semua snake_case fields sudah di-transform ke camelCase_
+  - [x] 29.4 Update path: `orderId` → `bookingId` di semua payment endpoints
+    - _Already complete: semua API paths menggunakan `/bookings/{id}` dan `/payments/{id}` (bookingId)_
 
 - [ ] 30. Ticket module types — new [NEW] `@owner:akbar`
   - [ ] 30.1 Buat `Ticket` type dengan fields dari `GET /users/me/tickets`
