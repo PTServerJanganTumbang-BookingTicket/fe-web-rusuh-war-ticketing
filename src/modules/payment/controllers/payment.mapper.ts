@@ -1,5 +1,8 @@
 /**
- * Payment mapper. Desain: "Satu langkah menuju panggung." (langkah 2 dari 3), lalu status akhir di langkah 3.
+ * @file payment.mapper.ts
+ * @description Payment Mapper - transformasi data domain ke view props.
+ *
+ * Desain: "Satu langkah menuju panggung." (langkah 2 dari 3), lalu status akhir di langkah 3.
  * Requirements: 6.1–6.19, BR-05, BR-06.
  */
 
@@ -18,66 +21,135 @@ import type {
 import type { PaymentEvent } from "../domain/payment-event.model";
 import type { PaymentInstructionView, PaymentStage, PaymentViewProps } from "../views/PaymentView";
 
-const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+/* ========================================================================== */
+/*                                   Types                                    */
+/* ========================================================================== */
 
+/** Input untuk mapping ke PaymentViewProps */
 export type PaymentViewInput = {
-  chrome: SiteChrome;
-  order: Order;
-  event?: PaymentEvent;
-  methods: AvailableMethod[];
-  selectedMethod: PaymentMethod | null;
-  selectedBank: BankCode | null;
-  /** Bank wajib untuk Virtual Account; galat tampil setelah tombol bayar ditekan. */
-  bankMissing: boolean;
-  remainingMs: number;
-  paying: boolean;
-  copied: boolean;
-  error?: string;
-  onSelectMethod: (method: PaymentMethod) => void;
-  onSelectBank: (bank: BankCode) => void;
-  onPay: () => void;
-  onCopy: (text: string) => void;
-  /** Hanya mode mock: kontrol hasil pembayaran. */
-  mock?: { onSuccess: () => void; onFail: () => void; busy: boolean };
+  readonly chrome: SiteChrome;
+  readonly order: Order;
+  readonly event?: PaymentEvent;
+  readonly methods: readonly AvailableMethod[];
+  readonly selectedMethod: PaymentMethod | null;
+  readonly selectedBank: BankCode | null;
+  readonly bankMissing: boolean;
+  readonly remainingMs: number;
+  readonly paying: boolean;
+  readonly copied: boolean;
+  readonly error?: string;
+  readonly onSelectMethod: (method: PaymentMethod) => void;
+  readonly onSelectBank: (bank: BankCode) => void;
+  readonly onPay: () => void;
+  readonly onCopy: (text: string) => void;
+  readonly mock?: {
+    readonly onSuccess: () => void;
+    readonly onFail: () => void;
+    readonly busy: boolean;
+  };
 };
 
-function toInstructionView(
+/** Aggregated line item untuk order summary */
+type CategorySummary = {
+  readonly count: number;
+  readonly priceIdr: number;
+};
+
+/* ========================================================================== */
+/*                                 Formatters                                 */
+/* ========================================================================== */
+
+/** Formatter tanggal event dalam format Indonesia */
+const eventDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
+
+/* ========================================================================== */
+/*                         Instruction View Mapper                            */
+/* ========================================================================== */
+
+/**
+ * Mengubah PaymentInstruction domain ke PaymentInstructionView untuk UI.
+ */
+const mapInstructionToView = (
   instruction: PaymentInstruction,
-  copied: boolean,
-  onCopy: (text: string) => void,
-): PaymentInstructionView {
-  switch (instruction.type) {
-    case "bank_transfer":
-      return {
-        type: "virtual_account",
-        label: t("payment.va.label", { bank: instruction.bank.toUpperCase() }),
-        number: instruction.vaNumber,
-        copy: {
-          label: copied ? t("payment.va.copied") : t("payment.va.copy"),
-          onClick: () => onCopy(instruction.vaNumber),
-        },
-      };
-    case "gopay":
-      return {
-        type: "qr",
-        seed: instruction.qrUrl,
-        qrLabel: t("payment.qr.label"),
-        hint: t("payment.pending.qr"),
-        fakeNote: t("payment.qr.fake"),
-        openApp: { label: t("payment.pending.openApp"), href: instruction.deeplinkUrl },
-      };
+  isCopied: boolean,
+  onCopyHandler: (text: string) => void,
+): PaymentInstructionView => {
+  // Virtual Account instruction
+  if (instruction.type === "bank_transfer") {
+    const bankLabel = instruction.bank.toUpperCase();
+    const vaLabel = t("payment.va.label", { bank: bankLabel });
+    const copyLabel = isCopied ? t("payment.va.copied") : t("payment.va.copy");
+
+    return {
+      type: "virtual_account",
+      label: vaLabel,
+      number: instruction.vaNumber,
+      copy: {
+        label: copyLabel,
+        onClick: () => onCopyHandler(instruction.vaNumber),
+      },
+    };
   }
-}
 
-function orderStatus(order: Order): PaymentViewProps["order"]["status"] {
-  if (order.status === "PAID") return { label: t("payment.status.paid"), tone: "success" };
-  if (order.status === "FAILED") return { label: t("payment.status.failed"), tone: "error" };
-  if (order.status === "EXPIRED") return { label: t("payment.status.expired"), tone: "error" };
+  // QR (GoPay) instruction
+  const qrLabel = t("payment.qr.label");
+  const qrHint = t("payment.pending.qr");
+  const qrFakeNote = t("payment.qr.fake");
+  const openAppLabel = t("payment.pending.openApp");
+
+  return {
+    type: "qr",
+    seed: instruction.qrUrl,
+    qrLabel,
+    hint: qrHint,
+    fakeNote: qrFakeNote,
+    openApp: {
+      label: openAppLabel,
+      href: instruction.deeplinkUrl,
+    },
+  };
+};
+
+/* ========================================================================== */
+/*                          Order Status Mapper                               */
+/* ========================================================================== */
+
+/**
+ * Menentukan status badge untuk order.
+ */
+const mapOrderStatus = (order: Order): PaymentViewProps["order"]["status"] => {
+  const statusMap: Record<string, PaymentViewProps["order"]["status"]> = {
+    PAID: { label: t("payment.status.paid"), tone: "success" },
+    FAILED: { label: t("payment.status.failed"), tone: "error" },
+    EXPIRED: { label: t("payment.status.expired"), tone: "error" },
+  };
+
+  const matchedStatus = statusMap[order.status];
+  if (matchedStatus != null) {
+    return matchedStatus;
+  }
+
+  // Default: awaiting payment
   return { label: t("payment.status.awaiting"), tone: "warning" };
-}
+};
 
-function resultStage(order: Order): PaymentStage {
+/* ========================================================================== */
+/*                            Stage Mappers                                   */
+/* ========================================================================== */
+
+/**
+ * Membuat result stage untuk order yang sudah selesai (PAID/EXPIRED).
+ */
+const createResultStage = (order: Order): PaymentStage => {
+  // Success: pembayaran berhasil
   if (order.status === "PAID") {
+    const uniqueCategories = [...new Set(order.items.map((item) => item.category))];
+    const categoryNames = uniqueCategories.join(", ");
+
     return {
       kind: "result",
       tone: "success",
@@ -85,12 +157,14 @@ function resultStage(order: Order): PaymentStage {
       message: t("payment.result.paid.message"),
       detail: t("payment.result.paid.ticket", {
         quantity: order.items.length,
-        names: [...new Set(order.items.map((item) => item.category))].join(", "),
+        names: categoryNames,
       }),
       primary: { label: t("payment.result.paid.cta"), href: "/tickets" },
       secondary: { label: t("payment.result.paid.secondary"), href: "/" },
     };
   }
+
+  // Expired: waktu habis
   return {
     kind: "result",
     tone: "warning",
@@ -98,148 +172,259 @@ function resultStage(order: Order): PaymentStage {
     message: t("payment.result.expired.message"),
     primary: { label: t("payment.result.home"), href: "/" },
   };
-}
+};
 
-function selectStage(input: PaymentViewInput): PaymentStage {
-  const { methods, selectedMethod, selectedBank } = input;
-  const vaBanks = methods.find((method) => method.id === "bank_transfer")?.banks ?? [];
+/**
+ * Membuat select stage untuk pemilihan metode pembayaran.
+ */
+const createSelectStage = (input: PaymentViewInput): PaymentStage => {
+  const { methods, selectedMethod, selectedBank, order, bankMissing, onSelectMethod, onSelectBank } = input;
+
+  // Cari bank options dari metode bank_transfer
+  const bankTransferMethod = methods.find((method) => method.id === "bank_transfer");
+  const availableBanks = bankTransferMethod?.banks ?? [];
+
+  // Build method options
+  const methodOptions = methods.map((method) => {
+    const iconType = method.id === "gopay" ? "wallet" : "bank";
+    const methodTitle = t(`payment.option.${method.id}.title`);
+    const methodDescription = method.enabled
+      ? t(`payment.option.${method.id}.description`)
+      : t("payment.option.unavailable");
+
+    return {
+      id: method.id,
+      icon: iconType as "bank" | "wallet",
+      title: methodTitle,
+      description: methodDescription,
+      selected: selectedMethod === method.id,
+      disabled: !method.enabled,
+      onSelect: () => onSelectMethod(method.id),
+    };
+  });
+
+  // Build bank options (hanya jika bank_transfer dipilih)
+  const showBankSelection = selectedMethod === "bank_transfer" && availableBanks.length > 0;
+  const bankSelectionConfig = showBankSelection
+    ? {
+        label: t("payment.bank.label"),
+        error: bankMissing ? t("payment.bank.required") : undefined,
+        options: availableBanks.map((bank) => ({
+          code: bank.code,
+          name: bank.name,
+          selected: selectedBank === bank.code,
+          onSelect: () => onSelectBank(bank.code),
+        })),
+      }
+    : undefined;
+
+  // Note untuk metode yang dipilih
+  const methodNote = selectedMethod != null ? t(`payment.option.${selectedMethod}.note`) : undefined;
+
+  // Failed notice jika pembayaran sebelumnya gagal
+  const failedNoticeText = order.status === "FAILED" ? t("payment.failedNotice") : undefined;
+
   return {
     kind: "select",
     title: t("payment.method.label"),
-    failedNotice: input.order.status === "FAILED" ? t("payment.failedNotice") : undefined,
-    methods: methods.map((method) => ({
-      id: method.id,
-      icon: method.id === "gopay" ? "wallet" : "bank",
-      title: t(`payment.option.${method.id}.title`),
-      description: method.enabled
-        ? t(`payment.option.${method.id}.description`)
-        : t("payment.option.unavailable"),
-      selected: selectedMethod === method.id,
-      disabled: !method.enabled,
-      onSelect: () => input.onSelectMethod(method.id),
-    })),
-    banks:
-      selectedMethod === "bank_transfer" && vaBanks.length > 0
-        ? {
-            label: t("payment.bank.label"),
-            error: input.bankMissing ? t("payment.bank.required") : undefined,
-            options: vaBanks.map((bank) => ({
-              code: bank.code,
-              name: bank.name,
-              selected: selectedBank === bank.code,
-              onSelect: () => input.onSelectBank(bank.code),
-            })),
-          }
-        : undefined,
-    note: selectedMethod ? t(`payment.option.${selectedMethod}.note`) : undefined,
+    failedNotice: failedNoticeText,
+    methods: methodOptions,
+    banks: bankSelectionConfig,
+    note: methodNote,
   };
-}
+};
 
-function stageOf(input: PaymentViewInput): PaymentStage {
-  const { order } = input;
-  if (order.status === "PAID" || order.status === "EXPIRED") return resultStage(order);
-  const awaiting = order.status === "AWAITING_PAYMENT" || order.status === "PENDING_CANCELLATION";
-  if (awaiting && order.instruction) {
-    return {
-      kind: "pending",
-      title: t("payment.pending.heading"),
-      note: t("payment.pending.note"),
-      instruction: toInstructionView(order.instruction, input.copied, input.onCopy),
-      mock: input.mock
-        ? {
-            title: t("payment.mock.title"),
-            success: {
-              label: t("payment.mock.success"),
-              onClick: input.mock.onSuccess,
-              disabled: input.mock.busy,
-            },
-            fail: { label: t("payment.mock.fail"), onClick: input.mock.onFail, disabled: input.mock.busy },
-          }
-        : undefined,
-    };
+/**
+ * Membuat pending stage untuk menunggu pembayaran.
+ */
+const createPendingStage = (input: PaymentViewInput): PaymentStage => {
+  const { order, copied, onCopy, mock } = input;
+
+  // Order harus punya instruction untuk pending stage
+  if (order.instruction == null) {
+    // Fallback ke select stage jika tidak ada instruction
+    return createSelectStage(input);
   }
-  // Belum memilih, instruksi hilang setelah muat ulang, atau gagal dan bisa dicoba lagi: pilih metode.
-  return selectStage(input);
-}
 
-export function toPaymentViewProps(input: PaymentViewInput): PaymentViewProps {
-  const { order, event, remainingMs } = input;
-  const stage = stageOf(input);
-  const finished = order.status === "PAID";
-  const eventTitle = event
-    ? t("checkout.event.name", { name: event.name, city: event.city })
-    : order.eventName;
+  const instructionView = mapInstructionToView(order.instruction, copied, onCopy);
 
-  const byCategory = new Map<string, { count: number; priceIdr: number }>();
-  for (const item of order.items) {
-    const line = byCategory.get(item.category) ?? { count: 0, priceIdr: item.priceIdr };
-    byCategory.set(item.category, { ...line, count: line.count + 1 });
-  }
+  // Mock controls untuk testing
+  const mockConfig =
+    mock != null
+      ? {
+          title: t("payment.mock.title"),
+          success: {
+            label: t("payment.mock.success"),
+            onClick: mock.onSuccess,
+            disabled: mock.busy,
+          },
+          fail: {
+            label: t("payment.mock.fail"),
+            onClick: mock.onFail,
+            disabled: mock.busy,
+          },
+        }
+      : undefined;
 
   return {
-    ...input.chrome,
-    header: {
-      breadcrumb: [
-        { label: t("checkout.breadcrumb.home"), href: "/" },
-        { label: event?.name ?? order.eventName },
-        { label: t("payment.title") },
-      ],
-      steps: [
-        { label: t("checkout.step.select"), state: "done" },
-        { label: t("checkout.step.payment"), state: finished ? "done" : "current" },
-        { label: t("checkout.step.done"), state: finished ? "current" : "upcoming" },
-      ],
-      heading: t("payment.heading"),
-      subtitle: t(
-        stage.kind === "result"
-          ? `payment.result.${finished ? "paid" : "expired"}.subtitle`
-          : "payment.subtitle",
-      ),
-    },
-    order: { label: t("payment.header.order", { orderId: order.bookingId }), status: orderStatus(order) },
-    // Pembayaran gagal masih bisa dicoba ulang selama TTL booking berjalan (BR-06), jadi timer tetap tampil.
-    countdown:
-      finished || order.status === "EXPIRED"
-        ? undefined
-        : {
-            title: t("payment.countdown.heading"),
-            hint: t("payment.countdown.hint"),
-            value: formatMmSs(remainingMs),
-            urgent: remainingMs <= COUNTDOWN_URGENT_AT_MS,
-            urgentLabel: t("payment.countdown.urgent"),
-          },
-    error: input.error,
-    stage,
-    secure: { title: t("payment.secure.title"), body: t("payment.secure.body") },
-    event: event
+    kind: "pending",
+    title: t("payment.pending.heading"),
+    note: t("payment.pending.note"),
+    instruction: instructionView,
+    mock: mockConfig,
+  };
+};
+
+/**
+ * Menentukan stage yang sesuai berdasarkan state order.
+ */
+const determineCurrentStage = (input: PaymentViewInput): PaymentStage => {
+  const { order } = input;
+
+  // Terminal states: PAID atau EXPIRED
+  if (order.status === "PAID" || order.status === "EXPIRED") {
+    return createResultStage(order);
+  }
+
+  // Awaiting payment: tampilkan instruksi pembayaran
+  const isAwaitingPayment = order.status === "AWAITING_PAYMENT" || order.status === "PENDING_CANCELLATION";
+  if (isAwaitingPayment && order.instruction != null) {
+    return createPendingStage(input);
+  }
+
+  // Default: pilih metode pembayaran
+  return createSelectStage(input);
+};
+
+/* ========================================================================== */
+/*                              Main Mapper                                   */
+/* ========================================================================== */
+
+/**
+ * Mengubah PaymentViewInput ke PaymentViewProps untuk rendering.
+ */
+export const toPaymentViewProps = (input: PaymentViewInput): PaymentViewProps => {
+  const { order, event, remainingMs, chrome, error, paying, selectedMethod, onPay } = input;
+
+  const currentStage = determineCurrentStage(input);
+  const isPaymentComplete = order.status === "PAID";
+
+  // Event title
+  const eventTitle =
+    event != null ? t("checkout.event.name", { name: event.name, city: event.city }) : order.eventName;
+
+  // Aggregate items by category
+  const categoryMap = new Map<string, CategorySummary>();
+  for (const item of order.items) {
+    const existing = categoryMap.get(item.category);
+    if (existing != null) {
+      categoryMap.set(item.category, {
+        count: existing.count + 1,
+        priceIdr: existing.priceIdr,
+      });
+    } else {
+      categoryMap.set(item.category, {
+        count: 1,
+        priceIdr: item.priceIdr,
+      });
+    }
+  }
+
+  // Build summary lines
+  const summaryLines = [...categoryMap].map(([category, summary]) => ({
+    label: t("checkout.summary.line", { category, count: summary.count }),
+    detail: t("checkout.summary.each", { price: formatIdr(summary.priceIdr) }),
+    amount: formatIdr(summary.priceIdr * summary.count),
+  }));
+
+  // Header config
+  const headerConfig = {
+    breadcrumb: [
+      { label: t("checkout.breadcrumb.home"), href: "/" },
+      { label: event?.name ?? order.eventName },
+      { label: t("payment.title") },
+    ],
+    steps: [
+      { label: t("checkout.step.select"), state: "done" as const },
+      {
+        label: t("checkout.step.payment"),
+        state: isPaymentComplete ? ("done" as const) : ("current" as const),
+      },
+      {
+        label: t("checkout.step.done"),
+        state: isPaymentComplete ? ("current" as const) : ("upcoming" as const),
+      },
+    ],
+    heading: t("payment.heading"),
+    subtitle: t(
+      currentStage.kind === "result"
+        ? `payment.result.${isPaymentComplete ? "paid" : "expired"}.subtitle`
+        : "payment.subtitle",
+    ),
+  };
+
+  // Countdown config (tidak tampil jika sudah selesai)
+  const shouldShowCountdown = !isPaymentComplete && order.status !== "EXPIRED";
+  const countdownConfig = shouldShowCountdown
+    ? {
+        title: t("payment.countdown.heading"),
+        hint: t("payment.countdown.hint"),
+        value: formatMmSs(remainingMs),
+        urgent: remainingMs <= COUNTDOWN_URGENT_AT_MS,
+        urgentLabel: t("payment.countdown.urgent"),
+      }
+    : undefined;
+
+  // Event card config
+  const eventCardConfig =
+    event != null
       ? {
           imageUrl: event.imageUrl,
           tag: t("checkout.event.tag", { category: event.category, city: event.city }),
           name: eventTitle,
-          date: eventDate.format(new Date(event.date)),
+          date: eventDateFormatter.format(new Date(event.date)),
           venue: `${event.venue}, ${event.city}`,
         }
-      : undefined,
+      : undefined;
+
+  // Pay button config (hanya di select stage)
+  const isPayDisabled = paying || selectedMethod == null || remainingMs <= 0;
+  const payButtonConfig =
+    currentStage.kind === "select"
+      ? {
+          label: paying ? t("payment.paying") : t("payment.pay"),
+          busy: paying,
+          disabled: isPayDisabled,
+          onClick: onPay,
+        }
+      : undefined;
+
+  // Terms (hanya di select stage)
+  const termsText = currentStage.kind === "select" ? t("payment.terms") : undefined;
+
+  return {
+    ...chrome,
+    header: headerConfig,
+    order: {
+      label: t("payment.header.order", { orderId: order.bookingId }),
+      status: mapOrderStatus(order),
+    },
+    countdown: countdownConfig,
+    error,
+    stage: currentStage,
+    secure: {
+      title: t("payment.secure.title"),
+      body: t("payment.secure.body"),
+    },
+    event: eventCardConfig,
     summary: {
       title: t("checkout.summary.title"),
-      lines: [...byCategory].map(([category, line]) => ({
-        label: t("checkout.summary.line", { category, count: line.count }),
-        detail: t("checkout.summary.each", { price: formatIdr(line.priceIdr) }),
-        amount: formatIdr(line.priceIdr * line.count),
-      })),
+      lines: summaryLines,
       totalLabel: t("checkout.summary.total"),
       total: formatIdr(order.totalIdr),
       footnote: t("payment.summary.footnote", { count: order.items.length }),
     },
-    pay:
-      stage.kind === "select"
-        ? {
-            label: input.paying ? t("payment.paying") : t("payment.pay"),
-            busy: input.paying,
-            disabled: input.paying || !input.selectedMethod || remainingMs <= 0,
-            onClick: input.onPay,
-          }
-        : undefined,
-    terms: stage.kind === "select" ? t("payment.terms") : undefined,
+    pay: payButtonConfig,
+    terms: termsText,
   };
-}
+};
