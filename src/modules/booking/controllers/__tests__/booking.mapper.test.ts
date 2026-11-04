@@ -113,7 +113,62 @@ describe("toBookingViewProps", () => {
   it("tombol lanjut mati tanpa tiket atau saat waktu habis", () => {
     expect(build({ selection: {} }).submit.disabled).toBe(true);
     expect(build({ remainingMs: 0 }).submit.disabled).toBe(true);
-    expect(build().submit.disabled).toBe(false);
+    // With valid form data, button should be enabled
+    const validForm: BookingForm = {
+      ...emptyForm,
+      buyerName: "Rina",
+      contactEmail: "rina@example.com",
+      niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
+    };
+    expect(build({ form: validForm }).submit.disabled).toBe(false);
+  });
+
+  it("tombol lanjut mati saat form tidak valid", () => {
+    // Empty form with tickets selected should disable button
+    expect(build().submit.disabled).toBe(true);
+    // Missing buyer name
+    expect(
+      build({
+        form: {
+          ...emptyForm,
+          contactEmail: "rina@example.com",
+          niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
+        },
+      }).submit.disabled,
+    ).toBe(true);
+    // Invalid email
+    expect(
+      build({
+        form: {
+          ...emptyForm,
+          buyerName: "Rina",
+          contactEmail: "invalid",
+          niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
+        },
+      }).submit.disabled,
+    ).toBe(true);
+    // Missing NIK
+    expect(
+      build({
+        form: {
+          ...emptyForm,
+          buyerName: "Rina",
+          contactEmail: "rina@example.com",
+          niks: { "vip-0": "3171000000000022" },
+        },
+      }).submit.disabled,
+    ).toBe(true);
+    // Duplicate NIK
+    expect(
+      build({
+        form: {
+          ...emptyForm,
+          buyerName: "Rina",
+          contactEmail: "rina@example.com",
+          niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000022" },
+        },
+      }).submit.disabled,
+    ).toBe(true);
   });
 });
 

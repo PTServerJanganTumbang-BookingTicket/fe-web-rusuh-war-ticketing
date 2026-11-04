@@ -1,0 +1,132 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "Bug Condition Exploration Test FAILED as expected - confirming bug exists:\n\n**Property 1 (Invalid NIK format):**\n- Counterexample: `[\"\",\"!\",\"0@0.aa\"]` (invalidNik=\"\", buyerName=\"!\", email=\"0@0.aa\")\n- Bug: `submit.disabled` is `false` when NIK is not 16 digits\n\n**Property 2 (Empty buyerName):**\n- Counterexample: `[\"   \",\"0000000000000000\",\"a@a.aa\"]` (buyerName=\"   \")\n- Bug: `submit.disabled` is `false` when buyerName is empty/whitespace\n\n**Property 3 (Invalid email):**\n- Counterexample: `[\"notanemail\",\"!\",\"0000000000000000\"]` (email=\"notanemail\")\n- Bug: `submit.disabled` is `false` when email is invalid\n\n**Property 4 (Duplicate NIK):**\n- Counterexample: `[\"0000000000000000\",\"!\",\"a@a.aa\"]` (same NIK for 2 tickets)\n- Bug: `submit.disabled` is `false` when duplicate NIK exists\n\n**Property 5 (Rejected NIK - Dukcapil):**\n- Counterexample: `[\"0000000000000000\",\"!\",\"a@a.aa\"]` (NIK status !== \"valid\")\n- Bug: `submit.disabled` is `false` when NIK is rejected\n\nRoot Cause: `toBookingViewProps()` computes `submit.disabled = count === 0 || remainingMs <= 0 || input.submitting` but does NOT include `!isBookingFormValid(form, slotKeys)`",
+      "lastRunTimestamp": 1793760593744
+    },
+    "2. Write preservation property tests (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1793760800380
+    },
+    "3.2 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1793761082707
+    },
+    "3.3 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1793761137653
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760248942
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760266947
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760617710
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760248981
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760626049
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760823902
+      }
+    ],
+    "3.1 Implement the fix in `booking.mapper.ts`": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760249061
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760834735
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761001664
+      }
+    ],
+    "3.2 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760249095
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761012282
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761102903
+      }
+    ],
+    "3.3 Verify preservation tests still pass": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760249131
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761110150
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761151178
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793760249175
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761162854
+      },
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761208784
+      }
+    ],
+    "3. Fix for Payment Redirect Bug - Form validation not reflected in button disabled state": [
+      {
+        "executionId": "5566b5a3-55a1-4c65-a703-9f27ca859bd4",
+        "chatSessionId": "sess_73f80b77-ffae-436c-8fd4-4fa58ee818b7",
+        "timestamp": 1793761151229
+      }
+    ]
+  }
+}

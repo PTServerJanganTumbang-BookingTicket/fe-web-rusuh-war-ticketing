@@ -237,7 +237,14 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     submit: {
       label: input.submitting ? t("booking.submitting") : t("booking.submit"),
       busy: input.submitting,
-      disabled: count === 0 || remainingMs <= 0 || input.submitting,
+      disabled:
+        count === 0 ||
+        remainingMs <= 0 ||
+        input.submitting ||
+        !isBookingFormValid(
+          form,
+          slots.map((s) => s.key),
+        ),
       onSubmit: input.onSubmit,
     },
     notice: t("booking.notice"),
