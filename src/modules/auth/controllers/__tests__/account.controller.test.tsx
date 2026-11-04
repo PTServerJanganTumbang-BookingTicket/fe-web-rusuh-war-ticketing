@@ -41,7 +41,9 @@ describe("useAccountController", () => {
       "1 Oktober 2026",
     ]);
     expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi"]);
-    expect(ready().saved.hint).toBe("1/5 tersimpan. Alias bisa dipilih sebagai pemegang tiket saat membeli.");
+    expect(ready().saved.count).toBe("1/5");
+    expect(ready().profile).toMatchObject({ name: "JOHN DOE", initials: "JD" });
+    expect(ready().saved.items[0]?.initials).toBe("B");
   });
 
   it("profil gagal dimuat: tetap tampil dengan email dan NIK dari sesi", async () => {
@@ -51,6 +53,7 @@ describe("useAccountController", () => {
       { label: "Email", value: "you@example.com" },
       { label: "NIK terdaftar", value: "3171********xx22" },
     ]);
+    expect(ready().profile).toMatchObject({ name: "you@example.com", initials: "YE" });
   });
 
   it("menambah alias lalu daftar dimuat ulang dan form dikosongkan", async () => {

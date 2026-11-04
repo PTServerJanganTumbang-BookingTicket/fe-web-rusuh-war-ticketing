@@ -72,14 +72,27 @@ export function toETicketViewProps(eticket: ETicket, chrome: SiteChrome): ETicke
 
   return {
     ...chrome,
-    back: { label: t("ticket.detail.back"), href: "/tickets" },
+    header: {
+      breadcrumb: [
+        { label: t("checkout.breadcrumb.home"), href: "/" },
+        { label: t("ticket.title"), href: "/tickets" },
+        { label: eticket.id },
+      ],
+      heading: eticket.event.name,
+      subtitle: t("ticket.detail.subtitle"),
+    },
     eventName: eticket.event.name,
     eventDate: eticket.event.time ? t("ticket.detail.dateTime", { date, time: eticket.event.time }) : date,
     venue: eticket.event.venue,
     imageUrl: eticket.event.imageUrl ?? "/images/concert-placeholder.webp",
     statusLabel: label,
     statusTone: tone,
-    qr: { src: eticket.qrCode, alt: t("ticket.detail.qr.alt"), hint: t("ticket.detail.qr.hint") },
+    qr: {
+      title: t("ticket.detail.qr.title"),
+      src: eticket.qrCode,
+      alt: t("ticket.detail.qr.alt"),
+      hint: t("ticket.detail.qr.hint"),
+    },
     detailsTitle: t("ticket.detail.title"),
     details,
     holderTitle: t("ticket.detail.holder"),

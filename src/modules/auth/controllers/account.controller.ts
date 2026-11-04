@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toAppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
+import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
@@ -33,6 +34,18 @@ const memberSinceFormat = new Intl.DateTimeFormat("id-ID", {
 
 /** Form yang terbuka: tambah alias, atau ubah satu alias. Hanya satu form sekaligus. */
 type FormMode = { kind: "create" } | { kind: "edit"; id: string };
+
+/** Dua huruf awal untuk avatar: "Budi Santoso" → "BS", "you@example.com" → "Y". */
+function initialsOf(name: string): string {
+  const words = name
+    .trim()
+    .split(/[\s@._-]+/)
+    .filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("");
+}
 
 function labelError(error: SavedNikInputError["label"]): string | undefined {
   if (error === "required") return t("account.saved.label.invalid");
@@ -97,15 +110,23 @@ export function useAccountController(): AccountViewProps {
       router.push("/");
     },
   });
-  const title = t("account.title");
+  const page = {
+    ...toSiteChrome(),
+    header: {
+      breadcrumb: [{ label: t("checkout.breadcrumb.home"), href: "/" }, { label: t("account.title") }],
+      heading: t("account.heading"),
+      subtitle: t("account.subtitle"),
+    },
+  };
 
   if (account.isPending || (signedIn && saved.isPending)) {
-    return { kind: "loading", title, message: t("account.loading") };
+    return { ...page, kind: "loading", message: t("account.loading") };
   }
   if (!account.data) {
     return {
+      ...page,
       kind: "signedOut",
-      title,
+      title: t("account.signedOut.title"),
       message: t("account.signedOut.message"),
       login: { label: t("account.signedOut.cta"), href: "/login" },
     };
@@ -119,12 +140,14 @@ export function useAccountController(): AccountViewProps {
   const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "nik"> => ({
     label: {
       label: t("account.saved.label.label"),
+      placeholder: t("account.saved.label.placeholder"),
       value: label,
       error: labelError(invalid?.label),
       onChange: setLabel,
     },
     nik: {
       label: editing ? t("account.saved.nik.editLabel") : t("account.saved.nik.label"),
+      placeholder: t("booking.holder.nik.placeholder"),
       hint: editing ? t("account.saved.nik.editHint") : undefined,
       value: nik,
       error: invalid?.nik ? t("register.nik.invalid") : undefined,
@@ -159,23 +182,30 @@ export function useAccountController(): AccountViewProps {
       : []),
   ];
 
+  const displayName = profileData?.name || account.data.email;
   return {
+    ...page,
     kind: "ready",
-    title,
     profile: {
       title: t("account.profile.title"),
+      name: displayName,
+      initials: initialsOf(displayName),
+      email: profileData?.email ?? account.data.email,
       fields,
       tickets: { label: t("account.tickets.cta"), href: "/tickets" },
     },
     saved: {
       title: t("account.saved.title"),
-      hint: t("account.saved.hint", { count: list.savedNiks.length, max: list.maxEntries }),
+      count: t("account.saved.count", { count: list.savedNiks.length, max: list.maxEntries }),
+      hint: t("account.saved.hint"),
+      emptyTitle: t("account.saved.empty.title"),
       emptyLabel: t("account.saved.empty"),
       error: errorKey ? t(errorKey) : undefined,
       busy: remove.isPending || save.isPending,
       items: list.savedNiks.map((item) => ({
         id: item.id,
         label: item.label,
+        initials: initialsOf(item.label),
         nikMasked: item.nikMasked,
         edit: {
           text: t("account.saved.editShort"),
@@ -206,6 +236,7 @@ export function useAccountController(): AccountViewProps {
       })),
     },
     fullNotice: full && saved.data ? t("account.saved.full") : undefined,
+    notice: t("account.notice"),
     add:
       (full && saved.data) || editingId
         ? undefined

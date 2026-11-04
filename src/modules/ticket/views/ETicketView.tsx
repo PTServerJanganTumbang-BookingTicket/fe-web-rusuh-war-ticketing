@@ -1,22 +1,24 @@
+import type { ReactNode } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowLeftIcon, CalendarIcon, MapPinIcon } from "lucide-react";
+import { CalendarIcon, IdCardIcon, InfoIcon, MapPinIcon, QrCodeIcon, TicketIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/primitives/Badge";
-import { Card } from "@/components/ui/primitives/Card";
+import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
 
 type Row = { label: string; value: string };
 
 /** Props halaman detail tiket. Semua teks sudah diterjemahkan oleh mapper. */
 export type ETicketViewProps = Omit<SiteShellProps, "children"> & {
-  back: { label: string; href: string };
+  header: PageHeaderProps;
   eventName: string;
   eventDate: string;
   venue: string;
   imageUrl: string;
   statusLabel: string;
   statusTone: "success" | "info" | "warning" | "danger";
-  qr: { src: string; alt: string; hint: string };
+  qr: { title: string; src: string; alt: string; hint: string };
   detailsTitle: string;
   details: Row[];
   holderTitle: string;
@@ -33,9 +35,9 @@ const badgeVariant: Record<ETicketViewProps["statusTone"], NonNullable<BadgeProp
 
 function Rows({ rows }: { rows: Row[] }) {
   return (
-    <dl className="flex flex-col gap-2">
+    <dl className="flex flex-col divide-y divide-border rounded-xl border border-border">
       {rows.map((row) => (
-        <div key={row.label} className="flex justify-between gap-4">
+        <div key={row.label} className="flex items-center justify-between gap-4 px-4 py-3">
           <dt className="type-body2 text-muted-foreground">{row.label}</dt>
           <dd className="type-body2 text-right font-medium break-all tabular-nums text-foreground">
             {row.value}
@@ -46,11 +48,20 @@ function Rows({ rows }: { rows: Row[] }) {
   );
 }
 
+function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <h2 className="type-h6 flex items-center gap-2">
+      {icon}
+      {children}
+    </h2>
+  );
+}
+
 /** Detail tiket yang sudah dibeli, dengan QR untuk masuk venue. Requirement 7.1. */
 export function ETicketView({
   nav,
   footer,
-  back,
+  header,
   eventName,
   eventDate,
   venue,
@@ -66,76 +77,86 @@ export function ETicketView({
 }: ETicketViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
-      <div className="mx-auto flex max-w-lg flex-col gap-4">
-        <Link
-          href={back.href}
-          className="type-body2 inline-flex items-center gap-1 self-start text-primary hover:underline"
-        >
-          <ArrowLeftIcon aria-hidden="true" className="size-4" />
-          {back.label}
-        </Link>
-        <Card className="overflow-hidden p-0">
-          <div className="relative aspect-[2/1] overflow-hidden">
-            <Image
-              src={imageUrl}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="(max-width: 512px) 100vw, 512px"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 to-transparent" />
-            <div className="absolute right-4 bottom-4 left-4">
-              <Badge variant={badgeVariant[statusTone]} className="mb-2">
-                {statusLabel}
-              </Badge>
-              <h1 className="type-h5 text-background">{eventName}</h1>
+      <PageHeader {...header} />
+      <div className="mt-6 grid gap-6 sm:mt-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card className="gap-0 overflow-hidden rounded-2xl py-0">
+            <div className="relative aspect-[21/9] overflow-hidden">
+              <Image
+                src={imageUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 760px"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
+              <div className="absolute right-5 bottom-5 left-5 flex flex-col gap-2">
+                <Badge variant={badgeVariant[statusTone]} className="self-start">
+                  {statusLabel}
+                </Badge>
+                <p className="type-h4 text-background">{eventName}</p>
+              </div>
             </div>
+            <CardContent className="flex flex-col gap-2 p-5 sm:flex-row sm:gap-8 sm:p-6">
+              <p className="type-body1 flex items-center gap-2 text-muted-foreground">
+                <CalendarIcon aria-hidden="true" className="size-4 text-primary" />
+                {eventDate}
+              </p>
+              <p className="type-body1 flex items-center gap-2 text-muted-foreground">
+                <MapPinIcon aria-hidden="true" className="size-4 text-primary" />
+                {venue}
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="gap-0 rounded-2xl py-0">
+              <CardContent className="flex flex-col gap-4 p-5 sm:p-6">
+                <section aria-labelledby="ticket-details" className="flex flex-col gap-4">
+                  <SectionTitle icon={<TicketIcon aria-hidden="true" className="size-5 text-primary" />}>
+                    <span id="ticket-details">{detailsTitle}</span>
+                  </SectionTitle>
+                  <Rows rows={details} />
+                </section>
+              </CardContent>
+            </Card>
+            <Card className="gap-0 rounded-2xl py-0">
+              <CardContent className="flex flex-col gap-4 p-5 sm:p-6">
+                <section aria-labelledby="ticket-holder" className="flex flex-col gap-4">
+                  <SectionTitle icon={<IdCardIcon aria-hidden="true" className="size-5 text-primary" />}>
+                    <span id="ticket-holder">{holderTitle}</span>
+                  </SectionTitle>
+                  <Rows rows={holder} />
+                </section>
+              </CardContent>
+            </Card>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-1 border-b border-border p-4">
-            <p className="type-body2 flex items-center gap-2 text-muted-foreground">
-              <CalendarIcon aria-hidden="true" className="size-4" />
-              {eventDate}
-            </p>
-            <p className="type-body2 flex items-center gap-2 text-muted-foreground">
-              <MapPinIcon aria-hidden="true" className="size-4" />
-              {venue}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-center gap-3 border-b border-border p-6">
-            <div className="rounded-lg border-2 border-dashed border-border p-4">
-              {/* QR berupa data URL dari BE; next/image tidak mengoptimalkan data URL. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qr.src} alt={qr.alt} width={200} height={200} className="size-[200px]" />
-            </div>
-            <p className="type-body2 text-center text-muted-foreground">{qr.hint}</p>
-          </div>
-
-          <section
-            aria-labelledby="ticket-details"
-            className="flex flex-col gap-3 border-b border-border p-4"
-          >
-            <h2 id="ticket-details" className="type-body1 font-semibold">
-              {detailsTitle}
-            </h2>
-            <Rows rows={details} />
-          </section>
-
-          <section aria-labelledby="ticket-holder" className="flex flex-col gap-3 p-4">
-            <h2 id="ticket-holder" className="type-body1 font-semibold">
-              {holderTitle}
-            </h2>
-            <Rows rows={holder} />
-          </section>
-
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-24 lg:self-start">
+          <Card className="gap-0 rounded-2xl py-0">
+            <CardContent className="flex flex-col items-center gap-4 p-6 text-center">
+              <SectionTitle icon={<QrCodeIcon aria-hidden="true" className="size-5 text-primary" />}>
+                {qr.title}
+              </SectionTitle>
+              <div className="rounded-2xl border-2 border-dashed border-border bg-background p-4">
+                {/* QR berupa data URL dari BE; next/image tidak mengoptimalkan data URL. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qr.src} alt={qr.alt} width={220} height={220} className="size-[220px]" />
+              </div>
+              <p className="type-body2 text-muted-foreground">{qr.hint}</p>
+            </CardContent>
+          </Card>
           {instructions ? (
-            <section className="border-t border-border bg-signal-bg-info p-4">
-              <h2 className="type-body2 mb-2 font-medium text-foreground">{instructions.title}</h2>
-              <p className="type-body2 whitespace-pre-line text-muted-foreground">{instructions.text}</p>
-            </section>
+            <Alert variant="info" role="note" className="border-signal-info">
+              <InfoIcon />
+              <AlertDescription className="text-foreground">
+                <span className="font-semibold">{instructions.title}. </span>
+                {instructions.text}
+              </AlertDescription>
+            </Alert>
           ) : null}
-        </Card>
+        </aside>
       </div>
     </SiteShell>
   );

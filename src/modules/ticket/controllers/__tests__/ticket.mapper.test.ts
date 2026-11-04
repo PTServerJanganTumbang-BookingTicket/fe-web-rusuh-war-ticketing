@@ -30,7 +30,11 @@ describe("toETicketViewProps", () => {
     expect(view.eventDate).toBe("Jumat, 25 Desember 2026, 19:00 WIB");
     expect(view.statusLabel).toBe("Aktif");
     expect(view.instructions).toEqual({ title: "Instruksi masuk", text: "Tunjukkan QR code." });
-    expect(view.back.href).toBe("/tickets");
+    expect(view.header.breadcrumb).toEqual([
+      { label: "Beranda", href: "/" },
+      { label: "Tiket Saya", href: "/tickets" },
+      { label: "TKT-001" },
+    ]);
   });
 
   it("harga, bangku, nama, dan email tampil bila ada", () => {
