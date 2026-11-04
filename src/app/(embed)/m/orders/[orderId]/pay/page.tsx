@@ -1,3 +1,11 @@
+/**
+ * @file page.tsx
+ * @description Mobile/Embed Payment Page - Route: /m/orders/[orderId]/pay
+ *
+ * Halaman pembayaran untuk mobile webview embed.
+ * Note: Route param `orderId` merepresentasikan `bookingId` dalam API contract.
+ */
+
 import { Suspense } from "react";
 import { PaymentContainer } from "@/modules/payment/views/PaymentContainer";
 import { ScreenLoading } from "@/core/views/ScreenLoading";
@@ -11,6 +19,8 @@ export default function PaymentPage({ params }: PageProps<"/m/orders/[orderId]/p
 }
 
 async function Payment({ params }: Pick<PageProps<"/m/orders/[orderId]/pay">, "params">) {
-  const { orderId } = await params;
-  return <PaymentContainer orderId={orderId} />;
+  const resolvedParams = await params;
+  // Route param `orderId` represents `bookingId` in API contract
+  const bookingId = resolvedParams.orderId;
+  return <PaymentContainer bookingId={bookingId} />;
 }

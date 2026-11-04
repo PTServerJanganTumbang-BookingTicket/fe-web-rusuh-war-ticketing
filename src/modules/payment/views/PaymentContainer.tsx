@@ -15,8 +15,12 @@ import { PaymentView } from "./PaymentView";
 /* ========================================================================== */
 
 type PaymentContainerProps = {
-  /** ID order yang akan dibayar */
-  readonly orderId: string;
+  /**
+   * ID booking yang akan dibayar.
+   * Note: Ini adalah `bookingId` dalam API contract, meskipun route param
+   * mungkin menamakannya `orderId` untuk backward compatibility.
+   */
+  readonly bookingId: string;
 };
 
 /* ========================================================================== */
@@ -27,8 +31,8 @@ type PaymentContainerProps = {
  * PaymentContainer - komponen container untuk halaman pembayaran.
  * Memilih antara PaymentView atau StatusView berdasarkan state controller.
  */
-export const PaymentContainer = ({ orderId }: PaymentContainerProps) => {
-  const screenState = usePaymentController(orderId);
+export const PaymentContainer = ({ bookingId }: PaymentContainerProps) => {
+  const screenState = usePaymentController(bookingId);
 
   if (screenState.kind === "payment") {
     return <PaymentView {...screenState.view} />;

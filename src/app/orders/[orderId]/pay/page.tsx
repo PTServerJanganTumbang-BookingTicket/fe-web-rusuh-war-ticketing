@@ -4,6 +4,10 @@
  *
  * Halaman pembayaran untuk order tertentu.
  * Menggunakan Suspense untuk streaming dan loading state.
+ *
+ * Note: Route param `orderId` di sini merepresentasikan `bookingId` dalam
+ * API contract. Naming `orderId` dipertahankan untuk konsistensi dengan
+ * folder route Next.js, namun secara semantik ini adalah booking ID.
  */
 
 import { Suspense } from "react";
@@ -27,12 +31,15 @@ type PaymentContentProps = {
 /**
  * Komponen async untuk mengambil params dan render PaymentContainer.
  * Dipisah untuk memungkinkan Suspense boundary yang proper.
+ *
+ * @param params - Route params containing bookingId (as orderId in route)
  */
 const PaymentContent = async ({ params }: PaymentContentProps) => {
   const resolvedParams = await params;
-  const { orderId } = resolvedParams;
+  // Route param `orderId` represents `bookingId` in API contract
+  const bookingId = resolvedParams.orderId;
 
-  return <PaymentContainer orderId={orderId} />;
+  return <PaymentContainer bookingId={bookingId} />;
 };
 
 /* ========================================================================== */
@@ -43,7 +50,8 @@ const PaymentContent = async ({ params }: PaymentContentProps) => {
  * Payment Page Component.
  *
  * Route: /orders/[orderId]/pay
- * Menampilkan halaman pembayaran untuk order dengan ID tertentu.
+ * Menampilkan halaman pembayaran untuk booking dengan ID tertentu.
+ * Note: `orderId` dalam route = `bookingId` dalam API contract.
  *
  * @param props - Page props dengan dynamic route params
  */
