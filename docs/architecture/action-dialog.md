@@ -49,6 +49,14 @@ dialog. Tombol tutup (X) selalu ada kecuali aksi utama sedang berjalan.
 Keduanya mengunci fokus, mengunci scroll halaman, menutup dengan Escape, dan mengembalikan fokus ke pemicu.
 `role` adalah `alertdialog` untuk `error` dan `warning`, selain itu `dialog`.
 
+## Layar status satu halaman
+
+Halaman yang belum bisa menampilkan isinya (memuat, dialihkan, waktu habis, gagal total) memakai `StatusView`
+(`src/components/ui/layout/StatusView.tsx`) dengan bahasa visual yang sama: kartu di tengah, ikon dalam lingkaran
+(spinner untuk `neutral`, peringatan untuk `warning`, galat untuk `error`), judul, penjelasan, dan tombol pil. Controller
+menyertakan `...siteChrome` supaya navbar dan footer tetap ada. Fallback Suspense (`ScreenLoading`) memakai header merek
+saja karena status masuk belum diketahui. Kartu berkepala merah (`ScreenFrame`) tidak dipakai untuk status lagi.
+
 ## Kapan memakai dialog
 
 - **Ya**: hasil belum diketahui atau ada pilihan tindakan (coba lagi, ubah data, masuk lagi); sesi berakhir; tinjauan

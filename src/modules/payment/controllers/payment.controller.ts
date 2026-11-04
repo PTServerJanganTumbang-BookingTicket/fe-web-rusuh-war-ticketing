@@ -194,6 +194,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
       return {
         kind: "status",
         view: {
+          ...siteChrome,
           title: t("payment.error.title"),
           message: t(getErrorMessageKey(appError)),
           tone: "error",
@@ -205,6 +206,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     return {
       kind: "status",
       view: {
+        ...siteChrome,
         title: t("payment.title"),
         message: t("payment.loading"),
         tone: "neutral",

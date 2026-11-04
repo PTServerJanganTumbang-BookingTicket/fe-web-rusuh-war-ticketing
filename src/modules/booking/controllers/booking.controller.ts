@@ -110,7 +110,12 @@ export function useBookingController(eventId: string): BookingScreen {
   if (redirectToQueue) {
     return {
       kind: "status",
-      view: { title: t("booking.expired.title"), message: t("booking.expired.redirecting"), tone: "neutral" },
+      view: {
+        ...siteChrome,
+        title: t("booking.expired.title"),
+        message: t("booking.expired.redirecting"),
+        tone: "neutral",
+      },
     };
   }
 
@@ -118,9 +123,11 @@ export function useBookingController(eventId: string): BookingScreen {
     return {
       kind: "status",
       view: {
+        ...siteChrome,
         title: t("booking.expired.title"),
         message: t("booking.error.ACCESS_EXPIRED"),
-        tone: "error",
+        // Waktu habis bukan galat customer: nada peringatan seperti dialog "Sesi berakhir".
+        tone: "warning",
         action: { label: t("booking.expired.cta"), onClick: () => router.push(queuePath) },
       },
     };
@@ -129,14 +136,24 @@ export function useBookingController(eventId: string): BookingScreen {
   if (query.isError && !session) {
     return {
       kind: "status",
-      view: { title: t("booking.error.title"), message: t(errorKey(toAppError(query.error))), tone: "error" },
+      view: {
+        ...siteChrome,
+        title: t("booking.error.title"),
+        message: t(errorKey(toAppError(query.error))),
+        tone: "error",
+      },
     };
   }
 
   if (!session || remainingMs === null) {
     return {
       kind: "status",
-      view: { title: t("booking.title"), message: t("booking.loading"), tone: "neutral" },
+      view: {
+        ...siteChrome,
+        title: t("booking.title"),
+        message: t("booking.loading"),
+        tone: "neutral",
+      },
     };
   }
 

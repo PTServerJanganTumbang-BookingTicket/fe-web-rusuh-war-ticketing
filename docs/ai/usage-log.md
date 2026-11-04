@@ -351,3 +351,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: Desain dialog "Service Temporarily Unavailable", "Session Expired", "NIK Verification Unavailable", "Email Verification Failed", "Email Already Registered", "Registration Failed", "Something Went Wrong", "Connection Problem", "Confirm Your Information" (desktop dan mobile 390px), dokumentasi Base UI Drawer di `node_modules/@base-ui/react/docs`.
 - **Output**: `ActionDialog` memakai Base UI Drawer sebagai bottom sheet (geser ke bawah untuk menutup) di bawah 640px dan modal di tengah di atasnya; nada `warning`, `icon`, `details`, `note`, dan `error` ditambahkan. Builder dialog umum di `core/controllers/common-dialogs.mapper.ts` dan dialog auth di `modules/auth/controllers/auth-dialogs.mapper.ts`. Login memakai "Koneksi bermasalah" dan "Layanan sedang tidak tersedia"; register memakai konfirmasi data, berhasil, "Akun sudah terdaftar", "Periksa NIK-mu", "Pendaftaran gagal", dan "Koneksi bermasalah" (dialog register buatan sendiri dihapus); profil memakai "Sesi berakhir" dan dialog galat hapus alias; Detail Ticket memakai dialog galat saat submit tanpa respons. Dokumentasi di `docs/architecture/action-dialog.md`, galeri di `/signal-demo/dialogs`.
 - **Review manusia**: Menunggu review. Teks desain diterjemahkan ke bahasa Indonesia. "Akun sudah terdaftar" menyebut email atau NIK karena kontrak hanya punya 409 untuk NIK. "Verifikasi email gagal" belum dipasang ke alur mana pun karena kontrak belum punya endpoint verifikasi pendaftaran; sementara hanya tampil di galeri.
+
+## 2026-11-04 — Layar status tanpa kartu merah
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Mengganti kartu berkepala merah ("Memuat…", "Menyiapkan sesi bookingmu…", galat) dengan layar status yang sejalan dengan situs dan ActionDialog.
+- **Input**: `StatusView`, `ScreenLoading`, `ScreenPlaceholder`, controller booking, payment, dan ticket.
+- **Output**: `StatusView` kini kartu di tengah dengan spinner atau ikon dalam lingkaran, judul, penjelasan, dan tombol pil, di dalam `SiteShell` (controller menyertakan navbar) atau header merek saja untuk fallback Suspense. Nada `warning` ditambahkan dan dipakai saat waktu booking habis. `ScreenPlaceholder` dihapus; `BrandLink` diekstrak dari `Navbar`.
+- **Review manusia**: Menunggu review. Status memuat di halaman dengan data cepat (mock) jarang terlihat; status galat dicek di browser pada 1280px dan 375px.

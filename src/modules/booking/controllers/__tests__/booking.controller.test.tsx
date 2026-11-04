@@ -253,6 +253,9 @@ describe("useBookingController", () => {
       wrapper: createWrapper(container),
     });
     await waitFor(() => expect(result.current.kind === "status" && result.current.view.action).toBeTruthy());
+    // Waktu habis memakai nada peringatan, di dalam kerangka situs (navbar), bukan kartu merah.
+    expect(result.current.kind === "status" && result.current.view.tone).toBe("warning");
+    expect(result.current.kind === "status" && result.current.view.nav?.loginHref).toBe("/login");
     act(() => result.current.kind === "status" && result.current.view.action?.onClick());
     expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
     expect(replace).not.toHaveBeenCalled();

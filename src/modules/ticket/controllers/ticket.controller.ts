@@ -95,6 +95,7 @@ export function useTicketDetailController(ticketId: string, accessToken?: string
     return {
       kind: "status",
       view: {
+        ...siteChrome,
         title: t("ticket.detail.error.title"),
         message: t(detailErrorKey(error)),
         tone: "error",
@@ -106,6 +107,11 @@ export function useTicketDetailController(ticketId: string, accessToken?: string
   }
   return {
     kind: "status",
-    view: { title: t("ticket.eticket.title"), message: t("ticket.detail.loading"), tone: "neutral" },
+    view: {
+      ...siteChrome,
+      title: t("ticket.eticket.title"),
+      message: t("ticket.detail.loading"),
+      tone: "neutral",
+    },
   };
 }
