@@ -1,40 +1,111 @@
+/**
+ * @file FakeQr.tsx
+ * @description Komponen FakeQr - mirip QR code tetapi bukan QR asli.
+ * Pola acak deterministik plus tiga penanda sudut untuk simulasi.
+ * Tidak dapat dipindai oleh QR reader.
+ */
+
+/* ========================================================================== */
+/*                                   Types                                    */
+/* ========================================================================== */
+
 export type FakeQrProps = {
-  /** Sumber pola. Nilai yang sama selalu menghasilkan gambar yang sama. */
-  seed: string;
-  label: string;
-  size?: number;
+  /** Sumber pola - nilai yang sama selalu menghasilkan gambar identik */
+  readonly seed: string;
+  /** Label untuk aksesibilitas */
+  readonly label: string;
+  /** Ukuran QR dalam pixel (default: 192) */
+  readonly size?: number;
 };
 
-const CELLS = 25;
-const FINDER = 7;
+/* ========================================================================== */
+/*                                 Constants                                  */
+/* ========================================================================== */
 
-function hash(seed: string): () => number {
-  let h = 2166136261;
-  for (const char of seed) h = Math.imul(h ^ char.charCodeAt(0), 16777619);
+/** Jumlah sel dalam grid QR */
+const GRID_CELLS = 25;
+
+/** Ukuran finder pattern di sudut */
+const FINDER_SIZE = 7;
+
+/* ========================================================================== */
+/*                              Hash Function                                 */
+/* ========================================================================== */
+
+/**
+ * Membuat fungsi hash deterministik dari seed string.
+ * Menggunakan FNV-1a hash algorithm untuk menghasilkan angka pseudo-random.
+ */
+const createHashGenerator = (seed: string): (() => number) => {
+  let hashValue = 2166136261;
+
+  for (const character of seed) {
+    hashValue = Math.imul(hashValue ^ character.charCodeAt(0), 16777619);
+  }
+
   return () => {
-    h = Math.imul(h ^ (h >>> 15), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    hashValue = Math.imul(hashValue ^ (hashValue >>> 15), 2246822507);
+    hashValue = Math.imul(hashValue ^ (hashValue >>> 13), 3266489909);
+    hashValue ^= hashValue >>> 16;
+    return (hashValue >>> 0) / 4294967296;
   };
-}
+};
 
-const inFinder = (x: number, y: number) =>
-  (x < FINDER && y < FINDER) || (x >= CELLS - FINDER && y < FINDER) || (x < FINDER && y >= CELLS - FINDER);
+/* ========================================================================== */
+/*                             Helper Functions                               */
+/* ========================================================================== */
 
-/** Mirip QR tetapi BUKAN QR: pola acak deterministik plus tiga penanda sudut. Tidak bisa dipindai. Untuk simulasi saja. */
-export function FakeQr({ seed, label, size = 192 }: FakeQrProps) {
-  const next = hash(seed);
-  const cells: [number, number][] = [];
-  for (let y = 0; y < CELLS; y++) {
-    for (let x = 0; x < CELLS; x++) {
-      if (!inFinder(x, y) && next() > 0.5) cells.push([x, y]);
+/**
+ * Mengecek apakah koordinat berada di dalam area finder pattern.
+ * Finder pattern ada di tiga sudut: kiri-atas, kanan-atas, kiri-bawah.
+ */
+const isInsideFinderArea = (xPos: number, yPos: number): boolean => {
+  const inTopLeft = xPos < FINDER_SIZE && yPos < FINDER_SIZE;
+  const inTopRight = xPos >= GRID_CELLS - FINDER_SIZE && yPos < FINDER_SIZE;
+  const inBottomLeft = xPos < FINDER_SIZE && yPos >= GRID_CELLS - FINDER_SIZE;
+
+  return inTopLeft || inTopRight || inBottomLeft;
+};
+
+/**
+ * Membuat array koordinat sel yang akan diisi.
+ */
+const generateCellPositions = (hashFn: () => number): ReadonlyArray<[number, number]> => {
+  const positions: Array<[number, number]> = [];
+
+  for (let yPos = 0; yPos < GRID_CELLS; yPos += 1) {
+    for (let xPos = 0; xPos < GRID_CELLS; xPos += 1) {
+      const shouldFill = !isInsideFinderArea(xPos, yPos) && hashFn() > 0.5;
+      if (shouldFill) {
+        positions.push([xPos, yPos]);
+      }
     }
   }
-  const finders: [number, number][] = [
-    [0, 0],
-    [CELLS - FINDER, 0],
-    [0, CELLS - FINDER],
-  ];
+
+  return positions;
+};
+
+/** Posisi finder pattern di tiga sudut */
+const FINDER_POSITIONS: ReadonlyArray<[number, number]> = [
+  [0, 0],
+  [GRID_CELLS - FINDER_SIZE, 0],
+  [0, GRID_CELLS - FINDER_SIZE],
+];
+
+/* ========================================================================== */
+/*                                Component                                   */
+/* ========================================================================== */
+
+/**
+ * Komponen FakeQr - menampilkan gambar mirip QR untuk keperluan simulasi.
+ * QR ini tidak dapat dipindai karena polanya acak, bukan encoding data asli.
+ */
+export const FakeQr = ({ seed, label, size = 192 }: FakeQrProps) => {
+  const hashGenerator = createHashGenerator(seed);
+  const cellPositions = generateCellPositions(hashGenerator);
+
+  const viewBoxSize = GRID_CELLS + 2;
+  const viewBoxValue = `-1 -1 ${viewBoxSize} ${viewBoxSize}`;
 
   return (
     <svg
@@ -42,20 +113,38 @@ export function FakeQr({ seed, label, size = 192 }: FakeQrProps) {
       aria-label={label}
       width={size}
       height={size}
-      viewBox={`-1 -1 ${CELLS + 2} ${CELLS + 2}`}
+      viewBox={viewBoxValue}
       shapeRendering="crispEdges"
       className="rounded-lg border bg-card text-foreground"
     >
-      {cells.map(([x, y]) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="currentColor" />
+      {/* Data cells - pola acak */}
+      {cellPositions.map(([xPos, yPos]) => (
+        <rect key={`cell-${xPos}-${yPos}`} x={xPos} y={yPos} width={1} height={1} fill="currentColor" />
       ))}
-      {finders.map(([x, y]) => (
-        <g key={`f-${x}-${y}`}>
-          <rect x={x} y={y} width={FINDER} height={FINDER} fill="currentColor" />
-          <rect x={x + 1} y={y + 1} width={FINDER - 2} height={FINDER - 2} className="fill-card" />
-          <rect x={x + 2} y={y + 2} width={FINDER - 4} height={FINDER - 4} fill="currentColor" />
+
+      {/* Finder patterns - penanda sudut */}
+      {FINDER_POSITIONS.map(([xPos, yPos]) => (
+        <g key={`finder-${xPos}-${yPos}`}>
+          {/* Outer square */}
+          <rect x={xPos} y={yPos} width={FINDER_SIZE} height={FINDER_SIZE} fill="currentColor" />
+          {/* Middle square (white) */}
+          <rect
+            x={xPos + 1}
+            y={yPos + 1}
+            width={FINDER_SIZE - 2}
+            height={FINDER_SIZE - 2}
+            className="fill-card"
+          />
+          {/* Inner square */}
+          <rect
+            x={xPos + 2}
+            y={yPos + 2}
+            width={FINDER_SIZE - 4}
+            height={FINDER_SIZE - 4}
+            fill="currentColor"
+          />
         </g>
       ))}
     </svg>
   );
-}
+};

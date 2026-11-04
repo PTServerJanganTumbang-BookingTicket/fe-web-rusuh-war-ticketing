@@ -1,55 +1,98 @@
 /**
- * Payment order business rules - API Contracts v2.1
+ * @file order.rules.ts
+ * @description Payment Order Business Rules - API Contracts v2.1
  *
  * Requirements: 6.7, 6.8, 6.19
- * Pure functions untuk validasi state order dan transisi pembayaran
+ * Pure functions untuk validasi state order dan transisi pembayaran.
  */
 
 import type { Order, PaymentStatusResult } from "./order.model";
 import { MIN_RETRY_REMAINING_SECONDS } from "./payment.constants";
 
+/* ========================================================================== */
+/*                            Terminal State Check                            */
+/* ========================================================================== */
+
 /**
- * Status akhir order; polling berhenti.
+ * Mengecek apakah order dalam status akhir (polling berhenti).
+ *
  * Requirements: 6.7 (TTL expired → final)
+ *
+ * @param order - Order yang akan dicek
+ * @returns true jika order sudah final (PAID, FAILED, atau EXPIRED)
  */
-export function isFinalOrder(order: Order): boolean {
-  return order.status === "PAID" || order.status === "FAILED" || order.status === "EXPIRED";
-}
+export const isFinalOrder = (order: Order): boolean => {
+  const terminalStatuses = ["PAID", "FAILED", "EXPIRED"];
+  return terminalStatuses.includes(order.status);
+};
+
+/* ========================================================================== */
+/*                              Retry Eligibility                             */
+/* ========================================================================== */
 
 /**
- * Apakah customer bisa retry pembayaran (ganti metode).
- * Retry allowed hanya jika status FAILED dari polling.
+ * Mengecek apakah customer bisa retry pembayaran (ganti metode).
+ *
  * Requirements: 6.19 (retry saat FAILED)
+ *
+ * @param status - Status dari polling result
+ * @returns true jika bisa retry (status FAILED)
  */
-export function canRetryPayment(status: PaymentStatusResult["status"]): boolean {
+export const canRetryPayment = (status: PaymentStatusResult["status"]): boolean => {
   return status === "FAILED";
-}
+};
+
+/* ========================================================================== */
+/*                          Payment Initiation Check                          */
+/* ========================================================================== */
 
 /**
- * Apakah customer bisa initiate pembayaran baru.
- * Hanya saat order masih PENDING_PAYMENT (belum pernah bayar atau setelah retry).
+ * Mengecek apakah customer bisa initiate pembayaran baru.
+ *
  * Requirements: 6.3 (initiate payment flow)
+ * Hanya saat order masih PENDING_PAYMENT (belum pernah bayar atau setelah retry).
+ *
+ * @param order - Order yang akan dicek
+ * @returns true jika bisa initiate pembayaran baru
  */
-export function canInitiatePayment(order: Order): boolean {
+export const canInitiatePayment = (order: Order): boolean => {
   return order.status === "PENDING_PAYMENT";
-}
+};
+
+/* ========================================================================== */
+/*                             Time-based Checks                              */
+/* ========================================================================== */
 
 /**
- * Apakah masih ada waktu untuk ganti metode pembayaran.
- * Tolak jika sisa waktu < MIN_RETRY_REMAINING_SECONDS (60s).
+ * Mengecek apakah masih ada waktu untuk ganti metode pembayaran.
+ *
  * Requirements: 6.19 (PAYMENT_WINDOW_CLOSED guard)
+ * Tolak jika sisa waktu < MIN_RETRY_REMAINING_SECONDS (60s).
+ *
+ * @param ttlSeconds - Sisa waktu dalam detik
+ * @param minRemaining - Minimum waktu yang harus tersisa (default: 60s)
+ * @returns true jika masih ada waktu untuk retry
  */
-export function hasTimeForRetry(
+export const hasTimeForRetry = (
   ttlSeconds: number,
   minRemaining: number = MIN_RETRY_REMAINING_SECONDS,
-): boolean {
+): boolean => {
   return ttlSeconds >= minRemaining;
-}
+};
+
+/* ========================================================================== */
+/*                         Awaiting Confirmation Check                        */
+/* ========================================================================== */
 
 /**
- * Apakah order dalam status menunggu konfirmasi gateway.
- * Tampilkan UI "verifying..." jika true.
+ * Mengecek apakah order dalam status menunggu konfirmasi gateway.
+ *
+ * UI akan menampilkan "verifying..." jika true.
+ *
+ * @param order - Order yang akan dicek
+ * @returns true jika sedang menunggu konfirmasi gateway
  */
-export function isAwaitingConfirmation(order: Order): boolean {
-  return order.status === "AWAITING_PAYMENT" || order.status === "PENDING_CANCELLATION";
-}
+export const isAwaitingConfirmation = (order: Order): boolean => {
+  const awaitingStatuses = ["AWAITING_PAYMENT", "PENDING_CANCELLATION"];
+  return awaitingStatuses.includes(order.status);
+};
