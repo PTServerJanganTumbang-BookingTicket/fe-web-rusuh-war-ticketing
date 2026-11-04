@@ -273,10 +273,15 @@ export const id = {
   // Payment
   "payment.heading": "Satu langkah menuju panggung.",
   "payment.subtitle": "Pilih metode pembayaran dan selesaikan pesananmu.",
+  // Order status labels (Req 6.7, 6.13, 6.16)
+  "payment.status.pending_payment": "Belum dibayar",
   "payment.status.awaiting": "Menunggu bayar",
+  "payment.status.awaiting_payment": "Menunggu konfirmasi",
+  "payment.status.pending_cancellation": "Memverifikasi…",
   "payment.status.paid": "Lunas",
   "payment.status.failed": "Gagal",
   "payment.status.expired": "Kedaluwarsa",
+  // Payment method options (Req 6.1, 6.3)
   "payment.option.bank_transfer.title": "Virtual Account",
   "payment.option.bank_transfer.description": "Verifikasi otomatis, tanpa unggah bukti.",
   "payment.option.bank_transfer.note": "Virtual Account akan diproses otomatis setelah pembayaran diterima.",
@@ -285,65 +290,122 @@ export const id = {
   "payment.option.gopay.note":
     "Pembayaran e-wallet dikonfirmasi otomatis setelah kamu menyetujuinya di aplikasi.",
   "payment.option.unavailable": "Sedang tidak tersedia",
+  // Bank selection (Req 6.3)
   "payment.bank.label": "Pilih bank",
   "payment.bank.required": "Pilih bank untuk Virtual Account.",
+  "payment.bank.bca": "BCA",
+  "payment.bank.bni": "BNI",
+  "payment.bank.bri": "BRI",
+  "payment.bank.cimb": "CIMB Niaga",
+  // Retry flow (Req 6.11, 6.19)
   "payment.failedNotice": "Pembayaran sebelumnya gagal. Pilih metode lagi untuk mencoba ulang.",
+  "payment.retry": "Coba Lagi",
+  "payment.retry.heading": "Pembayaran gagal",
+  "payment.retry.message": "Pilih metode pembayaran lain atau coba lagi dengan metode yang sama.",
+  "payment.retry.attempt": "Percobaan ke-{attempt}",
+  "payment.retry.remaining": "Sisa waktu: {time}",
+  "payment.retry.expired": "Waktu pembayaran habis. Tidak bisa mencoba lagi.",
+  "payment.retry.canRetry": "Kamu masih bisa mencoba metode lain.",
+  "payment.retry.cannotRetry": "Booking dibatalkan karena waktu habis.",
+  // Security badge
   "payment.secure.title": "Pembayaran aman & terverifikasi",
   "payment.secure.body": "E-tiket dikirim ke email kamu setelah pembayaran berhasil.",
+  // Summary & terms
   "payment.summary.footnote": "{count} tiket · Maksimal 3 tiket per pesanan",
   "payment.terms": "Dengan melanjutkan, kamu menyetujui syarat dan ketentuan pembelian tiket.",
+  // Pending payment instructions (Req 6.7)
   "payment.pending.qr": "Scan QR ini dengan aplikasi e-wallet, atau buka aplikasinya langsung.",
   "payment.pending.openApp": "Buka aplikasi GoPay",
+  "payment.pending.verifying": "Memverifikasi pembayaranmu…",
+  "payment.pending.gracePeriod": "Pembayaran sedang diproses. Mohon tunggu.",
+  // Payment result subtitles
   "payment.result.paid.subtitle": "Pembayaranmu sudah kami terima.",
   "payment.result.failed.subtitle": "Pembayaran belum berhasil.",
   "payment.result.expired.subtitle": "Batas waktu pembayaran sudah lewat.",
   "payment.result.paid.secondary": "Jelajahi event lain",
+  // Page title & loading
   "payment.title": "Pembayaran",
   "payment.loading": "Menyiapkan pembayaranmu…",
   "payment.header.order": "Order #{orderId}",
+  // Countdown timer (Req BR-05: 10 menit)
   "payment.countdown.heading": "Selesaikan pembayaran dalam",
   "payment.countdown.hint": "Booking otomatis batal jika waktu habis",
   "payment.countdown.urgent": "Sisa waktu kurang dari 1 menit",
+  "payment.countdown.expired": "Waktu pembayaran habis",
+  // Method labels
   "payment.method.label": "Metode Pembayaran",
   "payment.method.virtual_account": "Virtual Account",
   "payment.method.e_wallet": "E-Wallet",
   "payment.method.bank_transfer": "Transfer Bank",
   "payment.method.gopay": "GoPay",
-  "payment.retry": "Coba Lagi",
+  "payment.method.change": "Ganti metode",
+  // Total & pay button
   "payment.total": "Total Bayar",
   "payment.pay": "Bayar Sekarang",
   "payment.paying": "Memproses…",
+  // Pending stage (Req 6.12, 6.13)
   "payment.pending.heading": "Menunggu pembayaran",
   "payment.pending.note": "Status diperbarui otomatis. Jangan tutup halaman ini.",
+  "payment.pending.polling": "Mengecek status pembayaran…",
+  "payment.pending.instruction": "Ikuti instruksi di bawah untuk menyelesaikan pembayaran.",
+  // Virtual Account instructions (Req 6.3)
   "payment.va.label": "Nomor Virtual Account {bank}",
   "payment.va.copy": "Salin nomor",
   "payment.va.copied": "Tersalin",
+  "payment.va.instruction": "Transfer ke nomor Virtual Account di atas sebelum waktu habis.",
+  "payment.va.bankName": "Bank {bank}",
+  // GoPay QR instructions (Req 6.3)
   "payment.qr.label": "QR pembayaran contoh",
   "payment.qr.hint": "Scan QR dengan aplikasi e-wallet kamu.",
   "payment.qr.fake": "QR contoh untuk simulasi, tidak bisa dipindai.",
+  "payment.qr.instruction": "Scan QR code di atas dengan aplikasi GoPay atau e-wallet lainnya.",
+  // Legacy transfer (for fallback)
   "payment.transfer.bank": "Bank {bank}",
   "payment.transfer.account": "No. rekening {account}",
   "payment.transfer.name": "a.n. {name}",
+  // Mock controls (dev only)
   "payment.mock.title": "Kontrol simulasi (hanya mode mock)",
   "payment.mock.success": "Simulasikan berhasil",
   "payment.mock.fail": "Simulasikan gagal",
+  // Payment result: PAID (Req 6.16)
   "payment.result.paid.header": "Berhasil",
   "payment.result.paid.title": "Pembayaran Berhasil!",
   "payment.result.paid.message": "E-tiket telah dikirim ke email Anda.",
   "payment.result.paid.ticket": "e-Tiket ×{quantity} — {names}",
   "payment.result.paid.cta": "Lihat E-Tiket",
+  "payment.result.paid.detail": "Nomor pesanan: {orderId}",
+  // Payment result: EXPIRED (Req 6.7, BR-05)
   "payment.result.expired.header": "Expired",
   "payment.result.expired.title": "Waktu Pembayaran Habis",
   "payment.result.expired.message":
     "Booking dibatalkan & email pemberitahuan telah dikirim. Tiket dilepas untuk antrian berikutnya.",
+  "payment.result.expired.reason": "Batas waktu 10 menit sudah lewat.",
+  // Payment result: FAILED (Req 6.11, 6.19)
   "payment.result.failed.header": "Gagal",
   "payment.result.failed.title": "Pembayaran Gagal",
   "payment.result.failed.message":
     "Pembayaran tidak berhasil. Booking dibatalkan dan tiket dilepas untuk antrian berikutnya.",
+  "payment.result.failed.canRetry": "Kamu masih punya waktu untuk mencoba metode lain.",
+  "payment.result.failed.cannotRetry": "Waktu pembayaran sudah habis.",
+  "payment.result.failed.reason": "Alasan: {reason}",
+  "payment.result.failed.retry": "Coba Metode Lain",
+  // Navigation
   "payment.result.home": "Kembali ke Home",
+  "payment.result.explore": "Jelajahi Event Lain",
+  // Error states (Req 6.12)
   "payment.error.title": "Pembayaran bermasalah",
   "payment.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "payment.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
+  "payment.error.PAYMENT_REJECTED": "Pembayaran ditolak. Coba metode lain.",
+  "payment.error.PAYMENT_METHOD_UNAVAILABLE": "Metode pembayaran tidak tersedia saat ini.",
+  "payment.error.BOOKING_NOT_FOUND": "Pesanan tidak ditemukan.",
+  "payment.error.BOOKING_EXPIRED": "Waktu booking sudah habis.",
+  "payment.error.PAYMENT_WINDOW_CLOSED": "Waktu pembayaran kurang dari 1 menit. Tidak bisa ganti metode.",
+  "payment.error.PAYMENT_ALREADY_PAID": "Pembayaran sudah berhasil sebelumnya.",
+  // Grace period (Req BR-06: 30 detik)
+  "payment.grace.title": "Sedang memverifikasi…",
+  "payment.grace.message": "Transaksi masih dalam proses verifikasi. Mohon tunggu sebentar.",
+  "payment.grace.note": "Jangan tutup halaman ini selama proses verifikasi.",
   // Ticket
   "ticket.title": "Tiket Saya",
   "ticket.subtitle": "Semua tiket yang sudah kamu beli",
