@@ -199,14 +199,14 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [x] 13.2 Tulis ulang http-order.service.ts — new endpoints (DONE: all v2.1 endpoints implemented) `@owner:akbar`
   - [x] 13.3 Tulis ulang order.schema.ts — new Zod schemas (DONE: all schemas aligned with v2.1) `@owner:akbar`
 
-- [ ] 14. Align payment module — controller, views, dan module [ALIGN] `@owner:akbar`
-  - [ ] 14.1 Tulis ulang payment.controller.ts — polling, bank selection, retry flow `@owner:akbar`
+- [x] 14. Align payment module — controller, views, dan module [ALIGN] `@owner:akbar`
+  - [x] 14.1 Tulis ulang payment.controller.ts — polling, bank selection, retry flow `@owner:akbar`
     - _Requirements: 6.1, 6.2, 6.3, 6.11, 6.12, 6.13, 6.16, 6.19_
-  - [ ] 14.2 Tulis ulang payment.queries.ts — polling query, mutations `@owner:akbar`
-  - [ ] 14.3 Tulis ulang payment.mapper.ts — new types mapping `@owner:akbar`
-  - [ ] 14.4 Tulis ulang PaymentView.tsx — bank selection UI, VA display, GoPay deeplink `@owner:akbar`
-  - [ ] 14.5 Update payment.module.ts — register new use cases `@owner:akbar`
-  - [ ] 14.6 Update integration tests payment controllers `@owner:akbar`
+  - [x] 14.2 Tulis ulang payment.queries.ts — polling query, mutations `@owner:akbar`
+  - [x] 14.3 Tulis ulang payment.mapper.ts — new types mapping `@owner:akbar`
+  - [x] 14.4 Tulis ulang PaymentView.tsx — bank selection UI, VA display, GoPay deeplink `@owner:akbar`
+  - [x] 14.5 Update payment.module.ts — register new use cases `@owner:akbar`
+  - [x] 14.6 Update integration tests payment controllers `@owner:akbar`
 
 - [ ] 15. Checkpoint — payment module `@owner:akbar`
 
