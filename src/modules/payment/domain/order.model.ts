@@ -148,3 +148,31 @@ export type Order = {
   /** Nomor percobaan pembayaran saat ini */
   readonly attempt?: number;
 };
+
+/* ========================================================================== */
+/*          Retry Payment Result (POST /payments/{booking_id}/retry)          */
+/* ========================================================================== */
+
+/**
+ * Hasil dari POST /payments/{booking_id}/retry.
+ *
+ * Endpoint ini membatalkan transaksi pembayaran yang sedang berjalan
+ * dan mengembalikan booking ke status HELD agar customer dapat
+ * memilih metode pembayaran lain.
+ *
+ * TTL_Pembayaran tetap dihitung dari waktu booking awal (tidak di-reset).
+ */
+export type RetryPaymentResult = {
+  /** ID booking yang di-retry */
+  readonly bookingId: string;
+  /** Status booking setelah retry (HELD) */
+  readonly status: "HELD";
+  /** Nomor percobaan pembayaran saat ini */
+  readonly attempt: number;
+  /** ID order pembayaran yang dibatalkan (format: {bookingId}:{attemptNumber}) */
+  readonly cancelledOrderId: string;
+  /** Waktu kedaluwarsa pembayaran (dari booking awal, tidak di-reset) */
+  readonly paymentExpiresAt: string;
+  /** Waktu server saat response dikirim */
+  readonly serverTime: string;
+};

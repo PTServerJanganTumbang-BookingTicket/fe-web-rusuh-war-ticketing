@@ -164,10 +164,28 @@ export type InitiatedPayment = z.infer<typeof initiatedPaymentSchema>;
 
 /**
  * Schema untuk response retry pembayaran.
+ * Transforms snake_case API response to camelCase domain type.
  */
-export const retriedPaymentSchema = z.object({
-  attempt: z.number(),
-});
+export const retriedPaymentSchema = z
+  .object({
+    booking_id: z.string(),
+    status: z.literal("HELD"),
+    attempt: z.number(),
+    cancelled_order_id: z.string(),
+    payment_expires_at: z.string(),
+    server_time: z.string(),
+  })
+  .transform((result) => ({
+    bookingId: result.booking_id,
+    status: result.status,
+    attempt: result.attempt,
+    cancelledOrderId: result.cancelled_order_id,
+    paymentExpiresAt: result.payment_expires_at,
+    serverTime: result.server_time,
+  }));
+
+/** Type untuk hasil retry pembayaran */
+export type RetriedPayment = z.infer<typeof retriedPaymentSchema>;
 
 /* ========================================================================== */
 /*          Available Methods Schema (GET /payments/{booking_id}/methods)     */
