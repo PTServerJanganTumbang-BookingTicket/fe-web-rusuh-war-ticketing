@@ -20,6 +20,8 @@ import {
   toNikUnavailableDialog,
   type NikDialogKind,
 } from "@/core/controllers/nik-dialog.mapper";
+import { isUnexpectedError, toRequestFailedDialog } from "@/core/controllers/common-dialogs.mapper";
+import type { SubmitBookingInput } from "../domain/booking-request.model";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
@@ -47,7 +49,10 @@ function errorKey(error: AppError): MessageKey {
 export function useBookingController(eventId: string): BookingScreen {
   const siteChrome = useSiteChrome();
   // Dukcapil tidak menjawab atau menolak NIK satu tiket: modal menyebut tiket mana lewat `slotKey`.
-  const nikModal = useModal<{ kind: NikDialogKind; slotKey: string }>();
+  // Satu modal per layar: NIK satu tiket, atau submit gagal tanpa respons yang dikenali (bisa dicoba lagi).
+  const nikModal = useModal<
+    { kind: NikDialogKind; slotKey: string } | { kind: "submitFailed"; input: SubmitBookingInput }
+  >();
   /** Fokus kembali ke field NIK setelah "Ubah data"; `n` berubah tiap permintaan supaya fokus terulang. */
   const [focusNik, setFocusNik] = useState<{ slotKey: string; n: number } | null>(null);
   const router = useRouter();
@@ -79,6 +84,10 @@ export function useBookingController(eventId: string): BookingScreen {
   const submit = useMutation({
     mutationFn: submitBookingUseCase,
     onSuccess: ({ bookingId }) => router.push(`/orders/${encodeURIComponent(bookingId)}/pay`),
+    // Stok, NIK ditolak, atau grant habis tetap di layar; koneksi dan galat server jadi dialog dengan coba lagi.
+    onError: (failure, input) => {
+      if (isUnexpectedError(toAppError(failure))) nikModal.open({ kind: "submitFailed", input });
+    },
   });
 
   const offsetMs = session ? serverOffsetMs(Date.parse(session.serverNow), query.dataUpdatedAt) : 0;
@@ -146,7 +155,8 @@ export function useBookingController(eventId: string): BookingScreen {
         setChecks((current) => ({ ...current, [slotKey]: { nik, state: "done", result } }));
         if (result.status === "not_found" || result.status === "inactive")
           nikModal.open({ kind: "mismatch", slotKey });
-        else if (nikModal.modal?.slotKey === slotKey) nikModal.close();
+        else if (nikModal.modal && "slotKey" in nikModal.modal && nikModal.modal.slotKey === slotKey)
+          nikModal.close();
       },
       () => {
         setChecks((current) => ({ ...current, [slotKey]: { nik, state: "failed" } }));
@@ -181,6 +191,12 @@ export function useBookingController(eventId: string): BookingScreen {
       onDismiss: nikModal.close,
       retrying: checks[open.slotKey]?.state === "checking",
     });
+  } else if (open?.kind === "submitFailed" && submit.error) {
+    dialog = toRequestFailedDialog(toAppError(submit.error), {
+      onRetry: () => submit.mutate(open.input),
+      onDismiss: nikModal.close,
+      retrying: submit.isPending,
+    });
   }
 
   return {
@@ -196,7 +212,10 @@ export function useBookingController(eventId: string): BookingScreen {
       submitting: submit.isPending,
       dialog,
       focusNik,
-      error: submit.isError ? t(errorKey(toAppError(submit.error))) : undefined,
+      error:
+        submit.isError && !isUnexpectedError(toAppError(submit.error))
+          ? t(errorKey(toAppError(submit.error)))
+          : undefined,
       onAdd: (categoryId) =>
         dispatch({
           type: "ADD_TICKET",

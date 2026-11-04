@@ -17,6 +17,11 @@ import {
   toNikUnavailableDialog,
   type NikDialogKind,
 } from "@/core/controllers/nik-dialog.mapper";
+import {
+  isUnexpectedError,
+  toRequestFailedDialog,
+  toSessionExpiredDialog,
+} from "@/core/controllers/common-dialogs.mapper";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
@@ -53,13 +58,27 @@ function initialsOf(name: string): string {
     .join("");
 }
 
+type AccountModal =
+  | { kind: NikDialogKind; target: FormMode }
+  | { kind: "sessionExpired" }
+  | { kind: "removeFailed"; id: string };
+
+const isSessionEnded = (error: AppError) => error.kind === "api" && error.code === "UNAUTHENTICATED";
+
 /**
- * Galat simpan alias yang ditampilkan sebagai modal NIK: Dukcapil menolak (pasti) atau tidak menjawab (belum
- * diketahui). Galat lain, misalnya alias sudah tersimpan, tetap tampil di kartu.
+ * Galat simpan alias yang jadi modal: sesi habis, Dukcapil menolak (pasti), atau tidak menjawab (belum diketahui).
+ * Galat lain, misalnya alias sudah tersimpan, tetap tampil di kartu.
  */
-function nikDialogKindOf(error: AppError): NikDialogKind | null {
+function saveDialogKindOf(error: AppError): "sessionExpired" | NikDialogKind | null {
+  if (isSessionEnded(error)) return "sessionExpired";
   if (error.kind === "api") return error.code === "NIK_INVALID" ? "mismatch" : null;
   return "unavailable";
+}
+
+/** Galat hapus alias yang jadi modal: sesi habis atau galat tak terduga (bisa dicoba lagi). */
+function removeDialogKindOf(error: AppError): "sessionExpired" | "removeFailed" | null {
+  if (isSessionEnded(error)) return "sessionExpired";
+  return isUnexpectedError(error) ? "removeFailed" : null;
 }
 
 function labelError(error: SavedNikInputError["label"]): string | undefined {
@@ -70,7 +89,7 @@ function labelError(error: SavedNikInputError["label"]): string | undefined {
 
 export function useAccountController(): AccountViewProps {
   const siteChrome = useSiteChrome();
-  const nikModal = useModal<{ kind: NikDialogKind; target: FormMode }>();
+  const nikModal = useModal<AccountModal>();
   /** Berubah tiap "Ubah data" supaya field NIK difokus lagi. */
   const [focusNik, setFocusNik] = useState(0);
   const router = useRouter();
@@ -113,16 +132,24 @@ export function useAccountController(): AccountViewProps {
       await refreshSaved();
     },
     onError: (error, target) => {
-      const kind = nikDialogKindOf(toAppError(error));
-      if (kind) nikModal.open({ kind, target });
+      const kind = saveDialogKindOf(toAppError(error));
+      if (kind === "sessionExpired") nikModal.open({ kind });
+      else if (kind) nikModal.open({ kind, target });
     },
   });
   const remove = useMutation({
     mutationFn: (id: string) => removeSavedNikUseCase(id),
     onSuccess: async (_, id) => {
+      nikModal.close();
       setPendingRemove(null);
       if (mode.kind === "edit" && mode.id === id) resetForm();
       await refreshSaved();
+    },
+    onError: (error, id) => {
+      const kind = removeDialogKindOf(toAppError(error));
+      if (!kind) return;
+      setPendingRemove(null);
+      nikModal.open(kind === "removeFailed" ? { kind, id } : { kind });
     },
   });
   const signOut = useMutation({
@@ -159,8 +186,9 @@ export function useAccountController(): AccountViewProps {
   const list = saved.data ?? { maxEntries: 0, savedNiks: [] };
   const full = list.savedNiks.length >= list.maxEntries;
   // Galat yang sudah tampil sebagai modal tidak diulang di kartu.
-  const saveInline = save.error && !nikDialogKindOf(toAppError(save.error)) ? save.error : null;
-  const failed = saveInline ?? remove.error ?? saved.error;
+  const saveInline = save.error && !saveDialogKindOf(toAppError(save.error)) ? save.error : null;
+  const removeInline = remove.error && !removeDialogKindOf(toAppError(remove.error)) ? remove.error : null;
+  const failed = saveInline ?? removeInline ?? saved.error;
   const editNik = () => {
     nikModal.close();
     setFocusNik((n) => n + 1);
@@ -175,6 +203,14 @@ export function useAccountController(): AccountViewProps {
       onEdit: editNik,
       onDismiss: nikModal.close,
       retrying: save.isPending,
+    });
+  } else if (openModal?.kind === "sessionExpired") {
+    dialog = toSessionExpiredDialog({ onDismiss: nikModal.close });
+  } else if (openModal?.kind === "removeFailed" && remove.error) {
+    dialog = toRequestFailedDialog(toAppError(remove.error), {
+      onRetry: () => remove.mutate(openModal.id),
+      onDismiss: nikModal.close,
+      retrying: remove.isPending,
     });
   }
   const invalid = submitted ? validateSavedNikInput({ label, nik }, { mode: mode.kind }) : null;

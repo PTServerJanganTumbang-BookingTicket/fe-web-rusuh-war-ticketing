@@ -15,7 +15,10 @@ import type { AuthDependencies } from "../application/auth.dependencies";
 import { isEmail } from "../domain/account.rules";
 import { RESEND_COOLDOWN_MS } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
+import { toServiceUnavailableDialog } from "./auth-dialogs.mapper";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
+import { isUnexpectedError, toConnectionProblemDialog } from "@/core/controllers/common-dialogs.mapper";
 import type { LoginViewProps } from "../views/LoginView";
 
 function emailErrorKey(email: string) {
@@ -25,6 +28,8 @@ function emailErrorKey(email: string) {
 
 export function useLoginController(): LoginViewProps {
   const siteChrome = useSiteChrome();
+  // Tanpa respons: "Koneksi bermasalah". Layanan auth galat (5xx, respons asing): "Layanan sedang tidak tersedia".
+  const modal = useModal<{ kind: "connection" | "service"; action: "request" | "resend" }>();
   const { requestMagicLinkUseCase, resendMagicLinkUseCase, clock, appConfig } = useDependencies<
     AuthDependencies & CoreDependencies
   >();
@@ -39,17 +44,42 @@ export function useLoginController(): LoginViewProps {
   const request = useMutation({
     mutationFn: (address: string) => requestMagicLinkUseCase(address),
     onSuccess: (_, address) => {
+      modal.close();
       setSentTo(address.trim());
       startCooldown();
     },
+    onError: (failure) => openFailure(failure, "request"),
   });
   const resend = useMutation({
     mutationFn: (address: string) => resendMagicLinkUseCase(address),
-    onSuccess: startCooldown,
+    onSuccess: () => {
+      modal.close();
+      startCooldown();
+    },
+    onError: (failure) => openFailure(failure, "resend"),
   });
+  function openFailure(failure: unknown, action: "request" | "resend") {
+    const error = toAppError(failure);
+    if (!isUnexpectedError(error)) return;
+    modal.open({ kind: error.kind === "network" ? "connection" : "service", action });
+  }
+  /** Galat bisnis (mis. terlalu banyak permintaan) tetap di kartu; galat tak terduga sudah jadi dialog. */
+  const inlineError = (failure: Error | null) =>
+    failure && !isUnexpectedError(toAppError(failure)) ? t(authErrorKey(toAppError(failure))) : undefined;
   // Jeda kirim ulang memakai jam lokal: ini batas UI, bukan TTL dari server (ADR-0005 tidak berlaku).
   const cooldownMs = useCountdown(resendAt, 0) ?? 0;
   const chrome = siteChrome;
+  let dialog: ActionDialogModel | undefined;
+  const open = modal.modal;
+  if (open) {
+    const retry = {
+      onRetry: () => (open.action === "resend" && sentTo ? resend.mutate(sentTo) : request.mutate(email)),
+      onDismiss: modal.close,
+      retrying: request.isPending || resend.isPending,
+    };
+    dialog =
+      open.kind === "connection" ? toConnectionProblemDialog(retry) : toServiceUnavailableDialog(retry);
+  }
 
   if (sentTo) {
     const waiting = cooldownMs > 0;
@@ -59,7 +89,8 @@ export function useLoginController(): LoginViewProps {
       heading: t("login.sent.title"),
       // Pesan sama untuk email terdaftar atau tidak, supaya keberadaan akun tidak bocor.
       message: t("login.sent.message"),
-      error: resend.error ? t(authErrorKey(toAppError(resend.error))) : undefined,
+      error: inlineError(resend.error),
+      dialog,
       notice: { title: t("login.sent.noticeTitle"), body: t("login.sent.notice") },
       help: t("login.sent.help"),
       resent: resend.isSuccess && waiting ? t("login.resend.done") : undefined,
@@ -92,7 +123,8 @@ export function useLoginController(): LoginViewProps {
     variant: expired ? "expired" : "default",
     heading: expired ? t("login.expired.heading") : t("login.heading"),
     intro: expired ? t("login.expired.intro") : t("login.intro"),
-    error: request.error ? t(authErrorKey(toAppError(request.error))) : undefined,
+    error: inlineError(request.error),
+    dialog,
     email: {
       label: t("login.email.label"),
       placeholder: t("login.email.placeholder"),

@@ -211,6 +211,33 @@ describe("useBookingController", () => {
     expect(view().holders?.items[0]?.holder?.value).toBe("");
   });
 
+  it("submit tanpa respons: dialog koneksi bermasalah, coba lagi mengirim ulang isian yang sama", async () => {
+    push.mockClear();
+    let attempts = 0;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, () => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.error();
+        return HttpResponse.json(
+          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-RETRY" } },
+          { status: 201 },
+        );
+      }),
+    );
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().buyer.name.onChange("Rina"));
+    act(() => view().buyer.email.onChange("rina@example.com"));
+    act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+    act(() => view().submit.onSubmit());
+    await waitFor(() => expect(view().dialog?.title).toBe("Koneksi bermasalah"));
+    expect(view().error).toBeUndefined();
+    const retry = view().dialog?.primary;
+    act(() => retry && "onClick" in retry && retry.onClick());
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/orders/RB-RETRY/pay"));
+    expect(attempts).toBe(2);
+  });
+
   it("grant ditolak (401): kembali ke Waiting Room (mode default)", async () => {
     replace.mockClear();
     const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: createWrapper() });

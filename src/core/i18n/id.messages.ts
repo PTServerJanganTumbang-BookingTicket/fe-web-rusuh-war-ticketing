@@ -3,10 +3,34 @@ export const id = {
   "common.placeholder": "Layar ini belum dibangun.",
   "home.title": "Rusuh Booking Tiket",
   "dialog.editInformation": "Ubah data",
+  "dialog.retry": "Coba lagi",
+  "dialog.close": "Tutup",
+  "dialog.connection.title": "Koneksi bermasalah",
+  "dialog.connection.description":
+    "Kami tidak bisa terhubung ke server. Periksa koneksi internetmu, lalu coba lagi.",
+  "dialog.unknown.title": "Terjadi kesalahan",
+  "dialog.unknown.description": "Permintaanmu belum bisa diproses sekarang. Coba lagi sebentar lagi.",
+  "dialog.sessionExpired.title": "Sesi berakhir",
+  "dialog.sessionExpired.description":
+    "Sesimu sudah berakhir. Masuk lagi untuk melanjutkan. Booking yang sedang berjalan tetap tersimpan.",
+  "dialog.sessionExpired.login": "Masuk lagi",
+  "dialog.serviceUnavailable.title": "Layanan sedang tidak tersedia",
+  "dialog.serviceUnavailable.description":
+    "Layanan masuk sedang tidak tersedia. Coba lagi nanti. Data yang kamu isi tetap tersimpan.",
+  "dialog.registrationFailed.title": "Pendaftaran gagal",
+  "dialog.registrationFailed.description": "Pendaftaranmu belum bisa diselesaikan. Coba lagi.",
+  "dialog.alreadyRegistered.title": "Akun sudah terdaftar",
+  "dialog.alreadyRegistered.description":
+    "Email atau NIK ini mungkin sudah dipakai akun lain. Coba masuk, atau pakai data lain.",
+  "dialog.alreadyRegistered.login": "Masuk",
+  "dialog.alreadyRegistered.edit": "Ubah email",
+  "dialog.emailVerificationFailed.title": "Verifikasi email gagal",
+  "dialog.emailVerificationFailed.description":
+    "Link verifikasi ini tidak valid atau sudah kedaluwarsa. Minta email verifikasi baru.",
+  "dialog.emailVerificationFailed.resend": "Kirim ulang email verifikasi",
   "dialog.nikUnavailable.title": "Verifikasi NIK belum tersedia",
   "dialog.nikUnavailable.description":
     "Kami belum bisa memverifikasi NIK-mu sekarang. Data yang kamu isi tetap tersimpan. Periksa lagi atau coba sebentar lagi.",
-  "dialog.nikUnavailable.retry": "Coba lagi",
   "dialog.nikMismatch.title": "Periksa NIK-mu",
   "dialog.nikMismatch.description":
     "NIK tidak cocok dengan data Dukcapil. Periksa lagi data yang kamu isi, lalu coba lagi.",

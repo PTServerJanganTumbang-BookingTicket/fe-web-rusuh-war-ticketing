@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { AuthCard } from "@/components/ui/layout/AuthCard";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 
 type LinkProps = { label: string; href: string };
 type Chrome = Omit<SiteShellProps, "children">;
@@ -48,12 +49,14 @@ export type LinkSentProps = {
   mockLink?: LinkProps;
 };
 
-export type LoginViewProps = Chrome & (LoginFormProps | LinkSentProps);
+/** `dialog`: galat tak terduga saat meminta atau mengirim ulang link (koneksi atau layanan auth). */
+export type LoginViewProps = Chrome & (LoginFormProps | LinkSentProps) & { dialog?: ActionDialogProps };
 
-export function LoginView({ nav, footer, ...screen }: LoginViewProps) {
+export function LoginView({ nav, footer, dialog, ...screen }: LoginViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
       {screen.kind === "form" ? <LoginForm {...screen} /> : <LinkSent {...screen} />}
+      {dialog ? <ActionDialog {...dialog} /> : null}
     </SiteShell>
   );
 }

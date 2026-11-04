@@ -5,15 +5,19 @@ import { useCallback, useState } from "react";
 /**
  * Bentuk dialog aksi yang dibangun controller. Sama dengan `ActionDialogProps` di
  * `components/ui/layout/ActionDialog.tsx`; dideklarasikan ulang karena `core/controllers` tidak boleh mengimpor
- * design system. TypeScript mencocokkan keduanya secara struktural.
+ * design system. TypeScript mencocokkan keduanya secara struktural. Panduan: `docs/architecture/action-dialog.md`.
  */
 export type ActionDialogAction =
   { label: string; onClick: () => void; busy?: boolean } | { label: string; href: string };
 
 export type ActionDialogModel = {
-  tone: "error" | "info" | "success";
+  tone: "error" | "warning" | "info" | "success";
+  icon?: "alert" | "clock" | "mail" | "check" | "info";
   title: string;
   description: string;
+  details?: { label: string; value: string }[];
+  note?: string;
+  error?: string;
   primary: ActionDialogAction;
   secondary?: ActionDialogAction;
   onDismiss: () => void;

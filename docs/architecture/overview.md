@@ -55,7 +55,7 @@ src/core/   domain/ application/ data/ controllers/ views/ i18n/   ◄── lap
 
 Detail: [ADR-0014](../adr/0014-modular-clean-architecture-solid.md) (lapisan, SOLID), [ADR-0015](../adr/0015-dependency-injection-awilix.md) (DI), [ADR-0003](../adr/0003-presentation-pattern-viewmodel-hooks.md) (controller sebagai hook).
 
-Dokumen turunan: [routing dan implementasi lapisan di Next.js](routing-and-layers.md), [login dan register](auth-login-register.md).
+Dokumen turunan: [routing dan implementasi lapisan di Next.js](routing-and-layers.md), [login dan register](auth-login-register.md), [ActionDialog dan katalog dialog](action-dialog.md).
 
 ## 3. Struktur repo
 

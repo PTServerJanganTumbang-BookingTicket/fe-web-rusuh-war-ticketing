@@ -11,6 +11,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }
 
 const server = setupMockServer();
 
+/** Menekan aksi dialog berupa tombol. */
+function click(action: { label: string; onClick: () => void } | { label: string; href: string } | undefined) {
+  if (action && "onClick" in action) action.onClick();
+}
+
 async function mountSignedIn() {
   const container = setupTestContainer();
   await container.cradle.verifyLoginUseCase("mt_account");
@@ -177,6 +182,47 @@ describe("useAccountController", () => {
     act(() => ready().confirmRemove?.confirm.onClick());
     await waitFor(() => expect(ready().saved.items).toEqual([]));
     expect(ready().confirmRemove).toBeUndefined();
+  });
+
+  it("sesi habis saat menyimpan alias: dialog sesi berakhir dengan tautan masuk lagi", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
+        HttpResponse.json({ meta: { code: 401, message: "Unauthorized" } }, { status: 401 }),
+      ),
+      http.post(`${MOCK_API_BASE_URL}/auth/refresh`, () =>
+        HttpResponse.json({ meta: { code: 401, message: "Session ended" } }, { status: 401 }),
+      ),
+    );
+    const { ready } = await mountSignedIn();
+    act(() => {
+      ready().add?.label.onChange("Sari");
+      ready().add?.nik.onChange("3171000000000044");
+    });
+    act(() => ready().add?.submit.onSubmit());
+    await waitFor(() => expect(ready().dialog?.title).toBe("Sesi berakhir"));
+    expect(ready().dialog?.primary).toEqual({ label: "Masuk lagi", href: "/login?session=expired" });
+    expect(ready().saved.error).toBeUndefined();
+  });
+
+  // BE tidak terjangkau dari route same-origin: gateway menjawab 502, jadi browser melihat galat server, bukan koneksi.
+  it("hapus alias gagal karena BE tidak terjangkau: dialog terjadi kesalahan, coba lagi menghapus", async () => {
+    let attempts = 0;
+    server.use(
+      http.delete(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, () => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.error();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { ready } = await mountSignedIn();
+    act(() => ready().saved.items[0]?.remove.onClick());
+    act(() => ready().confirmRemove?.confirm.onClick());
+    await waitFor(() => expect(ready().dialog?.title).toBe("Terjadi kesalahan"));
+    expect(ready().confirmRemove).toBeUndefined();
+    act(() => click(ready().dialog?.primary));
+    // Override di atas tidak mengubah state mock, jadi yang diperiksa adalah permintaan ulang dan dialog yang tertutup.
+    await waitFor(() => expect(ready().dialog).toBeUndefined());
+    expect(attempts).toBe(2);
   });
 
   it("keluar menghapus sesi lalu kembali ke Home", async () => {

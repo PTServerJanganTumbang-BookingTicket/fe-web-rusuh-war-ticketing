@@ -25,7 +25,7 @@ export function toNikUnavailableDialog({
     tone: "error",
     title: t("dialog.nikUnavailable.title"),
     description: t("dialog.nikUnavailable.description"),
-    primary: { label: t("dialog.nikUnavailable.retry"), onClick: onRetry, busy: retrying },
+    primary: { label: t("dialog.retry"), onClick: onRetry, busy: retrying },
     secondary: { label: t("dialog.editInformation"), onClick: onEdit },
     onDismiss,
   };
