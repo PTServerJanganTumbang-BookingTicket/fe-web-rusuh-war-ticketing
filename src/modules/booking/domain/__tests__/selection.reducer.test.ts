@@ -38,8 +38,8 @@ describe("selectionReducer", () => {
 describe("totalPriceIdr", () => {
   it("menjumlahkan harga kali jumlah", () => {
     const categories = [
-      { id: "vip", name: "VIP", priceIdr: 1_500_000, stock: 12 },
-      { id: "festival", name: "Festival", priceIdr: 850_000, stock: 240 },
+      { id: "vip", name: "VIP", description: "", priceIdr: 1_500_000, stock: 12 },
+      { id: "festival", name: "Festival", description: "", priceIdr: 850_000, stock: 240 },
     ];
     expect(totalPriceIdr({ vip: 1, festival: 2 }, categories)).toBe(3_200_000);
     expect(totalPriceIdr({}, categories)).toBe(0);

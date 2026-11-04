@@ -51,7 +51,7 @@ describe("eventService", () => {
       name: "Konser A",
       date: "2026-12-25",
       venue: "GBK, Jakarta",
-      imageUrl: "/images/event-1.jpg",
+      imageUrl: "/images/concert-placeholder.webp",
       status: "AVAILABLE",
       queueState: "OPEN",
       display: { enabled: true, action: "queue", labelKey: "home.event.cta.queue", badgeKey: undefined },
@@ -161,9 +161,27 @@ describe("bookingService", () => {
     expect(session.maskedNik).toBeNull();
     expect(session.quota).toEqual({ max: 3, used: 0, remaining: 3 });
     expect(session.categories).toEqual([
-      { id: "cat_vip", name: "VIP", priceIdr: 1_500_000, stock: 12 },
-      { id: "cat_festival", name: "Festival", priceIdr: 850_000, stock: 240 },
-      { id: "cat_tribune", name: "Tribune", priceIdr: 500_000, stock: 0 },
+      {
+        id: "cat_vip",
+        name: "VIP",
+        description: "Lebih dekat dengan energi panggung.",
+        priceIdr: 1_500_000,
+        stock: 12,
+      },
+      {
+        id: "cat_festival",
+        name: "Festival",
+        description: "Nikmati konser dari area festival.",
+        priceIdr: 850_000,
+        stock: 240,
+      },
+      {
+        id: "cat_tribune",
+        name: "Tribune",
+        description: "Area tribun dengan panorama panggung.",
+        priceIdr: 500_000,
+        stock: 0,
+      },
     ]);
   });
 

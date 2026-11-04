@@ -59,7 +59,7 @@ export function ETicketView({
         {/* Event Header */}
         <div className="relative aspect-[2/1] overflow-hidden">
           <Image
-            src={imageUrl || "/images/placeholder-event.jpg"}
+            src={imageUrl || "/images/concert-placeholder.webp"}
             alt={eventName}
             fill
             className="object-cover"

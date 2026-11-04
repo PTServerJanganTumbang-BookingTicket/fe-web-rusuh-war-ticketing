@@ -1,13 +1,4 @@
-import Link from "next/link";
-import {
-  CalendarIcon,
-  ClockIcon,
-  IdCardIcon,
-  InfoIcon,
-  MapPinIcon,
-  TicketIcon,
-  WifiIcon,
-} from "lucide-react";
+import { ClockIcon, IdCardIcon, InfoIcon, TicketIcon, WifiIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/components/ui/cn.utils";
-import { EventCover } from "@/components/ui/layout/EventCover";
+import { EventSummaryCard, type EventSummaryCardProps } from "@/components/ui/layout/CheckoutCards";
+import { PageHeader } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
 import { Progress } from "@/components/ui/primitives/Progress";
 
@@ -32,13 +24,7 @@ export type QueueStatusProps = {
   action?: { label: string; onClick: () => void; disabled?: boolean };
 };
 
-export type QueueEventCardProps = {
-  imageUrl: string;
-  tag: string;
-  name: string;
-  date: string;
-  venue: string;
-};
+export type QueueEventCardProps = EventSummaryCardProps;
 
 export type QueueTip = { icon: "nik" | "tickets" | "connection"; text: string };
 
@@ -72,29 +58,12 @@ export function QueueView({
 }: QueueViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
-      <nav aria-label="Breadcrumb" className="mb-4">
-        <ol className="type-body2 flex flex-wrap items-center gap-2 text-muted-foreground">
-          {breadcrumb.map((crumb, index) => (
-            <li key={crumb.label} className="flex items-center gap-2">
-              {index > 0 ? <span aria-hidden="true">/</span> : null}
-              {crumb.href ? (
-                <Link href={crumb.href} className="hover:text-foreground">
-                  {crumb.label}
-                </Link>
-              ) : (
-                <span aria-current="page">{crumb.label}</span>
-              )}
-            </li>
-          ))}
-        </ol>
-      </nav>
-      <h1 className="type-h2 text-foreground">{heading}</h1>
-      <p className="type-title mt-2 text-muted-foreground">{subtitle}</p>
+      <PageHeader breadcrumb={breadcrumb} heading={heading} subtitle={subtitle} />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mt-6 grid gap-6 sm:mt-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
         <StatusCard {...status} />
         <aside className="flex flex-col gap-8">
-          {event ? <EventCard {...event} /> : null}
+          {event ? <EventSummaryCard {...event} /> : null}
           <section aria-labelledby="queue-tips" className="px-1">
             <h2 id="queue-tips" className="type-title text-muted-foreground">
               {tips.title}
@@ -189,28 +158,6 @@ function StatusCard({
             <AlertDescription className="type-body1 text-foreground">{note}</AlertDescription>
           </Alert>
         ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function EventCard({ imageUrl, tag, name, date, venue }: QueueEventCardProps) {
-  return (
-    <Card className="gap-0 rounded-2xl py-0">
-      <EventCover src={imageUrl} className="aspect-[2/1]" />
-      <CardContent className="flex flex-col gap-3 p-6">
-        <Badge className="type-body2 h-auto w-fit rounded-full bg-brand-tint px-3 py-1 text-primary uppercase">
-          {tag}
-        </Badge>
-        <h2 className="type-h6 text-foreground">{name}</h2>
-        <p className="type-body1 flex items-center gap-3 text-muted-foreground">
-          <CalendarIcon aria-hidden="true" className="size-4 shrink-0" />
-          {date}
-        </p>
-        <p className="type-body1 flex items-center gap-3 text-muted-foreground">
-          <MapPinIcon aria-hidden="true" className="size-4 shrink-0" />
-          {venue}
-        </p>
       </CardContent>
     </Card>
   );

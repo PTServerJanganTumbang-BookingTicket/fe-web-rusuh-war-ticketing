@@ -5,6 +5,8 @@ export interface AuthProtocol {
   requestMagicLink(email: string): Promise<void>;
   resendMagicLink(email: string): Promise<void>;
   register(input: RegisterInput): Promise<void>;
+  /** Kirim ulang email verifikasi pendaftaran. */
+  resendVerification(email: string): Promise<void>;
   /** Menukar token dari link email dengan sesi akun di cookie httpOnly. */
   verify(token: string): Promise<LoginResult>;
   /** `null` berarti tamu. */

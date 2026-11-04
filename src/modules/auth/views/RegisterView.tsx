@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { CircleCheckIcon, UserPlusIcon } from "lucide-react";
+import { CircleCheckIcon, MailIcon, UserPlusIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/components/ui/cn.utils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -23,7 +25,6 @@ export type RegisterFormProps = {
   kind: "form";
   heading: string;
   intro: string;
-  error?: string;
   email: TextField;
   nik: TextField;
   name: TextField;
@@ -33,8 +34,29 @@ export type RegisterFormProps = {
   login: { prompt: string; label: string; href: string };
 };
 
+export type RegisterDialogProps =
+  | {
+      kind: "confirm";
+      title: string;
+      description: string;
+      /** Isian lengkap hanya tampil di sini dan di form; tidak dikirim ke tempat lain. */
+      values: { label: string; value: string }[];
+      error?: string;
+      busy: boolean;
+      busyNote: string;
+      confirm: { label: string; onClick: () => void };
+      edit: { label: string; onClick: () => void };
+    }
+  | {
+      kind: "success";
+      title: string;
+      message: string;
+      note: string;
+      ok: { label: string; onClick: () => void };
+    };
+
 export type RegisterViewProps = Omit<SiteShellProps, "children"> &
-  (RegisterFormProps | { kind: "done"; heading: string; message: string });
+  RegisterFormProps & { dialog?: RegisterDialogProps };
 
 type InputProps = { type?: string; autoComplete?: string; inputMode?: "email" | "numeric" };
 
@@ -71,25 +93,96 @@ function TextInput({
   );
 }
 
-export function RegisterView({ nav, footer, ...screen }: RegisterViewProps) {
+export function RegisterView({ nav, footer, dialog, ...form }: RegisterViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
-      {screen.kind === "done" ? (
-        <AuthCard
-          tone="success"
-          icon={<CircleCheckIcon />}
-          title={screen.heading}
-          description={screen.message}
-        />
-      ) : (
-        <RegisterForm {...screen} />
-      )}
+      <RegisterForm {...form} />
+      {dialog ? <RegisterDialog dialog={dialog} /> : null}
     </SiteShell>
   );
 }
 
+/** Desktop: modal di tengah. Mobile: bottom drawer. Escape atau klik luar sama dengan "Ubah data", kecuali saat mendaftar. */
+function RegisterDialog({ dialog }: { dialog: RegisterDialogProps }) {
+  const dismiss = dialog.kind === "confirm" ? dialog.edit.onClick : dialog.ok.onClick;
+  const locked = dialog.kind === "confirm" && dialog.busy;
+  return (
+    <Dialog open onOpenChange={(open) => !open && !locked && dismiss()}>
+      <DialogContent showCloseButton={!locked} aria-busy={locked}>
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full [&_svg]:size-5",
+            dialog.kind === "success"
+              ? "bg-signal-bg-valid text-signal-valid"
+              : "bg-signal-bg-info text-signal-info",
+          )}
+        >
+          {dialog.kind === "success" ? <CircleCheckIcon /> : <MailIcon />}
+        </span>
+        <DialogHeader className="gap-2">
+          <DialogTitle>{dialog.title}</DialogTitle>
+          <DialogDescription>
+            {dialog.kind === "success" ? dialog.message : dialog.description}
+          </DialogDescription>
+        </DialogHeader>
+        {dialog.kind === "success" ? (
+          <>
+            <p className="type-body2 text-muted-foreground">{dialog.note}</p>
+            <Button size="lg" className="w-full" onClick={dialog.ok.onClick}>
+              {dialog.ok.label}
+            </Button>
+          </>
+        ) : (
+          <>
+            <dl className="flex flex-col gap-3 rounded-xl border border-border p-4">
+              {dialog.values.map((item) => (
+                <div key={item.label}>
+                  <dt className="type-body2 text-muted-foreground">{item.label}</dt>
+                  <dd className="type-body1 break-all tabular-nums">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+            {dialog.error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{dialog.error}</AlertDescription>
+              </Alert>
+            ) : null}
+            {dialog.busy ? (
+              <p role="status" className="type-body2 text-muted-foreground">
+                {dialog.busyNote}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-3">
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={dialog.busy}
+                aria-busy={dialog.busy}
+                onClick={dialog.confirm.onClick}
+              >
+                {dialog.busy ? <Spinner data-icon="inline-start" /> : null}
+                {dialog.confirm.label}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full border-primary text-primary"
+                disabled={dialog.busy}
+                onClick={dialog.edit.onClick}
+              >
+                {dialog.edit.label}
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function RegisterForm(props: RegisterFormProps) {
-  const { heading, intro, error, email, nik, name, consent, requiredNote, submit, login } = props;
+  const { heading, intro, email, nik, name, consent, requiredNote, submit, login } = props;
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     submit.onSubmit();
@@ -97,11 +190,6 @@ function RegisterForm(props: RegisterFormProps) {
   return (
     <AuthCard tone="info" icon={<UserPlusIcon />} title={heading} description={intro}>
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
-        {error ? (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
         <TextInput
           id="register-email"
           field={email}
@@ -115,12 +203,18 @@ function RegisterForm(props: RegisterFormProps) {
         <Field orientation="horizontal" data-invalid={Boolean(consent.error)}>
           <Checkbox
             id="register-consent"
+            // Checkbox Base UI bukan input bawaan, jadi `htmlFor` saja tidak memberinya nama aksesibel.
+            aria-labelledby="register-consent-label"
             checked={consent.checked}
             aria-invalid={Boolean(consent.error)}
             aria-describedby={consent.error ? "register-consent-error" : undefined}
             onCheckedChange={(checked) => consent.onChange(checked)}
           />
-          <FieldLabel htmlFor="register-consent" className="leading-snug font-normal">
+          <FieldLabel
+            id="register-consent-label"
+            htmlFor="register-consent"
+            className="leading-snug font-normal"
+          >
             {consent.label}
           </FieldLabel>
         </Field>

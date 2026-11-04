@@ -7,6 +7,8 @@ import type { GetAvailableMethodsUseCase } from "./get-available-methods.use-cas
 import type { StartPaymentUseCase } from "./start-payment.use-case";
 import type { RetryPaymentUseCase } from "./retry-payment.use-case";
 import type { WatchOrderUseCase } from "./watch-order.use-case";
+import type { GetPaymentEventUseCase } from "./get-payment-event.use-case";
+import type { SimulatePaymentUseCase } from "./simulate-payment.use-case";
 
 export type PaymentDependencies = {
   getOrderUseCase: GetOrderUseCase;
@@ -14,4 +16,6 @@ export type PaymentDependencies = {
   startPaymentUseCase: StartPaymentUseCase;
   retryPaymentUseCase: RetryPaymentUseCase;
   watchOrderUseCase: WatchOrderUseCase;
+  getPaymentEventUseCase: GetPaymentEventUseCase;
+  simulatePaymentUseCase: SimulatePaymentUseCase;
 };

@@ -51,7 +51,7 @@ export function TicketCard({
       <Card className="overflow-hidden p-0 transition-shadow hover:shadow-lg">
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
-            src={imageUrl || "/images/placeholder-event.jpg"}
+            src={imageUrl || "/images/concert-placeholder.webp"}
             alt={eventName}
             fill
             className="object-cover"

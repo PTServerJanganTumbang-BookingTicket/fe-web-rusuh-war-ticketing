@@ -14,7 +14,9 @@ export type ApiErrorCode =
   | "CONSENT_REQUIRED"
   | "LOGIN_LINK_INVALID"
   | "UNAUTHENTICATED"
-  | "SAVED_NIK_REJECTED";
+  | "SAVED_NIK_REJECTED"
+  | "BOOKING_REJECTED"
+  | "BOOKING_INVALID";
 
 export type AppError =
   | { kind: "api"; code: ApiErrorCode; status: number }
@@ -37,6 +39,8 @@ const API_ERROR_CODES: readonly string[] = [
   "LOGIN_LINK_INVALID",
   "UNAUTHENTICATED",
   "SAVED_NIK_REJECTED",
+  "BOOKING_REJECTED",
+  "BOOKING_INVALID",
 ];
 
 export function parseApiErrorCode(value: unknown): ApiErrorCode | undefined {
