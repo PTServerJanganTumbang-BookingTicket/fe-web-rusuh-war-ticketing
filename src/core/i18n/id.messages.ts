@@ -47,6 +47,27 @@ export const id = {
   "home.nav.explore": "Jelajahi event",
   "home.nav.myTickets": "Tiket saya",
   "home.nav.help": "Bantuan",
+  "help.heading": "Pusat bantuan",
+  "help.subtitle": "Jawaban singkat seputar antrean, pemesanan, dan e-tiket.",
+  "help.placeholder":
+    "Pusat bantuan masih disiapkan. Panduan lengkap dan kanal kontak akan ditambahkan di sini.",
+  "help.faq.title": "Pertanyaan umum",
+  "help.faq.quota.q": "Berapa tiket yang bisa dibeli sekaligus?",
+  "help.faq.quota.a":
+    "Maksimal 3 tiket per transaksi. Setiap tiket butuh satu NIK, dan satu NIK hanya untuk satu tiket per event.",
+  "help.faq.nik.q": "Kenapa harus mengisi NIK?",
+  "help.faq.nik.a":
+    "NIK dicek ke Dukcapil supaya tiket tercatat atas nama pemegangnya. Siapkan NIK setiap pemegang sebelum memesan.",
+  "help.faq.login.q": "Apakah harus punya akun?",
+  "help.faq.login.a":
+    "Tidak. Kamu bisa antre dan membeli sebagai tamu. Dengan akun, kamu bisa menyimpan alias pemegang tiket dan melihat semua tiketmu.",
+  "help.faq.payment.q": "Berapa lama waktu untuk membayar?",
+  "help.faq.payment.a": "Selesaikan pembayaran dalam 10 menit. Bila waktu habis, booking batal otomatis.",
+  "help.faq.eticket.q": "Di mana e-tiket saya?",
+  "help.faq.eticket.a":
+    "E-tiket dikirim ke email setelah pembayaran berhasil. Bila masuk dengan akun, e-tiket juga ada di Tiket saya.",
+  "help.shortcuts.title": "Cari tiketmu?",
+  "help.shortcuts.body": "Lihat e-tiket yang sudah dibeli, atau cari event lain.",
   // Hero Section
   "home.hero.eyebrow": "LOREM IPSUM",
   "home.hero.headline": "Energi panggung. Cerita yang kamu bawa pulang.",

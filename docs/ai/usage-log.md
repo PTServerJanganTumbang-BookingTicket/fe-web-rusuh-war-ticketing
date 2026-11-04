@@ -360,3 +360,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: `StatusView`, `ScreenLoading`, `ScreenPlaceholder`, controller booking, payment, dan ticket.
 - **Output**: `StatusView` kini kartu di tengah dengan spinner atau ikon dalam lingkaran, judul, penjelasan, dan tombol pil, di dalam `SiteShell` (controller menyertakan navbar) atau header merek saja untuk fallback Suspense. Nada `warning` ditambahkan dan dipakai saat waktu booking habis. `ScreenPlaceholder` dihapus; `BrandLink` diekstrak dari `Navbar`.
 - **Review manusia**: Menunggu review. Status memuat di halaman dengan data cepat (mock) jarang terlihat; status galat dicek di browser pada 1280px dan 375px.
+
+## 2026-11-04 — Placeholder Pusat Bantuan
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menu "Bantuan" di navbar berujung 404; tambahkan halaman sementara.
+- **Input**: `docs/ai/steering/product.md` (BR-01, BR-02, login opsional, countdown pembayaran, e-tiket via email).
+- **Output**: Route `/help` (`src/app/help`) dengan `HelpView` di `src/core/views`: header halaman, catatan bahwa pusat bantuan masih disiapkan, lima pertanyaan umum dari aturan produk yang sudah pasti, dan pintasan ke Tiket saya dan Jelajahi event. Navbar menandai "Bantuan" aktif.
+- **Review manusia**: Menunggu review. Kanal kontak sengaja tidak diisi sampai ada dari tim.
