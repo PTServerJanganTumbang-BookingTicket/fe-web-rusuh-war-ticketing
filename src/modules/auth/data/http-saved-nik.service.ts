@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { HttpClient, RequestOptions } from "@/core/data/http/http.client";
 import type { SavedNikProtocol } from "../domain/saved-nik.protocol";
-import type { SavedNikList } from "../domain/account.model";
+import type { SavedNikInput, SavedNikList } from "../domain/account.model";
 import { savedNikListSchema } from "./account.schema";
 
 /** `/accounts/me/saved-niks` lewat route same-origin, yang menambahkan `Authorization: Bearer` dari cookie. */
@@ -20,6 +20,14 @@ export function createHttpSavedNikService({
     async add(nik: string, label: string): Promise<void> {
       // 400: NIK tidak ditemukan atau nonaktif di Dukcapil. 409: sudah tersimpan atau daftar penuh.
       await bffHttpClient.post("/account/saved-niks", { nik, label }, z.unknown(), {
+        errorCodes: { 400: "NIK_INVALID", 401: "UNAUTHENTICATED", 409: "SAVED_NIK_REJECTED" },
+      });
+    },
+
+    async update(id: string, input: SavedNikInput): Promise<void> {
+      // NIK hanya dikirim bila diganti, supaya NIK lama tidak perlu ada di klien.
+      const body = input.nik ? { label: input.label, nik: input.nik } : { label: input.label };
+      await bffHttpClient.patch(`/account/saved-niks/${encodeURIComponent(id)}`, body, z.unknown(), {
         errorCodes: { 400: "NIK_INVALID", 401: "UNAUTHENTICATED", 409: "SAVED_NIK_REJECTED" },
       });
     },

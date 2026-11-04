@@ -23,11 +23,16 @@ export function createHttpTicketService({
     },
 
     async getETicket(ticketId: string, accessToken?: string): Promise<ETicket> {
-      const url = accessToken
-        ? `/tickets/${ticketId}/eticket?t=${encodeURIComponent(accessToken)}`
-        : `/tickets/${ticketId}/eticket`;
-
-      return httpClient.get(url, eTicketSchema);
+      const id = encodeURIComponent(ticketId);
+      // Dari email (FR-26): token `?t=` langsung ke BE. Pemilik yang masuk: lewat route same-origin dengan Bearer.
+      if (accessToken) {
+        return httpClient.get(`/tickets/${id}/eticket?t=${encodeURIComponent(accessToken)}`, eTicketSchema, {
+          errorCodes: { 401: "UNAUTHENTICATED", 404: "TICKET_NOT_FOUND" },
+        });
+      }
+      return bffHttpClient.get(`/account/tickets/${id}/eticket`, eTicketSchema, {
+        errorCodes: { 401: "UNAUTHENTICATED", 404: "TICKET_NOT_FOUND" },
+      });
     },
   };
 }

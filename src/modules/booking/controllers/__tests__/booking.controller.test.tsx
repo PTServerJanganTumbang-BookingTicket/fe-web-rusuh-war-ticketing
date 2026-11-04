@@ -21,8 +21,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
 const server = setupMockServer();
 
 /** Detail Ticket hanya bisa dibuka dengan grant dari antrian (X-Grant-Token). */
-async function readyView() {
+async function readyView({ signedIn = false }: { signedIn?: boolean } = {}) {
   const container = setupTestContainer();
+  if (signedIn) await container.cradle.verifyLoginUseCase("mt_booking");
   await admitToQueue(container);
   const hook = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: createWrapper(container) });
   await waitFor(() => expect(hook.result.current.kind).toBe("ready"));
@@ -103,6 +104,71 @@ describe("useBookingController", () => {
     act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
     act(() => view().submit.onSubmit());
     await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/orders\/RB-\d+\/pay$/)));
+  });
+
+  it("tamu tidak melihat pilihan alias; NIK diisi manual", async () => {
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    await waitFor(() => expect(view().holders?.items).toHaveLength(1));
+    expect(view().holders?.items[0]?.holder).toBeUndefined();
+  });
+
+  it("customer masuk memilih alias sebagai pemegang tiket; NIK lengkapnya yang dikirim", async () => {
+    push.mockClear();
+    let tickets: unknown;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
+        tickets = ((await request.json()) as { tickets: unknown }).tickets;
+        return HttpResponse.json(
+          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-ALIAS" } },
+          { status: 201 },
+        );
+      }),
+    );
+    const { view } = await readyView({ signedIn: true });
+    add(view, "cat_vip");
+    add(view, "cat_festival");
+    await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+    const first = () => view().holders?.items[0];
+    const second = () => view().holders?.items[1];
+    expect(first()?.holder?.options.map((option) => option.label)).toEqual([
+      "Isi NIK manual",
+      "Budi · 3171********xx33",
+    ]);
+
+    act(() => first()?.holder?.onChange("snk_1"));
+    expect(first()?.nik).toMatchObject({ value: "3171********xx33", readOnly: true });
+    await waitFor(() => expect(first()?.nik.success).toBe("Terverifikasi atas nama JANE DOE"));
+    // Alias yang sudah dipakai tiket 1 tidak bisa dipilih untuk tiket 2 (BR-02).
+    expect(second()?.holder?.options[1]).toMatchObject({
+      label: "Budi · 3171********xx33 (sudah dipakai tiket lain)",
+      disabled: true,
+    });
+
+    // NIK manual yang sama dengan alias juga dobel.
+    act(() => second()?.nik.onChange("3171000000000033"));
+    expect(second()?.nik.error).toBe("NIK ini sudah dipakai untuk tiket lain di pesanan ini.");
+    expect(view().submit.disabled).toBe(true);
+
+    act(() => second()?.nik.onChange("3171000000005678"));
+    act(() => view().buyer.name.onChange("Rina"));
+    act(() => view().buyer.email.onChange("rina@example.com"));
+    act(() => view().submit.onSubmit());
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/orders/RB-ALIAS/pay"));
+    expect(tickets).toEqual([
+      { category_id: "cat_vip", nik: "3171000000000033", holder_email: "rina@example.com" },
+      { category_id: "cat_festival", nik: "3171000000005678", holder_email: "rina@example.com" },
+    ]);
+  });
+
+  it("kembali ke isian manual mengosongkan NIK dari alias", async () => {
+    const { view } = await readyView({ signedIn: true });
+    add(view, "cat_vip");
+    await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+    act(() => view().holders?.items[0]?.holder?.onChange("snk_1"));
+    act(() => view().holders?.items[0]?.holder?.onChange(""));
+    expect(view().holders?.items[0]?.nik).toMatchObject({ value: "", readOnly: false });
+    expect(view().holders?.items[0]?.holder?.value).toBe("");
   });
 
   it("grant ditolak (401): kembali ke Waiting Room (mode default)", async () => {

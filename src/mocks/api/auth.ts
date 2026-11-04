@@ -89,6 +89,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
         max_entries: MAX_SAVED_NIKS,
         saved_niks: state.savedNiks.map((saved) => ({
           id: saved.id,
+          nik: saved.nik,
           nik_masked: saved.nikMasked,
           label: saved.label,
           verified_at: saved.verifiedAt,
@@ -111,6 +112,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
         return fail(409, "NIK already saved");
       const saved = {
         id: `snk_${state.nextId("")}`,
+        nik,
         nikMasked: maskNik(nik),
         label,
         verifiedAt: new Date().toISOString(),
@@ -126,6 +128,50 @@ export function authHandlers(state: MockState, baseUrl: string) {
         },
         { status: 201, message: "NIK saved" },
       );
+    }),
+
+    // Asumsi FE, belum ada di kontrak: ubah label dan, bila dikirim, NIK (dicek ulang ke Dukcapil).
+    http.patch(`${baseUrl}/accounts/me/saved-niks/:id`, async ({ request, params }) => {
+      if (!hasBearer(request)) return fail(401, "Unauthorized");
+      const saved = state.savedNiks.find((item) => item.id === params.id);
+      if (!saved) return fail(404, "Saved NIK not found");
+      const body = await readJson(request);
+      const label = field(body, "label");
+      const nik = field(body, "nik");
+      if (typeof label !== "string" || label.trim() === "") return fail(400, "label is required");
+      if (nik !== undefined) {
+        if (!isNikFormat(nik)) return fail(400, "NIK must be exactly 16 digits");
+        if (lookupNik(nik)?.status !== "ACTIVE") return fail(400, "NIK not found or inactive");
+        if (state.savedNiks.some((item) => item.id !== saved.id && item.nik === nik))
+          return fail(409, "NIK already saved");
+        saved.nik = nik;
+        saved.nikMasked = maskNik(nik);
+        saved.verifiedAt = new Date().toISOString();
+      }
+      saved.label = label.trim();
+      return ok(
+        {
+          id: saved.id,
+          nik: saved.nik,
+          nik_masked: saved.nikMasked,
+          label: saved.label,
+          verified_at: saved.verifiedAt,
+          status: "VERIFIED",
+        },
+        { message: "Saved NIK updated" },
+      );
+    }),
+
+    // Asumsi FE, belum ada di kontrak: profil akun yang sedang masuk.
+    http.get(`${baseUrl}/accounts/me`, ({ request }) => {
+      if (!hasBearer(request)) return fail(401, "Unauthorized");
+      return ok({
+        id: "usr_123",
+        name: lookupNik(REGISTERED_NIK)?.name ?? "",
+        email: "you@example.com",
+        nik_masked: maskNik(REGISTERED_NIK),
+        created_at: "2026-10-01T09:00:00Z",
+      });
     }),
 
     http.delete(`${baseUrl}/accounts/me/saved-niks/:id`, ({ request, params }) => {

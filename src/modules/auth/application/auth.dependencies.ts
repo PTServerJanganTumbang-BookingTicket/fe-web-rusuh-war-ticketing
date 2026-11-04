@@ -9,6 +9,8 @@ import type { SignOutUseCase } from "./sign-out.use-case";
 import type { ListSavedNiksUseCase } from "./list-saved-niks.use-case";
 import type { AddSavedNikUseCase } from "./add-saved-nik.use-case";
 import type { RemoveSavedNikUseCase } from "./remove-saved-nik.use-case";
+import type { UpdateSavedNikUseCase } from "./update-saved-nik.use-case";
+import type { GetProfileUseCase } from "./get-profile.use-case";
 
 /** Irisan container untuk controller modul auth. */
 export type AuthDependencies = {
@@ -22,5 +24,7 @@ export type AuthDependencies = {
   signOutUseCase: SignOutUseCase;
   listSavedNiksUseCase: ListSavedNiksUseCase;
   addSavedNikUseCase: AddSavedNikUseCase;
+  updateSavedNikUseCase: UpdateSavedNikUseCase;
   removeSavedNikUseCase: RemoveSavedNikUseCase;
+  getProfileUseCase: GetProfileUseCase;
 };

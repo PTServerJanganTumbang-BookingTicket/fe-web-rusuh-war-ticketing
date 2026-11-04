@@ -107,6 +107,9 @@ rusuh-fe/
 | Detail Ticket | `/events/[eventId]/book` | Dinamis, dijaga proxy | FR-11–19, BR-01–04, BR-07 |
 | Payment | `/orders/[orderId]/pay` dan `/m/...` | Dinamis, dijaga proxy, status lewat SSE | FR-20–25, BR-05–06 |
 | E-tiket | `/orders/[orderId]/ticket` | Dinamis | FR-22 |
+| Tiket saya | `/tickets` | Client, butuh sesi akun | FR-30 |
+| Detail tiket | `/tickets/[ticketId]` | Client; sesi akun atau `?t=` dari email | FR-22, FR-26 |
+| Profil dan alias | `/account` | Client, butuh sesi akun | FR-30, BR-02 |
 
 ## 5. State machine booking (FE)
 

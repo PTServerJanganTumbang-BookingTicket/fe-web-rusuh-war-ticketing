@@ -2,6 +2,7 @@
 
 // Detail Ticket. Requirement: FR-11–19, BR-01–04, BR-07. ADR-0005 (timer), ADR-0011 (NIK).
 // Desain: "Pilih tempatmu di konser." (langkah 1 dari 3). Submit membuat booking lalu ke halaman pembayaran.
+// Customer yang masuk bisa memilih alias dari profil sebagai pemegang tiket; NIK manual tetap tersedia.
 
 import { useEffect, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -19,7 +20,7 @@ import type { BookingDependencies } from "../application/booking.dependencies";
 import { TERMS_VERSION } from "../domain/booking.constants";
 import { selectionReducer } from "../domain/selection.reducer";
 import { isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
-import { bookingEventQuery, bookingSessionQuery } from "./booking.queries";
+import { bookingEventQuery, bookingSessionQuery, holderAliasesQuery } from "./booking.queries";
 import { isBookingFormValid, toBookingViewProps, type NikCheckState } from "./booking.mapper";
 import type { BookingViewProps } from "../views/BookingView";
 
@@ -44,16 +45,21 @@ export function useBookingController(eventId: string): BookingScreen {
     getBookingEventUseCase,
     validateNikUseCase,
     submitBookingUseCase,
+    listHolderAliasesUseCase,
     random,
     appConfig,
   } = useDependencies<BookingDependencies & CoreDependencies>();
   const query = useQuery(bookingSessionQuery({ getBookingSessionUseCase, random }, eventId));
   // Detail event hanya pelengkap kartu samping; gagal memuatnya tidak menghentikan pemesanan.
   const event = useQuery(bookingEventQuery({ getBookingEventUseCase }, eventId));
+  // Gagal memuat alias (tamu, atau BE belum mengirim NIK lengkap) hanya berarti isian manual.
+  const aliases = useQuery(holderAliasesQuery({ listHolderAliasesUseCase }));
   const [selection, dispatch] = useReducer(selectionReducer, {});
   const [buyerName, setBuyerName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [niks, setNiks] = useState<Record<string, string>>({});
+  /** Slot yang pemegangnya dipilih dari alias: kunci slot → id alias. */
+  const [aliasPicks, setAliasPicks] = useState<Record<string, string>>({});
   const [checks, setChecks] = useState<Record<string, NikCheckState>>({});
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
@@ -114,13 +120,12 @@ export function useBookingController(eventId: string): BookingScreen {
     };
   }
 
-  const form = { buyerName, contactEmail, niks, checks, touched, submitted };
+  const form = { buyerName, contactEmail, niks, aliasPicks, checks, touched, submitted };
   const touch = (field: string) => setTouched((current) => new Set(current).add(field));
 
   // NIK dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
-  const checkNik = (slotKey: string) => {
+  const checkNik = (slotKey: string, nik: string = niks[slotKey] ?? "") => {
     touch(`nik:${slotKey}`);
-    const nik = niks[slotKey] ?? "";
     if (!isNikFormat(nik) || checks[slotKey]?.nik === nik) return;
     setChecks((current) => ({ ...current, [slotKey]: { nik, state: "checking" } }));
     validateNikUseCase(nik).then(
@@ -153,7 +158,20 @@ export function useBookingController(eventId: string): BookingScreen {
       onContactEmail: setContactEmail,
       // Hanya digit: spasi atau tanda baca dari salinan KTP dibuang, panjang divalidasi.
       onNik: (slotKey, value) => setNiks((current) => ({ ...current, [slotKey]: value.replace(/\D/g, "") })),
-      onNikBlur: checkNik,
+      onNikBlur: (slotKey) => checkNik(slotKey),
+      aliases: aliases.data ?? [],
+      // Memilih alias mengisi NIK slot itu; "isi manual" mengosongkan NIK supaya tidak terkirim tanpa sengaja.
+      onHolderAlias: (slotKey, aliasId) => {
+        const alias = aliases.data?.find((item) => item.id === aliasId);
+        setAliasPicks((current) => {
+          const next = { ...current };
+          if (alias) next[slotKey] = alias.id;
+          else delete next[slotKey];
+          return next;
+        });
+        setNiks((current) => ({ ...current, [slotKey]: alias?.nik ?? "" }));
+        if (alias) checkNik(slotKey, alias.nik);
+      },
       onFieldBlur: touch,
       onSubmit: () => {
         setSubmitted(true);

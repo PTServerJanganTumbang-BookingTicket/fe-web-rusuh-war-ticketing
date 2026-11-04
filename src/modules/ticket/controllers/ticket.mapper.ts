@@ -1,13 +1,20 @@
 import type { TicketSummary, ETicket, TicketStatus } from "../domain/ticket.model";
 import type { TicketCardProps } from "../views/TicketCard";
 import type { ETicketViewProps } from "../views/ETicketView";
+import type { SiteChrome } from "@/core/controllers/site-chrome.utils";
+import { t, type MessageKey } from "@/core/i18n/t.utils";
 
-const statusConfig: Record<TicketStatus, { label: string; tone: TicketCardProps["statusTone"] }> = {
-  ISSUED: { label: "Aktif", tone: "success" },
-  USED: { label: "Telah Digunakan", tone: "info" },
-  CANCELLED: { label: "Dibatalkan", tone: "danger" },
-  EXPIRED: { label: "Kadaluarsa", tone: "warning" },
+const statusTone: Record<TicketStatus, { key: MessageKey; tone: TicketCardProps["statusTone"] }> = {
+  ISSUED: { key: "ticket.status.ISSUED", tone: "success" },
+  USED: { key: "ticket.status.USED", tone: "info" },
+  CANCELLED: { key: "ticket.status.CANCELLED", tone: "danger" },
+  EXPIRED: { key: "ticket.status.EXPIRED", tone: "warning" },
 };
+
+function statusOf(status: TicketStatus) {
+  const { key, tone } = statusTone[status];
+  return { label: t(key), tone };
+}
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
   weekday: "long",
@@ -27,7 +34,7 @@ const priceFormatter = new Intl.NumberFormat("id-ID", {
  * Map domain TicketSummary ke view props untuk ticket card.
  */
 export function toTicketCardProps(ticket: TicketSummary): TicketCardProps {
-  const { label, tone } = statusConfig[ticket.status];
+  const { label, tone } = statusOf(ticket.status);
 
   return {
     id: ticket.id,
@@ -45,29 +52,40 @@ export function toTicketCardProps(ticket: TicketSummary): TicketCardProps {
   };
 }
 
-/**
- * Map domain ETicket ke view props untuk e-ticket detail.
- */
-export function toETicketViewProps(eticket: ETicket): ETicketViewProps {
-  const { label, tone } = statusConfig[eticket.status];
+/** Map domain ETicket ke props halaman detail tiket. Field yang belum dikirim kontrak tidak ditampilkan. */
+export function toETicketViewProps(eticket: ETicket, chrome: SiteChrome): ETicketViewProps {
+  const { label, tone } = statusOf(eticket.status);
+  const date = dateFormatter.format(new Date(eticket.event.date));
+  const details: ETicketViewProps["details"] = [
+    { label: t("ticket.detail.category"), value: eticket.category },
+    ...(eticket.seatNumber ? [{ label: t("ticket.detail.seat"), value: eticket.seatNumber }] : []),
+    ...(eticket.priceIdr > 0
+      ? [{ label: t("ticket.detail.price"), value: priceFormatter.format(eticket.priceIdr) }]
+      : []),
+    { label: t("ticket.detail.ticketId"), value: eticket.id },
+  ];
+  const holder: ETicketViewProps["holder"] = [
+    ...(eticket.holderName ? [{ label: t("ticket.detail.holderName"), value: eticket.holderName }] : []),
+    { label: t("ticket.detail.nik"), value: eticket.nik },
+    ...(eticket.holderEmail ? [{ label: t("ticket.detail.email"), value: eticket.holderEmail }] : []),
+  ];
 
   return {
-    id: eticket.id,
+    ...chrome,
+    back: { label: t("ticket.detail.back"), href: "/tickets" },
     eventName: eticket.event.name,
-    eventDate: dateFormatter.format(new Date(eticket.event.date)),
+    eventDate: eticket.event.time ? t("ticket.detail.dateTime", { date, time: eticket.event.time }) : date,
     venue: eticket.event.venue,
     imageUrl: eticket.event.imageUrl ?? "/images/concert-placeholder.webp",
-    category: eticket.category,
-    priceFormatted: priceFormatter.format(eticket.priceIdr),
-    seatNumber: eticket.seatNumber,
-    holderName: eticket.holderName,
-    holderEmail: eticket.holderEmail,
-    nik: eticket.nik,
-    status: eticket.status,
     statusLabel: label,
     statusTone: tone,
-    qrCode: eticket.qrCode,
-    instructions: eticket.instructions,
-    issuedAt: eticket.issuedAt,
+    qr: { src: eticket.qrCode, alt: t("ticket.detail.qr.alt"), hint: t("ticket.detail.qr.hint") },
+    detailsTitle: t("ticket.detail.title"),
+    details,
+    holderTitle: t("ticket.detail.holder"),
+    holder,
+    instructions: eticket.instructions
+      ? { title: t("ticket.detail.instructions"), text: eticket.instructions }
+      : undefined,
   };
 }

@@ -49,7 +49,8 @@ export type Booking = {
   paidWith: Payment["method"] | null;
 };
 
-export type SavedNik = { id: string; nikMasked: string; label: string; verifiedAt: string };
+/** `nik` lengkap ikut dikirim ke pemiliknya; asumsi FE untuk memilih alias di Detail Ticket (contract-assumptions.md). */
+export type SavedNik = { id: string; nik: string; nikMasked: string; label: string; verifiedAt: string };
 
 export type MockState = ReturnType<typeof createMockState>;
 
@@ -75,6 +76,7 @@ export function createMockState(config: ScenarioConfig) {
   const savedNiks: SavedNik[] = [
     {
       id: "snk_1",
+      nik: "3171000000000033",
       nikMasked: maskNik("3171000000000033"),
       label: "Budi",
       verifiedAt: "2026-10-20T08:11:00Z",

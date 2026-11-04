@@ -26,8 +26,19 @@ export type TextFieldProps = {
   /** Pesan positif, misalnya NIK terverifikasi. */
   success?: string;
   error?: string;
+  /** NIK dari alias: tampil tersamar dan tidak bisa diketik. */
+  readOnly?: boolean;
   onChange: (value: string) => void;
   onBlur?: () => void;
+};
+
+export type HolderSourceProps = {
+  label: string;
+  /** Id alias terpilih; kosong berarti isian manual. */
+  value: string;
+  options: { value: string; label: string; disabled: boolean }[];
+  hint: string;
+  onChange: (value: string) => void;
 };
 
 export type TicketHolderProps = {
@@ -35,6 +46,8 @@ export type TicketHolderProps = {
   title: string;
   priceLabel: string;
   nik: TextFieldProps;
+  /** Pilihan alias; hanya ada untuk customer yang masuk dan punya alias. */
+  holder?: HolderSourceProps;
   seat: { label: string; value: string };
 };
 
@@ -79,6 +92,8 @@ function TextInput({
         id={id}
         value={field.value}
         placeholder={field.placeholder}
+        readOnly={field.readOnly}
+        className={field.readOnly ? "bg-signal-disable" : undefined}
         inputMode={inputMode}
         autoComplete={autoComplete}
         aria-invalid={Boolean(field.error)}
@@ -95,6 +110,28 @@ function TextInput({
       {!field.error && !field.success && field.hint ? (
         <FieldDescription id={`${id}-hint`}>{field.hint}</FieldDescription>
       ) : null}
+    </Field>
+  );
+}
+
+function HolderSourceSelect({ id, source }: { id: string; source: HolderSourceProps }) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{source.label}</FieldLabel>
+      <select
+        id={id}
+        value={source.value}
+        aria-describedby={`${id}-hint`}
+        onChange={(event) => source.onChange(event.target.value)}
+        className="type-body2 h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        {source.options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <FieldDescription id={`${id}-hint`}>{source.hint}</FieldDescription>
     </Field>
   );
 }
@@ -193,6 +230,9 @@ export function BookingView(props: BookingViewProps) {
                         <p className="type-body1-bold">{holder.title}</p>
                         <p className="type-body2 text-muted-foreground tabular-nums">{holder.priceLabel}</p>
                       </div>
+                      {holder.holder ? (
+                        <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
+                      ) : null}
                       <div className="grid gap-4 sm:grid-cols-2">
                         <TextInput
                           id={`nik-${holder.id}`}
