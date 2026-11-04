@@ -12,7 +12,7 @@ import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { authErrorKey } from "./auth-error.mapper";
 import { authKeys } from "./auth.queries";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import type { VerifyLoginViewProps } from "../views/VerifyLoginView";
 
 const subscribeToHash = (onChange: () => void) => {
@@ -26,6 +26,7 @@ const noTokenOnServer = () => undefined;
 const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
 export function useVerifyLoginController(): VerifyLoginViewProps {
+  const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
   const { verifyLoginUseCase, getEventSummaryUseCase } = useDependencies<AuthDependencies>();
   const token = useSyncExternalStore(subscribeToHash, readToken, noTokenOnServer);
@@ -39,7 +40,7 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
     queryFn: () => getEventSummaryUseCase(eventId ?? ""),
     enabled: Boolean(eventId),
   });
-  const chrome = toSiteChrome();
+  const chrome = siteChrome;
   const requestNew = { label: t("verify.requestNew"), href: "/login" };
 
   if (token === null || verify.isError) {

@@ -1,13 +1,9 @@
-import { Navbar, type NavItem } from "@/components/ui/layout/Navbar";
+import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
 import { TicketCard, type TicketCardProps } from "./TicketCard";
 
 export type MyTicketsViewProps = {
-  nav: {
-    items: NavItem[];
-    loginHref: string;
-    loginLabel: string;
-  };
+  nav: NavbarProps;
   title: string;
   subtitle: string;
   tickets: TicketCardProps[];

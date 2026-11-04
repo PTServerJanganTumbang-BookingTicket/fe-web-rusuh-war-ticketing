@@ -13,7 +13,7 @@ import { serverOffsetMs } from "@/core/domain/time/remaining-ms.utils";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
@@ -39,6 +39,7 @@ function errorKey(error: AppError): MessageKey {
 }
 
 export function useBookingController(eventId: string): BookingScreen {
+  const siteChrome = useSiteChrome();
   const router = useRouter();
   const {
     getBookingSessionUseCase,
@@ -137,7 +138,7 @@ export function useBookingController(eventId: string): BookingScreen {
   return {
     kind: "ready",
     view: toBookingViewProps({
-      chrome: toSiteChrome(),
+      chrome: siteChrome,
       eventId,
       session,
       event: event.data,

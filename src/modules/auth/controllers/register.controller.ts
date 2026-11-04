@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toAppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { isEmail, isNikFormat } from "../domain/account.rules";
@@ -18,6 +18,7 @@ import { authKeys } from "./auth.queries";
 import type { RegisterViewProps } from "../views/RegisterView";
 
 export function useRegisterController(): RegisterViewProps {
+  const siteChrome = useSiteChrome();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { registerAccountUseCase } = useDependencies<AuthDependencies>();
@@ -89,7 +90,7 @@ export function useRegisterController(): RegisterViewProps {
   }
 
   return {
-    ...toSiteChrome(),
+    ...siteChrome,
     kind: "form",
     heading: t("register.heading"),
     intro: t("register.intro"),

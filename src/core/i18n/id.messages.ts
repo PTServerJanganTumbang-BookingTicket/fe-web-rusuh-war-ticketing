@@ -2,6 +2,7 @@ export const id = {
   "common.loading": "Memuat…",
   "common.placeholder": "Layar ini belum dibangun.",
   "home.title": "Rusuh Booking Tiket",
+  "nav.account": "Profil saya ({email})",
   "home.login": "Login",
   // Navigation
   "home.nav.explore": "Jelajahi event",

@@ -15,7 +15,7 @@ import type { AuthDependencies } from "../application/auth.dependencies";
 import { isEmail } from "../domain/account.rules";
 import { RESEND_COOLDOWN_MS } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import type { LoginViewProps } from "../views/LoginView";
 
 function emailErrorKey(email: string) {
@@ -24,6 +24,7 @@ function emailErrorKey(email: string) {
 }
 
 export function useLoginController(): LoginViewProps {
+  const siteChrome = useSiteChrome();
   const { requestMagicLinkUseCase, resendMagicLinkUseCase, clock, appConfig } = useDependencies<
     AuthDependencies & CoreDependencies
   >();
@@ -48,7 +49,7 @@ export function useLoginController(): LoginViewProps {
   });
   // Jeda kirim ulang memakai jam lokal: ini batas UI, bukan TTL dari server (ADR-0005 tidak berlaku).
   const cooldownMs = useCountdown(resendAt, 0) ?? 0;
-  const chrome = toSiteChrome();
+  const chrome = siteChrome;
 
   if (sentTo) {
     const waiting = cooldownMs > 0;

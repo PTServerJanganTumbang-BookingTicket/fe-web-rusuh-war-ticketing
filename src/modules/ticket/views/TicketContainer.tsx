@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ScreenLoading } from "@/core/views/ScreenLoading";
 import { t } from "@/core/i18n/t.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useMyTicketsController } from "../controllers/ticket.controller";
 import { toTicketCardProps } from "../controllers/ticket.mapper";
 import { MyTicketsView } from "./MyTicketsView";
@@ -28,6 +29,7 @@ export function TicketContainer() {
 
 function TicketContent() {
   const { tickets, isLoading, error } = useMyTicketsController();
+  const { nav } = useSiteChrome({ active: "/tickets" });
   const ticketCards = tickets.map(toTicketCardProps);
 
   const getErrorMessage = (): string | undefined => {
@@ -39,15 +41,7 @@ function TicketContent() {
 
   return (
     <MyTicketsView
-      nav={{
-        items: [
-          { label: t("home.nav.explore"), href: "/" },
-          { label: t("home.nav.myTickets"), href: "/tickets", active: true },
-          { label: t("home.nav.help"), href: "/help" },
-        ],
-        loginHref: "/login",
-        loginLabel: t("home.login"),
-      }}
+      nav={nav}
       title={t("ticket.title")}
       subtitle={t("ticket.subtitle")}
       tickets={ticketCards}

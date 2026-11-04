@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toAppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
@@ -54,6 +54,7 @@ function labelError(error: SavedNikInputError["label"]): string | undefined {
 }
 
 export function useAccountController(): AccountViewProps {
+  const siteChrome = useSiteChrome();
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
@@ -111,7 +112,7 @@ export function useAccountController(): AccountViewProps {
     },
   });
   const page = {
-    ...toSiteChrome(),
+    ...siteChrome,
     header: {
       breadcrumb: [{ label: t("checkout.breadcrumb.home"), href: "/" }, { label: t("account.title") }],
       heading: t("account.heading"),

@@ -10,7 +10,7 @@ import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useLiveUpdates } from "@/core/controllers/live-updates.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import type { QueueDependencies } from "../application/queue.dependencies";
 import type { QueueState } from "../domain/queue-state.model";
 import { queueEventQuery, queueKeys, queuePositionQuery } from "./queue.queries";
@@ -25,6 +25,7 @@ function errorKey(error: AppError): MessageKey {
 }
 
 export function useQueueController(eventId: string): QueueViewProps {
+  const siteChrome = useSiteChrome();
   const router = useRouter();
   const { getQueueStateUseCase, getQueueEventUseCase, watchQueueStateUseCase, startSessionUseCase, random } =
     useDependencies<QueueDependencies & CoreDependencies>();
@@ -54,7 +55,7 @@ export function useQueueController(eventId: string): QueueViewProps {
 
   const page = (status: QueueStatusProps) =>
     toQueueViewProps({
-      chrome: toSiteChrome(),
+      chrome: siteChrome,
       eventName: event.data?.name ?? (data?.eventName || undefined),
       event: event.data,
       status,

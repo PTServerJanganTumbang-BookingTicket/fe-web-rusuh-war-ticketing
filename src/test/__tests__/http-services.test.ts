@@ -544,3 +544,15 @@ describe("ticketService.getETicket lewat sesi akun", () => {
     });
   });
 });
+
+describe("sessionAccountService", () => {
+  it("tamu: null; setelah masuk: akun dari cookie sesi", async () => {
+    const { sessionAccountService, authService } = setupTestContainer().cradle;
+    expect(await sessionAccountService.current()).toBeNull();
+    await authService.verify("mt_session");
+    expect(await sessionAccountService.current()).toEqual({
+      email: "you@example.com",
+      nikMasked: "3171********xx22",
+    });
+  });
+});

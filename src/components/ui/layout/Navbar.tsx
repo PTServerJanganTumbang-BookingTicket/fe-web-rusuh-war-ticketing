@@ -7,13 +7,24 @@ export type NavItem = {
   active?: boolean;
 };
 
+export type NavbarAccount = {
+  /** Nama pendek yang terlihat di layar lebar. */
+  label: string;
+  initials: string;
+  href: string;
+  /** Nama lengkap tujuan tautan untuk pembaca layar, misalnya "Profil saya (you@example.com)". */
+  ariaLabel: string;
+};
+
 export type NavbarProps = {
   items: NavItem[];
   loginHref: string;
   loginLabel: string;
+  /** Ada saat customer masuk; menggantikan tombol masuk. */
+  account?: NavbarAccount;
 };
 
-export function Navbar({ items, loginHref, loginLabel }: NavbarProps) {
+export function Navbar({ items, loginHref, loginLabel, account }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -41,24 +52,42 @@ export function Navbar({ items, loginHref, loginLabel }: NavbarProps) {
             </Link>
           ))}
         </nav>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={loginHref}>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {account ? (
+          <Link
+            href={account.href}
+            aria-label={account.ariaLabel}
+            className="flex min-h-11 items-center gap-2 rounded-full border border-border py-1 pr-1 pl-1 transition-colors hover:border-primary/50 sm:pr-4"
+          >
+            <span
+              aria-hidden="true"
+              className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
             >
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {loginLabel}
+              {account.initials}
+            </span>
+            <span className="hidden max-w-40 truncate text-sm font-medium text-foreground sm:inline">
+              {account.label}
+            </span>
           </Link>
-        </Button>
+        ) : (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={loginHref}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {loginLabel}
+            </Link>
+          </Button>
+        )}
       </div>
     </header>
   );

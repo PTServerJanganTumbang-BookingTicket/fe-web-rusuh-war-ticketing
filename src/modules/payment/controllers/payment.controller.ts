@@ -17,7 +17,7 @@ import { serverOffsetMs } from "@/core/domain/time/remaining-ms.utils";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
@@ -74,6 +74,7 @@ const getErrorMessageKey = (error: AppError): MessageKey => {
  * @returns PaymentScreen - state untuk rendering (payment view atau status view)
  */
 export const usePaymentController = (orderId: string): PaymentScreen => {
+  const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
 
   // Dependencies dari DI container
@@ -274,7 +275,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   return {
     kind: "payment",
     view: toPaymentViewProps({
-      chrome: toSiteChrome(),
+      chrome: siteChrome,
       order: orderData,
       event: eventQueryResult.data,
       methods: methodsQueryResult.data ?? [],

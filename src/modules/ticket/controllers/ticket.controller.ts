@@ -9,7 +9,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useDependencies } from "@/core/controllers/dependencies.context";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
@@ -80,6 +80,7 @@ function detailErrorKey(error: AppError): MessageKey {
  * membawa `?t=` (FR-26). Requirement 7.1.
  */
 export function useTicketDetailController(ticketId: string, accessToken?: string): TicketDetailScreen {
+  const siteChrome = useSiteChrome();
   const router = useRouter();
   const { getTicketUseCase } = useDependencies<TicketDependencies>();
   const query = useQuery({
@@ -87,7 +88,7 @@ export function useTicketDetailController(ticketId: string, accessToken?: string
     retry: false,
   });
 
-  if (query.data) return { kind: "ready", view: toETicketViewProps(query.data, toSiteChrome()) };
+  if (query.data) return { kind: "ready", view: toETicketViewProps(query.data, siteChrome) };
   if (query.isError) {
     const error = toAppError(query.error);
     const signedOut = error.kind === "api" && error.code === "UNAUTHENTICATED";
