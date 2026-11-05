@@ -48,13 +48,21 @@ type RedirectContext = z.infer<typeof verifySchema>["data"]["redirect_context"];
 /** Endpoint akun yang boleh diteruskan. Path di luar daftar ini dijawab 404 tanpa menyentuh BE. */
 const ACCOUNT_ROUTES: { pattern: RegExp; methods: string[]; target: (match: RegExpMatchArray) => string }[] =
   [
+    // Asumsi: `GET /accounts/me` belum ada di kontrak (docs/api/contract-assumptions.md).
+    { pattern: /^profile$/, methods: ["GET"], target: () => "/accounts/me" },
     { pattern: /^saved-niks$/, methods: ["GET", "POST"], target: () => "/accounts/me/saved-niks" },
     {
+      // PATCH masih asumsi; kontrak baru punya DELETE (docs/api/contract-assumptions.md).
       pattern: /^saved-niks\/([\w-]+)$/,
-      methods: ["DELETE"],
+      methods: ["PATCH", "DELETE"],
       target: (match) => `/accounts/me/saved-niks/${match[1]}`,
     },
     { pattern: /^tickets$/, methods: ["GET"], target: () => "/users/me/tickets" },
+    {
+      pattern: /^tickets\/([\w-]+)\/eticket$/,
+      methods: ["GET"],
+      target: (match) => `/tickets/${match[1]}/eticket`,
+    },
   ];
 
 /**
@@ -181,7 +189,7 @@ export function createAccountGatewayService({
       if (!route?.match) return envelope(404, "Not found");
 
       const target = `${route.item.target(route.match)}${new URL(request.url).search}`;
-      const body = request.method === "POST" ? await request.text() : undefined;
+      const body = ["POST", "PATCH"].includes(request.method) ? await request.text() : undefined;
       const send = (accessToken: string) =>
         callBackend(target, {
           method: request.method,

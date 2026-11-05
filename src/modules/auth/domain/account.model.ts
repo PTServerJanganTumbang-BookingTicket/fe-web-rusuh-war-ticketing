@@ -1,8 +1,20 @@
 /** Akun yang sedang masuk. Kontrak belum punya endpoint profil; datanya dari response verifikasi (ADR-0023). */
 export type Account = { email: string; nikMasked: string };
 
-/** NIK teman yang sudah diverifikasi Dukcapil saat disimpan (design.md, kontrak `/accounts/me/saved-niks`). */
+/**
+ * Profil akun dari `GET /accounts/me`. Endpoint ini masih asumsi (docs/api/contract-assumptions.md); bila belum
+ * ada, halaman profil memakai `Account` dari sesi.
+ */
+export type Profile = { name: string; email: string; nikMasked: string; memberSince: string | null };
+
+/**
+ * Alias: NIK orang lain (atau milik sendiri) dengan nama panggilan, sudah diverifikasi Dukcapil saat disimpan
+ * (design.md, kontrak `/accounts/me/saved-niks`). Kontrak menyebutnya saved NIK.
+ */
 export type SavedNik = { id: string; nikMasked: string; label: string; verifiedAt: string };
+
+/** Isian form alias setelah dirapikan. Saat mengubah, `nik` kosong berarti NIK tidak diganti. */
+export type SavedNikInput = { label: string; nik: string };
 
 export type SavedNikList = { maxEntries: number; savedNiks: SavedNik[] };
 

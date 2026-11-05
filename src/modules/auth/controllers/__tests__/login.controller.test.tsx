@@ -15,6 +15,11 @@ afterEach(() => {
   search = "";
 });
 
+/** Menekan aksi dialog berupa tombol. */
+function click(action: { label: string; onClick: () => void } | { label: string; href: string } | undefined) {
+  if (action && "onClick" in action) action.onClick();
+}
+
 function mount() {
   const hook = renderHook(() => useLoginController(), { wrapper: createWrapper() });
   const form = () => {
@@ -102,6 +107,40 @@ describe("useLoginController", () => {
       expect(result.current.error).toBe("Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi."),
     );
     expect(result.current.kind).toBe("form");
+  });
+
+  it("tanpa koneksi: dialog koneksi bermasalah, coba lagi mengirim ulang permintaan", async () => {
+    let attempts = 0;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/auth/magic-link`, () => {
+        attempts += 1;
+        if (attempts === 1) return HttpResponse.error();
+        return HttpResponse.json({ meta: { code: 200, message: "sent" } });
+      }),
+    );
+    const { form, result } = mount();
+    act(() => form().email.onChange("you@example.com"));
+    act(() => form().submit.onSubmit());
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Koneksi bermasalah"));
+    expect(form().error).toBeUndefined();
+    act(() => click(result.current.dialog?.primary));
+    await waitFor(() => expect(result.current.kind).toBe("sent"));
+    expect(result.current.dialog).toBeUndefined();
+  });
+
+  it("layanan auth galat (5xx): dialog layanan sedang tidak tersedia, email tetap", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/auth/magic-link`, () =>
+        HttpResponse.json({ meta: { code: 503, message: "down" } }, { status: 503 }),
+      ),
+    );
+    const { form, result } = mount();
+    act(() => form().email.onChange("you@example.com"));
+    act(() => form().submit.onSubmit());
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Layanan sedang tidak tersedia"));
+    expect(form().email.value).toBe("you@example.com");
+    act(() => click(result.current.dialog?.secondary));
+    expect(result.current.dialog).toBeUndefined();
   });
 
   it("ganti email kembali ke form", async () => {

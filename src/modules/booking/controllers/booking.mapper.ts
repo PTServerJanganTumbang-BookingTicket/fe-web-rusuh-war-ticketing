@@ -9,7 +9,10 @@ import type { BookingSession } from "../domain/booking-session.model";
 import { canAddTicket } from "../domain/can-add-ticket.rules";
 import { selectedCount, totalPriceIdr, type Selection } from "../domain/selection.reducer";
 import { duplicateNikSlots, isEmail, isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
+import type { HolderAlias } from "../domain/holder-alias.model";
+import { aliasOptionsFor } from "../domain/ticket-holders.rules";
 import type { BookingViewProps, TicketHolderProps } from "../views/BookingView";
+import type { ActionDialogModel } from "@/core/controllers/modal.hook";
 
 const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -23,6 +26,8 @@ export type BookingForm = {
   buyerName: string;
   contactEmail: string;
   niks: Readonly<Record<string, string>>;
+  /** Slot yang pemegangnya alias: kunci slot → id alias. NIK alias tetap ada di `niks`. */
+  aliasPicks?: Readonly<Record<string, string>>;
   checks: Readonly<Record<string, NikCheckState>>;
   /** Galat bentuk baru tampil setelah field ditinggalkan atau form dikirim. */
   touched: ReadonlySet<string>;
@@ -39,12 +44,20 @@ export type BookingViewInput = {
   form: BookingForm;
   submitting: boolean;
   error?: string;
+  /** Modal verifikasi NIK yang sedang terbuka. */
+  dialog?: ActionDialogModel;
+  /** Slot yang field NIK-nya diberi fokus; `n` berubah tiap permintaan. */
+  focusNik?: { slotKey: string; n: number } | null;
   onAdd: (categoryId: string) => void;
   onRemove: (categoryId: string) => void;
   onBuyerName: (value: string) => void;
   onContactEmail: (value: string) => void;
   onNik: (slotKey: string, value: string) => void;
   onNikBlur: (slotKey: string) => void;
+  /** Alias akun yang bisa dipilih. Kosong untuk tamu. */
+  aliases?: readonly HolderAlias[];
+  /** `aliasId` kosong berarti kembali ke isian NIK manual. */
+  onHolderAlias?: (slotKey: string, aliasId: string) => void;
   onFieldBlur: (field: string) => void;
   onSubmit: () => void;
 };
@@ -107,6 +120,9 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     if (verified && check.result.status === "valid")
       success = t("booking.holder.nik.valid", { name: check.result.name });
     else if (check?.nik === nik && check.state === "checking") success = t("booking.holder.nik.checking");
+    const aliases = input.aliases ?? [];
+    const pickedId = form.aliasPicks?.[slot.key];
+    const picked = aliases.find((alias) => alias.id === pickedId);
     return {
       id: slot.key,
       title: t("booking.holder.ticket", { category: slot.categoryName }),
@@ -114,12 +130,34 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
       nik: {
         label: t("booking.holder.nik.label", { number: slot.number }),
         placeholder: t("booking.holder.nik.placeholder"),
-        value: nik,
+        // NIK alias ditampilkan tersamar; nilai lengkapnya hanya dikirim ke server.
+        value: picked ? picked.nikMasked : nik,
+        readOnly: Boolean(picked),
+        focusKey: input.focusNik?.slotKey === slot.key ? input.focusNik.n : undefined,
         error,
         success: error ? undefined : success,
         onChange: (value) => input.onNik(slot.key, value),
         onBlur: () => input.onNikBlur(slot.key),
       },
+      holder:
+        aliases.length > 0
+          ? {
+              label: t("booking.holder.source.label", { number: slot.number }),
+              value: picked?.id ?? "",
+              options: [
+                { value: "", label: t("booking.holder.source.manual"), disabled: false },
+                ...aliasOptionsFor(slot.key, aliases, niks).map(({ alias, takenByOtherTicket }) => ({
+                  value: alias.id,
+                  label: takenByOtherTicket
+                    ? t("booking.holder.source.taken", { label: alias.label, nik: alias.nikMasked })
+                    : t("booking.holder.source.alias", { label: alias.label, nik: alias.nikMasked }),
+                  disabled: takenByOtherTicket && alias.id !== picked?.id,
+                })),
+              ],
+              hint: t("booking.holder.source.hint"),
+              onChange: (value: string) => input.onHolderAlias?.(slot.key, value),
+            }
+          : undefined,
       seat: { label: t("booking.holder.seat.label"), value: t("booking.holder.seat.value") },
     };
   });
@@ -159,6 +197,7 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
       urgentLabel: t("booking.countdown.urgent"),
     },
     error: input.error,
+    dialog: input.dialog,
     buyer: {
       title: t("booking.buyer.title"),
       hint: t("booking.buyer.hint"),

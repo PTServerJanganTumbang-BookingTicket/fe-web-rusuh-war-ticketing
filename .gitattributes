@@ -1,0 +1,11 @@
+# Semua file teks memakai LF di repo dan di working tree, apa pun `core.autocrlf` di mesin masing-masing.
+# Prettier (`endOfLine: "lf"`) dan .editorconfig memakai LF juga, jadi format:check tidak gagal karena CRLF di Windows.
+* text=auto eol=lf
+
+# Biner: jangan diubah.
+*.ico binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.woff binary
+*.woff2 binary

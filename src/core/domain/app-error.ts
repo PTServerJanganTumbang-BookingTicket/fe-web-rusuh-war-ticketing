@@ -16,7 +16,8 @@ export type ApiErrorCode =
   | "UNAUTHENTICATED"
   | "SAVED_NIK_REJECTED"
   | "BOOKING_REJECTED"
-  | "BOOKING_INVALID";
+  | "BOOKING_INVALID"
+  | "TICKET_NOT_FOUND";
 
 export type AppError =
   | { kind: "api"; code: ApiErrorCode; status: number }
@@ -41,6 +42,7 @@ const API_ERROR_CODES: readonly string[] = [
   "SAVED_NIK_REJECTED",
   "BOOKING_REJECTED",
   "BOOKING_INVALID",
+  "TICKET_NOT_FOUND",
 ];
 
 export function parseApiErrorCode(value: unknown): ApiErrorCode | undefined {

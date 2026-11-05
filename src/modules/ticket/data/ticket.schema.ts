@@ -63,6 +63,7 @@ export const eTicketSchema = z
       id: ticket.qr_value.split("|")[1] ?? "",
       name: ticket.event.name,
       date: ticket.event.date,
+      time: ticket.event.time,
       venue: ticket.event.venue,
     },
     category: ticket.category,

@@ -50,6 +50,8 @@ export type ETicket = {
     id: string;
     name: string;
     date: string;
+    /** Jam mulai (`HH:mm`, WIB) bila kontrak mengirimnya. */
+    time?: string;
     venue: string;
     imageUrl?: string;
   };

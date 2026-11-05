@@ -4,6 +4,9 @@ import type { CoreDependencies } from "@/core/application/core.dependencies";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { SessionProtocol } from "@/core/domain/session.protocol";
 import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
+import { createGetSessionAccountUseCase } from "@/core/application/get-session-account.use-case";
+import type { SessionAccountProtocol } from "@/core/domain/session-account.protocol";
+import { createHttpSessionAccountService } from "@/core/data/account/http-session-account.service";
 import { createFetchHttpClient, type FetchFn } from "@/core/data/http/fetch-http.client";
 import type { HttpClient } from "@/core/data/http/http.client";
 import {
@@ -30,6 +33,7 @@ export type CoreRegistry = CoreDependencies & {
   eventStreamClient: EventStreamClient;
   sessionService: SessionProtocol;
   credentialStore: CredentialStoreProtocol;
+  sessionAccountService: SessionAccountProtocol;
 };
 
 // `fetch` dibungkus supaya dibaca saat dipanggil: MSW dan test mengganti `globalThis.fetch` setelah container dibuat.
@@ -55,5 +59,7 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     credentialStore: asFunction(createWebStorageCredentialStoreService).singleton(),
     sessionService: asFunction(createHttpSessionService).singleton(),
     startSessionUseCase: asFunction(createStartSessionUseCase).singleton(),
+    sessionAccountService: asFunction(createHttpSessionAccountService).singleton(),
+    getSessionAccountUseCase: asFunction(createGetSessionAccountUseCase).singleton(),
   };
 }

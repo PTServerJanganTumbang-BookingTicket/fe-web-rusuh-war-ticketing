@@ -6,12 +6,18 @@
  * ADR-0004 (TanStack Query).
  */
 
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useDependencies } from "@/core/controllers/dependencies.context";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { toAppError, type AppError } from "@/core/domain/app-error";
+import { t, type MessageKey } from "@/core/i18n/t.utils";
+import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { TicketDependencies } from "../application/ticket.dependencies";
-import type { TicketSummary, ETicket } from "../domain/ticket.model";
+import type { TicketSummary } from "../domain/ticket.model";
+import type { ETicketViewProps } from "../views/ETicketView";
 import { myTicketsQueryOptions, eticketQueryOptions } from "./ticket.queries";
+import { toETicketViewProps } from "./ticket.mapper";
 
 /**
  * State untuk My Tickets page.
@@ -27,18 +33,6 @@ export type MyTicketsControllerState = {
   error: AppError | null;
   /** Refetching state */
   isRefetching: boolean;
-};
-
-/**
- * State untuk E-Ticket detail page.
- */
-export type ETicketControllerState = {
-  /** E-ticket data with QR code */
-  eticket: ETicket | null;
-  /** Loading state */
-  isLoading: boolean;
-  /** Error if any */
-  error: AppError | null;
 };
 
 /**
@@ -69,37 +63,55 @@ export function useMyTicketsController(): MyTicketsControllerState {
   };
 }
 
+/** Layar detail tiket: memuat, galat dengan aksi, atau siap. */
+export type TicketDetailScreen =
+  { kind: "ready"; view: ETicketViewProps } | { kind: "status"; view: StatusViewProps };
+
+function detailErrorKey(error: AppError): MessageKey {
+  if (error.kind === "network") return "ticket.detail.error.network";
+  if (error.kind === "api" && error.code === "UNAUTHENTICATED") return "ticket.detail.error.UNAUTHENTICATED";
+  if (error.kind === "api" && error.code === "TICKET_NOT_FOUND")
+    return "ticket.detail.error.TICKET_NOT_FOUND";
+  return "ticket.detail.error.unknown";
+}
+
 /**
- * Controller untuk E-Ticket detail page.
- * Fetches single e-ticket with QR code.
- *
- * @param ticketId - ID of the ticket to fetch
- * @param accessToken - Optional access token for email link access (query param ?t=)
- *
- * @example
- * ```tsx
- * function ETicketPage({ params, searchParams }) {
- *   const { eticket, isLoading, error } = useETicketController(params.id, searchParams.t);
- *   if (isLoading) return <Loading />;
- *   if (error) return <ErrorView error={error} />;
- *   return <ETicketView {...toETicketViewProps(eticket)} />;
- * }
- * ```
+ * Detail tiket yang sudah dibeli (`/tickets/[ticketId]`). Pemilik yang masuk memakai sesi akun; tautan email
+ * membawa `?t=` (FR-26). Requirement 7.1.
  */
-export function useETicketController(ticketId: string, accessToken?: string): ETicketControllerState {
+export function useTicketDetailController(ticketId: string, accessToken?: string): TicketDetailScreen {
+  const siteChrome = useSiteChrome();
+  const router = useRouter();
   const { getTicketUseCase } = useDependencies<TicketDependencies>();
+  const query = useQuery({
+    ...eticketQueryOptions({ getTicketUseCase, ticketId, accessToken }),
+    retry: false,
+  });
 
-  const query = useQuery(
-    eticketQueryOptions({
-      getTicketUseCase,
-      ticketId,
-      accessToken,
-    }),
-  );
-
+  if (query.data) return { kind: "ready", view: toETicketViewProps(query.data, siteChrome) };
+  if (query.isError) {
+    const error = toAppError(query.error);
+    const signedOut = error.kind === "api" && error.code === "UNAUTHENTICATED";
+    return {
+      kind: "status",
+      view: {
+        ...siteChrome,
+        title: t("ticket.detail.error.title"),
+        message: t(detailErrorKey(error)),
+        tone: "error",
+        action: signedOut
+          ? { label: t("ticket.detail.login"), onClick: () => router.push("/login") }
+          : { label: t("ticket.detail.retry"), onClick: () => void query.refetch() },
+      },
+    };
+  }
   return {
-    eticket: query.data ?? null,
-    isLoading: query.isLoading,
-    error: query.error ? toAppError(query.error) : null,
+    kind: "status",
+    view: {
+      ...siteChrome,
+      title: t("ticket.eticket.title"),
+      message: t("ticket.detail.loading"),
+      tone: "neutral",
+    },
   };
 }

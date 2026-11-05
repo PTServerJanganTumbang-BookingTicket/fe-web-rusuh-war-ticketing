@@ -6,18 +6,39 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toAppError } from "@/core/domain/app-error";
+import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
+import { toConnectionProblemDialog } from "@/core/controllers/common-dialogs.mapper";
+import { toNikMismatchDialog } from "@/core/controllers/nik-dialog.mapper";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { isEmail, isNikFormat } from "../domain/account.rules";
 import { PRIVACY_POLICY_VERSION } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
 import { authKeys } from "./auth.queries";
+import { toAlreadyRegisteredDialog, toRegistrationFailedDialog } from "./auth-dialogs.mapper";
 import type { RegisterViewProps } from "../views/RegisterView";
 
+/** Galat register yang ditangani dialog sendiri; sisanya tampil di dialog tinjauan. */
+type RegisterModal = { kind: "connection" | "failed" | "alreadyRegistered" | "nikMismatch" };
+
+function registerModalOf(error: AppError): RegisterModal["kind"] | null {
+  if (error.kind === "network") return "connection";
+  if (error.kind === "api") {
+    if (error.code === "NIK_ALREADY_REGISTERED") return "alreadyRegistered";
+    if (error.code === "NIK_INVALID") return "nikMismatch";
+    return null;
+  }
+  return "failed";
+}
+
 export function useRegisterController(): RegisterViewProps {
+  const siteChrome = useSiteChrome();
+  const modal = useModal<RegisterModal>();
+  /** Fokus kembali ke field setelah "Ubah email" atau "Ubah data"; `n` berubah tiap permintaan. */
+  const [focus, setFocus] = useState<{ field: "email" | "nik"; n: number } | null>(null);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { registerAccountUseCase } = useDependencies<AuthDependencies>();
@@ -31,7 +52,17 @@ export function useRegisterController(): RegisterViewProps {
   // Satu permintaan saja: tombol terkunci selama berjalan, galat membuka kunci tanpa menghapus isian.
   const register = useMutation({
     mutationFn: () => registerAccountUseCase({ email, nik, name, policyVersion: PRIVACY_POLICY_VERSION }),
-    onSuccess: () => queryClient.setQueryData(authKeys.pendingRegistration, email.trim()),
+    onSuccess: () => {
+      modal.close();
+      queryClient.setQueryData(authKeys.pendingRegistration, email.trim());
+    },
+    // Galat yang punya dialog sendiri menutup tinjauan; isian tetap ada.
+    onError: (failure) => {
+      const kind = registerModalOf(toAppError(failure));
+      if (!kind) return;
+      setReviewing(false);
+      modal.open({ kind });
+    },
   });
 
   const errors = {
@@ -40,56 +71,66 @@ export function useRegisterController(): RegisterViewProps {
     consent: submitted && !consent ? t("register.consent.required") : undefined,
   };
   const valid = isEmail(email) && isNikFormat(nik) && consent;
-  const error = register.isError
-    ? t(
-        authErrorKey(toAppError(register.error), {
-          NIK_ALREADY_REGISTERED: "register.error.NIK_ALREADY_REGISTERED",
-          NIK_INVALID: "register.error.NIK_INVALID",
-          CONSENT_REQUIRED: "register.error.CONSENT_REQUIRED",
-        }),
-      )
-    : undefined;
+  const inlineError =
+    register.isError && !registerModalOf(toAppError(register.error))
+      ? t(authErrorKey(toAppError(register.error), { CONSENT_REQUIRED: "register.error.CONSENT_REQUIRED" }))
+      : undefined;
   const busy = register.isPending;
+  const refocus = (field: "email" | "nik") => {
+    modal.close();
+    register.reset();
+    setFocus((current) => ({ field, n: (current?.n ?? 0) + 1 }));
+  };
+  const retry = { onRetry: () => register.mutate(), onDismiss: modal.close, retrying: busy };
 
-  let dialog: RegisterViewProps["dialog"];
+  let dialog: ActionDialogModel | undefined;
   if (register.isSuccess) {
     dialog = {
-      kind: "success",
+      tone: "success",
       title: t("register.success.title"),
-      message: t("register.success.message"),
+      description: t("register.success.message"),
       note: t("register.success.note"),
-      ok: { label: t("register.success.ok"), onClick: () => router.push("/register/verify-email") },
+      primary: { label: t("register.success.ok"), onClick: () => router.push("/register/verify-email") },
+      onDismiss: () => router.push("/register/verify-email"),
     };
+  } else if (modal.modal?.kind === "connection") {
+    dialog = toConnectionProblemDialog(retry);
+  } else if (modal.modal?.kind === "failed") {
+    dialog = toRegistrationFailedDialog(retry);
+  } else if (modal.modal?.kind === "alreadyRegistered") {
+    dialog = toAlreadyRegisteredDialog({ onEdit: () => refocus("email"), onDismiss: modal.close });
+  } else if (modal.modal?.kind === "nikMismatch") {
+    dialog = toNikMismatchDialog({ onEdit: () => refocus("nik"), onDismiss: modal.close });
   } else if (reviewing) {
+    // Ubah data hanya menutup dialog; isian tetap ada dan tidak ada request ke server.
+    const edit = () => {
+      setReviewing(false);
+      register.reset();
+    };
     dialog = {
-      kind: "confirm",
+      tone: "info",
+      icon: "mail",
       title: t("register.confirm.title"),
       description: t("register.confirm.description"),
-      values: [
+      details: [
         { label: t("register.confirm.email"), value: email.trim() },
         { label: t("register.confirm.nik"), value: nik },
         ...(name.trim() ? [{ label: t("register.confirm.name"), value: name.trim() }] : []),
       ],
-      error,
-      busy,
-      busyNote: t("register.confirm.busyNote"),
-      confirm: {
+      note: busy ? t("register.confirm.busyNote") : undefined,
+      error: inlineError,
+      primary: {
         label: busy ? t("register.confirm.busy") : t("register.confirm.submit"),
+        busy,
         onClick: () => register.mutate(),
       },
-      // Ubah data hanya menutup dialog; isian tetap ada dan tidak ada request ke server.
-      edit: {
-        label: t("register.confirm.edit"),
-        onClick: () => {
-          setReviewing(false);
-          register.reset();
-        },
-      },
+      secondary: { label: t("register.confirm.edit"), onClick: edit },
+      onDismiss: edit,
     };
   }
 
   return {
-    ...toSiteChrome(),
+    ...siteChrome,
     kind: "form",
     heading: t("register.heading"),
     intro: t("register.intro"),
@@ -97,6 +138,7 @@ export function useRegisterController(): RegisterViewProps {
       label: t("register.email.label"),
       required: true,
       value: email,
+      focusKey: focus?.field === "email" ? focus.n : undefined,
       error: errors.email,
       onChange: setEmail,
     },
@@ -105,6 +147,7 @@ export function useRegisterController(): RegisterViewProps {
       required: true,
       hint: t("register.nik.hint"),
       value: nik,
+      focusKey: focus?.field === "nik" ? focus.n : undefined,
       error: errors.nik,
       // Spasi dan tanda baca dari salinan KTP dibuang; panjang divalidasi, tidak dipotong.
       onChange: (value) => setNik(value.replace(/\D/g, "")),

@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { ArrowRightIcon, IdCardIcon, InfoIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/layout/CheckoutCards";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 import { CategoryRow, type CategoryRowProps } from "./CategoryRow";
 
 export type TextFieldProps = {
@@ -26,8 +27,21 @@ export type TextFieldProps = {
   /** Pesan positif, misalnya NIK terverifikasi. */
   success?: string;
   error?: string;
+  /** NIK dari alias: tampil tersamar dan tidak bisa diketik. */
+  readOnly?: boolean;
+  /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah data" di modal NIK. */
+  focusKey?: number;
   onChange: (value: string) => void;
   onBlur?: () => void;
+};
+
+export type HolderSourceProps = {
+  label: string;
+  /** Id alias terpilih; kosong berarti isian manual. */
+  value: string;
+  options: { value: string; label: string; disabled: boolean }[];
+  hint: string;
+  onChange: (value: string) => void;
 };
 
 export type TicketHolderProps = {
@@ -35,6 +49,8 @@ export type TicketHolderProps = {
   title: string;
   priceLabel: string;
   nik: TextFieldProps;
+  /** Pilihan alias; hanya ada untuk customer yang masuk dan punya alias. */
+  holder?: HolderSourceProps;
   seat: { label: string; value: string };
 };
 
@@ -42,6 +58,7 @@ export type BookingViewProps = Omit<SiteShellProps, "children"> & {
   header: PageHeaderProps;
   countdown: CountdownBannerProps;
   error?: string;
+  dialog?: ActionDialogProps;
   buyer: { title: string; name: TextFieldProps; email: TextFieldProps; hint: string };
   categories: { title: string; limit: string; items: CategoryRowProps[] };
   holders?: { title: string; hint: string; items: TicketHolderProps[]; footnote: string };
@@ -69,6 +86,10 @@ function TextInput({
   inputMode?: "numeric" | "email";
   autoComplete?: string;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (field.focusKey !== undefined) ref.current?.focus();
+  }, [field.focusKey]);
   let describedBy: string | undefined;
   if (field.error) describedBy = `${id}-error`;
   else if (field.success || field.hint) describedBy = `${id}-hint`;
@@ -76,9 +97,12 @@ function TextInput({
     <Field data-invalid={Boolean(field.error)}>
       <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
       <Input
+        ref={ref}
         id={id}
         value={field.value}
         placeholder={field.placeholder}
+        readOnly={field.readOnly}
+        className={field.readOnly ? "bg-signal-disable" : undefined}
         inputMode={inputMode}
         autoComplete={autoComplete}
         aria-invalid={Boolean(field.error)}
@@ -95,6 +119,28 @@ function TextInput({
       {!field.error && !field.success && field.hint ? (
         <FieldDescription id={`${id}-hint`}>{field.hint}</FieldDescription>
       ) : null}
+    </Field>
+  );
+}
+
+function HolderSourceSelect({ id, source }: { id: string; source: HolderSourceProps }) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{source.label}</FieldLabel>
+      <select
+        id={id}
+        value={source.value}
+        aria-describedby={`${id}-hint`}
+        onChange={(event) => source.onChange(event.target.value)}
+        className="type-body2 h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        {source.options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <FieldDescription id={`${id}-hint`}>{source.hint}</FieldDescription>
     </Field>
   );
 }
@@ -120,6 +166,7 @@ export function BookingView(props: BookingViewProps) {
     header,
     countdown,
     error,
+    dialog,
     buyer,
     categories,
     holders,
@@ -193,6 +240,9 @@ export function BookingView(props: BookingViewProps) {
                         <p className="type-body1-bold">{holder.title}</p>
                         <p className="type-body2 text-muted-foreground tabular-nums">{holder.priceLabel}</p>
                       </div>
+                      {holder.holder ? (
+                        <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
+                      ) : null}
                       <div className="grid gap-4 sm:grid-cols-2">
                         <TextInput
                           id={`nik-${holder.id}`}
@@ -239,6 +289,7 @@ export function BookingView(props: BookingViewProps) {
           <div className="ml-auto min-w-0 flex-1 sm:max-w-xs">{submitButton}</div>
         </div>
       </div>
+      {dialog ? <ActionDialog {...dialog} /> : null}
     </SiteShell>
   );
 }

@@ -1,14 +1,10 @@
-import { Navbar, type NavItem } from "@/components/ui/layout/Navbar";
+import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
 import { HeroSection } from "./HeroSection";
 import { EventCard, type EventCardProps } from "./EventCard";
 
 export type HomeViewProps = {
-  nav: {
-    items: NavItem[];
-    loginHref: string;
-    loginLabel: string;
-  };
+  nav: NavbarProps;
   hero: {
     eyebrow: string;
     headline: string;

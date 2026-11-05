@@ -65,6 +65,14 @@ export function createFetchHttpClient({
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
         options,
       ),
+    patch: (path, body, schema, options) =>
+      request(
+        fetchFn,
+        `${appConfig.apiBaseUrl}${path}`,
+        schema,
+        { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+        options,
+      ),
     delete: async (path, options) => {
       await request(fetchFn, `${appConfig.apiBaseUrl}${path}`, z.unknown(), { method: "DELETE" }, options);
     },

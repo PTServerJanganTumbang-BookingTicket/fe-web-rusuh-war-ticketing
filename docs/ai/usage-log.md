@@ -324,3 +324,48 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: Mockup "Detail tiket", "Pembayaran", dan "Authentication — Confirmation & Success", foto konser placeholder, OpenAPI kontrak (`src/core/data/http/openapi.json`).
 - **Output**: `PageHeader` (breadcrumb dan langkah checkout) dan `CheckoutCards` (countdown, kartu event, ringkasan pesanan) dipakai bersama Waiting Room, Detail Tiket, dan Pembayaran. Kelas tipografi `type-*` kini `@utility` Tailwind sehingga bisa diberi varian responsif. Detail Tiket mengisi identitas pemesan, satu NIK per tiket dengan cek Dukcapil (`POST /nik/validate`) saat field ditinggalkan, lalu membuat booking lewat `POST /bookings` dan pindah ke `/orders/{id}/pay`. Pembayaran memakai metode dari `GET /payments/{id}/methods`, pilihan bank VA, kartu event, dan kontrol mock lewat `POST /payments/webhook`; status akhir tampil di halaman yang sama dan `PaymentResultView` dihapus. Register membuka dialog konfirmasi (drawer di mobile, shadcn `dialog`) sebelum mengirim, lalu dialog sukses ke `/register/verify-email` dengan kirim ulang link; `/register/verified` ditambahkan. Gambar `public/images/concert-placeholder.webp` menggantikan gambar event di fixture dan fallback.
 - **Review manusia**: Menunggu review. Kontrak belum punya nama pemesan dan nomor bangku, jadi nama hanya dikumpulkan dan bangku tampil "Ditentukan otomatis". Opsi "Transfer Bank" manual di mockup tidak ada di kontrak. Kirim ulang verifikasi memakai endpoint resend magic link sebagai pengganti, dan `/register/verified` statis karena belum ada endpoint verifikasi pendaftaran. Instruksi pembayaran masih hilang setelah muat ulang.
+
+## 2026-11-04 — Detail tiket, profil, alias pemegang tiket, dan ADR shadcn/Base UI
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menambah halaman detail tiket yang sudah dibeli, halaman profil, kelola alias (nama + NIK) dengan tambah, ubah, dan hapus, memilih alias sebagai pemegang tiket di Detail Ticket, dan mencatat keputusan shadcn/ui di atas Base UI.
+- **Input**: Steering `docs/ai/steering/*`, skill `new-module` dan `write-adr`, ADR-0013–0015, ADR-0012, ADR-0017, ADR-0023, OpenAPI kontrak (`src/core/data/http/openapi.json`), `components.json`, `package.json`, modul `auth`, `booking`, dan `ticket` di `origin/main`.
+- **Output**: `/tickets/[ticketId]` merender `ETicketView` (sebelumnya `TicketCard` menautkan ke route yang belum ada) lewat `useTicketDetailController`; pemilik memakai sesi akun lewat `/api/account/tickets/{id}/eticket`, tautan email memakai `?t=`, dan teks view pindah ke i18n. `/account` menjadi Profil saya: data akun dari `GET /accounts/me` dengan fallback ke sesi, alias dengan form ubah dan dialog konfirmasi hapus, validasi nama dan NIK 16 digit di `account.rules.ts` yang juga dipakai use case. Booking punya `HolderAliasProtocol` sendiri (modul tidak saling impor); memilih alias mengisi NIK slot, alias yang sudah dipakai tiket lain dinonaktifkan, dan `validateBookingTickets` (maks. 3 tiket, 1 NIK per tiket, tanpa NIK dobel) dijalankan `SubmitBookingUseCase` sebelum request. `HttpClient.patch` dan daftar izin gateway untuk PATCH alias, profil, dan e-tiket ditambahkan. ADR-0024 mencatat shadcn `base-mira` di atas Base UI. Asumsi endpoint dicatat di `docs/api/contract-assumptions.md`. Setelah review visual, `/account` dan `/tickets/[ticketId]` dipindah dari kartu sempit `ScreenFrame` ke `SiteShell` + `PageHeader` dengan layout dua kolom seperti Waiting Room dan Detail Ticket.
+- **Review manusia**: Menunggu review. `GET /accounts/me`, `PATCH /accounts/me/saved-niks/{id}`, dan field `nik` lengkap di daftar alias belum ada di kontrak; tanpa field `nik`, pilihan alias di Detail Ticket tidak muncul dan NIK diisi manual. Halaman dicek manual di browser (desktop 1280px dan mobile 375px) terhadap mock; E2E Playwright belum dijalankan. Komponen shadcn mengimpor `cn` dari paket `cn` sementara alias `utils` menunjuk `cn.utils`; belum disatukan.
+
+## 2026-11-04 — Navbar dengan status masuk, line ending LF, dan modal galat
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Navbar menampilkan akun yang sedang masuk di semua halaman, line ending repo dipaksa LF, dan modal galat sesuai desain "G / Timeout", "G / Mismatch", dan "I / Already used".
+- **Input**: Desain modal "NIK Verification Unavailable", "Check Your NIK", dan "Login Link Failed" beserta catatan trigger/preserve/retry, `Navbar`, `site-chrome.utils.ts`, `.editorconfig`, `.prettierrc.json`.
+- **Output**: Sesi akun pindah ke `core` (`SessionAccountProtocol`, `GetSessionAccountUseCase`, `useSiteChrome()`), memakai kunci cache yang sama dengan akun di modul `auth`, sehingga masuk dan keluar langsung terlihat di navbar; semua controller dan Container yang merender navbar memakai hook ini. `.gitattributes` (`* text=auto eol=lf`) mengalahkan `core.autocrlf=true` di Windows, dan `npm run format:check` kini lolos untuk seluruh repo. Modal: `ActionDialog` di design system, `useModal()` untuk state modal per layar, dan `nik-dialog.mapper.ts` untuk dialog NIK. Detail Ticket dan form alias membuka "Periksa NIK-mu" saat Dukcapil menolak dan "Verifikasi NIK belum tersedia" saat tidak menjawab (isian tetap, coba lagi hanya lewat tombol, "Ubah data" memfokus field NIK). Verifikasi login membuka "Link login gagal" bila link sudah dipakai atau kedaluwarsa, dan langsung melanjutkan bila perangkat sudah punya sesi.
+- **Review manusia**: Menunggu review. Modal "belum tersedia" dicek lewat test (MSW `HttpResponse.error()`), tidak di browser, karena mock tidak punya skenario timeout Dukcapil. Checkout lama di Windows perlu dikonversi sekali ke LF setelah `.gitattributes` masuk: dengan working tree bersih, `git rm -rq --cached . && git reset --hard HEAD`. Di mode mock, query ditahan sampai worker MSW siap, sehingga navbar dan isi halaman bisa terlambat beberapa detik setelah navigasi di dev.
+
+## 2026-11-04 — Katalog ActionDialog dan sheet mobile
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Mendokumentasikan ActionDialog, menambah dialog dari desain (layanan tidak tersedia, sesi berakhir, verifikasi email gagal, akun sudah terdaftar, pendaftaran gagal, terjadi kesalahan, koneksi bermasalah, konfirmasi data), dan menampilkan dialog sebagai sheet di mobile.
+- **Input**: Desain dialog "Service Temporarily Unavailable", "Session Expired", "NIK Verification Unavailable", "Email Verification Failed", "Email Already Registered", "Registration Failed", "Something Went Wrong", "Connection Problem", "Confirm Your Information" (desktop dan mobile 390px), dokumentasi Base UI Drawer di `node_modules/@base-ui/react/docs`.
+- **Output**: `ActionDialog` memakai Base UI Drawer sebagai bottom sheet (geser ke bawah untuk menutup) di bawah 640px dan modal di tengah di atasnya; nada `warning`, `icon`, `details`, `note`, dan `error` ditambahkan. Builder dialog umum di `core/controllers/common-dialogs.mapper.ts` dan dialog auth di `modules/auth/controllers/auth-dialogs.mapper.ts`. Login memakai "Koneksi bermasalah" dan "Layanan sedang tidak tersedia"; register memakai konfirmasi data, berhasil, "Akun sudah terdaftar", "Periksa NIK-mu", "Pendaftaran gagal", dan "Koneksi bermasalah" (dialog register buatan sendiri dihapus); profil memakai "Sesi berakhir" dan dialog galat hapus alias; Detail Ticket memakai dialog galat saat submit tanpa respons. Dokumentasi di `docs/architecture/action-dialog.md`, galeri di `/signal-demo/dialogs`.
+- **Review manusia**: Menunggu review. Teks desain diterjemahkan ke bahasa Indonesia. "Akun sudah terdaftar" menyebut email atau NIK karena kontrak hanya punya 409 untuk NIK. "Verifikasi email gagal" belum dipasang ke alur mana pun karena kontrak belum punya endpoint verifikasi pendaftaran; sementara hanya tampil di galeri.
+
+## 2026-11-04 — Layar status tanpa kartu merah
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Mengganti kartu berkepala merah ("Memuat…", "Menyiapkan sesi bookingmu…", galat) dengan layar status yang sejalan dengan situs dan ActionDialog.
+- **Input**: `StatusView`, `ScreenLoading`, `ScreenPlaceholder`, controller booking, payment, dan ticket.
+- **Output**: `StatusView` kini kartu di tengah dengan spinner atau ikon dalam lingkaran, judul, penjelasan, dan tombol pil, di dalam `SiteShell` (controller menyertakan navbar) atau header merek saja untuk fallback Suspense. Nada `warning` ditambahkan dan dipakai saat waktu booking habis. `ScreenPlaceholder` dihapus; `BrandLink` diekstrak dari `Navbar`.
+- **Review manusia**: Menunggu review. Status memuat di halaman dengan data cepat (mock) jarang terlihat; status galat dicek di browser pada 1280px dan 375px.
+
+## 2026-11-04 — Placeholder Pusat Bantuan
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: Menu "Bantuan" di navbar berujung 404; tambahkan halaman sementara.
+- **Input**: `docs/ai/steering/product.md` (BR-01, BR-02, login opsional, countdown pembayaran, e-tiket via email).
+- **Output**: Route `/help` (`src/app/help`) dengan `HelpView` di `src/core/views`: header halaman, catatan bahwa pusat bantuan masih disiapkan, lima pertanyaan umum dari aturan produk yang sudah pasti, dan pintasan ke Tiket saya dan Jelajahi event. Navbar menandai "Bantuan" aktif.
+- **Review manusia**: Menunggu review. Kanal kontak sengaja tidak diisi sampai ada dari tim.

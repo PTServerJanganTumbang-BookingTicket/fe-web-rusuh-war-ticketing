@@ -27,6 +27,7 @@ Format ringan berbasis Michael Nygard. Satu keputusan per file, nomor berurutan,
 | [0021](0021-packaging-single-container-image.md) | Packaging sebagai satu container image | Proposed |
 | [0022](0022-payment-instruction-renderer.md) | Payment UI — Composable Instruction Renderer | Accepted |
 | [0023](0023-passwordless-login-email.md) | Login magic link mengikuti kontrak API, dengan token disimpan lewat route same-origin | Proposed |
+| [0024](0024-shadcn-ui-on-base-ui.md) | Komponen UI baru memakai shadcn/ui gaya `base-mira` di atas Base UI, dengan token Signal | Proposed |
 
 ## Status
 

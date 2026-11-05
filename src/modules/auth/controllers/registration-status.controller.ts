@@ -9,7 +9,7 @@ import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useCountdown } from "@/core/controllers/countdown.hook";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { RESEND_COOLDOWN_MS } from "../domain/auth.constants";
@@ -20,6 +20,7 @@ import type { RegistrationStatusViewProps } from "../views/RegistrationStatusVie
 const loginLink = () => ({ label: t("register.pending.login"), href: "/login" });
 
 export function useVerifyEmailController(): RegistrationStatusViewProps {
+  const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
   const { resendVerificationUseCase, clock } = useDependencies<AuthDependencies & CoreDependencies>();
   // Email hanya ada di cache klien dari langkah register. Setelah muat ulang, kirim ulang tidak tersedia.
@@ -31,7 +32,7 @@ export function useVerifyEmailController(): RegistrationStatusViewProps {
   });
   // Jeda kirim ulang memakai jam lokal: ini batas UI, bukan TTL dari server (ADR-0005 tidak berlaku).
   const cooldownMs = useCountdown(resendAt, 0) ?? 0;
-  const chrome = toSiteChrome();
+  const chrome = siteChrome;
 
   if (resend.isSuccess) {
     const waiting = cooldownMs > 0;
@@ -77,8 +78,9 @@ export function useVerifyEmailController(): RegistrationStatusViewProps {
 
 /** Tujuan link verifikasi di email. Kontrak belum punya endpoint verifikasi pendaftaran; layar ini statis. */
 export function useEmailVerifiedController(): RegistrationStatusViewProps {
+  const siteChrome = useSiteChrome();
   return {
-    ...toSiteChrome(),
+    ...siteChrome,
     tone: "success",
     title: t("register.verified.title"),
     message: t("register.verified.message"),
