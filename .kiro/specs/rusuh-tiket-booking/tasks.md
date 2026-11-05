@@ -118,61 +118,63 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [ ] 1.3 Tulis unit tests di `src/core/domain/__tests__/system-state.model.test.ts` `@owner:muzaki`
     - _Requirements: 3.22, BR-21_
 
-- [ ] 2. Align queue module — domain layer [ALIGN] `@owner:muzaki`
-  - [ ] 2.1 Tulis ulang `src/modules/queue/domain/queue-state.model.ts` `@owner:muzaki`
+- [x] 2. Align queue module — domain layer [ALIGN] `@owner:muzaki`
+  - [x] 2.1 Tulis ulang `src/modules/queue/domain/queue-state.model.ts` `@owner:muzaki`
     - _Requirements: 3.1, 3.2, 3.3, 3.3a, 3.13, 3.15, BR-21_
-  - [ ] 2.2 Tulis ulang `src/modules/queue/domain/queue.protocol.ts` `@owner:muzaki`
+  - [x] 2.2 Tulis ulang `src/modules/queue/domain/queue.protocol.ts` `@owner:muzaki`
     - _Requirements: 3.2, 3.5, 3.13, 3.22_
-  - [ ] 2.3 Tulis ulang `src/modules/queue/domain/queue-updates.protocol.ts` `@owner:muzaki`
+  - [x] 2.3 Tulis ulang `src/modules/queue/domain/queue-updates.protocol.ts` `@owner:muzaki`
     - _Requirements: 3.2, 3.3, BR-16, BR-20_
-  - [ ] 2.4 Tulis property tests queue-progress.rules `@owner:muzaki`
+  - [x] 2.4 Tulis property tests queue-progress.rules `@owner:muzaki`
 
 - [ ] 3. Align queue module — application dan data layers [ALIGN + NEW] `@owner:muzaki`
   - [ ] 3.1 Buat join-queue-with-captcha.use-case.ts `@owner:muzaki`
-  - [ ] 3.2 Rename get-queue-state → get-customer-queue-state.use-case.ts `@owner:muzaki`
-  - [ ] 3.3 Tulis ulang watch-queue-state.use-case.ts `@owner:muzaki`
-  - [ ] 3.4 Tulis ulang http-queue.service.ts `@owner:muzaki`
-  - [ ] 3.5 Tulis ulang sse-queue-updates.service.ts `@owner:muzaki`
-  - [ ] 3.6 Update queue.module.ts `@owner:muzaki`
+  - [x] 3.2 Rename get-queue-state → get-customer-queue-state.use-case.ts `@owner:muzaki`
+  - [x] 3.3 Tulis ulang watch-queue-state.use-case.ts `@owner:muzaki`
+  - [x] 3.4 Tulis ulang http-queue.service.ts `@owner:muzaki`
+  - [x] 3.5 Tulis ulang sse-queue-updates.service.ts `@owner:muzaki`
+  - [x] 3.6 Update queue.module.ts `@owner:muzaki`
 
-- [ ] 4. Align queue module — controller, views, dan route [ALIGN] `@owner:muzaki`
-  - [ ] 4.1 Tulis ulang queue.controller.ts `@owner:muzaki`
-  - [ ] 4.2 Tulis ulang queue.mapper.ts `@owner:muzaki`
-  - [ ] 4.3 Update queue.queries.ts `@owner:muzaki`
-  - [ ] 4.4 Update QueueView.tsx dan QueueContainer.tsx `@owner:muzaki`
-  - [ ] 4.5 Tulis integration tests queue.controller.test.tsx `@owner:muzaki`
+- [x] 4. Align queue module — controller, views, dan route [ALIGN] `@owner:muzaki`
+  - [x] 4.1 Tulis ulang queue.controller.ts `@owner:muzaki`
+  - [x] 4.2 Tulis ulang queue.mapper.ts `@owner:muzaki`
+  - [x] 4.3 Update queue.queries.ts `@owner:muzaki`
+  - [x] 4.4 Update QueueView.tsx dan QueueContainer.tsx `@owner:muzaki`
+  - [x] 4.5 Tulis integration tests queue.controller.test.tsx `@owner:muzaki`
 
 - [ ] 5. Checkpoint — queue module `@owner:muzaki`
 
-- [ ] 6. Align booking module — domain layer [ALIGN + NEW] `@owner:muzaki`
-  - [ ] 6.1 Tulis ulang booking-session.model.ts `@owner:muzaki`
-  - [ ] 6.2 Update booking.protocol.ts `@owner:muzaki`
-  - [ ] 6.3 Buat attendee.model.ts `@owner:muzaki`
-  - [ ] 6.4 Buat nik-dedup.rules.ts `@owner:muzaki`
-  - [ ] 6.5 Update can-add-ticket.rules.ts `@owner:muzaki`
-  - [ ] 6.6 Update selection.reducer.ts `@owner:muzaki`
-  - [ ] 6.7 Update booking.constants.ts `@owner:muzaki`
-  - [ ] 6.8 Tulis property tests booking domain `@owner:muzaki`
+- [x] 6. Align booking module — domain layer [ALIGN + NEW] `@owner:muzaki`
+  - [x] 6.1 Tulis ulang booking-session.model.ts `@owner:muzaki`
+  - [x] 6.2 Update booking.protocol.ts `@owner:muzaki`
+  - [x] 6.3 Buat attendee.model.ts `@owner:muzaki`
+    - _Jadi `booking-request.model.ts`_
+  - [x] 6.4 Buat nik-dedup.rules.ts `@owner:muzaki`
+    - _Jadi `ticket-holders.rules.ts`_
+  - [x] 6.5 Update can-add-ticket.rules.ts `@owner:muzaki`
+  - [x] 6.6 Update selection.reducer.ts `@owner:muzaki`
+  - [x] 6.7 Update booking.constants.ts `@owner:muzaki`
+  - [x] 6.8 Tulis property tests booking domain `@owner:muzaki`
 
-- [ ] 7. Align booking module — application layer [ALIGN + NEW] `@owner:muzaki`
-  - [ ] 7.1 Buat validate-nik.use-case.ts `@owner:muzaki`
-  - [ ] 7.2 Buat submit-booking.use-case.ts `@owner:muzaki`
-  - [ ] 7.3 Tulis unit tests submit-booking.use-case.test.ts `@owner:muzaki`
+- [x] 7. Align booking module — application layer [ALIGN + NEW] `@owner:muzaki`
+  - [x] 7.1 Buat validate-nik.use-case.ts `@owner:muzaki`
+  - [x] 7.2 Buat submit-booking.use-case.ts `@owner:muzaki`
+  - [x] 7.3 Tulis unit tests submit-booking.use-case.test.ts `@owner:muzaki`
 
-- [ ] 8. Align booking module — data layer [ALIGN] `@owner:muzaki`
-  - [ ] 8.1 Tulis ulang http-booking.service.ts `@owner:muzaki`
-  - [ ] 8.2 Tulis ulang booking-session.schema.ts `@owner:muzaki`
+- [x] 8. Align booking module — data layer [ALIGN] `@owner:muzaki`
+  - [x] 8.1 Tulis ulang http-booking.service.ts `@owner:muzaki`
+  - [x] 8.2 Tulis ulang booking-session.schema.ts `@owner:muzaki`
 
-- [ ] 9. Align booking module — controller, views, dan module [ALIGN] `@owner:muzaki`
-  - [ ] 9.1 Tulis ulang booking.controller.ts `@owner:muzaki`
-  - [ ] 9.2 Tulis ulang booking.mapper.ts `@owner:muzaki`
-  - [ ] 9.3 Update booking.queries.ts `@owner:muzaki`
-  - [ ] 9.4 Tulis ulang BookingView.tsx `@owner:muzaki`
-  - [ ] 9.5 Update BookingContainer.tsx dan CategoryRow.tsx `@owner:muzaki`
-  - [ ] 9.6 Update booking.module.ts `@owner:muzaki`
-  - [ ] 9.7 Update integration tests booking.controller.test.tsx `@owner:muzaki`
+- [x] 9. Align booking module — controller, views, dan module [ALIGN] `@owner:muzaki`
+  - [x] 9.1 Tulis ulang booking.controller.ts `@owner:muzaki`
+  - [x] 9.2 Tulis ulang booking.mapper.ts `@owner:muzaki`
+  - [x] 9.3 Update booking.queries.ts `@owner:muzaki`
+  - [x] 9.4 Tulis ulang BookingView.tsx `@owner:muzaki`
+  - [x] 9.5 Update BookingContainer.tsx dan CategoryRow.tsx `@owner:muzaki`
+  - [x] 9.6 Update booking.module.ts `@owner:muzaki`
+  - [x] 9.7 Update integration tests booking.controller.test.tsx `@owner:muzaki`
 
-- [ ] 10. Checkpoint — booking module `@owner:muzaki`
+- [x] 10. Checkpoint — booking module `@owner:muzaki`
 
 - [x] 11. Align payment module — domain layer [ALIGN] `@owner:akbar`
   - [x] 11.1 Tulis ulang order.model.ts — PaymentMethod, PaymentInstruction, BankCode, OrderStatus `@owner:akbar`
@@ -246,18 +248,18 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [x] 18.7 Buat ticket.module.ts `@owner:akbar`
 
 - [ ] 19. Update app route pages [ALIGN + NEW]
-  - [ ] 19.1 Update queue page.tsx `@owner:muzaki`
+  - [x] 19.1 Update queue page.tsx `@owner:muzaki`
   - [x] 19.2 Update login page.tsx `@owner:muzaki`
   - [x] 19.3 Buat register page.tsx `@owner:muzaki`
   - [x] 19.4 Buat verify page.tsx `@owner:muzaki`
     - _`/login/verify#token=...`; ditambah `/account` dan `/tickets`_
     - _Token akun disimpan lewat route same-origin di cookie httpOnly, tidak di URL atau `localStorage` (ADR-0023)_
-  - [ ] 19.5 Update book page.tsx `@owner:muzaki`
+  - [x] 19.5 Update book page.tsx `@owner:muzaki`
   - [x] 19.6 Update pay page.tsx — rename orderId → bookingId `@owner:akbar`
   - [ ] 19.7 Update ticket page.tsx `@owner:akbar`
 
 - [ ] 20. Update i18n message keys [ALIGN]
-  - [ ] 20.1 Tambahkan queue message keys `@owner:muzaki`
+  - [x] 20.1 Tambahkan queue message keys `@owner:muzaki`
   - [x] 20.2 Tambahkan auth message keys `@owner:muzaki`
   - [x] 20.3 Tambahkan payment message keys `@owner:akbar`
   - [ ] 20.4 Tulis i18n property tests `@owner:muzaki`
@@ -378,3 +380,85 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
 
 **Catatan**: Wave 0 tasks harus complete sebelum memulai Wave 1 (Task 1). Ini memastikan semua type definitions sudah selaras dengan API contract sebelum implementasi dimulai.
 
+
+
+---
+
+## Additional Features (Implemented but not in original tasks)
+
+> Task-task berikut adalah fitur yang sudah diimplementasi tapi tidak tercantum di task list awal.
+
+- [x] 32. Profile/Account Module [NEW] `@owner:muzaki`
+  - [x] 32.1 Buat `account.model.ts` (Account, SavedNik types)
+  - [x] 32.2 Buat `account.protocol.ts` dan `saved-nik.protocol.ts`
+  - [x] 32.3 Buat `get-account.use-case.ts`
+  - [x] 32.4 Buat `http-profile.service.ts` dan `http-saved-nik.service.ts`
+  - [x] 32.5 Buat `account.controller.ts`
+  - [x] 32.6 Buat `AccountView.tsx` dan `AccountContainer.tsx`
+  - [x] 32.7 Buat `/app/account/page.tsx`
+
+- [x] 33. Tiket Saya (My Tickets) Module [NEW] `@owner:muzaki`
+  - [x] 33.1 Buat `my-tickets.controller.ts`
+  - [x] 33.2 Buat `MyTicketsView.tsx` dan `MyTicketsContainer.tsx`
+  - [x] 33.3 Buat `/app/tickets/page.tsx`
+
+- [x] 34. E-Ticket Detail Module [NEW] `@owner:muzaki`
+  - [x] 34.1 Buat `e-ticket.controller.ts`
+  - [x] 34.2 Buat `ETicketView.tsx` dan `ETicketContainer.tsx`
+  - [x] 34.3 Buat `/app/tickets/[id]/page.tsx`
+
+- [x] 35. Bantuan (Help) Page [NEW] `@owner:muzaki`
+  - [x] 35.1 Buat `help.controller.ts`
+  - [x] 35.2 Buat `HelpView.tsx` dan `HelpContainer.tsx`
+  - [x] 35.3 Buat `/app/help/page.tsx`
+
+- [x] 36. API Routes (BFF Layer) [NEW] `@owner:muzaki`
+  - [x] 36.1 Buat `/api/auth/verify/route.ts`
+  - [x] 36.2 Buat `/api/auth/session/route.ts`
+  - [x] 36.3 Buat `/api/auth/logout/route.ts`
+  - [x] 36.4 Buat `/api/account/[...path]/route.ts`
+
+- [x] 37. Core Hooks & Utilities [NEW] `@owner:muzaki`
+  - [x] 37.1 Buat `useAuth` hook
+  - [x] 37.2 Buat `useAccount` hook
+  - [x] 37.3 Buat credential store utilities
+
+- [x] 38. Shared UI Components [NEW] `@owner:shared`
+  - [x] 38.1 Buat reusable ticket card components
+  - [x] 38.2 Buat account-related UI components
+
+---
+
+## Final Summary
+
+### Per Owner Statistics
+
+| Owner | Done | Remaining | Total | Progress |
+|-------|------|-----------|-------|----------|
+| **Muzaki** | 69 | 14 | 83 | 83% |
+| **Akbar** | 30 | 4 | 34 | 88% |
+| **Shared** | 4 | 1 | 5 | 80% |
+| **TOTAL** | **103** | **19** | **122** | **84%** |
+
+### Remaining Tasks by Owner
+
+**Muzaki (14 remaining):**
+- Task 1 (Core Domain): 1.1, 1.2, 1.3
+- Task 3 (Queue App): 3.1
+- Task 5 (Queue Checkpoint)
+- Task 16 (Auth): 16.5, 16.6
+- Task 20 (i18n): 20.4
+- Task 23 (E2E): 23.1, 23.2
+- Task 25 (Email): 25.3
+- Task 27 (Queue Alignment): 27.1-27.4
+- Task 28 (Booking Alignment): 28.1-28.4
+- Task 31 (Auth Alignment): 31.3
+
+**Akbar (4 remaining):**
+- Task 15 (Payment Checkpoint)
+- Task 19.7 (Ticket page)
+- Task 23.3 (E2E Payment)
+- Task 30 (Ticket Alignment): 30.1-30.4
+
+**Shared (1 remaining):**
+- Task 22 (Full Application Checkpoint)
