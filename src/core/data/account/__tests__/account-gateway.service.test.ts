@@ -136,6 +136,27 @@ describe("accountGateway.forward", () => {
     expect(authorization).toBe(`Bearer ${session.account_token}`);
   });
 
+  it("PATCH alias meneruskan body JSON ke BE", async () => {
+    let received: unknown;
+    server.use(
+      http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/snk_1`, async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json({ meta: { code: 200, message: "Success" }, data: {} });
+      }),
+    );
+    const { accountGateway, session } = await signIn();
+    const response = await accountGateway.forward(
+      api("/account/saved-niks/snk_1", {
+        method: "PATCH",
+        headers: cookieHeader(session),
+        body: JSON.stringify({ label: "Budi S" }),
+      }),
+      "saved-niks/snk_1",
+    );
+    expect(response.status).toBe(200);
+    expect(received).toEqual({ label: "Budi S" });
+  });
+
   it("path atau method di luar daftar izin dijawab 404", async () => {
     const { accountGateway, session } = await signIn();
     const headers = cookieHeader(session);

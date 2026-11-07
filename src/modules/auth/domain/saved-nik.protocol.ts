@@ -1,8 +1,10 @@
-import type { SavedNikList } from "./account.model";
+import type { SavedNikInput, SavedNikList } from "./account.model";
 
-/** Daftar NIK teman milik akun (maksimal dari server, saat ini 5). Hanya untuk customer yang masuk. */
+/** Daftar alias (saved NIK) milik akun (maksimal dari server, saat ini 5). Hanya untuk customer yang masuk. */
 export interface SavedNikProtocol {
   list(): Promise<SavedNikList>;
   add(nik: string, label: string): Promise<void>;
+  /** `PATCH /accounts/me/saved-niks/{id}`, masih asumsi. `nik` kosong berarti NIK tidak diganti. */
+  update(id: string, input: SavedNikInput): Promise<void>;
   remove(id: string): Promise<void>;
 }

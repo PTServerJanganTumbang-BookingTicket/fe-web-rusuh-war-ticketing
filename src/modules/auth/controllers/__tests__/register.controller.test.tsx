@@ -11,6 +11,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }
 
 const server = setupMockServer();
 
+/** Menekan aksi dialog berupa tombol. */
+function click(action: { label: string; onClick: () => void } | { label: string; href: string } | undefined) {
+  if (action && "onClick" in action) action.onClick();
+}
+
 function mount() {
   const hook = renderHook(() => useRegisterController(), { wrapper: createWrapper() });
   const form = () => {
@@ -62,11 +67,15 @@ describe("useRegisterController", () => {
     // Submit hanya membuka tinjauan; belum ada request sampai dikonfirmasi.
     expect(body).toBeUndefined();
     const review = result.current.dialog;
-    if (review?.kind !== "confirm") throw new Error("dialog tinjauan tidak muncul");
-    expect(review.values.map((item) => item.value)).toEqual(["alex@example.com", "3171000000000044", "Alex"]);
-    act(() => review.confirm.onClick());
-    await waitFor(() => expect(result.current.dialog?.kind).toBe("success"));
-    act(() => (result.current.dialog?.kind === "success" ? result.current.dialog.ok.onClick() : undefined));
+    expect(review?.title).toBe("Konfirmasi datamu");
+    expect(review?.details?.map((item) => item.value)).toEqual([
+      "alex@example.com",
+      "3171000000000044",
+      "Alex",
+    ]);
+    act(() => click(review?.primary));
+    await waitFor(() => expect(result.current.dialog?.tone).toBe("success"));
+    act(() => click(result.current.dialog?.primary));
     expect(push).toHaveBeenCalledWith("/register/verify-email");
     expect(body).toEqual({
       email: "alex@example.com",
@@ -76,21 +85,62 @@ describe("useRegisterController", () => {
     });
   });
 
-  it("NIK sudah terdaftar (409): pesan khusus", async () => {
+  it("NIK sudah terdaftar (409): dialog akun sudah terdaftar, Ubah email memfokus field email", async () => {
     const { form, fill, result } = mount();
     fill({ email: "alex@example.com", nik: "3171000000000022", consent: true });
     act(() => form().submit.onSubmit());
-    act(() =>
-      result.current.dialog?.kind === "confirm" ? result.current.dialog.confirm.onClick() : undefined,
+    act(() => click(result.current.dialog?.primary));
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Akun sudah terdaftar"));
+    expect(result.current.dialog?.primary).toEqual({ label: "Masuk", href: "/login" });
+    // Isian tetap; "Ubah email" menutup dialog tanpa request dan memfokus email.
+    act(() => click(result.current.dialog?.secondary));
+    expect(result.current.dialog).toBeUndefined();
+    expect(form().nik.value).toBe("3171000000000022");
+    expect(form().email.focusKey).toBe(1);
+  });
+
+  it("server galat (5xx): dialog pendaftaran gagal, coba lagi mengirim ulang", async () => {
+    let attempts = 0;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/auth/register`, () => {
+        attempts += 1;
+        if (attempts === 1)
+          return HttpResponse.json({ meta: { code: 500, message: "boom" } }, { status: 500 });
+        return HttpResponse.json({ meta: { code: 200, message: "ok" }, data: { user_id: "u" } });
+      }),
     );
-    await waitFor(() =>
-      expect(result.current.dialog?.kind === "confirm" && result.current.dialog.error).toBe(
-        "NIK ini sudah terdaftar di akun lain.",
+    const { form, fill, result } = mount();
+    fill({ email: "alex@example.com", nik: "3171000000000044", consent: true });
+    act(() => form().submit.onSubmit());
+    act(() => click(result.current.dialog?.primary));
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Pendaftaran gagal"));
+    expect(result.current.dialog?.secondary?.label).toBe("Tutup");
+    act(() => click(result.current.dialog?.primary));
+    await waitFor(() => expect(result.current.dialog?.tone).toBe("success"));
+    expect(attempts).toBe(2);
+  });
+
+  it("tanpa koneksi: dialog koneksi bermasalah", async () => {
+    server.use(http.post(`${MOCK_API_BASE_URL}/auth/register`, () => HttpResponse.error()));
+    const { form, fill, result } = mount();
+    fill({ email: "alex@example.com", nik: "3171000000000044", consent: true });
+    act(() => form().submit.onSubmit());
+    act(() => click(result.current.dialog?.primary));
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Koneksi bermasalah"));
+  });
+
+  it("NIK ditolak Dukcapil (400): dialog Periksa NIK, Ubah data memfokus field NIK", async () => {
+    const { form, fill, result } = mount();
+    fill({ email: "alex@example.com", nik: "3171000000000099", consent: true });
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/auth/register`, () =>
+        HttpResponse.json({ meta: { code: 400, message: "NIK invalid" } }, { status: 400 }),
       ),
     );
-    // Galat membuka kunci tanpa menghapus isian; "Ubah data" kembali ke form tanpa request.
-    expect(form().nik.value).toBe("3171000000000022");
-    act(() => (result.current.dialog?.kind === "confirm" ? result.current.dialog.edit.onClick() : undefined));
-    expect(result.current.dialog).toBeUndefined();
+    act(() => form().submit.onSubmit());
+    act(() => click(result.current.dialog?.primary));
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Periksa NIK-mu"));
+    act(() => click(result.current.dialog?.primary));
+    expect(form().nik.focusKey).toBe(1);
   });
 });

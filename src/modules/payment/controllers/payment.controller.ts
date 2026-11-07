@@ -1,9 +1,15 @@
 "use client";
 
-// Pembayaran dan status pasca-bayar. Requirement: FR-20–25, BR-05–06. ADR-0005 (timer), ADR-0006 (Midtrans via BE),
-// ADR-0016 (status lewat polling). Desain: "Satu langkah menuju panggung." (langkah 2 dari 3).
+/**
+ * @file payment.controller.ts
+ * @description Payment Controller - mengelola state dan logic halaman pembayaran.
+ *
+ * Requirements: FR-20–25, BR-05–06
+ * ADR-0005 (timer), ADR-0006 (Midtrans via BE), ADR-0016 (status lewat polling)
+ * Desain: "Satu langkah menuju panggung." (langkah 2 dari 3)
+ */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
@@ -11,7 +17,7 @@ import { serverOffsetMs } from "@/core/domain/time/remaining-ms.utils";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
-import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
@@ -21,17 +27,57 @@ import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentViewProps } from "./payment.mapper";
 import type { PaymentViewProps } from "../views/PaymentView";
 
+/* ========================================================================== */
+/*                                   Types                                    */
+/* ========================================================================== */
+
+/** Screen state untuk payment page */
 export type PaymentScreen =
-  { kind: "payment"; view: PaymentViewProps } | { kind: "status"; view: StatusViewProps };
+  | { readonly kind: "payment"; readonly view: PaymentViewProps }
+  | { readonly kind: "status"; readonly view: StatusViewProps };
 
-function errorKey(error: AppError): MessageKey {
-  return error.kind === "network" ? "payment.error.network" : "payment.error.unknown";
-}
+/** Mutation input untuk pembayaran */
+type PayMutationInput = {
+  readonly selected: PaymentMethod;
+  readonly selectedBank?: BankCode;
+};
 
-const COPIED_FEEDBACK_MS = 2_000;
+/* ========================================================================== */
+/*                                 Constants                                  */
+/* ========================================================================== */
 
-export function usePaymentController(orderId: string): PaymentScreen {
+/** Durasi feedback "Copied!" dalam milliseconds */
+const COPIED_FEEDBACK_DURATION_MS = 2_000;
+
+/* ========================================================================== */
+/*                             Helper Functions                               */
+/* ========================================================================== */
+
+/**
+ * Menentukan message key berdasarkan jenis error.
+ */
+const getErrorMessageKey = (error: AppError): MessageKey => {
+  if (error.kind === "network") {
+    return "payment.error.network";
+  }
+  return "payment.error.unknown";
+};
+
+/* ========================================================================== */
+/*                              Controller Hook                               */
+/* ========================================================================== */
+
+/**
+ * Payment Controller Hook - mengelola semua state dan logic halaman pembayaran.
+ *
+ * @param orderId - ID order yang akan dibayar
+ * @returns PaymentScreen - state untuk rendering (payment view atau status view)
+ */
+export const usePaymentController = (orderId: string): PaymentScreen => {
+  const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
+
+  // Dependencies dari DI container
   const {
     getOrderUseCase,
     getAvailableMethodsUseCase,
@@ -43,110 +89,210 @@ export function usePaymentController(orderId: string): PaymentScreen {
     appConfig,
   } = useDependencies<PaymentDependencies & CoreDependencies>();
 
-  const query = useQuery(orderQuery({ getOrderUseCase, random }, orderId));
-  const order = query.data;
-  const methods = useQuery({
+  /* ======================================================================== */
+  /*                                 Queries                                  */
+  /* ======================================================================== */
+
+  // Query untuk order data dengan polling
+  const orderQueryResult = useQuery(orderQuery({ getOrderUseCase, random }, orderId));
+  const orderData = orderQueryResult.data;
+
+  // Query untuk available payment methods
+  const methodsQueryResult = useQuery({
     queryKey: ["payment", "methods", orderId],
     queryFn: () => getAvailableMethodsUseCase(orderId),
-    enabled: Boolean(order) && !isFinalOrder(order as Order),
+    enabled: orderData != null && !isFinalOrder(orderData),
   });
-  // Detail event hanya pelengkap kartu samping; gagal memuatnya tidak menghentikan pembayaran.
-  const event = useQuery({
-    queryKey: ["payment", "event", order?.eventId],
-    queryFn: () => getPaymentEventUseCase(order?.eventId ?? ""),
-    enabled: Boolean(order?.eventId),
+
+  // Query untuk event detail (pelengkap kartu samping, opsional)
+  const eventQueryResult = useQuery({
+    queryKey: ["payment", "event", orderData?.eventId],
+    queryFn: () => getPaymentEventUseCase(orderData?.eventId ?? ""),
+    enabled: orderData?.eventId != null,
     staleTime: Infinity,
   });
 
-  const [method, setMethod] = useState<PaymentMethod | null>(null);
-  const [bank, setBank] = useState<BankCode | null>(null);
-  const [bankMissing, setBankMissing] = useState(false);
-  const [copied, setCopied] = useState(false);
+  /* ======================================================================== */
+  /*                               Local State                                */
+  /* ======================================================================== */
 
-  const setOrder = (next: Order) => queryClient.setQueryData(orderKeys.detail(orderId), next);
-  // Pembayaran yang gagal dibatalkan dulu lalu dimulai ulang dengan metode baru (kontrak `/retry`, BR-06).
-  const pay = useMutation({
-    mutationFn: ({ selected, selectedBank }: { selected: PaymentMethod; selectedBank?: BankCode }) =>
-      order?.status === "FAILED"
-        ? retryPaymentUseCase({ bookingId: orderId, method: selected, bank: selectedBank })
-        : startPaymentUseCase({ bookingId: orderId, method: selected, bank: selectedBank }),
-    onSuccess: setOrder,
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [selectedBank, setSelectedBank] = useState<BankCode | null>(null);
+  const [isBankMissing, setIsBankMissing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  /* ======================================================================== */
+  /*                                Mutations                                 */
+  /* ======================================================================== */
+
+  // Callback untuk update order di cache
+  const updateOrderCache = useCallback(
+    (updatedOrder: Order) => {
+      queryClient.setQueryData(orderKeys.detail(orderId), updatedOrder);
+    },
+    [queryClient, orderId],
+  );
+
+  // Mutation untuk memulai atau retry pembayaran
+  const payMutation = useMutation({
+    mutationFn: ({ selected, selectedBank: bank }: PayMutationInput) => {
+      // Jika order FAILED, gunakan retry flow (BR-06)
+      if (orderData?.status === "FAILED") {
+        return retryPaymentUseCase({
+          bookingId: orderId,
+          method: selected,
+          bank,
+        });
+      }
+      // Normal flow: start payment
+      return startPaymentUseCase({
+        bookingId: orderId,
+        method: selected,
+        bank,
+      });
+    },
+    onSuccess: updateOrderCache,
   });
-  const simulate = useMutation({
+
+  // Mutation untuk simulasi pembayaran (mock mode only)
+  const simulateMutation = useMutation({
     mutationFn: (outcome: "PAID" | "FAILED") => simulatePaymentUseCase(orderId, outcome),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+    },
   });
 
-  const offsetMs = order ? serverOffsetMs(Date.parse(order.paymentTtl.serverTime), query.dataUpdatedAt) : 0;
-  const active = order && order.status !== "PAID" && order.status !== "EXPIRED";
-  const remainingMs = useCountdown(active ? order.paymentTtl.expiresAt : undefined, offsetMs);
-  useAskServerAtExpiry(active ? order.paymentTtl.expiresAt : undefined, remainingMs, query.refetch);
+  /* ======================================================================== */
+  /*                           Countdown & Timer                              */
+  /* ======================================================================== */
 
-  if (!order) {
-    if (query.isError) {
+  // Hitung offset waktu server vs client
+  const serverTimeOffset =
+    orderData != null
+      ? serverOffsetMs(Date.parse(orderData.paymentTtl.serverTime), orderQueryResult.dataUpdatedAt)
+      : 0;
+
+  // Tentukan apakah countdown aktif
+  const isOrderActive = orderData != null && orderData.status !== "PAID" && orderData.status !== "EXPIRED";
+
+  const expiresAt = isOrderActive ? orderData.paymentTtl.expiresAt : undefined;
+
+  // Hook countdown
+  const remainingTimeMs = useCountdown(expiresAt, serverTimeOffset);
+
+  // Hook untuk refresh saat TTL hampir habis
+  useAskServerAtExpiry(expiresAt, remainingTimeMs, orderQueryResult.refetch);
+
+  /* ======================================================================== */
+  /*                           Loading & Error States                         */
+  /* ======================================================================== */
+
+  if (orderData == null) {
+    // Error state
+    if (orderQueryResult.isError) {
+      const appError = toAppError(orderQueryResult.error);
       return {
         kind: "status",
         view: {
+          ...siteChrome,
           title: t("payment.error.title"),
-          message: t(errorKey(toAppError(query.error))),
+          message: t(getErrorMessageKey(appError)),
           tone: "error",
         },
       };
     }
+
+    // Loading state
     return {
       kind: "status",
-      view: { title: t("payment.title"), message: t("payment.loading"), tone: "neutral" },
+      view: {
+        ...siteChrome,
+        title: t("payment.title"),
+        message: t("payment.loading"),
+        tone: "neutral",
+      },
     };
   }
 
-  const copy = (text: string) => {
-    void navigator.clipboard?.writeText(text).catch(() => undefined);
-    setCopied(true);
-    setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+  /* ======================================================================== */
+  /*                              Event Handlers                              */
+  /* ======================================================================== */
+
+  /** Handler untuk copy VA number ke clipboard */
+  const handleCopyToClipboard = (textToCopy: string) => {
+    void navigator.clipboard?.writeText(textToCopy).catch(() => {
+      // Silently fail if clipboard API not available
+    });
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), COPIED_FEEDBACK_DURATION_MS);
   };
+
+  /** Handler untuk memilih metode pembayaran */
+  const handleMethodSelect = (method: PaymentMethod) => {
+    setSelectedMethod(method);
+    setIsBankMissing(false);
+  };
+
+  /** Handler untuk memilih bank */
+  const handleBankSelect = (bank: BankCode) => {
+    setSelectedBank(bank);
+    setIsBankMissing(false);
+  };
+
+  /** Handler untuk submit pembayaran */
+  const handlePaySubmit = () => {
+    if (selectedMethod == null) {
+      return;
+    }
+
+    // Validasi: bank wajib untuk transfer
+    if (selectedMethod === "bank_transfer" && selectedBank == null) {
+      setIsBankMissing(true);
+      return;
+    }
+
+    // Submit payment
+    payMutation.mutate({
+      selected: selectedMethod,
+      selectedBank: selectedMethod === "bank_transfer" ? (selectedBank ?? undefined) : undefined,
+    });
+  };
+
+  /* ======================================================================== */
+  /*                              Return View Props                           */
+  /* ======================================================================== */
+
+  // Build mock controls (hanya muncul di mock mode)
+  const mockControls = appConfig.mocking
+    ? {
+        onSuccess: () => simulateMutation.mutate("PAID"),
+        onFail: () => simulateMutation.mutate("FAILED"),
+        busy: simulateMutation.isPending,
+      }
+    : undefined;
+
+  // Build error message
+  const errorMessage = payMutation.isError ? t(getErrorMessageKey(toAppError(payMutation.error))) : undefined;
 
   return {
     kind: "payment",
     view: toPaymentViewProps({
-      chrome: toSiteChrome(),
-      order,
-      event: event.data,
-      methods: methods.data ?? [],
-      selectedMethod: method,
-      selectedBank: bank,
-      bankMissing,
-      remainingMs: remainingMs ?? 0,
-      paying: pay.isPending,
-      copied,
-      error: pay.isError ? t(errorKey(toAppError(pay.error))) : undefined,
-      onSelectMethod: (selected) => {
-        setMethod(selected);
-        setBankMissing(false);
-      },
-      onSelectBank: (selected) => {
-        setBank(selected);
-        setBankMissing(false);
-      },
-      onPay: () => {
-        if (!method) return;
-        if (method === "bank_transfer" && !bank) {
-          setBankMissing(true);
-          return;
-        }
-        pay.mutate({
-          selected: method,
-          selectedBank: method === "bank_transfer" ? (bank ?? undefined) : undefined,
-        });
-      },
-      onCopy: copy,
-      // Kontrol simulasi hanya muncul saat API dimock; di backend asli tombolnya tidak ada.
-      mock: appConfig.mocking
-        ? {
-            onSuccess: () => simulate.mutate("PAID"),
-            onFail: () => simulate.mutate("FAILED"),
-            busy: simulate.isPending,
-          }
-        : undefined,
+      chrome: siteChrome,
+      order: orderData,
+      event: eventQueryResult.data,
+      methods: methodsQueryResult.data ?? [],
+      selectedMethod,
+      selectedBank,
+      bankMissing: isBankMissing,
+      remainingMs: remainingTimeMs ?? 0,
+      paying: payMutation.isPending,
+      copied: isCopied,
+      error: errorMessage,
+      onSelectMethod: handleMethodSelect,
+      onSelectBank: handleBankSelect,
+      onPay: handlePaySubmit,
+      onCopy: handleCopyToClipboard,
+      mock: mockControls,
     }),
   };
-}
+};

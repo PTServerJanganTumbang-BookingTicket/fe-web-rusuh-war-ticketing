@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AuthCard } from "@/components/ui/layout/AuthCard";
 import { EventCover } from "@/components/ui/layout/EventCover";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 
 type LinkProps = { label: string; href: string };
 
@@ -21,7 +22,14 @@ export type VerifyScreenProps =
       /** Token baru dipakai saat ditekan, supaya pemindai email tidak menghanguskannya (ADR-0023 usulan 2). */
       confirm: { label: string; busy: boolean; onClick: () => void };
     }
-  | { kind: "failed"; heading: string; message: string; requestNew: LinkProps }
+  | {
+      kind: "failed";
+      heading: string;
+      message: string;
+      requestNew: LinkProps;
+      /** Modal "Link login gagal" saat link sudah dipakai atau kedaluwarsa. */
+      dialog?: ActionDialogProps;
+    }
   | {
       kind: "done";
       heading: string;
@@ -37,6 +45,7 @@ export function VerifyLoginView({ nav, footer, ...screen }: VerifyLoginViewProps
   return (
     <SiteShell nav={nav} footer={footer}>
       <VerifyScreen {...screen} />
+      {screen.kind === "failed" && screen.dialog ? <ActionDialog {...screen.dialog} /> : null}
     </SiteShell>
   );
 }

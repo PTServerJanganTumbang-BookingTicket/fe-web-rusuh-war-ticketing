@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ScreenLoading } from "@/core/views/ScreenLoading";
 import { t } from "@/core/i18n/t.utils";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useHomeController } from "../controllers/home.controller";
 import { toEventCardProps } from "../controllers/event-card.mapper";
 import { HomeView } from "./HomeView";
@@ -24,6 +25,7 @@ export function CatalogContainer() {
 
 function CatalogContent() {
   const { events, isLoading, error } = useHomeController();
+  const { nav } = useSiteChrome({ active: "/" });
   const eventCards = events.map(toEventCardProps);
 
   const getErrorMessage = (): string | undefined => {
@@ -34,15 +36,7 @@ function CatalogContent() {
 
   return (
     <HomeView
-      nav={{
-        items: [
-          { label: t("home.nav.explore"), href: "/", active: true },
-          { label: t("home.nav.myTickets"), href: "/tickets" },
-          { label: t("home.nav.help"), href: "/help" },
-        ],
-        loginHref: "/login",
-        loginLabel: t("home.login"),
-      }}
+      nav={nav}
       hero={{
         eyebrow: t("home.hero.eyebrow"),
         headline: t("home.hero.headline"),

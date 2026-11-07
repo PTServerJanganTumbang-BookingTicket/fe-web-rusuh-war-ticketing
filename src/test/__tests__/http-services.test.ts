@@ -417,3 +417,142 @@ describe("queueUpdatesService", () => {
     expect(next).toHaveBeenCalledWith({ status: "ended", eventName: "", reason: "closed" });
   });
 });
+
+describe("savedNikService dan profileService", () => {
+  it("update mengirim PATCH berisi label, dan NIK hanya bila diganti", async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, async ({ request, params }) => {
+        bodies.push({ id: params.id, body: await request.json() });
+        return envelope({});
+      }),
+    );
+    const { savedNikService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_alias");
+    await savedNikService.update("snk_1", { label: "Budi", nik: "" });
+    await savedNikService.update("snk_1", { label: "Budi", nik: "3171000000000044" });
+    expect(bodies).toEqual([
+      { id: "snk_1", body: { label: "Budi" } },
+      { id: "snk_1", body: { label: "Budi", nik: "3171000000000044" } },
+    ]);
+  });
+
+  it("update: NIK sudah tersimpan di alias lain menjadi SAVED_NIK_REJECTED", async () => {
+    server.use(
+      http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, () =>
+        envelope({}, 409, "NIK already saved"),
+      ),
+    );
+    const { savedNikService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_alias");
+    expect(await failureOf(savedNikService.update("snk_1", { label: "B", nik: "3171000000000044" }))).toEqual(
+      {
+        kind: "api",
+        code: "SAVED_NIK_REJECTED",
+        status: 409,
+      },
+    );
+  });
+
+  it("profil dari GET /accounts/me dipetakan ke model domain", async () => {
+    const { profileService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_profile");
+    expect(await profileService.get()).toEqual({
+      name: "JOHN DOE",
+      email: "you@example.com",
+      nikMasked: "3171********xx22",
+      memberSince: "2026-10-01T09:00:00Z",
+    });
+  });
+
+  it("profil tanpa sesi: UNAUTHENTICATED", async () => {
+    const { profileService } = setupTestContainer().cradle;
+    expect(await failureOf(profileService.get())).toEqual({
+      kind: "api",
+      code: "UNAUTHENTICATED",
+      status: 401,
+    });
+  });
+});
+
+describe("holderAliasService", () => {
+  it("hanya alias dengan NIK lengkap yang bisa dipilih", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
+        envelope({
+          max_entries: 5,
+          saved_niks: [
+            {
+              id: "snk_1",
+              nik: "3171000000000033",
+              nik_masked: "3171****33",
+              label: "Budi",
+              verified_at: "x",
+            },
+            { id: "snk_2", nik_masked: "3171****44", label: "Sari", verified_at: "x" },
+          ],
+        }),
+      ),
+    );
+    const { holderAliasService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_aliases");
+    expect(await holderAliasService.list()).toEqual([
+      { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171****33" },
+    ]);
+  });
+
+  it("tamu: UNAUTHENTICATED dari route same-origin", async () => {
+    const { holderAliasService } = setupTestContainer().cradle;
+    expect(await failureOf(holderAliasService.list())).toEqual({
+      kind: "api",
+      code: "UNAUTHENTICATED",
+      status: 401,
+    });
+  });
+});
+
+describe("ticketService.getETicket lewat sesi akun", () => {
+  it("tanpa token email: lewat route same-origin dengan Bearer", async () => {
+    let authorization: string | null = null;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/tickets/:id/eticket`, ({ request }) => {
+        authorization = request.headers.get("authorization");
+        return envelope({
+          ticket_id: "TKT-7",
+          event: { name: "Konser A", date: "2026-12-25", time: "19:00", venue: "GBK, Jakarta" },
+          category: "VIP",
+          holder: { nik_masked: "3171****22" },
+          qr_code: "data:image/png;base64,AAAA",
+          qr_value: "TKT-7|evt_konser_a|3171000000000022",
+          instructions: "Bawa KTP.",
+        });
+      }),
+    );
+    const { ticketService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_eticket");
+    const eticket = await ticketService.getETicket("TKT-7");
+    expect(authorization).toMatch(/^Bearer /);
+    expect(eticket.event).toMatchObject({ id: "evt_konser_a", time: "19:00" });
+  });
+
+  it("tiket tidak ada: TICKET_NOT_FOUND", async () => {
+    const { ticketService } = setupTestContainer().cradle;
+    expect(await failureOf(ticketService.getETicket("TKT-404", "signed"))).toEqual({
+      kind: "api",
+      code: "TICKET_NOT_FOUND",
+      status: 404,
+    });
+  });
+});
+
+describe("sessionAccountService", () => {
+  it("tamu: null; setelah masuk: akun dari cookie sesi", async () => {
+    const { sessionAccountService, authService } = setupTestContainer().cradle;
+    expect(await sessionAccountService.current()).toBeNull();
+    await authService.verify("mt_session");
+    expect(await sessionAccountService.current()).toEqual({
+      email: "you@example.com",
+      nikMasked: "3171********xx22",
+    });
+  });
+});

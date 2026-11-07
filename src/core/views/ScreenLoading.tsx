@@ -1,6 +1,7 @@
 import { t } from "@/core/i18n/t.utils";
-import { ScreenPlaceholder } from "@/components/ui/layout/ScreenPlaceholder";
+import { StatusView } from "@/components/ui/layout/StatusView";
 
+/** Fallback Suspense dan render pertama: header merek dan spinner, tanpa menu (status masuk belum diketahui). */
 export function ScreenLoading() {
-  return <ScreenPlaceholder title={t("common.loading")} description="" />;
+  return <StatusView tone="neutral" title={t("common.loading")} />;
 }
