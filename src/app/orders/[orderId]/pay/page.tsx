@@ -12,7 +12,8 @@
 
 import { Suspense } from "react";
 import { PaymentContainer } from "@/modules/payment/views/PaymentContainer";
-import { ScreenLoading } from "@/core/views/ScreenLoading";
+import { ScreenLoading } from "@/components/ui/layout/PageSkeleton";
+import { t } from "@/core/i18n/t.utils";
 
 /* ========================================================================== */
 /*                                   Types                                    */
@@ -57,7 +58,7 @@ const PaymentContent = async ({ params }: PaymentContentProps) => {
  */
 const PaymentPage = ({ params }: PaymentPageProps) => {
   return (
-    <Suspense fallback={<ScreenLoading />}>
+    <Suspense fallback={<ScreenLoading label={t("common.loading")} variant="checkout" />}>
       <PaymentContent params={params} />
     </Suspense>
   );

@@ -1,7 +1,19 @@
 import type { SessionAccount } from "@/core/domain/session-account.model";
 import { t } from "@/core/i18n/t.utils";
+import { isLocale, LOCALES, type Locale } from "@/core/i18n/locale.utils";
 
 export type NavAccount = { label: string; initials: string; href: string; ariaLabel: string };
+
+/**
+ * Pengganti bahasa di navbar. Kode bahasa pendek (`ID`, `EN`) tampil di tombol, nama lengkap di pilihan. Nilainya
+ * string biasa karena design system tidak mengenal `Locale`; nilai asing diabaikan.
+ */
+export type NavLanguage = {
+  label: string;
+  value: string;
+  options: { value: string; label: string; short: string }[];
+  onChange: (value: string) => void;
+};
 
 /** Navbar dan footer situs, sama dengan Home. Bentuknya cocok dengan `SiteShellProps` tanpa `children`. */
 export type SiteChrome = {
@@ -11,6 +23,8 @@ export type SiteChrome = {
     loginLabel: string;
     /** Ada saat customer masuk: navbar menampilkan akun, bukan tombol masuk. */
     account?: NavAccount;
+    /** Ada saat layar bisa berganti bahasa (client). */
+    language?: NavLanguage;
   };
   footer: { copyright: string; tagline: string };
 };
@@ -34,7 +48,14 @@ function shortName(email: string): string {
 export function toSiteChrome({
   account,
   active,
-}: { account?: SessionAccount | null; active?: string } = {}): SiteChrome {
+  locale,
+  onLocaleChange,
+}: {
+  account?: SessionAccount | null;
+  active?: string;
+  locale?: Locale;
+  onLocaleChange?: (locale: Locale) => void;
+} = {}): SiteChrome {
   return {
     nav: {
       items: [
@@ -52,6 +73,21 @@ export function toSiteChrome({
             ariaLabel: t("nav.account", { email: account.email }),
           }
         : undefined,
+      language:
+        locale && onLocaleChange
+          ? {
+              label: t("nav.language.label"),
+              value: locale,
+              options: LOCALES.map((value) => ({
+                value,
+                label: t(`nav.language.${value}`),
+                short: value.toUpperCase(),
+              })),
+              onChange: (value: string) => {
+                if (isLocale(value)) onLocaleChange(value);
+              },
+            }
+          : undefined,
     },
     footer: { copyright: t("home.footer.copyright"), tagline: t("home.footer.tagline") },
   };
