@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Button } from "../primitives/Button";
+import { cn } from "../cn.utils";
+import { UserRoundIcon } from "../icons";
 
 export type NavItem = {
   label: string;
@@ -22,9 +24,49 @@ export type NavbarProps = {
   loginLabel: string;
   /** Ada saat customer masuk; menggantikan tombol masuk. */
   account?: NavbarAccount;
+  /** Pengganti bahasa. Tidak ada di header merek (fallback memuat). */
+  language?: NavbarLanguage;
 };
 
-export function Navbar({ items, loginHref, loginLabel, account }: NavbarProps) {
+export type NavbarLanguage = {
+  /** Nama grup untuk pembaca layar, misalnya "Bahasa". */
+  label: string;
+  value: string;
+  options: { value: string; label: string; short: string }[];
+  onChange: (value: string) => void;
+};
+
+/** Tombol bahasa bersebelahan (ID | EN). Pilihan aktif ditandai `aria-pressed`; nama lengkap ada di `aria-label`. */
+function LanguageSwitch({ label, value, options, onChange }: NavbarLanguage) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="flex h-9 items-center rounded-full border border-border p-0.5 text-xs font-semibold"
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={selected}
+            aria-label={option.label}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "h-full min-w-9 rounded-full px-2 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+              selected ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-primary",
+            )}
+          >
+            {option.short}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Navbar({ items, loginHref, loginLabel, account, language }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -40,42 +82,33 @@ export function Navbar({ items, loginHref, loginLabel, account }: NavbarProps) {
             </Link>
           ))}
         </nav>
-        {account ? (
-          <Link
-            href={account.href}
-            aria-label={account.ariaLabel}
-            className="flex min-h-11 items-center gap-2 rounded-full border border-border py-1 pr-1 pl-1 transition-colors hover:border-primary/50 sm:pr-4"
-          >
-            <span
-              aria-hidden="true"
-              className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+        <div className="flex items-center gap-2 sm:gap-3">
+          {language ? <LanguageSwitch {...language} /> : null}
+          {account ? (
+            <Link
+              href={account.href}
+              aria-label={account.ariaLabel}
+              className="flex min-h-11 items-center gap-2 rounded-full border border-border py-1 pr-1 pl-1 transition-colors hover:border-primary/50 sm:pr-4"
             >
-              {account.initials}
-            </span>
-            <span className="hidden max-w-40 truncate text-sm font-medium text-foreground sm:inline">
-              {account.label}
-            </span>
-          </Link>
-        ) : (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={loginHref}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              <span
+                aria-hidden="true"
+                className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
               >
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              {loginLabel}
+                {account.initials}
+              </span>
+              <span className="hidden max-w-40 truncate text-sm font-medium text-foreground sm:inline">
+                {account.label}
+              </span>
             </Link>
-          </Button>
-        )}
+          ) : (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={loginHref}>
+                <UserRoundIcon className="size-4" />
+                {loginLabel}
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon } from "../icons";
 import { cn } from "../cn.utils";
 
 export type Crumb = { label: string; href?: string };

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarIcon, MapPinIcon, TimerIcon } from "lucide-react";
+import { CalendarIcon, MapPinIcon, TimerIcon } from "../icons";
 import { Badge } from "../badge";
 import { Card, CardContent } from "../card";
 import { cn } from "../cn.utils";

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer";
-import { XIcon } from "lucide-react";
+import { XIcon } from "./icons";
 import { cn } from "./cn.utils";
 import { Button } from "./button";
 
