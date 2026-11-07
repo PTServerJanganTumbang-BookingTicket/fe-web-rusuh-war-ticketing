@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { CalendarIcon, IdCardIcon, InfoIcon, MapPinIcon, QrCodeIcon, TicketIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  IdCardIcon,
+  InfoIcon,
+  MapPinIcon,
+  QrCodeIcon,
+  TicketIcon,
+} from "@/components/ui/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/primitives/Badge";

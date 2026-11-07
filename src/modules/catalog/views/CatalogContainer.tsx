@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ScreenLoading } from "@/core/views/ScreenLoading";
+import { ScreenLoading } from "@/components/ui/layout/PageSkeleton";
 import { t } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useHomeController } from "../controllers/home.controller";
@@ -17,7 +17,7 @@ export function CatalogContainer() {
   }, []);
 
   if (!mounted) {
-    return <ScreenLoading />;
+    return <ScreenLoading label={t("common.loading")} variant="list" />;
   }
 
   return <CatalogContent />;
@@ -30,7 +30,6 @@ function CatalogContent() {
 
   const getErrorMessage = (): string | undefined => {
     if (error) return t("home.error");
-    if (isLoading && events.length === 0) return t("common.loading");
     return undefined;
   };
 
@@ -54,6 +53,7 @@ function CatalogContent() {
       }}
       emptyLabel={t("home.empty")}
       errorMessage={getErrorMessage()}
+      loading={isLoading && events.length === 0 && !error ? t("common.loading") : undefined}
     />
   );
 }

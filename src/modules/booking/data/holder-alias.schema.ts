@@ -8,11 +8,27 @@ import type { HolderAlias } from "../domain/holder-alias.model";
 export const holderAliasListSchema = z
   .object({
     saved_niks: z.array(
-      z.object({ id: z.string(), label: z.string(), nik_masked: z.string(), nik: z.string().optional() }),
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        name: z.string().nullish(),
+        nik_masked: z.string(),
+        nik: z.string().optional(),
+      }),
     ),
   })
   .transform((list): HolderAlias[] =>
     list.saved_niks.flatMap((saved) =>
-      saved.nik ? [{ id: saved.id, label: saved.label, nik: saved.nik, nikMasked: saved.nik_masked }] : [],
+      saved.nik
+        ? [
+            {
+              id: saved.id,
+              label: saved.label,
+              name: saved.name?.trim() || null,
+              nik: saved.nik,
+              nikMasked: saved.nik_masked,
+            },
+          ]
+        : [],
     ),
   );

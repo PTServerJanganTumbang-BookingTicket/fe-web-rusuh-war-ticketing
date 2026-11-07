@@ -112,6 +112,7 @@ export function useTicketDetailController(ticketId: string, accessToken?: string
       title: t("ticket.eticket.title"),
       message: t("ticket.detail.loading"),
       tone: "neutral",
+      skeleton: "ticket",
     },
   };
 }

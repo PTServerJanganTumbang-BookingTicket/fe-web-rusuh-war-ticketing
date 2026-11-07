@@ -18,7 +18,7 @@ import {
   TimerOffIcon,
   WalletIcon,
   ZapIcon,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/layout/CheckoutCards";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 import { FakeQr } from "./FakeQr";
 
 /* ========================================================================== */
@@ -163,6 +164,8 @@ export type PaymentViewProps = Omit<SiteShellProps, "children"> & {
     readonly onClick: () => void;
   };
   readonly terms?: string;
+  /** Modal galat bayar (koneksi atau respons asing) dengan aksi coba lagi. */
+  readonly dialog?: ActionDialogProps;
 };
 
 /* ========================================================================== */
@@ -442,7 +445,8 @@ const PaymentResult = ({ stage }: PaymentResultProps) => {
  * Menampilkan header, countdown, stage pembayaran, dan ringkasan order.
  */
 export const PaymentView = (props: PaymentViewProps) => {
-  const { nav, footer, header, order, countdown, error, stage, secure, event, summary, pay, terms } = props;
+  const { nav, footer, header, order, countdown, error, stage, secure, event, summary, pay, terms, dialog } =
+    props;
 
   const renderPayButton = () => {
     if (pay == null) return null;
@@ -543,6 +547,7 @@ export const PaymentView = (props: PaymentViewProps) => {
           </div>
         </div>
       )}
+      {dialog != null && <ActionDialog {...dialog} />}
     </SiteShell>
   );
 };

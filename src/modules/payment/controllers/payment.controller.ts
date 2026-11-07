@@ -18,6 +18,8 @@ import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
+import { isUnexpectedError, toRequestFailedDialog } from "@/core/controllers/common-dialogs.mapper";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
@@ -76,6 +78,8 @@ const getErrorMessageKey = (error: AppError): MessageKey => {
 export const usePaymentController = (orderId: string): PaymentScreen => {
   const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
+  // Galat tanpa respons atau respons asing saat membayar jadi modal "coba lagi"; pilihan metode tetap tersimpan.
+  const payModal = useModal<{ kind: "payFailed"; input: PayMutationInput }>();
 
   // Dependencies dari DI container
   const {
@@ -151,7 +155,13 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
         bank,
       });
     },
-    onSuccess: updateOrderCache,
+    onSuccess: (updatedOrder) => {
+      payModal.close();
+      updateOrderCache(updatedOrder);
+    },
+    onError: (failure, input) => {
+      if (isUnexpectedError(toAppError(failure))) payModal.open({ kind: "payFailed", input });
+    },
   });
 
   // Mutation untuk simulasi pembayaran (mock mode only)
@@ -210,6 +220,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
         title: t("payment.title"),
         message: t("payment.loading"),
         tone: "neutral",
+        skeleton: "checkout",
       },
     };
   }
@@ -271,28 +282,41 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
       }
     : undefined;
 
-  // Build error message
-  const errorMessage = payMutation.isError ? t(getErrorMessageKey(toAppError(payMutation.error))) : undefined;
+  // Galat yang sudah tampil sebagai modal tidak diulang di halaman.
+  const payError = payMutation.isError ? toAppError(payMutation.error) : null;
+  const errorMessage = payError && !payModal.modal ? t(getErrorMessageKey(payError)) : undefined;
+  const openModal = payModal.modal;
+  const dialog: ActionDialogModel | undefined =
+    openModal && payError
+      ? toRequestFailedDialog(payError, {
+          onRetry: () => payMutation.mutate(openModal.input),
+          onDismiss: payModal.close,
+          retrying: payMutation.isPending,
+        })
+      : undefined;
 
   return {
     kind: "payment",
-    view: toPaymentViewProps({
-      chrome: siteChrome,
-      order: orderData,
-      event: eventQueryResult.data,
-      methods: methodsQueryResult.data ?? [],
-      selectedMethod,
-      selectedBank,
-      bankMissing: isBankMissing,
-      remainingMs: remainingTimeMs ?? 0,
-      paying: payMutation.isPending,
-      copied: isCopied,
-      error: errorMessage,
-      onSelectMethod: handleMethodSelect,
-      onSelectBank: handleBankSelect,
-      onPay: handlePaySubmit,
-      onCopy: handleCopyToClipboard,
-      mock: mockControls,
-    }),
+    view: {
+      ...toPaymentViewProps({
+        chrome: siteChrome,
+        order: orderData,
+        event: eventQueryResult.data,
+        methods: methodsQueryResult.data ?? [],
+        selectedMethod,
+        selectedBank,
+        bankMissing: isBankMissing,
+        remainingMs: remainingTimeMs ?? 0,
+        paying: payMutation.isPending,
+        copied: isCopied,
+        error: errorMessage,
+        onSelectMethod: handleMethodSelect,
+        onSelectBank: handleBankSelect,
+        onPay: handlePaySubmit,
+        onCopy: handleCopyToClipboard,
+        mock: mockControls,
+      }),
+      dialog,
+    },
   };
 };

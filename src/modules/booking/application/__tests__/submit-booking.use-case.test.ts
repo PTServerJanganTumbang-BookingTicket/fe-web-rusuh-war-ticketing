@@ -54,7 +54,9 @@ describe("createSubmitBookingUseCase", () => {
 
 describe("createListHolderAliasesUseCase", () => {
   it("mengembalikan alias dari HolderAliasProtocol", async () => {
-    const aliases = [{ id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171****33" }];
+    const aliases = [
+      { id: "snk_1", label: "Budi", name: null, nik: "3171000000000033", nikMasked: "3171****33" },
+    ];
     const listHolderAliasesUseCase = createListHolderAliasesUseCase({
       holderAliasService: { list: async () => aliases },
     });

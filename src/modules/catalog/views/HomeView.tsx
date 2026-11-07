@@ -1,5 +1,6 @@
 import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
+import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
 import { HeroSection } from "./HeroSection";
 import { EventCard, type EventCardProps } from "./EventCard";
 
@@ -23,9 +24,12 @@ export type HomeViewProps = {
   };
   emptyLabel?: string;
   errorMessage?: string;
+  /** Teks status memuat untuk pembaca layar; selama ada, kartu event tampil sebagai kerangka. */
+  loading?: string;
 };
 
-export function HomeView({ nav, hero, eventList, events, footer, emptyLabel, errorMessage }: HomeViewProps) {
+export function HomeView(props: HomeViewProps) {
+  const { nav, hero, eventList, events, footer, emptyLabel, errorMessage, loading } = props;
   return (
     <div className="flex min-h-screen flex-col bg-signal-disable">
       <Navbar {...nav} />
@@ -39,7 +43,13 @@ export function HomeView({ nav, hero, eventList, events, footer, emptyLabel, err
           {errorMessage && (
             <div className="rounded-lg bg-signal-bg-error p-4 text-signal-error">{errorMessage}</div>
           )}
-          {!errorMessage && events.length === 0 && (
+          {loading ? (
+            <div role="status" aria-live="polite" aria-busy="true">
+              <span className="sr-only">{loading}</span>
+              <CardGridSkeleton />
+            </div>
+          ) : null}
+          {!loading && !errorMessage && events.length === 0 && (
             <p className="type-body1 text-muted-foreground">{emptyLabel}</p>
           )}
           {events.length > 0 && (

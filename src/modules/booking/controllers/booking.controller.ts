@@ -153,6 +153,7 @@ export function useBookingController(eventId: string): BookingScreen {
         title: t("booking.title"),
         message: t("booking.loading"),
         tone: "neutral",
+        skeleton: "checkout",
       },
     };
   }

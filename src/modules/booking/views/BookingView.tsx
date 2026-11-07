@@ -1,5 +1,5 @@
 import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
-import { ArrowRightIcon, IdCardIcon, InfoIcon } from "lucide-react";
+import { ArrowRightIcon, IdCardIcon, InfoIcon } from "@/components/ui/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
