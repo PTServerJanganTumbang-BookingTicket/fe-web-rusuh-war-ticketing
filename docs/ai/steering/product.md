@@ -28,4 +28,4 @@ Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumbe
 
 ## Bahasa
 
-UI dalam Bahasa Indonesia lewat `src/core/i18n`. Tidak ada string UI yang di-hardcode di komponen.
+UI dalam Bahasa Indonesia lewat `src/core/i18n`. Tidak ada string UI yang di-hardcode di komponen. Bahasa Indonesia adalah bawaan; Inggris tersedia lewat tombol ID/EN di navbar (pilihan disimpan di perangkat) dan saat ini mencakup Detail Ticket, profil, e-tiket, Tiket saya, dialog, serta navbar dan footer. Key yang belum diterjemahkan tampil dalam Bahasa Indonesia. Key baru di `id.messages.ts` untuk layar itu wajib punya padanan di `en.messages.ts` (dicek test).

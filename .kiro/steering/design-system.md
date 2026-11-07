@@ -1,7 +1,7 @@
 ---
 inclusion: auto
 name: Design System
-description: Panduan penggunaan Telkomsel Signal Design System (Shadcn + Radix + Signal Theme). Aktifkan saat menulis komponen di src/components/ui, src/modules/<m>/views, atau src/core/views.
+description: Panduan penggunaan Telkomsel Signal Design System (Shadcn + Radix + Signal Theme). Aktifkan saat menulis komponen di src/components/ui, atau src/modules/<m>/views.
 ---
 
 # Design System Guideline — Telkomsel Signal DS

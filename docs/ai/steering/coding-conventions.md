@@ -39,7 +39,7 @@ Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen Rea
 
 ## Komponen
 
-- Komponen design system (`src/core/views/design-system`) dan view modul memakai komponen Signal DS sebagai dasar. Tailwind hanya untuk layout dan spacing yang tidak disediakan Signal.
+- Komponen design system (`src/components/ui`) dan view modul memakai komponen Signal DS sebagai dasar. Tailwind hanya untuk layout dan spacing yang tidak disediakan Signal.
 - Token warna dan tipografi diambil dari preset Signal, bukan nilai hex langsung.
 - Komponen fungsi saja (tanpa class). Satu-satunya pengecualian adalah error boundary, karena React belum menyediakan versi hook.
 - Props komponen primitif memperluas atribut HTML bawaan (`React.ComponentProps<"button">`) dan meneruskan `...rest` ke elemen akar.
@@ -49,9 +49,9 @@ Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen Rea
 
 ## Token desain
 
-- Warna, radius, dan tipografi lewat token Signal DS: `bg-primary`, `text-muted-foreground`, `border`, `bg-signal-bg-valid`, `text-signal-error`, `bg-brand`. Nilainya ada di satu tempat, `src/core/views/design-system/signal.css` (ADR-0012).
+- Warna, radius, dan tipografi lewat token Signal DS: `bg-primary`, `text-muted-foreground`, `border`, `bg-signal-bg-valid`, `text-signal-error`, `bg-brand`. Nilainya ada di satu tempat, `src/components/ui/signal.css` (ADR-0012).
 - Tipografi memakai kelas skala Signal: `type-h1`…`type-h6` (Telkomsel Batik Sans) dan `type-title`, `type-body1`, `type-body2` (Poppins), bukan ukuran font ad hoc.
-- Tidak ada hex, `rgb()`, atau nama warna Tailwind mentah (`violet-700`) di `src/core/views` dan `src/modules/<m>/views`.
+- Tidak ada hex, `rgb()`, atau nama warna Tailwind mentah (`violet-700`) di `src/components/ui` dan `src/modules/<m>/views`.
 - Elemen interaktif dan wadah dibangun dari primitif (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`). Varian Signal baru ditambahkan ke primitif, bukan ditulis ulang di view.
 - Wireframe adalah referensi struktur dan isi, **bukan** desain visual. Target visual adalah Telkomsel Signal DS.
 
