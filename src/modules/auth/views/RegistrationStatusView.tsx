@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleCheckIcon, MailIcon } from "lucide-react";
+import { CircleCheckIcon, MailIcon } from "@/components/ui/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn.utils";
 import { Spinner } from "@/components/ui/spinner";

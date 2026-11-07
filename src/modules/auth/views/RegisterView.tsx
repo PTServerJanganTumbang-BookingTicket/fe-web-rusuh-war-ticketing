@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useEffect, useRef, type FormEvent } from "react";
-import { UserPlusIcon } from "lucide-react";
+import { UserPlusIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
@@ -19,6 +19,8 @@ type TextField = {
   /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah email" di dialog. */
   focusKey?: number;
   onChange: (value: string) => void;
+  /** Galat bentuk tampil setelah field ditinggalkan, bukan saat masih diketik. */
+  onBlur?: () => void;
 };
 
 export type RegisterFormProps = {
@@ -30,7 +32,8 @@ export type RegisterFormProps = {
   name: TextField;
   consent: { label: string; checked: boolean; error?: string; onChange: (checked: boolean) => void };
   requiredNote: string;
-  submit: { label: string; busy: boolean; onSubmit: () => void };
+  /** `disabled` saat isian belum valid (email, NIK, persetujuan): tombol abu-abu dan tidak bisa diklik. */
+  submit: { label: string; busy: boolean; disabled: boolean; onSubmit: () => void };
   login: { prompt: string; label: string; href: string };
 };
 
@@ -69,6 +72,7 @@ function TextInput({
         aria-invalid={Boolean(field.error)}
         aria-describedby={describedBy || undefined}
         onChange={(event) => field.onChange(event.target.value)}
+        onBlur={field.onBlur}
         {...input}
       />
       {field.hint ? <FieldDescription id={`${id}-hint`}>{field.hint}</FieldDescription> : null}
@@ -90,7 +94,7 @@ function RegisterForm(props: RegisterFormProps) {
   const { heading, intro, email, nik, name, consent, requiredNote, submit, login } = props;
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    submit.onSubmit();
+    if (!submit.disabled) submit.onSubmit();
   };
   return (
     <AuthCard tone="info" icon={<UserPlusIcon />} title={heading} description={intro}>
@@ -124,7 +128,13 @@ function RegisterForm(props: RegisterFormProps) {
           </FieldLabel>
         </Field>
         {consent.error ? <FieldError id="register-consent-error">{consent.error}</FieldError> : null}
-        <Button type="submit" size="lg" className="w-full" disabled={submit.busy} aria-busy={submit.busy}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          disabled={submit.busy || submit.disabled}
+          aria-busy={submit.busy}
+        >
           {submit.busy ? <Spinner data-icon="inline-start" /> : null}
           {submit.label}
         </Button>

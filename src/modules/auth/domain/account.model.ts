@@ -11,10 +11,17 @@ export type Profile = { name: string; email: string; nikMasked: string; memberSi
  * Alias: NIK orang lain (atau milik sendiri) dengan nama panggilan, sudah diverifikasi Dukcapil saat disimpan
  * (design.md, kontrak `/accounts/me/saved-niks`). Kontrak menyebutnya saved NIK.
  */
-export type SavedNik = { id: string; nikMasked: string; label: string; verifiedAt: string };
+export type SavedNik = {
+  id: string;
+  nikMasked: string;
+  label: string;
+  /** Nama lengkap pemilik NIK sesuai KTP. Asumsi FE (docs/api/contract-assumptions.md); `null` bila BE belum mengirim. */
+  name: string | null;
+  verifiedAt: string;
+};
 
 /** Isian form alias setelah dirapikan. Saat mengubah, `nik` kosong berarti NIK tidak diganti. */
-export type SavedNikInput = { label: string; nik: string };
+export type SavedNikInput = { label: string; name: string; nik: string };
 
 export type SavedNikList = { maxEntries: number; savedNiks: SavedNik[] };
 

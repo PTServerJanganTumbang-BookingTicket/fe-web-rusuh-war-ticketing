@@ -92,6 +92,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
           nik: saved.nik,
           nik_masked: saved.nikMasked,
           label: saved.label,
+          name: saved.name,
           verified_at: saved.verifiedAt,
           status: "VERIFIED",
         })),
@@ -104,8 +105,11 @@ export function authHandlers(state: MockState, baseUrl: string) {
       const body = await readJson(request);
       const nik = field(body, "nik");
       const label = field(body, "label");
+      const name = field(body, "name");
       if (!isNikFormat(nik) || typeof label !== "string" || label.trim() === "")
         return fail(400, "nik and label are required");
+      // Asumsi FE: `name` opsional supaya klien lama tetap bisa menyimpan.
+      if (name !== undefined && typeof name !== "string") return fail(400, "name must be a string");
       if (lookupNik(nik)?.status !== "ACTIVE") return fail(400, "NIK not found or inactive");
       if (state.savedNiks.length >= MAX_SAVED_NIKS) return fail(409, "Maximum saved NIKs reached");
       if (state.savedNiks.some((saved) => saved.nikMasked === maskNik(nik)))
@@ -115,6 +119,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
         nik,
         nikMasked: maskNik(nik),
         label,
+        name: typeof name === "string" ? name.trim() : "",
         verifiedAt: new Date().toISOString(),
       };
       state.savedNiks.push(saved);
@@ -123,6 +128,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
           id: saved.id,
           nik_masked: saved.nikMasked,
           label,
+          name: saved.name,
           verified_at: saved.verifiedAt,
           status: "VERIFIED",
         },
@@ -138,7 +144,9 @@ export function authHandlers(state: MockState, baseUrl: string) {
       const body = await readJson(request);
       const label = field(body, "label");
       const nik = field(body, "nik");
+      const name = field(body, "name");
       if (typeof label !== "string" || label.trim() === "") return fail(400, "label is required");
+      if (name !== undefined && typeof name !== "string") return fail(400, "name must be a string");
       if (nik !== undefined) {
         if (!isNikFormat(nik)) return fail(400, "NIK must be exactly 16 digits");
         if (lookupNik(nik)?.status !== "ACTIVE") return fail(400, "NIK not found or inactive");
@@ -149,12 +157,14 @@ export function authHandlers(state: MockState, baseUrl: string) {
         saved.verifiedAt = new Date().toISOString();
       }
       saved.label = label.trim();
+      if (typeof name === "string") saved.name = name.trim();
       return ok(
         {
           id: saved.id,
           nik: saved.nik,
           nik_masked: saved.nikMasked,
           label: saved.label,
+          name: saved.name,
           verified_at: saved.verifiedAt,
           status: "VERIFIED",
         },

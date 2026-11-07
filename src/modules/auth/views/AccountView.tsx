@@ -10,23 +10,16 @@ import {
   Trash2Icon,
   UserRoundIcon,
   UsersRoundIcon,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn.utils";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
+import { PageSkeleton } from "@/components/ui/layout/PageSkeleton";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
 import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 
@@ -47,6 +40,8 @@ export type AliasFormProps = {
   id: string;
   title: string;
   label: TextField;
+  /** Nama lengkap pemilik NIK sesuai KTP. */
+  name: TextField;
   nik: TextField;
   submit: { label: string; disabled: boolean; onSubmit: () => void };
   cancel?: { label: string; onClick: () => void };
@@ -55,6 +50,8 @@ export type AliasFormProps = {
 export type SavedNikItem = {
   id: string;
   label: string;
+  /** Nama lengkap sesuai KTP; kosong untuk alias lama yang disimpan sebelum field ini ada. */
+  name?: string;
   /** Huruf awal nama alias untuk avatar. */
   initials: string;
   nikMasked: string;
@@ -92,15 +89,8 @@ export type AccountViewProps = Omit<SiteShellProps, "children"> & { header: Page
         add?: AliasFormProps;
         fullNotice?: string;
         notice: string;
-        /** Modal verifikasi NIK saat menyimpan alias. */
+        /** Modal verifikasi NIK, sesi habis, galat hapus, atau konfirmasi hapus alias. */
         dialog?: ActionDialogProps;
-        confirmRemove?: {
-          title: string;
-          description: string;
-          confirm: { label: string; onClick: () => void };
-          cancel: { label: string; onClick: () => void };
-          busy: boolean;
-        };
         signOut: { label: string; disabled: boolean; onClick: () => void };
       }
   );
@@ -121,16 +111,7 @@ export function AccountView(props: AccountViewProps) {
 
 function AccountBody(props: AccountViewProps) {
   if (props.kind === "loading") {
-    return (
-      <Card className="rounded-2xl">
-        <CardContent className="flex items-center gap-3 p-6">
-          <Spinner className="text-primary" />
-          <p role="status" className="type-body1 text-muted-foreground">
-            {props.message}
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return <PageSkeleton label={props.message} variant="profile" withHeader={false} />;
   }
   if (props.kind === "signedOut") {
     return (
@@ -159,7 +140,6 @@ function AccountBody(props: AccountViewProps) {
           <AlertDescription className="text-foreground">{props.notice}</AlertDescription>
         </Alert>
       </div>
-      {props.confirmRemove ? <ConfirmRemoveDialog {...props.confirmRemove} /> : null}
       {props.dialog ? <ActionDialog {...props.dialog} /> : null}
     </div>
   );
@@ -287,6 +267,7 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="type-body1 truncate font-semibold">{item.label}</p>
+                      {item.name ? <p className="type-body2 truncate text-foreground">{item.name}</p> : null}
                       <p className="type-body2 tabular-nums text-muted-foreground">{item.nikMasked}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -331,41 +312,7 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
   );
 }
 
-function ConfirmRemoveDialog({
-  title,
-  description,
-  confirm,
-  cancel,
-  busy,
-}: NonNullable<ReadyProps["confirmRemove"]>) {
-  return (
-    <Dialog open onOpenChange={(open) => !open && !busy && cancel.onClick()}>
-      <DialogContent showCloseButton={!busy} aria-busy={busy}>
-        <span
-          aria-hidden="true"
-          className="flex size-11 items-center justify-center rounded-full bg-signal-bg-error text-signal-error [&_svg]:size-5"
-        >
-          <Trash2Icon />
-        </span>
-        <DialogHeader className="gap-2">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" size="lg" disabled={busy} onClick={cancel.onClick}>
-            {cancel.label}
-          </Button>
-          <Button size="lg" disabled={busy} aria-busy={busy} onClick={confirm.onClick}>
-            {busy ? <Spinner data-icon="inline-start" /> : null}
-            {confirm.label}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function AliasForm({ id, title, label, nik, submit, cancel }: AliasFormProps) {
+function AliasForm({ id, title, label, name, nik, submit, cancel }: AliasFormProps) {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     submit.onSubmit();
@@ -387,7 +334,10 @@ function AliasForm({ id, title, label, nik, submit, cancel }: AliasFormProps) {
       </h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput id={`${id}-label`} field={label} autoComplete="off" />
-        <TextInput id={`${id}-nik`} field={nik} inputMode="numeric" autoComplete="off" maxLength={16} />
+        <TextInput id={`${id}-name`} field={name} autoComplete="off" />
+        <div className="sm:col-span-2">
+          <TextInput id={`${id}-nik`} field={nik} inputMode="numeric" autoComplete="off" maxLength={16} />
+        </div>
       </div>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {cancel ? (

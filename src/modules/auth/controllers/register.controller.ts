@@ -48,6 +48,8 @@ export function useRegisterController(): RegisterViewProps {
   // Tidak pernah tercentang otomatis (UU PDP).
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  /** Field yang sudah ditinggalkan; galat bentuknya tampil tanpa menunggu submit. */
+  const [touched, setTouched] = useState<{ email: boolean; nik: boolean }>({ email: false, nik: false });
   const [reviewing, setReviewing] = useState(false);
   // Satu permintaan saja: tombol terkunci selama berjalan, galat membuka kunci tanpa menghapus isian.
   const register = useMutation({
@@ -66,8 +68,8 @@ export function useRegisterController(): RegisterViewProps {
   });
 
   const errors = {
-    email: submitted && !isEmail(email) ? t("login.email.invalid") : undefined,
-    nik: submitted && !isNikFormat(nik) ? t("register.nik.invalid") : undefined,
+    email: (submitted || touched.email) && !isEmail(email) ? t("login.email.invalid") : undefined,
+    nik: (submitted || touched.nik) && !isNikFormat(nik) ? t("register.nik.invalid") : undefined,
     consent: submitted && !consent ? t("register.consent.required") : undefined,
   };
   const valid = isEmail(email) && isNikFormat(nik) && consent;
@@ -141,6 +143,7 @@ export function useRegisterController(): RegisterViewProps {
       focusKey: focus?.field === "email" ? focus.n : undefined,
       error: errors.email,
       onChange: setEmail,
+      onBlur: () => setTouched((current) => ({ ...current, email: email.trim() !== "" })),
     },
     nik: {
       label: t("register.nik.label"),
@@ -151,6 +154,7 @@ export function useRegisterController(): RegisterViewProps {
       error: errors.nik,
       // Spasi dan tanda baca dari salinan KTP dibuang; panjang divalidasi, tidak dipotong.
       onChange: (value) => setNik(value.replace(/\D/g, "")),
+      onBlur: () => setTouched((current) => ({ ...current, nik: nik !== "" })),
     },
     name: { label: t("register.name.label"), value: name, onChange: setName },
     consent: {
@@ -162,6 +166,8 @@ export function useRegisterController(): RegisterViewProps {
     submit: {
       label: t("register.submit"),
       busy,
+      // Format email salah, NIK belum 16 digit, atau persetujuan belum dicentang: tombol abu-abu.
+      disabled: !valid,
       onSubmit: () => {
         setSubmitted(true);
         if (valid) setReviewing(true);

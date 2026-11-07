@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
+import { intlLocale } from "@/core/i18n/locale.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import {
@@ -25,7 +26,7 @@ import {
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
-import { SAVED_NIK_LABEL_MAX_LENGTH } from "../domain/auth.constants";
+import { SAVED_NIK_LABEL_MAX_LENGTH, SAVED_NIK_NAME_MAX_LENGTH } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
 import { accountQuery, authKeys, profileQuery, savedNiksQuery } from "./auth.queries";
 import type { AccountViewProps, AliasFormProps } from "../views/AccountView";
@@ -36,12 +37,13 @@ const savedNikErrors = {
   UNAUTHENTICATED: "account.error.UNAUTHENTICATED",
 } as const;
 
-const memberSinceFormat = new Intl.DateTimeFormat("id-ID", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "Asia/Jakarta",
-});
+const memberSinceFormat = () =>
+  new Intl.DateTimeFormat(intlLocale(), {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
 
 /** Form yang terbuka: tambah alias, atau ubah satu alias. Hanya satu form sekaligus. */
 type FormMode = { kind: "create" } | { kind: "edit"; id: string };
@@ -87,6 +89,12 @@ function labelError(error: SavedNikInputError["label"]): string | undefined {
   return undefined;
 }
 
+function nameError(error: SavedNikInputError["name"]): string | undefined {
+  if (error === "required") return t("account.saved.name.invalid");
+  if (error === "too_long") return t("account.saved.name.tooLong", { max: SAVED_NIK_NAME_MAX_LENGTH });
+  return undefined;
+}
+
 export function useAccountController(): AccountViewProps {
   const siteChrome = useSiteChrome();
   const nikModal = useModal<AccountModal>();
@@ -110,6 +118,7 @@ export function useAccountController(): AccountViewProps {
 
   const [mode, setMode] = useState<FormMode>({ kind: "create" });
   const [label, setLabel] = useState("");
+  const [name, setName] = useState("");
   const [nik, setNik] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<SavedNik | null>(null);
@@ -117,6 +126,7 @@ export function useAccountController(): AccountViewProps {
   const resetForm = () => {
     setMode({ kind: "create" });
     setLabel("");
+    setName("");
     setNik("");
     setSubmitted(false);
   };
@@ -124,8 +134,8 @@ export function useAccountController(): AccountViewProps {
   const save = useMutation({
     mutationFn: (target: FormMode) =>
       target.kind === "edit"
-        ? updateSavedNikUseCase(target.id, { label, nik })
-        : addSavedNikUseCase(nik, label),
+        ? updateSavedNikUseCase(target.id, { label, name, nik })
+        : addSavedNikUseCase({ label, name, nik }),
     onSuccess: async () => {
       nikModal.close();
       resetForm();
@@ -213,15 +223,42 @@ export function useAccountController(): AccountViewProps {
       retrying: remove.isPending,
     });
   }
-  const invalid = submitted ? validateSavedNikInput({ label, nik }, { mode: mode.kind }) : null;
+  // Konfirmasi hapus memakai dialog aksi yang sama dengan modal lain; satu dialog sekaligus.
+  if (!dialog && pendingRemove) {
+    const cancelRemove = () => setPendingRemove(null);
+    dialog = {
+      tone: "error",
+      icon: "alert",
+      title: t("account.saved.confirm.title"),
+      description: t("account.saved.confirm.description", {
+        label: pendingRemove.label,
+        nik: pendingRemove.nikMasked,
+      }),
+      primary: {
+        label: remove.isPending ? t("account.saved.removing") : t("account.saved.confirm.cta"),
+        busy: remove.isPending,
+        onClick: () => remove.mutate(pendingRemove.id),
+      },
+      secondary: { label: t("account.saved.cancel"), onClick: cancelRemove },
+      onDismiss: cancelRemove,
+    };
+  }
+  const invalid = submitted ? validateSavedNikInput({ label, name, nik }, { mode: mode.kind }) : null;
 
-  const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "nik"> => ({
+  const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "name" | "nik"> => ({
     label: {
       label: t("account.saved.label.label"),
       placeholder: t("account.saved.label.placeholder"),
       value: label,
       error: labelError(invalid?.label),
       onChange: setLabel,
+    },
+    name: {
+      label: t("account.saved.name.label"),
+      placeholder: t("account.saved.name.placeholder"),
+      value: name,
+      error: nameError(invalid?.name),
+      onChange: setName,
     },
     nik: {
       label: editing ? t("account.saved.nik.editLabel") : t("account.saved.nik.label"),
@@ -239,7 +276,7 @@ export function useAccountController(): AccountViewProps {
     disabled: save.isPending,
     onSubmit: () => {
       setSubmitted(true);
-      if (!validateSavedNikInput({ label, nik }, { mode: target.kind })) save.mutate(target);
+      if (!validateSavedNikInput({ label, name, nik }, { mode: target.kind })) save.mutate(target);
     },
   });
 
@@ -255,7 +292,7 @@ export function useAccountController(): AccountViewProps {
       ? [
           {
             label: t("account.memberSince.label"),
-            value: memberSinceFormat.format(new Date(profileData.memberSince)),
+            value: memberSinceFormat().format(new Date(profileData.memberSince)),
           },
         ]
       : []),
@@ -284,6 +321,7 @@ export function useAccountController(): AccountViewProps {
       items: list.savedNiks.map((item) => ({
         id: item.id,
         label: item.label,
+        name: item.name ?? undefined,
         initials: initialsOf(item.label),
         nikMasked: item.nikMasked,
         edit: {
@@ -292,6 +330,7 @@ export function useAccountController(): AccountViewProps {
           onClick: () => {
             setMode({ kind: "edit", id: item.id });
             setLabel(item.label);
+            setName(item.name ?? "");
             setNik("");
             setSubmitted(false);
             save.reset();
@@ -326,21 +365,6 @@ export function useAccountController(): AccountViewProps {
             submit: submitFor({ kind: "create" }),
           },
     dialog,
-    confirmRemove: pendingRemove
-      ? {
-          title: t("account.saved.confirm.title"),
-          description: t("account.saved.confirm.description", {
-            label: pendingRemove.label,
-            nik: pendingRemove.nikMasked,
-          }),
-          confirm: {
-            label: remove.isPending ? t("account.saved.removing") : t("account.saved.confirm.cta"),
-            onClick: () => remove.mutate(pendingRemove.id),
-          },
-          cancel: { label: t("account.saved.cancel"), onClick: () => setPendingRemove(null) },
-          busy: remove.isPending,
-        }
-      : undefined,
     signOut: { label: t("account.signOut"), disabled: signOut.isPending, onClick: () => signOut.mutate() },
   };
 }

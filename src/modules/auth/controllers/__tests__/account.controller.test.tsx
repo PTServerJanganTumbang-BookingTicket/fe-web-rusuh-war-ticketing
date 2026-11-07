@@ -46,6 +46,7 @@ describe("useAccountController", () => {
       "1 Oktober 2026",
     ]);
     expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi"]);
+    expect(ready().saved.items[0]?.name).toBe("Budi Santoso");
     expect(ready().saved.count).toBe("1/5");
     expect(ready().profile).toMatchObject({ name: "JOHN DOE", initials: "JD" });
     expect(ready().saved.items[0]?.initials).toBe("B");
@@ -65,6 +66,7 @@ describe("useAccountController", () => {
     const { ready } = await mountSignedIn();
     act(() => {
       ready().add?.label.onChange("Sari");
+      ready().add?.name.onChange("Sari Lengkap");
       ready().add?.nik.onChange("3171 0000 0000 0044");
     });
     expect(ready().add?.nik.value).toBe("3171000000000044");
@@ -85,6 +87,7 @@ describe("useAccountController", () => {
     act(() => ready().add?.nik.onChange("31710000"));
     act(() => ready().add?.submit.onSubmit());
     expect(ready().add?.label.error).toBe("Isi nama alias.");
+    expect(ready().add?.name.error).toBe("Isi nama lengkap sesuai KTP.");
     expect(ready().add?.nik.error).toBe("NIK harus 16 digit angka.");
     expect(posted).toBe(false);
   });
@@ -93,6 +96,7 @@ describe("useAccountController", () => {
     const { ready } = await mountSignedIn();
     act(() => {
       ready().add?.label.onChange("X");
+      ready().add?.name.onChange("X Lengkap");
       ready().add?.nik.onChange("3171000000000099");
     });
     act(() => ready().add?.submit.onSubmit());
@@ -117,6 +121,7 @@ describe("useAccountController", () => {
     const { ready } = await mountSignedIn();
     act(() => {
       ready().add?.label.onChange("Sari");
+      ready().add?.name.onChange("Sari Lengkap");
       ready().add?.nik.onChange("3171000000000044");
     });
     act(() => ready().add?.submit.onSubmit());
@@ -144,10 +149,12 @@ describe("useAccountController", () => {
     expect(ready().add).toBeUndefined();
     const form = () => ready().saved.items[0]?.form;
     expect(form()?.label.value).toBe("Budi");
+    // Nama lengkap terisi dari alias yang tersimpan.
+    expect(form()?.name.value).toBe("Budi Santoso");
     expect(form()?.nik.value).toBe("");
-    act(() => form()?.label.onChange("Budi Santoso"));
+    act(() => form()?.label.onChange("Budi S"));
     act(() => form()?.submit.onSubmit());
-    await waitFor(() => expect(body).toEqual({ label: "Budi Santoso" }));
+    await waitFor(() => expect(body).toEqual({ label: "Budi S", name: "Budi Santoso" }));
     await waitFor(() => expect(ready().saved.items[0]?.form).toBeUndefined());
     expect(ready().add).toBeDefined();
   });
@@ -171,17 +178,19 @@ describe("useAccountController", () => {
   it("menghapus alias lewat dialog konfirmasi", async () => {
     const { ready } = await mountSignedIn();
     act(() => ready().saved.items[0]?.remove.onClick());
-    expect(ready().confirmRemove?.description).toBe(
-      "Budi (3171********xx33) tidak bisa dipilih lagi saat membeli tiket.",
-    );
-    act(() => ready().confirmRemove?.cancel.onClick());
-    expect(ready().confirmRemove).toBeUndefined();
+    expect(ready().dialog).toMatchObject({
+      tone: "error",
+      title: "Hapus alias?",
+      description: "Budi (3171********xx33) tidak bisa dipilih lagi saat membeli tiket.",
+    });
+    act(() => click(ready().dialog?.secondary));
+    expect(ready().dialog).toBeUndefined();
     expect(ready().saved.items).toHaveLength(1);
 
     act(() => ready().saved.items[0]?.remove.onClick());
-    act(() => ready().confirmRemove?.confirm.onClick());
+    act(() => click(ready().dialog?.primary));
     await waitFor(() => expect(ready().saved.items).toEqual([]));
-    expect(ready().confirmRemove).toBeUndefined();
+    expect(ready().dialog).toBeUndefined();
   });
 
   it("sesi habis saat menyimpan alias: dialog sesi berakhir dengan tautan masuk lagi", async () => {
@@ -196,6 +205,7 @@ describe("useAccountController", () => {
     const { ready } = await mountSignedIn();
     act(() => {
       ready().add?.label.onChange("Sari");
+      ready().add?.name.onChange("Sari Lengkap");
       ready().add?.nik.onChange("3171000000000044");
     });
     act(() => ready().add?.submit.onSubmit());
@@ -216,9 +226,8 @@ describe("useAccountController", () => {
     );
     const { ready } = await mountSignedIn();
     act(() => ready().saved.items[0]?.remove.onClick());
-    act(() => ready().confirmRemove?.confirm.onClick());
+    act(() => click(ready().dialog?.primary));
     await waitFor(() => expect(ready().dialog?.title).toBe("Terjadi kesalahan"));
-    expect(ready().confirmRemove).toBeUndefined();
     act(() => click(ready().dialog?.primary));
     // Override di atas tidak mengubah state mock, jadi yang diperiksa adalah permintaan ulang dan dialog yang tertutup.
     await waitFor(() => expect(ready().dialog).toBeUndefined());
