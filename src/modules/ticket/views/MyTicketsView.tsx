@@ -1,6 +1,8 @@
 import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
+import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
 import { TicketCard, type TicketCardProps } from "./TicketCard";
+import { TicketIcon } from "@/components/ui/icons";
 
 export type MyTicketsViewProps = {
   nav: NavbarProps;
@@ -14,6 +16,8 @@ export type MyTicketsViewProps = {
   };
   emptyLabel?: string;
   errorMessage?: string;
+  /** Teks status memuat untuk pembaca layar; selama ada, kartu tiket tampil sebagai kerangka. */
+  loading?: string;
 };
 
 /**
@@ -28,6 +32,7 @@ export function MyTicketsView({
   footer,
   emptyLabel,
   errorMessage,
+  loading,
 }: MyTicketsViewProps) {
   return (
     <div className="flex min-h-screen flex-col bg-signal-disable">
@@ -41,25 +46,15 @@ export function MyTicketsView({
           {errorMessage && (
             <div className="rounded-lg bg-signal-bg-error p-4 text-signal-error">{errorMessage}</div>
           )}
-          {!errorMessage && tickets.length === 0 && (
+          {loading ? (
+            <div role="status" aria-live="polite" aria-busy="true">
+              <span className="sr-only">{loading}</span>
+              <CardGridSkeleton />
+            </div>
+          ) : null}
+          {!loading && !errorMessage && tickets.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mb-4 text-muted-foreground"
-                aria-hidden="true"
-              >
-                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-                <path d="M13 5v2" />
-                <path d="M13 17v2" />
-                <path d="M13 11v2" />
-              </svg>
+              <TicketIcon aria-hidden="true" className="size-8" />
               <p className="type-body1 text-muted-foreground">{emptyLabel}</p>
             </div>
           )}

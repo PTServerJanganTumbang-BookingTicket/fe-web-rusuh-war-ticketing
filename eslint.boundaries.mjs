@@ -7,7 +7,8 @@ import boundaries from "eslint-plugin-boundaries";
 //    └──► views/*Container ─► controllers ─(import type)────┘
 //
 // Modul tidak saling mengimpor. Yang dipakai bersama ada di `src/core`, dengan lapisan yang sama
-// seperti modul: domain, application, data, controllers, views (termasuk design system), dan i18n.
+// seperti modul: domain, application, data, controllers, dan i18n. `src/core` tidak punya view: komponen tampilan
+// bersama ada di design system (`src/components/ui`), dan layar milik modul.
 
 const SAME_MODULE = { module: "{{ from.element.captured.module }}" };
 
@@ -23,7 +24,7 @@ const DI_LIBRARY = ["awilix"];
 const SRC = "src/**/*.{ts,tsx}";
 
 // Yang boleh dipakai controller dan Container dari `src/core` (sisi tampilan).
-const CORE_UI = ["core-domain", "core-controller", "core-i18n", "core-view", "design-system"];
+const CORE_UI = ["core-domain", "core-controller", "core-i18n", "design-system"];
 
 const boundariesConfig = [
   {
@@ -39,7 +40,6 @@ const boundariesConfig = [
         { type: "core-data", pattern: "src/core/data/**" },
         { type: "core-controller", pattern: "src/core/controllers/**" },
         { type: "core-i18n", pattern: "src/core/i18n/**" },
-        { type: "core-view", pattern: "src/core/views/**" },
         // Design system di src/components/ui
         { type: "design-system", pattern: "src/components/ui/**" },
         // Modul fitur. `module` ditangkap supaya aturan bisa membatasi ke modul yang sama.
@@ -77,8 +77,6 @@ const boundariesConfig = [
             allow(el("core-application"), anyOf("core-domain", "core-application")),
             allow(el("core-data"), anyOf("core-domain", "core-application", "core-data")),
             allow(el("design-system"), el("design-system")),
-            // ScreenLoading dipakai langsung oleh layout di `app/`, jadi boleh membaca teks i18n.
-            allow(el("core-view"), anyOf("core-view", "design-system", "core-i18n")),
             allow(el("core-i18n"), anyOf("core-domain", "core-i18n")),
             allow(el("core-controller"), anyOf("core-domain", "core-controller", "core-i18n")),
             allowTypes(el("core-controller"), el("core-application")),
@@ -156,11 +154,7 @@ const boundariesConfig = [
   },
   {
     // design system dan view: hanya token desain, tidak ada nilai warna mentah (token Signal, bukan hex)
-    files: [
-      "src/components/ui/**/*.{ts,tsx}",
-      "src/core/views/**/*.{ts,tsx}",
-      "src/modules/*/views/**/*.tsx",
-    ],
+    files: ["src/components/ui/**/*.{ts,tsx}", "src/modules/*/views/**/*.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -225,10 +219,7 @@ const boundariesConfig = [
   },
   {
     // controllers dan views: tidak mengenal Awilix. Dependensi diambil lewat `useDependencies` (ADR-0015).
-    files: [
-      "src/core/{controllers,views,i18n}/**/*.{ts,tsx}",
-      "src/modules/*/{controllers,views}/**/*.{ts,tsx}",
-    ],
+    files: ["src/core/{controllers,i18n}/**/*.{ts,tsx}", "src/modules/*/{controllers,views}/**/*.{ts,tsx}"],
     ignores: ["**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-imports": ["error", { patterns: [...DI_LIBRARY, ...MOCK_IMPORTS] }],

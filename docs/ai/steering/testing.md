@@ -6,7 +6,7 @@
 | `application` | Vitest + fake | Setiap use case dengan fake yang memenuhi protocol (tanpa MSW, tanpa `vi.mock`); argumen yang diteruskan ke protocol diperiksa |
 | `data` | Vitest + MSW | Parsing response valid dan tidak valid, pemetaan setiap error code ke `AppError`, retry dan backoff. Service di-resolve dari container uji (`src/test/http-services.test.ts`) |
 | `di` | Vitest | Setiap registrasi bisa di-resolve dalam mode strict (`src/di/container.test.ts`) |
-| `core/views/design-system`, `modules/<m>/views` | Storybook + addon a11y | Satu story per state visual. Tidak ada pelanggaran a11y level serius |
+| `components/ui`, `modules/<m>/views` | Storybook + addon a11y | Satu story per state visual. Tidak ada pelanggaran a11y level serius |
 | `controllers` | Vitest + Testing Library + MSW | Mapper `to<Layar>ViewProps` (murni) dan alur controller dengan server MSW dan container uji bersama (`src/test/support.tsx`: `setupMockServer`, `setupTestContainer`, `createWrapper`) |
 | E2E | Playwright + fake clock | Happy path, booking expired, payment expired, stok habis saat submit, slot diambil alih tab lain |
 

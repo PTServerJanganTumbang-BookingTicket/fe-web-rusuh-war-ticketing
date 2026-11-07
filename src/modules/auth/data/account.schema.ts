@@ -44,7 +44,14 @@ export const savedNikListSchema = z
   .object({
     max_entries: z.number(),
     saved_niks: z.array(
-      z.object({ id: z.string(), nik_masked: z.string(), label: z.string(), verified_at: z.string() }),
+      z.object({
+        id: z.string(),
+        nik_masked: z.string(),
+        label: z.string(),
+        // Asumsi FE: kontrak belum punya nama lengkap di saved NIK.
+        name: z.string().nullish(),
+        verified_at: z.string(),
+      }),
     ),
   })
   .transform((list): SavedNikList => ({
@@ -53,6 +60,7 @@ export const savedNikListSchema = z
       id: saved.id,
       nikMasked: saved.nik_masked,
       label: saved.label,
+      name: saved.name?.trim() || null,
       verifiedAt: saved.verified_at,
     })),
   }));

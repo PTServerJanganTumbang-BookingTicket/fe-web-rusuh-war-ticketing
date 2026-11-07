@@ -1,3 +1,5 @@
+import { ShieldCheckIcon } from "../icons";
+
 export type FooterProps = {
   copyright: string;
   tagline: string;
@@ -33,18 +35,7 @@ export function Footer({ copyright, tagline, infoBanner }: FooterProps) {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <span className="type-body2 text-muted-foreground">{copyright}</span>
         <div className="flex items-center gap-2 type-body2 text-muted-foreground">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
+          <ShieldCheckIcon aria-hidden="true" className="size-4 shrink-0" />
           {tagline}
         </div>
       </div>

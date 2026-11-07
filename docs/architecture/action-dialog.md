@@ -54,7 +54,7 @@ Keduanya mengunci fokus, mengunci scroll halaman, menutup dengan Escape, dan men
 Halaman yang belum bisa menampilkan isinya (memuat, dialihkan, waktu habis, gagal total) memakai `StatusView`
 (`src/components/ui/layout/StatusView.tsx`) dengan bahasa visual yang sama: kartu di tengah, ikon dalam lingkaran
 (spinner untuk `neutral`, peringatan untuk `warning`, galat untuk `error`), judul, penjelasan, dan tombol pil. Controller
-menyertakan `...siteChrome` supaya navbar dan footer tetap ada. Fallback Suspense (`ScreenLoading`) memakai header merek
+menyertakan `...siteChrome` supaya navbar dan footer tetap ada. Fallback Suspense (`ScreenLoading` di `src/components/ui/layout/PageSkeleton.tsx`) memakai header merek dan kerangka layar
 saja karena status masuk belum diketahui. Kartu berkepala merah (`ScreenFrame`) tidak dipakai untuk status lagi.
 
 ## Kapan memakai dialog
@@ -124,6 +124,8 @@ View cukup merender `{dialog ? <ActionDialog {...dialog} /> : null}`.
 | Verifikasi email gagal | `toEmailVerificationFailedDialog` | error | Kirim ulang email verifikasi | Link verifikasi email tidak valid | Belum dipakai: kontrak belum punya endpoint verifikasi pendaftaran |
 | Konfirmasi datamu | (di `register.controller.ts`) | info, ikon `mail` | Konfirmasi & daftar, Ubah data | Submit form register | Register |
 | Pendaftaran berhasil | (di `register.controller.ts`) | success | Mengerti | Register berhasil | Register |
+| Hapus alias? | (di `account.controller.ts`) | error | Hapus alias, Batal | Tombol hapus alias | Profil |
+| Koneksi bermasalah / Terjadi kesalahan | `toRequestFailedDialog` | error | Coba lagi | Bayar gagal tanpa respons atau respons asing; metode yang dipilih tetap | Payment |
 
 Teks lengkap ada di `src/core/i18n/id.messages.ts` dengan awalan `dialog.` (dan `register.confirm.` / `register.success.`).
 

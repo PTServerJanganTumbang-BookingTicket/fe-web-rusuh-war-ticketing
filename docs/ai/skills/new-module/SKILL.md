@@ -11,7 +11,7 @@ Baca dulu ADR-0013, ADR-0014, ADR-0015 dan `docs/ai/steering/architecture-rules.
 
 - Konsep bisnisnya punya bahasa sendiri (model, aturan, endpoint) dan bisa dimiliki satu orang atau tim.
 - Bukan sekadar layar tambahan dari konsep yang sudah ada (itu skill `new-feature-screen` di modul yang ada).
-- Bila dua modul butuh hal yang sama, jangan saling mengimpor: pindahkan ke lapisan yang sama di `src/core` (`core/domain`, `core/application`, `core/data`, `core/controllers`, `core/views`).
+- Bila dua modul butuh hal yang sama, jangan saling mengimpor: pindahkan ke lapisan yang sama di `src/core` (`core/domain`, `core/application`, `core/data`, `core/controllers`); komponen tampilan bersama ke design system `src/components/ui`.
 
 ## Langkah
 

@@ -2,6 +2,7 @@ import type { TicketSummary, ETicket, TicketStatus } from "../domain/ticket.mode
 import type { TicketCardProps } from "../views/TicketCard";
 import type { ETicketViewProps } from "../views/ETicketView";
 import type { SiteChrome } from "@/core/controllers/site-chrome.utils";
+import { intlLocale } from "@/core/i18n/locale.utils";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 
 const statusTone: Record<TicketStatus, { key: MessageKey; tone: TicketCardProps["statusTone"] }> = {
@@ -16,13 +17,15 @@ function statusOf(status: TicketStatus) {
   return { label: t(key), tone };
 }
 
-const dateFormatter = new Intl.DateTimeFormat("id-ID", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "Asia/Jakarta",
-});
+// Nama hari dan bulan mengikuti bahasa aktif; zona waktu tetap WIB (lokasi venue).
+const dateFormatter = () =>
+  new Intl.DateTimeFormat(intlLocale(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  });
 
 const priceFormatter = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -39,13 +42,19 @@ export function toTicketCardProps(ticket: TicketSummary): TicketCardProps {
   return {
     id: ticket.id,
     eventName: ticket.event.name,
-    eventDate: dateFormatter.format(new Date(ticket.event.date)),
+    eventDate: dateFormatter().format(new Date(ticket.event.date)),
     venue: ticket.event.venue,
     imageUrl: ticket.event.imageUrl ?? "/images/concert-placeholder.webp",
     category: ticket.category,
     seatNumber: ticket.seatNumber,
     holderName: ticket.holderName,
     nikMasked: ticket.nikMasked,
+    labels: {
+      category: t("ticket.detail.category"),
+      seat: t("ticket.detail.seat"),
+      holderName: t("ticket.detail.holderName"),
+      nik: t("ticket.detail.nik"),
+    },
     status: ticket.status,
     statusLabel: label,
     statusTone: tone,
@@ -55,7 +64,7 @@ export function toTicketCardProps(ticket: TicketSummary): TicketCardProps {
 /** Map domain ETicket ke props halaman detail tiket. Field yang belum dikirim kontrak tidak ditampilkan. */
 export function toETicketViewProps(eticket: ETicket, chrome: SiteChrome): ETicketViewProps {
   const { label, tone } = statusOf(eticket.status);
-  const date = dateFormatter.format(new Date(eticket.event.date));
+  const date = dateFormatter().format(new Date(eticket.event.date));
   const details: ETicketViewProps["details"] = [
     { label: t("ticket.detail.category"), value: eticket.category },
     ...(eticket.seatNumber ? [{ label: t("ticket.detail.seat"), value: eticket.seatNumber }] : []),

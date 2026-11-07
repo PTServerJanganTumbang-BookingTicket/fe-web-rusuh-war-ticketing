@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { t } from "../t.utils";
+import { getLocale, intlLocale, isLocale, setLocale, subscribeLocale } from "../locale.utils";
+
+afterEach(() => setLocale("id"));
 
 describe("t", () => {
   it("mengganti placeholder", () => {
@@ -9,5 +12,42 @@ describe("t", () => {
 
   it("membiarkan placeholder tanpa nilai", () => {
     expect(t("queue.position.value")).toBe("#{position}");
+  });
+
+  it("memakai bahasa aktif", () => {
+    setLocale("en");
+    expect(t("account.saved.confirm.title")).toBe("Delete alias?");
+    expect(t("booking.holder.nik.label", { number: 2 })).toBe("NIK for ticket 2");
+  });
+
+  it("key yang belum diterjemahkan jatuh ke Bahasa Indonesia", () => {
+    setLocale("en");
+    expect(t("queue.title")).toBe("Ruang Tunggu");
+  });
+});
+
+describe("locale.utils", () => {
+  it("bawaan Bahasa Indonesia", () => {
+    expect(getLocale()).toBe("id");
+    expect(intlLocale()).toBe("id-ID");
+  });
+
+  it("memberi tahu pelanggan hanya saat bahasa benar-benar berubah", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeLocale(listener);
+    setLocale("id");
+    expect(listener).not.toHaveBeenCalled();
+    setLocale("en");
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(intlLocale()).toBe("en-US");
+    unsubscribe();
+    setLocale("id");
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("hanya menerima kode bahasa yang didukung", () => {
+    expect(isLocale("en")).toBe(true);
+    expect(isLocale("fr")).toBe(false);
+    expect(isLocale(null)).toBe(false);
   });
 });

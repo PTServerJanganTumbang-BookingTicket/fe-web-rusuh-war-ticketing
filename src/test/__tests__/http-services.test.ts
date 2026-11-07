@@ -419,7 +419,7 @@ describe("queueUpdatesService", () => {
 });
 
 describe("savedNikService dan profileService", () => {
-  it("update mengirim PATCH berisi label, dan NIK hanya bila diganti", async () => {
+  it("update mengirim PATCH berisi label dan nama, dan NIK hanya bila diganti", async () => {
     const bodies: unknown[] = [];
     server.use(
       http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, async ({ request, params }) => {
@@ -429,12 +429,26 @@ describe("savedNikService dan profileService", () => {
     );
     const { savedNikService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_alias");
-    await savedNikService.update("snk_1", { label: "Budi", nik: "" });
-    await savedNikService.update("snk_1", { label: "Budi", nik: "3171000000000044" });
+    await savedNikService.update("snk_1", { label: "Budi", name: "Budi Santoso", nik: "" });
+    await savedNikService.update("snk_1", { label: "Budi", name: "Budi Santoso", nik: "3171000000000044" });
     expect(bodies).toEqual([
-      { id: "snk_1", body: { label: "Budi" } },
-      { id: "snk_1", body: { label: "Budi", nik: "3171000000000044" } },
+      { id: "snk_1", body: { label: "Budi", name: "Budi Santoso" } },
+      { id: "snk_1", body: { label: "Budi", name: "Budi Santoso", nik: "3171000000000044" } },
     ]);
+  });
+
+  it("add mengirim POST berisi NIK, label, dan nama lengkap", async () => {
+    let body: unknown;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, async ({ request }) => {
+        body = await request.json();
+        return envelope({}, 201, "NIK saved");
+      }),
+    );
+    const { savedNikService, authService } = setupTestContainer().cradle;
+    await authService.verify("mt_alias");
+    await savedNikService.add({ label: "Sari", name: "Sari Dewi", nik: "3171000000000044" });
+    expect(body).toEqual({ nik: "3171000000000044", label: "Sari", name: "Sari Dewi" });
   });
 
   it("update: NIK sudah tersimpan di alias lain menjadi SAVED_NIK_REJECTED", async () => {
@@ -445,13 +459,13 @@ describe("savedNikService dan profileService", () => {
     );
     const { savedNikService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_alias");
-    expect(await failureOf(savedNikService.update("snk_1", { label: "B", nik: "3171000000000044" }))).toEqual(
-      {
-        kind: "api",
-        code: "SAVED_NIK_REJECTED",
-        status: 409,
-      },
-    );
+    expect(
+      await failureOf(savedNikService.update("snk_1", { label: "B", name: "B", nik: "3171000000000044" })),
+    ).toEqual({
+      kind: "api",
+      code: "SAVED_NIK_REJECTED",
+      status: 409,
+    });
   });
 
   it("profil dari GET /accounts/me dipetakan ke model domain", async () => {
@@ -487,6 +501,7 @@ describe("holderAliasService", () => {
               nik: "3171000000000033",
               nik_masked: "3171****33",
               label: "Budi",
+              name: " Budi Santoso ",
               verified_at: "x",
             },
             { id: "snk_2", nik_masked: "3171****44", label: "Sari", verified_at: "x" },
@@ -497,7 +512,7 @@ describe("holderAliasService", () => {
     const { holderAliasService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_aliases");
     expect(await holderAliasService.list()).toEqual([
-      { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171****33" },
+      { id: "snk_1", label: "Budi", name: "Budi Santoso", nik: "3171000000000033", nikMasked: "3171****33" },
     ]);
   });
 

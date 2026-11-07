@@ -38,7 +38,7 @@ src/modules/<m>/
    data ─ implements protocol ──────────────────┘
    (service + schema zod)
 
-src/core/   domain/ application/ data/ controllers/ views/ i18n/   ◄── lapisan sama, dipakai lintas modul
+src/core/   domain/ application/ data/ controllers/ i18n/           ◄── lapisan sama, dipakai lintas modul
 ```
 
 | Aturan | Ditegakkan oleh |
@@ -92,8 +92,7 @@ rusuh-fe/
    │  ├─ application/                 start-session.use-case.ts, core.dependencies.ts
    │  ├─ data/                        http/ (HttpClient, FetchHttpClient), sse/, session/, system-clock.service.ts, math-random.service.ts
    │  ├─ controllers/                 countdown.hook.ts, live-updates.hook.ts, dependencies.context.tsx (useDependencies), format.utils.ts
-   │  ├─ views/                       design-system/ (primitives/, layout/, signal.css), ScreenLoading.tsx
-   │  └─ i18n/                        id.messages.ts, t.utils.ts
+   │  └─ i18n/                        id.messages.ts, en.messages.ts, locale.utils.ts, t.utils.ts
    ├─ mocks/                          MSW handlers + skenario (node dan browser)
    └─ test/                           support: setupMockServer, setupTestContainer, createWrapper
 ```
@@ -149,7 +148,7 @@ idle → selecting ──submit──► submitting ──┤
 | Use case dan protocol per modul, `ClockProtocol`/`RandomProtocol`/`AppConfig` diinjeksikan, test use case dengan fake dan test container | Orkestrasi use case yang lebih kaya (submit booking) |
 | `domain`: `AppError`, `remainingMs`, `withJitter`, `formatMmSs` (`core`), `canAddTicket`, `selectionReducer`, tipe event, queue, booking, order (modul) | `domain`: state machine booking, validasi NIK, `PaymentResultNotifier` |
 | `data`: `FetchHttpClient` + zod, service HTTP events, queue, booking session, order, simulator pembayaran, schema `satisfies z.ZodType<Model>`; query options di `controllers/` tiap modul; konstanta bisnis per modul | Tipe generated dari OpenAPI (kontrak ditulis tangan), use case submit booking |
-| Design system (`src/core/views/design-system`): primitif Signal DS (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`), `ScreenFrame`, dan view Home, Queue, Booking, Payment (ADR-0012) | Storybook, mode gelap |
+| Design system (`src/components/ui`): primitif Signal DS (`Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`), `ScreenFrame`, dan view Home, Queue, Booking, Payment (ADR-0012) | Storybook, mode gelap |
 | Layar: Home (ISR), Waiting Room, Detail Ticket (dummy, wireframe 9.3), dan Payment mock (9.4, QR contoh, status akhir 9.5) dengan MSW | Login, E-tiket (placeholder), `/maintenance`, integrasi Midtrans via BE |
 | `proxy.ts` (cek cookie) dan `/api/session/start` | Verifikasi JWT di edge, `/api/session/exchange` (WebView), offset jam server, countdown |
 

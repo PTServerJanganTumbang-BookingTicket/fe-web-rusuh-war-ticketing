@@ -1,10 +1,10 @@
-import { ClockIcon, IdCardIcon, InfoIcon, TicketIcon, WifiIcon } from "lucide-react";
+import { ClockIcon, IdCardIcon, InfoIcon, TicketIcon, WifiIcon } from "@/components/ui/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/components/ui/cn.utils";
 import { EventSummaryCard, type EventSummaryCardProps } from "@/components/ui/layout/CheckoutCards";
 import { PageHeader } from "@/components/ui/layout/PageHeader";
@@ -116,7 +116,13 @@ function StatusCard({
             </>
           ) : (
             <div className="flex flex-col items-center gap-4 py-6">
-              {state === "loading" ? <Spinner className="size-6 text-primary" /> : null}
+              {state === "loading" ? (
+                <div aria-hidden="true" className="flex w-full flex-col items-center gap-3">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-14 w-48" />
+                  <Skeleton className="h-5 w-56" />
+                </div>
+              ) : null}
               <p className={cn("type-title", state === "error" ? "text-signal-error" : "text-foreground")}>
                 {message}
               </p>

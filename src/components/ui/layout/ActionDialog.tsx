@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CircleAlertIcon, CircleCheckIcon, ClockIcon, InfoIcon, MailIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, ClockIcon, InfoIcon, MailIcon } from "../icons";
 import { Alert, AlertDescription } from "../alert";
 import { Button, buttonVariants } from "../button";
 import { cn } from "../cn.utils";

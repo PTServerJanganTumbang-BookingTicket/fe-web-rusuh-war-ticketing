@@ -2,6 +2,7 @@ import { COUNTDOWN_URGENT_AT_MS } from "@/core/domain/time/countdown.constants";
 import { formatMmSs } from "@/core/domain/time/format-mm-ss.utils";
 import { formatIdr } from "@/core/controllers/format-currency.utils";
 import type { SiteChrome } from "@/core/controllers/site-chrome.utils";
+import { intlLocale } from "@/core/i18n/locale.utils";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { BookingEvent } from "../domain/booking-event.model";
 import type { NikCheck } from "../domain/booking-request.model";
@@ -14,7 +15,16 @@ import { aliasOptionsFor } from "../domain/ticket-holders.rules";
 import type { BookingViewProps, TicketHolderProps } from "../views/BookingView";
 import type { ActionDialogModel } from "@/core/controllers/modal.hook";
 
-const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+/** Nama panggilan plus nama lengkap bila ada, supaya alias dengan nama panggilan mirip bisa dibedakan. */
+function aliasName(alias: HolderAlias): string {
+  return alias.name
+    ? t("booking.holder.source.named", { label: alias.label, name: alias.name })
+    : alias.label;
+}
+
+/** Bulan singkat mengikuti bahasa aktif. */
+const eventDate = () =>
+  new Intl.DateTimeFormat(intlLocale(), { day: "2-digit", month: "short", year: "numeric" });
 
 /** Status cek NIK per slot. `nik` dicatat supaya hasil untuk NIK lama tidak dipakai setelah diketik ulang. */
 export type NikCheckState =
@@ -149,8 +159,8 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
                 ...aliasOptionsFor(slot.key, aliases, niks).map(({ alias, takenByOtherTicket }) => ({
                   value: alias.id,
                   label: takenByOtherTicket
-                    ? t("booking.holder.source.taken", { label: alias.label, nik: alias.nikMasked })
-                    : t("booking.holder.source.alias", { label: alias.label, nik: alias.nikMasked }),
+                    ? t("booking.holder.source.taken", { label: aliasName(alias), nik: alias.nikMasked })
+                    : t("booking.holder.source.alias", { label: aliasName(alias), nik: alias.nikMasked }),
                   disabled: takenByOtherTicket && alias.id !== picked?.id,
                 })),
               ],
@@ -261,7 +271,7 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
           imageUrl: event.imageUrl,
           tag: t("checkout.event.tag", { category: event.category, city: event.city }),
           name: eventTitle,
-          date: eventDate.format(new Date(event.date)),
+          date: eventDate().format(new Date(event.date)),
           venue: `${event.venue}, ${event.city}`,
         }
       : undefined,

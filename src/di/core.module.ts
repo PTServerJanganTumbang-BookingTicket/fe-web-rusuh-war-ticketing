@@ -15,6 +15,7 @@ import {
 } from "@/core/data/account/account-gateway.service";
 import { createWebStorageCredentialStoreService } from "@/core/data/credentials/web-storage-credential-store.service";
 import { createMathRandomService } from "@/core/data/math-random.service";
+import { createWebStorageLocalePreferenceService } from "@/core/data/web-storage-locale-preference.service";
 import { createHttpSessionService } from "@/core/data/session/http-session.service";
 import {
   createEventSourceStreamClient,
@@ -48,6 +49,7 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     fetchFn: asValue(lateBoundFetch),
     clock: asFunction(createSystemClockService).singleton(),
     random: asFunction(createMathRandomService).singleton(),
+    localePreference: asFunction(createWebStorageLocalePreferenceService).singleton(),
     httpClient: asFunction(createFetchHttpClient).singleton(),
     bffHttpClient: asFunction(({ appConfig: config, fetchFn }: { appConfig: AppConfig; fetchFn: FetchFn }) =>
       createFetchHttpClient({ appConfig: { ...config, apiBaseUrl: `${config.appBaseUrl}/api` }, fetchFn }),

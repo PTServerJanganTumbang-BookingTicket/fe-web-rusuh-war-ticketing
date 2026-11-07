@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { initialsOf, toSiteChrome } from "../site-chrome.utils";
 
 describe("toSiteChrome", () => {
@@ -17,6 +17,24 @@ describe("toSiteChrome", () => {
       href: "/account",
       ariaLabel: "Profil saya (budi.santoso@example.com)",
     });
+  });
+
+  it("tanpa pengganti bahasa bila locale tidak diberikan (mapper murni, server)", () => {
+    expect(toSiteChrome().nav.language).toBeUndefined();
+  });
+
+  it("pengganti bahasa: ID dan EN, nilai asing diabaikan", () => {
+    const onLocaleChange = vi.fn();
+    const { nav } = toSiteChrome({ locale: "id", onLocaleChange });
+    expect(nav.language?.value).toBe("id");
+    expect(nav.language?.options).toEqual([
+      { value: "id", label: "Bahasa Indonesia", short: "ID" },
+      { value: "en", label: "English", short: "EN" },
+    ]);
+    nav.language?.onChange("fr");
+    expect(onLocaleChange).not.toHaveBeenCalled();
+    nav.language?.onChange("en");
+    expect(onLocaleChange).toHaveBeenCalledWith("en");
   });
 
   it("menandai menu halaman aktif", () => {

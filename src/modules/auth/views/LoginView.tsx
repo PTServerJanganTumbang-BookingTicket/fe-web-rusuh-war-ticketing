@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { CircleCheckIcon, ClockIcon, InfoIcon, MailIcon } from "lucide-react";
+import { CircleCheckIcon, ClockIcon, InfoIcon, MailIcon } from "@/components/ui/icons";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";

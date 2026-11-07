@@ -25,7 +25,7 @@ Route group `(public)`, `(auth)`, `(embed)` hanya pengelompokan folder, tidak ma
 ```tsx
 export default function QueuePage({ params }: PageProps<"/events/[eventId]/queue">) {
   return (
-    <Suspense fallback={<ScreenLoading />}>
+    <Suspense fallback={<ScreenLoading label={t("common.loading")} variant="checkout" />}>
       <Queue params={params} />
     </Suspense>
   );
@@ -71,7 +71,7 @@ modules/<m>/application/<x>.use-case.ts     execute() → <Nama>Protocol (interf
 modules/<m>/domain                  modules/<m>/data/http-<nama>.service.ts → HttpClient + <nama>.schema.ts (zod, AppFailure)
 ```
 
-Paralel: `src/core/views/design-system` (design system props-only di atas Signal DS), `views/` per modul, dan `src/core/i18n` (`t("key")`, default `id`).
+Paralel: `src/components/ui` (design system props-only di atas Signal DS), `views/` per modul, dan `src/core/i18n` (`t("key")`, default `id`).
 
 Dari mana use case datang: `AppProviders` membuat container dengan `createAppContainer(readAppConfig())` ([`src/di/container.ts`](../../src/di/container.ts)). Container itu merakit `coreModule(config)` dan registrasi setiap modul (`catalogModule()`, `queueModule()`, ...). Controller tidak pernah mengimpor kelas implementasi.
 
@@ -96,12 +96,12 @@ Contoh nyata: Waiting Room.
 | `data` | `domain`/`application`/`data` `<m>`, `core/domain`, `core/application`, `core/data` |
 | `controllers` | `domain`/`controllers`/`views` `<m>`, `core` sisi tampilan; `application` `<m>` dan `core/application` **hanya tipe** |
 | `views/<S>Container.tsx` | Sama dengan `controllers` |
-| `views` (lainnya) | `core/views/design-system`, `views` `<m>`; `domain` `<m>` hanya tipe |
+| `views` (lainnya) | `components/ui`, `views` `<m>`; `domain` `<m>` hanya tipe |
 | `<m>.module.ts` | `domain`/`application`/`data` `<m>`, `core/domain`, `core/application`, `core/data` |
 | `src/di` | `*.module.ts`, seluruh `core`, `mocks` |
 | `src/app`, `proxy.ts`, `instrumentation.ts` | `di`, controller dan view modul, `core` sisi tampilan, `core/data` |
 
-"`core` sisi tampilan" = `core/domain`, `core/controllers`, `core/i18n`, `core/views`.
+"`core` sisi tampilan" = `core/domain`, `core/controllers`, `core/i18n`, dan design system `src/components/ui` (`src/core` tidak punya view).
 
 Aturan tambahan: `domain` dan `application` tanpa framework, `zod`, `awilix`, `fetch`, `Date.now()` (application juga tanpa `Math.random()`); `awilix` hanya di `src/di` dan `*.module.ts`. Kode mock (`@/mocks`) hanya boleh diimpor dari `src/di/AppProviders.tsx`, `src/instrumentation.ts`, dan test.
 

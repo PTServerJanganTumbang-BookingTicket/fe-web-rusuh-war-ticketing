@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import { BookingContainer } from "@/modules/booking/views/BookingContainer";
-import { ScreenLoading } from "@/core/views/ScreenLoading";
+import { ScreenLoading } from "@/components/ui/layout/PageSkeleton";
+import { t } from "@/core/i18n/t.utils";
 
 export default function BookingPage({ params }: PageProps<"/events/[eventId]/book">) {
   return (
-    <Suspense fallback={<ScreenLoading />}>
+    <Suspense fallback={<ScreenLoading label={t("common.loading")} variant="checkout" />}>
       <Booking params={params} />
     </Suspense>
   );

@@ -3,8 +3,8 @@ import { MAX_TICKETS_PER_BOOKING } from "../booking.constants";
 import { aliasOptionsFor, validateBookingTickets } from "../ticket-holders.rules";
 
 const ticket = (nik: string) => ({ categoryId: "cat_vip", nik });
-const budi = { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171****33" };
-const sari = { id: "snk_2", label: "Sari", nik: "3171000000000044", nikMasked: "3171****44" };
+const budi = { id: "snk_1", label: "Budi", name: null, nik: "3171000000000033", nikMasked: "3171****33" };
+const sari = { id: "snk_2", label: "Sari", name: null, nik: "3171000000000044", nikMasked: "3171****44" };
 
 describe("validateBookingTickets", () => {
   it("lolos untuk 1 sampai 3 tiket dengan NIK unik", () => {

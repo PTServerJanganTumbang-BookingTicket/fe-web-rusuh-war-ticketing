@@ -10,7 +10,8 @@ Satu aplikasi Next.js, bukan monorepo. Fitur adalah **modul**; tiap modul punya 
 src/app            Next.js: routing, layout, route handler        (framework)
 src/di             composition root Awilix, config, AppProviders  (wiring)
 src/modules/<m>/   domain/ application/ data/ controllers/ views/ <m>.module.ts
-src/core/          domain/ application/ data/ controllers/ views/ i18n/   (dipakai lebih dari satu modul)
+src/core/          domain/ application/ data/ controllers/ i18n/   (dipakai lebih dari satu modul; tanpa views)
+src/components/ui  design system Signal: primitif, layout, ikon Signal, skeleton (props-only)
 src/mocks          MSW
 src/test           support test
 ```
@@ -45,16 +46,18 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 | `modules/<m>/data` | Service yang mengimplementasikan protocol, schema zod; lapisan dalam modul sendiri, `core/domain`, `core/application`, `core/data` | React, Next, `awilix`, `controllers`, `views` |
 | `modules/<m>/controllers` | Controller, mapper, query options, loader; `domain` modul sendiri, `views` modul sendiri (tipe props), `core` sisi tampilan, **`application` hanya `import type`** | Impor nilai dari `application` atau `data`, `awilix`, `Date.now()`, `Math.random()` |
 | `modules/<m>/views/<Layar>Container.tsx` | Sama dengan `controllers` | Sama dengan `controllers` |
-| `modules/<m>/views` (selain Container) | View props-only; `core/views/design-system`; `domain` hanya tipe | Controller, i18n, hook data, TanStack Query, apa pun selain design system |
+| `modules/<m>/views` (selain Container) | View props-only; `components/ui`; `domain` hanya tipe | Controller, i18n, hook data, TanStack Query, apa pun selain design system |
 | `modules/<m>/<m>.module.ts` | Registrasi Awilix modul sendiri | Modul lain |
-| `src/core/views/design-system` | React, Signal DS, Tailwind | Semua di luar `design-system` (termasuk i18n dan hook `core/controllers`) |
+| `src/components/ui` | React, Signal DS, Tailwind | Semua di luar `design-system` (termasuk i18n dan hook `core/controllers`) |
 | `src/core/domain`, `src/core/application` | TypeScript murni | Semua di luar `core/domain` dan `core/application`, framework, `zod`, `awilix` |
-| `src/core/data` | `core/domain`, `core/application`, client (HTTP, SSE) | React, `core/controllers`, `core/views`, modul, `awilix` |
+| `src/core/data` | `core/domain`, `core/application`, client (HTTP, SSE) | React, `core/controllers`, design system, modul, `awilix` |
 | `src/core/controllers`, `src/core/i18n` | `core/domain`, `core/application` hanya tipe | `core/data`, modul, `awilix` |
 | `src/di` | Registrasi modul, seluruh `core`, `awilix` | Controller dan view modul |
 | `src/app`, `proxy.ts`, `instrumentation.ts` | `di`, controller dan view modul, `core` sisi tampilan, `core/data` (konstanta cookie) | Logika apa pun selain komposisi dan kebijakan rendering |
 
-"`core` sisi tampilan" berarti `core/domain`, `core/controllers`, `core/i18n`, `core/views`.
+"`core` sisi tampilan" berarti `core/domain`, `core/controllers`, `core/i18n`, dan design system `src/components/ui`.
+
+`src/core` tidak punya `views/`. Komponen tampilan bersama (termasuk `ScreenLoading`, `PageSkeleton`, `StatusView`) ada di design system dan props-only; teksnya dari pemanggil. Layar milik modul, misalnya Pusat Bantuan di `src/modules/help`. Kerangka memuat memakai `Skeleton` dan `PageSkeleton` dengan varian sesuai tata letak layar; spinner hanya untuk tombol yang sedang memproses.
 
 **Modul tidak saling mengimpor.** Yang dipakai lebih dari satu modul pindah ke lapisan yang sama di `src/core`. Kalau terpaksa melanggar, berhenti dan usulkan ADR.
 
@@ -110,7 +113,7 @@ Arah dependensi selalu ke dalam: `views → controllers → application (tipe sa
 ## Aturan tambahan (ditegakkan lint atau CI)
 
 - **Seluruh aturan dependensi di atas ditegakkan `eslint.boundaries.mjs`** dengan `default: "disallow"` (ADR-0014). Test (`*.test.*`) dikecualikan dari aturan lapisan.
-- **Design system memakai primitif dan token Signal DS (ADR-0012).** Tidak ada nilai hex di `src/core/views` maupun `src/modules/<m>/views` (`bg-primary`, `text-muted-foreground`, `bg-signal-bg-error`, `currentColor`). Tombol, kartu, badge, alert, progress, dan radio dibangun dari `src/core/views/design-system/primitives`. Hex ditegakkan ESLint. Komponen shadcn dari `components.json` (style `base-mira`, Base UI) ada di `src/components/ui/*.tsx` dan dipakai layar baru (auth, Waiting Room); token warnanya tetap dari `src/components/ui/signal.css`, jadi `npx shadcn add` tidak boleh menimpa token di `globals.css`.
+- **Design system memakai primitif dan token Signal DS (ADR-0012).** Tidak ada nilai hex di `src/components/ui` maupun `src/modules/<m>/views` (`bg-primary`, `text-muted-foreground`, `bg-signal-bg-error`, `currentColor`). Tombol, kartu, badge, alert, progress, dan radio dibangun dari `src/components/ui/primitives`. Hex ditegakkan ESLint. Komponen shadcn dari `components.json` (style `base-mira`, Base UI) ada di `src/components/ui/*.tsx` dan dipakai layar baru (auth, Waiting Room); token warnanya tetap dari `src/components/ui/signal.css`, jadi `npx shadcn add` tidak boleh menimpa token di `globals.css`.
 - **View boleh `import type` dari `domain` modulnya, bukan nilai.** Ditegakkan ESLint boundaries.
 - **Kode mock hanya dimuat dari `src/di/AppProviders.tsx`, `src/instrumentation.ts`, dan test.** Pemuatannya dijaga `NEXT_PUBLIC_API_MOCKING`. `next.config.ts` selalu mendefinisikan variabel itu supaya kode mock hilang dari bundle produksi. Ditegakkan ESLint dan dicek lewat ukuran bundle.
 - **Kontrol yang hanya untuk simulasi** (mis. tombol "Simulasikan berhasil/gagal") dirender hanya saat `NEXT_PUBLIC_API_MOCKING=enabled`.

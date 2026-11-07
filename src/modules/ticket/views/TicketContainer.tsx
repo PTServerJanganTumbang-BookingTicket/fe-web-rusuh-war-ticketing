@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ScreenLoading } from "@/core/views/ScreenLoading";
+import { ScreenLoading } from "@/components/ui/layout/PageSkeleton";
 import { t } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useMyTicketsController } from "../controllers/ticket.controller";
@@ -21,7 +21,7 @@ export function TicketContainer() {
   }, []);
 
   if (!mounted) {
-    return <ScreenLoading />;
+    return <ScreenLoading label={t("common.loading")} variant="list" />;
   }
 
   return <TicketContent />;
@@ -35,7 +35,6 @@ function TicketContent() {
   const getErrorMessage = (): string | undefined => {
     if (error?.kind === "api" && error.code === "UNAUTHENTICATED") return t("ticket.error.UNAUTHENTICATED");
     if (error) return t("ticket.error");
-    if (isLoading && tickets.length === 0) return t("common.loading");
     return undefined;
   };
 
@@ -52,6 +51,7 @@ function TicketContent() {
       }}
       emptyLabel={t("ticket.empty")}
       errorMessage={getErrorMessage()}
+      loading={isLoading && tickets.length === 0 && !error ? t("common.loading") : undefined}
     />
   );
 }

@@ -41,6 +41,29 @@ describe("useRegisterController", () => {
     expect(form().consent.error).toBe("Persetujuan diperlukan untuk membuat akun.");
   });
 
+  it("tombol daftar nonaktif selama format email salah", () => {
+    const { form, fill } = mount();
+    fill({ email: "alex@example", nik: "3171000000000044", consent: true });
+    expect(form().submit.disabled).toBe(true);
+    // Galat bentuk baru tampil setelah field ditinggalkan.
+    expect(form().email.error).toBeUndefined();
+    act(() => form().email.onBlur?.());
+    expect(form().email.error).toBe("Masukkan alamat email yang valid.");
+    fill({ email: "alex@example.com" });
+    expect(form().submit.disabled).toBe(false);
+    expect(form().email.error).toBeUndefined();
+  });
+
+  it("tombol daftar nonaktif sampai NIK 16 digit dan persetujuan dicentang", () => {
+    const { form, fill } = mount();
+    fill({ email: "alex@example.com", nik: "3171" });
+    expect(form().submit.disabled).toBe(true);
+    fill({ nik: "3171000000000044" });
+    expect(form().submit.disabled).toBe(true);
+    fill({ consent: true });
+    expect(form().submit.disabled).toBe(false);
+  });
+
   it("NIK hanya menerima digit dan harus 16 digit", () => {
     const { form, fill } = mount();
     fill({ email: "alex@example.com", nik: "3171 0000-0000", consent: true });
