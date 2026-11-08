@@ -2,6 +2,12 @@
 // Format: [JIRAID][ACTOR] type(scope): subject
 const config = {
   extends: ["@commitlint/config-conventional"],
+  // Commit merge dibuat otomatis (git/GitHub/IDE) dan tidak mengikuti format Telkomsel.
+  // Termasuk pesan tanpa header yang hanya berisi trailer (mis. Co-authored-by dari GitHub).
+  ignores: [
+    (message) => /^\s*(Merge|Revert) /i.test(message ?? ""),
+    (message) => !(message ?? "").replace(/^(co-authored-by|signed-off-by):.*$/gim, "").trim(),
+  ],
   parserPreset: {
     parserOpts: {
       // Match: [JIRAID][ACTOR] type(scope): subject
@@ -25,7 +31,7 @@ const config = {
   plugins: [
     {
       rules: {
-        // Tidak ada trailer atribusi atau co-authorship (docs/ai/steering/README.md).
+        // Tidak ada trailer atribusi atau co-authorship (.kiro/steering/README.md).
         "no-attribution-trailer": ({ raw }) => {
           const found = /^(co-authored-by|generated-by):/im.test(raw ?? "");
           return [!found, "Hapus trailer Co-Authored-By / Generated-By."];

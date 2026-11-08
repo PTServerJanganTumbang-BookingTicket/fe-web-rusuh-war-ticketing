@@ -1,6 +1,12 @@
+---
+inclusion: auto
+name: Architecture Rules
+description: Lapisan, aturan dependensi, DI, larangan keras, dan pola per modul. Aktifkan saat menulis atau mengedit kode di src/modules, src/core, atau src/di.
+---
+
 # Aturan Arsitektur
 
-Ringkasan untuk agent dari [overview](../../architecture/overview.md) dan ADR yang berlaku. Struktur dan lapisan: ADR-0013, ADR-0014, ADR-0015 (menggantikan ADR-0001 dan ADR-0002). Detail dan alasan ada di ADR.
+Ringkasan untuk agent dari [overview](../../docs/architecture/overview.md) dan ADR yang berlaku. Struktur dan lapisan: ADR-0013, ADR-0014, ADR-0015 (menggantikan ADR-0001 dan ADR-0002). Detail dan alasan ada di ADR.
 
 ## Struktur (ADR-0013)
 

@@ -1,3 +1,9 @@
+---
+inclusion: auto
+name: Product Context
+description: Konteks produk, halaman, dan prinsip yang tidak boleh dilanggar. Aktifkan saat mengerjakan fitur atau requirement.
+---
+
 # Konteks Produk
 
 Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumber requirement: dokumen tender "Evaluasi Expertise Solution Development 2026 H2" dan pembaruannya di repo [`documentations`](https://github.com/PTServerJanganTumbang-BookingTicket/documentations), termasuk kontrak API.
@@ -19,9 +25,9 @@ Rusuh Booking Tiket: penjualan tiket konser online yang tahan flash crowd. Sumbe
 ## Keputusan klien yang sudah pasti
 
 - Login bersifat opsional, dikonfirmasi CEO. Customer bisa antre dan membeli sebagai tamu. E-tiket dikirim ke email akun atau email yang diinput.
-- Login tanpa kata sandi lewat magic link (kontrak API §1, [ADR-0023](../../adr/0023-passwordless-login-email.md)).
+- Login tanpa kata sandi lewat magic link (kontrak API §1, [ADR-0023](../../docs/adr/0023-passwordless-login-email.md)).
 - BR-01: maksimal 3 tiket per transaksi. BR-02: 1 NIK untuk 1 tiket per event. BR-07: satu keterlibatan aktif per event, hanya untuk customer login.
-- Usulan tim, menunggu konfirmasi: satu sesi login aktif per akun ([ADR-0010](../../adr/0010-login-single-session-progress-persistence.md)). NIK terdaftar terikat ke akun ([ADR-0011](../../adr/0011-nik-linked-to-account.md)).
+- Usulan tim, menunggu konfirmasi: satu sesi login aktif per akun ([ADR-0010](../../docs/adr/0010-login-single-session-progress-persistence.md)). NIK terdaftar terikat ke akun ([ADR-0011](../../docs/adr/0011-nik-linked-to-account.md)).
 - Payment gateway: Midtrans sandbox.
 - Stok habis saat submit: tampilkan **popup** dengan stok terbaru.
 - Stack: Next.js, Telkomsel Signal Design System, Tailwind CSS.

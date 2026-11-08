@@ -65,7 +65,7 @@ Bagian ini belum disepakati BE dan perlu dibawa ke repo `documentations`.
   - Test Playwright: tamu menyelesaikan alur tanpa diarahkan ke `/login`, dan `redirect_context` yang tidak dikenal berakhir di Home.
   - Tidak ada token akun di `localStorage`, Context, URL, query key, atau log.
   - Handler MSW mengikuti bentuk `{ meta, data }` dari kontrak.
-  - Setelah Accepted: perbarui bagian token di `docs/ai/steering/architecture-rules.md`.
+  - Setelah Accepted: perbarui bagian token di `.kiro/steering/architecture-rules.md`.
 
 ## Pertanyaan terbuka
 

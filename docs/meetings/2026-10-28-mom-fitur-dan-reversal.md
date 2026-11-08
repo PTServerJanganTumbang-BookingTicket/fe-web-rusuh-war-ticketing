@@ -47,7 +47,7 @@ Bagian 1 dan 2 adalah catatan rapat. Bagian 3 dan 4 adalah analisis tim FE terha
 
 ## 3. Dampak terhadap ADR dan kode FE (analisis, belum diterapkan)
 
-**Konflik terbesar: ada customer non-login (guest).** Butir 12, 14, BR-07, dan pengiriman e-tiket mengandaikan alur guest. `docs/ai/steering/product.md`, [ADR-0010](../adr/0010-login-single-session-progress-persistence.md), dan [ADR-0011](../adr/0011-nik-linked-to-account.md) masih menyatakan login wajib sebelum antre. "ADR-005 device fingerprint" di butir 14 bukan [ADR-0005](../adr/0005-server-authoritative-time.md) FE (yang membahas waktu server); kemungkinan berasal dari ADR tingkat solusi.
+**Konflik terbesar: ada customer non-login (guest).** Butir 12, 14, BR-07, dan pengiriman e-tiket mengandaikan alur guest. `.kiro/steering/product.md`, [ADR-0010](../adr/0010-login-single-session-progress-persistence.md), dan [ADR-0011](../adr/0011-nik-linked-to-account.md) masih menyatakan login wajib sebelum antre. "ADR-005 device fingerprint" di butir 14 bukan [ADR-0005](../adr/0005-server-authoritative-time.md) FE (yang membahas waktu server); kemungkinan berasal dari ADR tingkat solusi.
 
 | MoM | ADR / lokasi | Dampak |
 |---|---|---|

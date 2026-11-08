@@ -9,7 +9,7 @@
 
 ADR-0012 dan ADR-0017 memutuskan token Signal DS plus primitif buatan sendiri yang diporting dari shadcn/Radix (`src/components/ui/primitives/`: `Button`, `Badge`, `Card`, `Alert`, `Progress`, `RadioGroup`). Primitif itu cukup untuk layar awal, tetapi layar auth, Waiting Room, Detail Tiket, dan Pembayaran butuh komponen yang belum ada: input dengan label dan pesan galat, checkbox, dialog, separator, dan spinner. Menulisnya sendiri berarti mengulang perilaku aksesibilitas (fokus, `aria-*`, jebakan fokus dialog) yang sudah ada di pustaka.
 
-Pada 2026-11-03 tim menjalankan `npx shadcn@latest init` dan menambah komponen shadcn (lihat `docs/ai/usage-log.md`, entri "Desain Waiting Room dan layar auth dengan shadcn"). ADR ini mencatat keputusan itu dan cara pemasangannya di repo, karena belum ada ADR yang menjelaskannya.
+Pada 2026-11-03 tim menjalankan `npx shadcn@latest init` dan menambah komponen shadcn (lihat `.kiro/usage-log.md`, entri "Desain Waiting Room dan layar auth dengan shadcn"). ADR ini mencatat keputusan itu dan cara pemasangannya di repo, karena belum ada ADR yang menjelaskannya.
 
 Kondisi di repo saat ADR ini ditulis:
 

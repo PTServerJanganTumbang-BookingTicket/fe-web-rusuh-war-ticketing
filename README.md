@@ -26,7 +26,7 @@ Untuk backend asli: kosongkan `NEXT_PUBLIC_API_MOCKING` dan isi `NEXT_PUBLIC_API
 | `src/test` | Support test: server MSW bersama, container uji |
 | `eslint.boundaries.mjs` | Aturan lapisan dan modul (ADR-0014) |
 
-Menambah fitur: skill [`new-module`](docs/ai/skills/new-module/SKILL.md) dan [`new-feature-screen`](docs/ai/skills/new-feature-screen/SKILL.md).
+Menambah fitur: skill [`new-module`](.kiro/skills/new-module/SKILL.md) dan [`new-feature-screen`](.kiro/skills/new-feature-screen/SKILL.md).
 
 ## Irisan vertikal yang sudah ada
 

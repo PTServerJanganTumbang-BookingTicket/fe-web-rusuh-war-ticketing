@@ -388,3 +388,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: `src/core/i18n/id.messages.ts` (476 key) dan `en.messages.ts` (182 key sebelumnya).
 - **Output**: 294 key Inggris ditambahkan (katalog, antrean, login/register/verifikasi, bantuan, dialog, pembayaran). Test `en.messages.test.ts` kini mewajibkan semua key terjemah; test fallback `t.utils.test.ts` menghapus key sementara. Komentar `en.messages.ts` dan `locale.utils.ts` diperbarui.
 - **Review manusia**: Menunggu review bahasa Inggris (nada dan istilah). Label tutup dialog di design system dan teks merek "BOOKING TIKET" di navbar belum diubah. Belum dicek visual di browser.
+
+## 2026-11-08 — Konsolidasi aturan AI ke `.kiro/`
+
+- **Tool**: Claude Code
+- **Oleh**: Ahmad Muzaki
+- **Tujuan**: `docs/` hanya berisi ADR dan dokumentasi developer; semua aturan AI pindah ke `.kiro/`.
+- **Input**: `.kiro/` dan `docs/ai/` lama.
+- **Output**: `docs/ai/steering/*` → `.kiro/steering/` (ditambah front matter `inclusion`), `docs/ai/skills/` → `.kiro/skills/`, file ini → `.kiro/usage-log.md`. `architecture-layers.md` dan `naming-conventions.md` dihapus karena isinya sudah tercakup `architecture-rules.md` dan `coding-conventions.md`. Rujukan di `AGENTS.md`, `README.md`, `docs/README.md`, ADR-0023/0024, MoM, `eslint.config.mjs`, dan `commitlint.config.mjs` diperbarui. Entri lama di log ini tidak diubah, jadi path `docs/ai/` di dalamnya adalah path historis.
+- **Review manusia**: Perlu dicek bahwa `design-system.md` dan `coding-patterns.md` masih menyebut Radix; ADR-0024 memakai Base UI.

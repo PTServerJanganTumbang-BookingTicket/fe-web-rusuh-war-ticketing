@@ -15,7 +15,7 @@ description: Menulis Architecture Decision Record baru di docs/adr dengan templa
 6. **Konsekuensi**: positif, negatif, dan *yang harus dijaga* (lint, test, atau review yang menegakkan keputusan).
 7. **Status awal `Proposed`.** Diubah ke `Accepted` setelah disepakati tim.
 8. **Jika menggantikan ADR lama**, ubah status ADR lama menjadi `Superseded by ADR-NNNN`. Jangan menghapus atau menulis ulang isinya.
-9. **Perbarui** tabel di `docs/adr/README.md` dan, bila aturan berubah, `docs/ai/steering/architecture-rules.md`.
+9. **Perbarui** tabel di `docs/adr/README.md` dan, bila aturan berubah, `.kiro/steering/architecture-rules.md`.
 
 ## Checklist
 

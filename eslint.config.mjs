@@ -8,7 +8,7 @@ export default defineConfig([
   ...nextTs,
   ...boundaries,
   {
-    // Kebersihan kode (docs/ai/steering/coding-conventions.md)
+    // Kebersihan kode (.kiro/steering/coding-conventions.md)
     files: ["**/*.{ts,tsx,mjs}"],
     rules: {
       "no-nested-ternary": "error",

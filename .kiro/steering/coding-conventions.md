@@ -1,3 +1,9 @@
+---
+inclusion: auto
+name: Coding Conventions
+description: Penamaan, komponen, token desain, aksesibilitas, dan gaya kode. Aktifkan saat membuat file atau menulis kode.
+---
+
 # Konvensi Kode
 
 ## Bahasa dan tipe
@@ -43,8 +49,8 @@ Nama file non-komponen: kebab-case dengan akhiran peran (ADR-0013). Komponen Rea
 - Token warna dan tipografi diambil dari preset Signal, bukan nilai hex langsung.
 - Komponen fungsi saja (tanpa class). Satu-satunya pengecualian adalah error boundary, karena React belum menyediakan versi hook.
 - Props komponen primitif memperluas atribut HTML bawaan (`React.ComponentProps<"button">`) dan meneruskan `...rest` ke elemen akar.
-- Dialog dan popup memakai primitif Radix `Dialog` (Escape menutup, `aria-modal`, jebakan fokus, kunci scroll, fokus kembali ke pemicu). Jangan membuat ulang secara manual. Komponen shadcn yang ada sekarang memakai `Dialog` Base UI dari `src/components/ui/dialog.tsx` dengan perilaku yang sama ([ADR-0024](../../adr/0024-shadcn-ui-on-base-ui.md)).
-- Modal galat dan konfirmasi memakai `ActionDialog` (`src/components/ui/layout/ActionDialog.tsx`): ikon, judul, penjelasan, satu aksi utama, satu aksi cadangan opsional. State modal milik controller layar lewat `useModal()` (`src/core/controllers/modal.hook.ts`), bukan Context atau store global; controller memetakan modal yang terbuka ke props `dialog` lewat mapper. Dialog verifikasi NIK yang dipakai lebih dari satu modul ada di `src/core/controllers/nik-dialog.mapper.ts`. Galat yang hasilnya belum diketahui (timeout Dukcapil) tidak pernah menyebut isian salah dan selalu menyimpan isian; "Ubah data" mengembalikan fokus ke field lewat `focusKey`. Di bawah 640px dialog tampil sebagai bottom sheet (Base UI Drawer). Katalog, anatomi, dan aturan lengkap: [action-dialog.md](../../architecture/action-dialog.md).
+- Dialog dan popup memakai primitif Radix `Dialog` (Escape menutup, `aria-modal`, jebakan fokus, kunci scroll, fokus kembali ke pemicu). Jangan membuat ulang secara manual. Komponen shadcn yang ada sekarang memakai `Dialog` Base UI dari `src/components/ui/dialog.tsx` dengan perilaku yang sama ([ADR-0024](../../docs/adr/0024-shadcn-ui-on-base-ui.md)).
+- Modal galat dan konfirmasi memakai `ActionDialog` (`src/components/ui/layout/ActionDialog.tsx`): ikon, judul, penjelasan, satu aksi utama, satu aksi cadangan opsional. State modal milik controller layar lewat `useModal()` (`src/core/controllers/modal.hook.ts`), bukan Context atau store global; controller memetakan modal yang terbuka ke props `dialog` lewat mapper. Dialog verifikasi NIK yang dipakai lebih dari satu modul ada di `src/core/controllers/nik-dialog.mapper.ts`. Galat yang hasilnya belum diketahui (timeout Dukcapil) tidak pernah menyebut isian salah dan selalu menyimpan isian; "Ubah data" mengembalikan fokus ke field lewat `focusKey`. Di bawah 640px dialog tampil sebagai bottom sheet (Base UI Drawer). Katalog, anatomi, dan aturan lengkap: [action-dialog.md](../../docs/architecture/action-dialog.md).
 - Setiap komponen interaktif bisa dioperasikan dengan keyboard dan punya label aksesibel. Countdown: elemen `role="timer"` dengan `aria-live="off"` agar tidak diumumkan tiap detik. Pengumuman lewat live region terpisah: peringatan 60 detik memakai `assertive`. Pengingat berkala (`polite`) belum ada dan perlu diputuskan bersama tim aksesibilitas.
 
 ## Token desain

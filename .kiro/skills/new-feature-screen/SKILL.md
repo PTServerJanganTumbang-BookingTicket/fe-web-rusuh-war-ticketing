@@ -5,7 +5,7 @@ description: Membuat layar baru di sebuah modul (src/modules/<m>) dengan pola us
 
 # New Feature Screen
 
-Baca dulu `docs/ai/steering/architecture-rules.md`, ADR-0003, ADR-0014, dan ADR-0015. Bila layar milik bounded context yang belum ada, jalankan skill [`new-module`](../new-module/SKILL.md) dulu.
+Baca dulu `.kiro/steering/architecture-rules.md`, ADR-0003, ADR-0014, dan ADR-0015. Bila layar milik bounded context yang belum ada, jalankan skill [`new-module`](../new-module/SKILL.md) dulu.
 
 ## Langkah
 

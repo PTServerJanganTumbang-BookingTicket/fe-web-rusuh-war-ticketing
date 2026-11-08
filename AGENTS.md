@@ -4,14 +4,14 @@ Repo frontend Rusuh Booking Tiket (Next.js, Telkomsel Signal DS, Tailwind). Satu
 
 Sebelum mengubah kode, baca dan ikuti:
 
-1. `docs/ai/steering/product.md`
-2. `docs/ai/steering/architecture-rules.md`
-3. `docs/ai/steering/coding-conventions.md`
-4. `docs/ai/steering/testing.md`
+1. `.kiro/steering/product.md`
+2. `.kiro/steering/architecture-rules.md`
+3. `.kiro/steering/coding-conventions.md`
+4. `.kiro/steering/testing.md`
 
-Prosedur berulang ada di `docs/ai/skills/`. Keputusan arsitektur ada di `docs/adr/`.
+Prosedur berulang ada di `.kiro/skills/`. Keputusan arsitektur ada di `docs/adr/`.
 
-Jangan menghapus atau memangkas apa pun di `docs/ai/`. Catat sesi yang menghasilkan perubahan signifikan di `docs/ai/usage-log.md`.
+Aturan AI hanya ada di `.kiro/`; `docs/` hanya berisi ADR dan dokumentasi developer. Jangan menghapus atau memangkas isi `.kiro/steering/`, `.kiro/skills/`, atau `.kiro/usage-log.md`. Catat sesi yang menghasilkan perubahan signifikan di `.kiro/usage-log.md`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

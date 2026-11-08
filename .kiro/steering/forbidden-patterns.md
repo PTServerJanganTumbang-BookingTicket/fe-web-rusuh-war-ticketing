@@ -6,7 +6,7 @@ description: Larangan keras dan anti-pattern yang harus dihindari. Aktifkan saat
 
 # Forbidden Patterns
 
-Larangan keras dan anti-pattern. Referensi: `docs/ai/steering/architecture-rules.md`.
+Larangan keras dan anti-pattern. Referensi: `.kiro/steering/architecture-rules.md`.
 
 ## Larangan Arsitektur
 
@@ -53,7 +53,7 @@ Larangan keras dan anti-pattern. Referensi: `docs/ai/steering/architecture-rules
 - **Gambar punya `alt`**; gambar dekoratif memakai `alt=""`
 - **Input punya label**; pesan error dihubungkan via `aria-describedby`
 - **Target sentuh minimal 44x44px**
-- **Dialog/popup pakai Radix `Dialog`** — jangan buat ulang manual
+- **Dialog/popup pakai primitif `Dialog` dari `src/components/ui/dialog.tsx`** (Base UI, ADR-0024) — jangan buat ulang manual
 
 ## Design System
 

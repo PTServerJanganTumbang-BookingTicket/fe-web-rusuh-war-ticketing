@@ -10,4 +10,4 @@ Prosedur berulang dalam format `SKILL.md` (frontmatter `name` + `description`) y
 | [`sync-api-contract`](sync-api-contract/SKILL.md) | BE memperbarui `openapi.yaml` |
 | [`write-adr`](write-adr/SKILL.md) | Ada keputusan arsitektur baru atau perubahan keputusan lama |
 
-Untuk Claude Code, salin atau symlink folder ini ke `.claude/skills/`. Sumber kebenarannya tetap di `docs/ai/skills/`.
+Untuk Claude Code, salin atau symlink folder ini ke `.claude/skills/`. Sumber kebenarannya tetap di `.kiro/skills/`; Kiro memuatnya langsung dari sana.

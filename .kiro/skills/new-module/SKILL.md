@@ -5,7 +5,7 @@ description: Menambah modul fitur baru (bounded context) di src/modules dengan l
 
 # New Module
 
-Baca dulu ADR-0013, ADR-0014, ADR-0015 dan `docs/ai/steering/architecture-rules.md`.
+Baca dulu ADR-0013, ADR-0014, ADR-0015 dan `.kiro/steering/architecture-rules.md`.
 
 ## Kapan modul baru
 

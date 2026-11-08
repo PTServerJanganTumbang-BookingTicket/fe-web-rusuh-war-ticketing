@@ -1,3 +1,9 @@
+---
+inclusion: auto
+name: Testing
+description: Apa yang wajib dites per lapisan dan dengan tool apa. Aktifkan saat menulis atau mengedit test.
+---
+
 # Testing
 
 | Lapisan | Tool | Wajib dites |
@@ -12,7 +18,7 @@
 
 ## Aturan
 
-- **Test di folder `__tests__` di sebelah file yang dites** ([ADR-0020](../../adr/0020-test-file-organization.md)), dengan nama `<file>.test.ts(x)` (`controllers/__tests__/payment.mapper.test.ts`, `application/__tests__/get-queue-state.use-case.test.ts`). Test lintas modul (service HTTP terhadap MSW) ada di `src/test/__tests__`.
+- **Test di folder `__tests__` di sebelah file yang dites** ([ADR-0020](../../docs/adr/0020-test-file-organization.md)), dengan nama `<file>.test.ts(x)` (`controllers/__tests__/payment.mapper.test.ts`, `application/__tests__/get-queue-state.use-case.test.ts`). Test lintas modul (service HTTP terhadap MSW) ada di `src/test/__tests__`.
 
 - **Selektor memakai `getByRole` / `getByText`**, `getByTestId` hanya bila tidak ada peran atau teks yang bermakna.
 - **Uji jalur sukses dan galat.** Untuk `data` dan controller, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.

@@ -13,6 +13,6 @@ Jika steering bertentangan dengan permintaan di prompt, agent **berhenti dan ber
 
 ## Aturan tetap
 
-- Folder `docs/ai/` tidak boleh dihapus, diringkas, atau ditimpa oleh agent.
+- Folder `.kiro/` (steering, skills, usage log) adalah satu-satunya tempat aturan AI. Jangan menyalinnya ke `docs/`.
 - Setiap sesi AI yang menghasilkan perubahan signifikan dicatat di [`../usage-log.md`](../usage-log.md).
 - Tidak ada trailer atribusi atau co-authorship (`Co-Authored-By`, `Generated-By`, dsb.) di commit, PR, atau file.
