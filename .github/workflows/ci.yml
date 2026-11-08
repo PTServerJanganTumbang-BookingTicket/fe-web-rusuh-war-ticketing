@@ -8,8 +8,13 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # SonarCloud butuh riwayat penuh untuk atribusi dan deteksi kode baru.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -23,6 +28,11 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:coverage
+
+      # Memakai coverage/lcov.info dari langkah di atas. Secret tidak tersedia di PR dari fork, jadi dilewati.
+      - name: Analisis SonarCloud
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v6
 
       - name: Build
         run: npm run build | tee build.log
