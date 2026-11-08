@@ -19,6 +19,6 @@
 .husky
 docs
 e2e
-emails
+emails/dist
 Dockerfile
 .dockerignore

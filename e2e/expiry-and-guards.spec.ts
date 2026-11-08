@@ -12,7 +12,9 @@ test.describe("Kedaluwarsa dan gerbang akses", () => {
     await page.clock.runFor(80_000);
 
     await expect(page).toHaveURL(new RegExp(`/events/${EVENT_ID}/queue$`));
-    await expect(page.getByText("#1.248")).toBeVisible();
+    await expect(
+      page.getByText("Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal."),
+    ).toBeVisible();
   });
 
   test("waktu pembayaran habis: status expired dari server (FR-23, BR-06)", async ({ page }) => {
