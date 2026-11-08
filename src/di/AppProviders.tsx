@@ -24,7 +24,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
       const scenario = new URLSearchParams(window.location.search).get("scenario");
       import("@/mocks/browser")
         .then(({ startWorker }) => startWorker(scenario))
-        .then(() => onlineManager.setOnline(true));
+        .then(() => onlineManager.setOnline(true))
+        // Worker gagal start: lepas query supaya galat jaringan tampil di layar, bukan tertahan offline selamanya.
+        .catch(() => onlineManager.setOnline(true));
     }
   }, []);
 

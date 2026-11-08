@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isNikFormat, validateSavedNikInput } from "../account.rules";
+import { isEmail, isNikFormat, validateSavedNikInput } from "../account.rules";
 import { SAVED_NIK_LABEL_MAX_LENGTH, SAVED_NIK_NAME_MAX_LENGTH } from "../auth.constants";
 
 const NAME = "Budi Santoso";
@@ -10,6 +10,35 @@ describe("isNikFormat", () => {
     expect(isNikFormat("317100000000002")).toBe(false);
     expect(isNikFormat("31710000000000222")).toBe(false);
     expect(isNikFormat("3171-00000000002")).toBe(false);
+  });
+});
+
+describe("isEmail", () => {
+  it("menerima alamat dengan satu @ dan domain bertitik, spasi tepi diabaikan", () => {
+    for (const value of ["a@b.co", " rina@example.com ", "a.b+c@mail.example.id", "a@b.c.d"])
+      expect(isEmail(value)).toBe(true);
+  });
+
+  it("menolak alamat tanpa @, dengan @ ganda, tanpa lokal, atau domain tanpa titik yang diapit karakter", () => {
+    for (const value of [
+      "",
+      "abc",
+      "a@b",
+      "@b.co",
+      "a@@b.co",
+      "a@b@c.co",
+      "a@.co",
+      "a@b.",
+      "a b@c.co",
+      "a@b .co",
+    ])
+      expect(isEmail(value)).toBe(false);
+  });
+
+  it("input panjang tanpa titik selesai cepat (tanpa backtracking)", () => {
+    const started = performance.now();
+    expect(isEmail(`${"a".repeat(50_000)}@${"b".repeat(50_000)}`)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(200);
   });
 });
 

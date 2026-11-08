@@ -3,7 +3,13 @@ import type { SavedNikInput } from "./account.model";
 
 /** Validasi bentuk di klien supaya galat muncul sebelum request; server tetap memvalidasi ulang. */
 export function isEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  // Tanpa regex berantai: pola `[^\s@]+@[^\s@]+\.[^\s@]+` berpotensi backtracking super-linear.
+  const email = value.trim();
+  const at = email.indexOf("@");
+  if (at < 1 || at !== email.lastIndexOf("@") || /\s/.test(email)) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.indexOf(".", 1);
+  return dot !== -1 && dot < domain.length - 1;
 }
 
 /** NIK selalu 16 digit angka (BR-02). Keaslian dicek Dukcapil di server. */

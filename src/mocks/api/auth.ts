@@ -6,8 +6,14 @@ import type { MockState } from "./state";
 const MAGIC_LINK_COOLDOWN_MS = 60_000;
 const ACCESS_TOKEN_TTL_SECONDS = 22_740;
 
-const isEmail = (value: unknown): value is string =>
-  typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const isEmail = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  // Tanpa regex berantai (backtracking super-linear).
+  const at = value.indexOf("@");
+  if (at < 1 || at !== value.lastIndexOf("@") || /\s/.test(value)) return false;
+  const dot = value.indexOf(".", at + 2);
+  return dot !== -1 && dot < value.length - 1;
+};
 
 /** Tag Authentication dan Accounts. */
 export function authHandlers(state: MockState, baseUrl: string) {
