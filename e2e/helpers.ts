@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
-export const EVENT_ID = "evt-konser-rusuh";
+export const EVENT_ID = "evt_konser_a";
 export const FAKE_NOW = new Date("2026-10-19T10:00:00.000Z");
 
 /** Jam palsu (testing.md): waktu hanya maju lewat `page.clock`, tanpa sleep. */
@@ -27,11 +27,17 @@ export async function passQueue(page: Page, query = "") {
   for (let round = 0; round < 6 && !page.url().includes("/book"); round++) {
     await page.clock.runFor(2500);
   }
-  await expect(page).toHaveURL(/\/events\/evt-konser-rusuh\/book$/);
+  await expect(page).toHaveURL(/\/events\/evt_konser_a\/book$/);
 }
 
 export async function pickVipAndContinue(page: Page) {
+  await page.getByRole("textbox", { name: "Nama lengkap" }).fill("Rina Pratama");
+  await page.getByRole("textbox", { name: "Email" }).fill("rina@example.com");
   await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
-  await page.getByRole("button", { name: "Lanjut ke Pembayaran →" }).click();
-  await expect(page).toHaveURL(/\/orders\/RB-00912\/pay$/);
+  const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
+  await nik.fill("3171000000000033");
+  await nik.blur();
+  await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+  await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+  await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
 }

@@ -6,14 +6,12 @@ test.describe("Alur utama", () => {
     await installFakeClock(page);
 
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Daftar Event" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Event Mendatang" })).toBeVisible();
     await page.getByRole("link", { name: "Beli Tiket →" }).first().click();
 
-    await expect(page.getByText("#1.248")).toBeVisible();
-    await expect(page.getByText("± 4 menit")).toBeVisible();
+    await expect(page.getByText(/^#[\d.]+$/)).toBeVisible();
     await passQueue(page);
 
-    await expect(page.getByText("sisa 3/3")).toBeVisible();
     await pickVipAndContinue(page);
 
     await page.getByRole("radio", { name: "E-Wallet" }).click();
@@ -30,12 +28,15 @@ test.describe("Alur utama", () => {
     await passQueue(page);
     await pickVipAndContinue(page);
 
+    await page.getByRole("radio", { name: /Virtual Account/ }).click();
+    await page.getByRole("button", { name: "BCA" }).click();
     await page.getByRole("button", { name: "Bayar Sekarang" }).click();
-    await expect(page.getByText("8277081234567890")).toBeVisible();
+    await expect(page.getByText("Nomor Virtual Account BCA")).toBeVisible();
 
     await page.getByRole("button", { name: "Simulasikan gagal" }).click();
-    await expect(page.getByRole("heading", { name: "Pembayaran Gagal" })).toBeVisible();
-    await page.getByRole("button", { name: "Kembali ke Home" }).click();
-    await expect(page).toHaveURL("/");
+    await expect(
+      page.getByText("Pembayaran sebelumnya gagal. Pilih metode lagi untuk mencoba ulang."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Bayar Sekarang" })).toBeVisible();
   });
 });

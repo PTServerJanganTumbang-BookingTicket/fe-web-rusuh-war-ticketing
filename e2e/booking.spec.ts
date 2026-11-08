@@ -7,10 +7,11 @@ test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
     await passQueue(page);
   });
 
-  test("NIK tersamar dari akun dan sisa kuota 3/3", async ({ page }) => {
-    await expect(page.getByText("3171••••••••0001")).toBeVisible();
-    await expect(page.getByText("sisa 3/3")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Lanjut ke Pembayaran →" })).toBeDisabled();
+  test("form pemesan kosong, stok tampil, dan tombol lanjut mati tanpa tiket", async ({ page }) => {
+    await expect(page.getByRole("textbox", { name: "Nama lengkap" })).toBeEmpty();
+    await expect(page.getByText("Sisa 12")).toBeVisible();
+    await expect(page.getByText("Belum ada tiket dipilih.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Lanjut ke Pembayaran" })).toBeDisabled();
   });
 
   test("batas 3 tiket lintas kategori, dan stok habis tidak bisa ditambah", async ({ page }) => {
@@ -22,14 +23,12 @@ test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
     await add("VIP").click();
     await add("Festival").click();
 
-    await expect(page.getByText("Total (3 tiket)")).toBeVisible();
-    await expect(page.getByText("sisa 0/3")).toBeVisible();
+    await expect(page.getByText("3 tiket · Maksimal 3 tiket per pesanan")).toBeVisible();
     await expect(add("VIP")).toBeDisabled();
     await expect(add("Festival")).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Lanjut ke Pembayaran →" })).toBeEnabled();
 
     await page.getByRole("button", { name: "Kurangi tiket VIP" }).click();
-    await expect(page.getByText("sisa 1/3")).toBeVisible();
+    await expect(page.getByText("2 tiket · Maksimal 3 tiket per pesanan")).toBeVisible();
     await expect(add("Festival")).toBeEnabled();
   });
 
