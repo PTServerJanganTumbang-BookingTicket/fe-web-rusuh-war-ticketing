@@ -256,7 +256,8 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
     - _Token akun disimpan lewat route same-origin di cookie httpOnly, tidak di URL atau `localStorage` (ADR-0023)_
   - [x] 19.5 Update book page.tsx `@owner:muzaki`
   - [x] 19.6 Update pay page.tsx — rename orderId → bookingId `@owner:akbar`
-  - [ ] 19.7 Update ticket page.tsx `@owner:akbar`
+  - [x] 19.7 Update ticket page.tsx `@owner:akbar`
+    - _File exists at `src/app/tickets/[ticketId]/page.tsx`_
 
 - [ ] 20. Update i18n message keys [ALIGN]
   - [x] 20.1 Tambahkan queue message keys `@owner:muzaki`
@@ -270,10 +271,13 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 
 - [ ] 22. Checkpoint — full application `@owner:shared`
 
-- [ ] 23. E2E tests [NEW]
-  - [ ] 23.1 Happy path E2E test `@owner:muzaki`
-  - [ ] 23.2 Queue pause E2E test `@owner:muzaki`
-  - [ ] 23.3 Payment retry E2E test `@owner:akbar`
+- [x] 23. E2E tests [NEW]
+  - [x] 23.1 Happy path E2E test `@owner:muzaki`
+    - _File: `e2e/happy-path.spec.ts`_
+  - [x] 23.2 Queue pause E2E test `@owner:muzaki`
+    - _File: `e2e/expiry-and-guards.spec.ts`_
+  - [x] 23.3 Payment retry E2E test `@owner:akbar`
+    - _Test in `e2e/happy-path.spec.ts`_
 
 - [x] 24. Align catalog/home module [ALIGN] `@owner:akbar`
   - [x] 24.1 Review event.model.ts — EventStatus alignment `@owner:akbar`
@@ -347,11 +351,15 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
   - [x] 29.4 Update path: `orderId` → `bookingId` di semua payment endpoints
     - _Already complete: semua API paths menggunakan `/bookings/{id}` dan `/payments/{id}` (bookingId)_
 
-- [ ] 30. Ticket module types — new [NEW] `@owner:akbar`
-  - [ ] 30.1 Buat `Ticket` type dengan fields dari `GET /users/me/tickets`
-  - [ ] 30.2 Buat `ETicket` type dengan `qrCode`, `qrValue`, `instructions`
-  - [ ] 30.3 Buat `TicketProtocol` dengan `getMyTickets`, `getETicket`
-  - [ ] 30.4 Buat `ticket.schema.ts` untuk response parsing
+- [x] 30. Ticket module types — new [NEW] `@owner:akbar`
+  - [x] 30.1 Buat `Ticket` type dengan fields dari `GET /users/me/tickets`
+    - _File: `src/modules/ticket/domain/ticket.model.ts` (TicketSummary)_
+  - [x] 30.2 Buat `ETicket` type dengan `qrCode`, `qrValue`, `instructions`
+    - _File: `src/modules/ticket/domain/ticket.model.ts`_
+  - [x] 30.3 Buat `TicketProtocol` dengan `getMyTickets`, `getETicket`
+    - _File: `src/modules/ticket/domain/ticket.protocol.ts`_
+  - [x] 30.4 Buat `ticket.schema.ts` untuk response parsing
+    - _File: `src/modules/ticket/data/ticket.schema.ts`_
 
 - [ ] 31. Auth module saved-niks alignment [ALIGN] `@owner:muzaki`
   - [x] 31.1 Rename `NikFriend` → `SavedNik` sesuai API contract
@@ -435,30 +443,26 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
 
 | Owner | Done | Remaining | Total | Progress |
 |-------|------|-----------|-------|----------|
-| **Muzaki** | 69 | 14 | 83 | 83% |
-| **Akbar** | 30 | 4 | 34 | 88% |
+| **Muzaki** | 72 | 11 | 83 | 87% |
+| **Akbar** | 33 | 1 | 34 | 97% |
 | **Shared** | 4 | 1 | 5 | 80% |
-| **TOTAL** | **103** | **19** | **122** | **84%** |
+| **TOTAL** | **109** | **13** | **122** | **89%** |
 
 ### Remaining Tasks by Owner
 
-**Muzaki (14 remaining):**
+**Muzaki (11 remaining):**
 - Task 1 (Core Domain): 1.1, 1.2, 1.3
 - Task 3 (Queue App): 3.1
 - Task 5 (Queue Checkpoint)
 - Task 16 (Auth): 16.5, 16.6
 - Task 20 (i18n): 20.4
-- Task 23 (E2E): 23.1, 23.2
 - Task 25 (Email): 25.3
-- Task 27 (Queue Alignment): 27.1-27.4
-- Task 28 (Booking Alignment): 28.1-28.4
+- Task 27 (Queue Alignment): 27.1-27.3
+- Task 28 (Booking Alignment): 28.2-28.4
 - Task 31 (Auth Alignment): 31.3
 
-**Akbar (4 remaining):**
+**Akbar (1 remaining):**
 - Task 15 (Payment Checkpoint)
-- Task 19.7 (Ticket page)
-- Task 23.3 (E2E Payment)
-- Task 30 (Ticket Alignment): 30.1-30.4
 
 **Shared (1 remaining):**
 - Task 22 (Full Application Checkpoint)
