@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { en } from "../en.messages";
 import { t } from "../t.utils";
 import { getLocale, intlLocale, isLocale, setLocale, subscribeLocale } from "../locale.utils";
 
@@ -22,7 +23,19 @@ describe("t", () => {
 
   it("key yang belum diterjemahkan jatuh ke Bahasa Indonesia", () => {
     setLocale("en");
-    expect(t("queue.title")).toBe("Ruang Tunggu");
+    const original = en["queue.title"];
+    delete en["queue.title"];
+    try {
+      expect(t("queue.title")).toBe("Ruang Tunggu");
+    } finally {
+      en["queue.title"] = original;
+    }
+  });
+
+  it("menerjemahkan layar non-booking ke Inggris", () => {
+    setLocale("en");
+    expect(t("queue.title")).toBe("Waiting Room");
+    expect(t("login.submit")).toBe("Send login link");
   });
 });
 

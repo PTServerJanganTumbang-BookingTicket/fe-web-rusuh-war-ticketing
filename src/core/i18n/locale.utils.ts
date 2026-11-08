@@ -1,6 +1,6 @@
 /**
- * Bahasa aktif UI. Bahasa Indonesia tetap bawaan (steering product.md); Inggris tersedia untuk Detail Ticket,
- * profil, booking, dan dialog. Key yang belum diterjemahkan jatuh ke teks Indonesia.
+ * Bahasa aktif UI. Bahasa Indonesia tetap bawaan (steering product.md); Inggris tersedia untuk semua layar.
+ * Key yang belum diterjemahkan jatuh ke teks Indonesia.
  *
  * State ini sengaja di modul, bukan Context: `t()` dipanggil mapper murni dan Server Component. Server selalu
  * merender `id`; pilihan customer baru diterapkan setelah hidrasi (`useLocale`), jadi tidak ada beda markup.
