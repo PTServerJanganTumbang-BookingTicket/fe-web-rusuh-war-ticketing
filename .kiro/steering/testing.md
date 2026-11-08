@@ -24,7 +24,7 @@ description: Apa yang wajib dites per lapisan dan dengan tool apa. Aktifkan saat
 - **Uji jalur sukses dan galat.** Untuk `data` dan controller, periksa path dan payload request yang diterima handler MSW, bukan memock modul HTTP.
 - **Mock direset tiap test** (`vi.clearAllMocks()` di `beforeEach` bila memakai `vi.fn`).
 - **Event handler diperiksa argumennya**, bukan hanya dipanggil.
-- **Coverage minimum 85%** (statement, branch, function, line) untuk `domain`, `application`, `data` (modul dan `core`) dan `src/di`, ditegakkan `npm run test:coverage` dan CI. Controller dan view tidak dihitung; keduanya diuji lewat test mapper/controller, story, dan e2e.
+- **Coverage minimum 85%** (statement, branch, function, line) untuk seluruh kode logika di `src`, ditegakkan `npm run test:coverage` dan CI. File yang belum punya test tetap dihitung (laporan memakai `include: src/**`), jadi SonarCloud tidak melihatnya sebagai 0%. Yang dikecualikan hanya presentasional atau infrastruktur uji: `components/ui`, `modules/*/views` (Storybook), `page`/`layout` (e2e), `src/mocks`, `src/test`, `*.constants.ts`, `instrumentation.ts`, `server-dependencies.ts`. Daftar ini ada di `coverage.exclude` (`vitest.config.ts`) dan harus sama dengan `sonar.coverage.exclusions` (`sonar-project.properties`).
 - **Logika baru di `domain` atau use case baru tanpa test tidak boleh di-merge.**
 - **Bug fix diawali test yang gagal.**
 - **Test waktu tidak pernah memakai `sleep`.** Gunakan parameter `now` di `domain`, override `clock` di container uji, dan fake clock di Playwright.

@@ -397,3 +397,13 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: `.kiro/` dan `docs/ai/` lama.
 - **Output**: `docs/ai/steering/*` → `.kiro/steering/` (ditambah front matter `inclusion`), `docs/ai/skills/` → `.kiro/skills/`, file ini → `.kiro/usage-log.md`. `architecture-layers.md` dan `naming-conventions.md` dihapus karena isinya sudah tercakup `architecture-rules.md` dan `coding-conventions.md`. Rujukan di `AGENTS.md`, `README.md`, `docs/README.md`, ADR-0023/0024, MoM, `eslint.config.mjs`, dan `commitlint.config.mjs` diperbarui. Entri lama di log ini tidak diubah, jadi path `docs/ai/` di dalamnya adalah path historis.
 - **Review manusia**: Perlu dicek bahwa `design-system.md` dan `coding-patterns.md` masih menyebut Radix; ADR-0024 memakai Base UI.
+
+## 2026-11-08 — Perbaikan kualitas SonarCloud
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Menutup temuan SonarCloud: regex backtracking, promise tanpa penanganan, duplikasi katalog i18n, dan cakupan 30%.
+- **Input**: Daftar isu dan cakupan dari SonarCloud, `vitest.config.ts`, `sonar-project.properties`.
+- **Output**: `isEmail` di `account.rules.ts`, `ticket-slots.rules.ts`, dan mock auth ditulis tanpa regex berantai. `AppProviders` menangani kegagalan worker mock; mutasi simulasi di `payment.controller.ts` mengembalikan promise invalidasi. Laporan cakupan kini mencakup semua kode logika (`include: src/**`) dengan pengecualian presentasional; `sonar.coverage.exclusions` dan `sonar.cpd.exclusions` ditambahkan. Test baru: controller pembayaran (sebelumnya dinonaktifkan), status registrasi, Home loader/controller, Bantuan, route API, proxy, order rules, use case dan simulator pembayaran, `AppProviders`. Perbaikan perilaku: daftar metode pembayaran kini juga dimuat untuk order FAILED supaya customer bisa memilih ulang setelah muat ulang halaman (BR-06).
+- **Review manusia**: Perlu dicek bahwa pengecualian cakupan sesuai kebijakan tim, dan bahwa angka cakupan di SonarCloud sesudah merge mendekati angka lokal (96% baris).
+

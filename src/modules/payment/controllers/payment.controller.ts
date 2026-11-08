@@ -24,7 +24,6 @@ import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
 import type { BankCode, Order, PaymentMethod } from "../domain/order.model";
-import { isFinalOrder } from "../domain/order.rules";
 import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentViewProps } from "./payment.mapper";
 import type { PaymentViewProps } from "../views/PaymentView";
@@ -105,7 +104,8 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   const methodsQueryResult = useQuery({
     queryKey: ["payment", "methods", orderId],
     queryFn: () => getAvailableMethodsUseCase(orderId),
-    enabled: orderData != null && !isFinalOrder(orderData),
+    // FAILED tetap butuh daftar metode: customer boleh memilih ulang (BR-06). Hanya PAID dan EXPIRED yang berakhir.
+    enabled: orderData != null && orderData.status !== "PAID" && orderData.status !== "EXPIRED",
   });
 
   // Query untuk event detail (pelengkap kartu samping, opsional)
@@ -167,9 +167,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   // Mutation untuk simulasi pembayaran (mock mode only)
   const simulateMutation = useMutation({
     mutationFn: (outcome: "PAID" | "FAILED") => simulatePaymentUseCase(orderId, outcome),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) }),
   });
 
   /* ======================================================================== */

@@ -51,5 +51,11 @@ export function isNikFormat(value: string): boolean {
 }
 
 export function isEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  // Tanpa regex berantai: pola `[^\s@]+@[^\s@]+\.[^\s@]+` berpotensi backtracking super-linear.
+  const email = value.trim();
+  const at = email.indexOf("@");
+  if (at < 1 || at !== email.lastIndexOf("@") || /\s/.test(email)) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.indexOf(".", 1);
+  return dot !== -1 && dot < domain.length - 1;
 }

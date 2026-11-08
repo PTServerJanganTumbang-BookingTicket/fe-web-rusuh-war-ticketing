@@ -1,54 +1,251 @@
 // @vitest-environment jsdom
-/**
- * Payment Controller Tests - v2.1 Alignment
- *
- * NOTE: Most tests are commented out pending Task 14 (payment.controller.ts update).
- * The controller still uses old types; these tests will be re-enabled after the controller is updated.
- */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { asValue } from "awilix";
+import { AppFailure } from "@/core/domain/app-error";
+import { createWrapper, setupTestContainer, testConfig } from "@/test/support";
+import type { AvailableMethod, Order } from "../../domain/order.model";
+import type { PaymentViewProps } from "../../views/PaymentView";
+import { usePaymentController, type PaymentScreen } from "../payment.controller";
+
+const METHODS: AvailableMethod[] = [
+  {
+    id: "bank_transfer",
+    name: "Virtual Account",
+    description: "VA",
+    iconUrl: "/va.svg",
+    enabled: true,
+    banks: [
+      { code: "bca", name: "BCA", iconUrl: "/bca.svg" },
+      { code: "bni", name: "BNI", iconUrl: "/bni.svg" },
+    ],
+  },
+  { id: "gopay", name: "E-Wallet", description: "QR", iconUrl: "/gopay.svg", enabled: true },
+];
+
+function makeOrder(overrides: Partial<Order> = {}): Order {
+  const now = Date.now();
+  return {
+    bookingId: "RB-T1",
+    eventId: "evt_konser_a",
+    eventName: "Konser A",
+    items: [
+      { category: "VIP", priceIdr: 1_500_000, nikMasked: "3171••••••••0022" },
+      { category: "VIP", priceIdr: 1_500_000, nikMasked: "3171••••••••0033" },
+    ],
+    totalIdr: 3_000_000,
+    paymentTtl: {
+      expiresAt: new Date(now + 600_000).toISOString(),
+      ttlSeconds: 600,
+      serverTime: new Date(now).toISOString(),
+    },
+    status: "PENDING_PAYMENT",
+    ...overrides,
+  };
+}
+
+const awaiting = (order: Order): Order => ({
+  ...order,
+  status: "AWAITING_PAYMENT",
+  method: "bank_transfer",
+  instruction: { type: "bank_transfer", bank: "bca", vaNumber: "8801000000912" },
+});
+
+type Fakes = {
+  getOrder?: ReturnType<typeof vi.fn>;
+  start?: ReturnType<typeof vi.fn>;
+  retry?: ReturnType<typeof vi.fn>;
+  simulate?: ReturnType<typeof vi.fn>;
+  mocking?: boolean;
+};
+
+function mount(order: Order | Error, fakes: Fakes = {}) {
+  const getOrder =
+    fakes.getOrder ?? vi.fn(() => (order instanceof Error ? Promise.reject(order) : Promise.resolve(order)));
+  const start = fakes.start ?? vi.fn(() => Promise.resolve(awaiting(order as Order)));
+  const retry = fakes.retry ?? vi.fn(() => Promise.resolve(makeOrder()));
+  const simulate = fakes.simulate ?? vi.fn(() => Promise.resolve());
+  const container = setupTestContainer(
+    {
+      getOrderUseCase: asValue(getOrder),
+      getAvailableMethodsUseCase: asValue(() => Promise.resolve(METHODS)),
+      getPaymentEventUseCase: asValue(() => Promise.reject(new Error("tanpa event"))),
+      startPaymentUseCase: asValue(start),
+      retryPaymentUseCase: asValue(retry),
+      simulatePaymentUseCase: asValue(simulate),
+    } as never,
+    { ...testConfig, mocking: fakes.mocking ?? true },
+  );
+  const hook = renderHook(() => usePaymentController("RB-T1"), { wrapper: createWrapper(container) });
+  const payment = (): PaymentViewProps => {
+    const screen: PaymentScreen = hook.result.current;
+    if (screen.kind !== "payment") throw new Error("belum siap");
+    return screen.view;
+  };
+  const select = () => {
+    const stage = payment().stage;
+    if (stage.kind !== "select") throw new Error("bukan select");
+    return stage;
+  };
+  return { ...hook, payment, select, getOrder, start, retry, simulate };
+}
+
+beforeEach(() => vi.clearAllMocks());
 
 describe("usePaymentController", () => {
-  // TODO [Task 14]: Re-enable tests after payment.controller.ts is updated to v2.1
-  // The controller needs to be updated to:
-  // 1. Use new Order structure (bookingId, paymentTtl, OrderStatus CAPS)
-  // 2. Use new PaymentMethod ('bank_transfer' | 'gopay')
-  // 3. Remove mockControls (simulator removed)
-  // 4. Use polling instead of SSE for payment status
-
-  it("placeholder test - controller tests disabled pending v2.1 update", () => {
-    // This test exists to prevent "no tests" error
-    // Real tests will be re-enabled in Task 14
-    expect(true).toBe(true);
+  it("memuat order lalu menampilkan pilihan metode dan total", async () => {
+    const { result, payment, select } = mount(makeOrder());
+    expect(result.current.kind).toBe("status");
+    await waitFor(() => expect(result.current.kind).toBe("payment"));
+    expect(select().methods).toHaveLength(2);
+    expect(payment().summary.total).toContain("3.000.000");
+    expect(payment().pay?.disabled).toBeDefined();
   });
 
-  // Original tests commented out below for reference:
+  it("galat jaringan saat memuat order menampilkan layar status error", async () => {
+    const { result } = mount(new AppFailure({ kind: "network" }), {});
+    await waitFor(() => expect(result.current.kind).toBe("status"));
+    await waitFor(() => {
+      if (result.current.kind !== "status") throw new Error("bukan status");
+      expect(result.current.view.tone).toBe("error");
+    });
+  });
 
-  // it("memuat order lalu menampilkan pilihan metode dan total", async () => {
-  //   const { result, payment } = mount("RB-V1");
-  //   expect(result.current.kind).toBe("status");
-  //   await waitFor(() => expect(result.current.kind).toBe("payment"));
-  //   expect(payment().methods?.options).toHaveLength(2); // Updated: now 2 methods (bank_transfer, gopay)
-  //   expect(payment().total.value).toContain("1.500.000");
-  //   expect(payment().mockControls).toBeUndefined();
-  // });
+  it("bayar tanpa memilih metode tidak mengirim request", async () => {
+    const { payment, start } = mount(makeOrder());
+    await waitFor(() => expect(payment).not.toThrow());
+    act(() => payment().pay?.onClick());
+    expect(start).not.toHaveBeenCalled();
+  });
 
-  // it("bank_transfer: bayar menampilkan VA number", async () => {
-  //   const { result, payment } = mount("RB-V2");
-  //   await waitFor(() => expect(result.current.kind).toBe("payment"));
-  //   act(() => payment().methods?.options.find((o) => o.id === "bank_transfer")?.onSelect());
-  //   await waitFor(() => expect(payment().methods?.options.find((o) => o.id === "bank_transfer")?.selected).toBe(true));
-  //   act(() => payment().pay?.onClick());
-  //   await waitFor(() => expect(payment().pending?.instruction.type).toBe("bank_transfer"));
-  // });
+  it("bank_transfer tanpa bank menampilkan galat bank, lalu bayar dengan bank terpilih", async () => {
+    const { payment, select, start } = mount(makeOrder());
+    await waitFor(() => expect(payment).not.toThrow());
+    act(() =>
+      select()
+        .methods.find((method) => method.id === "bank_transfer")
+        ?.onSelect(),
+    );
+    act(() => payment().pay?.onClick());
+    expect(start).not.toHaveBeenCalled();
+    expect(select().banks?.error).toBeDefined();
 
-  // it("gopay: bayar menampilkan QR code", async () => {
-  //   const { result, payment } = mount("RB-V3");
-  //   await waitFor(() => expect(result.current.kind).toBe("payment"));
-  //   act(() => payment().methods?.options.find((o) => o.id === "gopay")?.onSelect());
-  //   act(() => payment().pay?.onClick());
-  //   await waitFor(() => expect(payment().pending?.instruction.type).toBe("gopay"));
-  // });
+    act(() =>
+      select()
+        .banks?.options.find((bank) => bank.code === "bca")
+        ?.onSelect(),
+    );
+    expect(select().banks?.error).toBeUndefined();
+    act(() => payment().pay?.onClick());
+    await waitFor(() => expect(start).toHaveBeenCalled());
+    expect(start.mock.calls[0]?.[0]).toEqual({ bookingId: "RB-T1", method: "bank_transfer", bank: "bca" });
+    await waitFor(() => expect(payment().stage.kind).toBe("pending"));
+  });
 
-  // Note: SSE tests removed - v2.1 uses polling only for payment status
-  // Note: mockControls tests removed - PaymentSimulator removed in v2.1
+  it("gopay: bayar tanpa bank", async () => {
+    const { payment, select, start } = mount(makeOrder());
+    await waitFor(() => expect(payment).not.toThrow());
+    act(() =>
+      select()
+        .methods.find((method) => method.id === "gopay")
+        ?.onSelect(),
+    );
+    act(() => payment().pay?.onClick());
+    await waitFor(() => expect(start).toHaveBeenCalled());
+    expect(start.mock.calls[0]?.[0]).toEqual({ bookingId: "RB-T1", method: "gopay", bank: undefined });
+  });
+
+  it("order FAILED tetap menampilkan metode dan memakai retry, bukan start", async () => {
+    const { payment, select, retry, start } = mount(makeOrder({ status: "FAILED" }));
+    await waitFor(() => expect(select().methods).toHaveLength(2));
+    expect(select().failedNotice).toBeDefined();
+    act(() =>
+      select()
+        .methods.find((method) => method.id === "gopay")
+        ?.onSelect(),
+    );
+    act(() => payment().pay?.onClick());
+    await waitFor(() => expect(retry).toHaveBeenCalled());
+    expect(retry.mock.calls[0]?.[0]).toEqual({ bookingId: "RB-T1", method: "gopay", bank: undefined });
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it("galat jaringan saat bayar membuka dialog; coba lagi mengirim ulang pilihan yang sama", async () => {
+    const start = vi
+      .fn()
+      .mockRejectedValueOnce(new AppFailure({ kind: "network" }))
+      .mockResolvedValueOnce(awaiting(makeOrder()));
+    const { payment, select } = mount(makeOrder(), { start });
+    await waitFor(() => expect(payment).not.toThrow());
+    act(() =>
+      select()
+        .methods.find((method) => method.id === "gopay")
+        ?.onSelect(),
+    );
+    act(() => payment().pay?.onClick());
+    await waitFor(() => expect(payment().dialog).toBeDefined());
+    const primary = payment().dialog?.primary;
+    act(() => {
+      if (primary && "onClick" in primary) primary.onClick();
+    });
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(payment().dialog).toBeUndefined());
+  });
+
+  it("galat API (bukan jaringan) tampil sebagai pesan di halaman tanpa dialog", async () => {
+    const start = vi
+      .fn()
+      .mockRejectedValue(new AppFailure({ kind: "api", code: "PAYMENT_EXPIRED", status: 409 }));
+    const { payment, select } = mount(makeOrder(), { start });
+    await waitFor(() => expect(payment).not.toThrow());
+    act(() =>
+      select()
+        .methods.find((method) => method.id === "gopay")
+        ?.onSelect(),
+    );
+    act(() => payment().pay?.onClick());
+    await waitFor(() => expect(payment().error).toBeDefined());
+    expect(payment().dialog).toBeUndefined();
+  });
+
+  it("order menunggu pembayaran menampilkan instruksi VA dan salin nomor", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const { payment } = mount(awaiting(makeOrder()));
+    await waitFor(() => expect(payment).not.toThrow());
+    const stage = payment().stage;
+    expect(stage.kind).toBe("pending");
+    if (stage.kind !== "pending") return;
+    expect(stage.instruction.type).toBe("virtual_account");
+    if (stage.instruction.type !== "virtual_account") return;
+    const copy = stage.instruction.copy;
+    act(() => copy.onClick?.());
+    expect(writeText).toHaveBeenCalledWith("8801000000912");
+  });
+
+  it("mode mock: simulasi berhasil dan gagal memanggil use case", async () => {
+    const { payment, simulate } = mount(awaiting(makeOrder()));
+    await waitFor(() => expect(payment).not.toThrow());
+    const stage = payment().stage;
+    if (stage.kind !== "pending") throw new Error("bukan pending");
+    act(() => stage.mock?.success.onClick());
+    await waitFor(() => expect(simulate).toHaveBeenCalledWith("RB-T1", "PAID"));
+    act(() => stage.mock?.fail.onClick());
+    await waitFor(() => expect(simulate).toHaveBeenCalledWith("RB-T1", "FAILED"));
+  });
+
+  it("tanpa mode mock tidak ada kontrol simulasi", async () => {
+    const { payment } = mount(awaiting(makeOrder()), { mocking: false });
+    await waitFor(() => expect(payment).not.toThrow());
+    const stage = payment().stage;
+    if (stage.kind !== "pending") throw new Error("bukan pending");
+    expect(stage.mock).toBeUndefined();
+  });
+
+  it("order PAID menampilkan hasil akhir tanpa tombol bayar", async () => {
+    const { payment } = mount(makeOrder({ status: "PAID" }));
+    await waitFor(() => expect(payment).not.toThrow());
+    expect(payment().stage.kind).toBe("result");
+    expect(payment().pay).toBeUndefined();
+  });
 });
