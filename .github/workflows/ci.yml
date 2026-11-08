@@ -39,7 +39,7 @@ jobs:
 
       # ADR-0007: Home harus tetap statis. Gagal bila `/` berubah menjadi dynamic atau partial.
       - name: Home tetap statis
-        run: grep -E '^[┌├└] ○ /[[:space:]]' build.log
+        run: grep -E '^(┌|├|└) ○ /[[:space:]]*$' build.log
 
   commitlint:
     runs-on: ubuntu-latest
