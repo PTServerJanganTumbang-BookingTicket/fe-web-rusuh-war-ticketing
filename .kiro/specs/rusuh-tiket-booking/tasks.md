@@ -114,13 +114,13 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [ ] 1.1 Buat `src/core/domain/captcha.protocol.ts` dan `captcha.constants.ts` `@owner:muzaki`
     - _Requirements: 3.22, 12.4_
   - [ ] 1.2 Buat `src/core/domain/system-state.model.ts`, `system-health.protocol.ts`, `system-health-updates.protocol.ts` `@owner:muzaki`
-    - _Requirements: BR-21, BR-22_
+    - _Requirements: ~~BR-21, BR-22~~ ❌ DIHAPUS (ADR-006 §4.3) — File tetap dibuat untuk circuit breaker state, tapi tanpa pause admission_
   - [ ] 1.3 Tulis unit tests di `src/core/domain/__tests__/system-state.model.test.ts` `@owner:muzaki`
-    - _Requirements: 3.22, BR-21_
+    - _Requirements: 3.22, ~~BR-21~~ (ADR-006 §4.3)_
 
 - [x] 2. Align queue module — domain layer [ALIGN] `@owner:muzaki`
   - [x] 2.1 Tulis ulang `src/modules/queue/domain/queue-state.model.ts` `@owner:muzaki`
-    - _Requirements: 3.1, 3.2, 3.3, 3.3a, 3.13, 3.15, BR-21_
+    - _Requirements: 3.1, 3.2, 3.3, 3.3a, 3.13, 3.15, ~~BR-21~~ (ADR-006 §4.3)_
   - [x] 2.2 Tulis ulang `src/modules/queue/domain/queue.protocol.ts` `@owner:muzaki`
     - _Requirements: 3.2, 3.5, 3.13, 3.22_
   - [x] 2.3 Tulis ulang `src/modules/queue/domain/queue-updates.protocol.ts` `@owner:muzaki`
@@ -210,7 +210,7 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
   - [x] 14.5 Update payment.module.ts — register new use cases `@owner:akbar`
   - [x] 14.6 Update integration tests payment controllers `@owner:akbar`
 
-- [ ] 15. Checkpoint — payment module `@owner:akbar`
+- [x] 15. Checkpoint — payment module `@owner:akbar`
 
 - [ ] 16. Buat auth module — domain dan application layers [NEW] `@owner:muzaki`
   - _Desain: ADR-0023 (Proposed). Tunggu BE menyepakati usulan perubahan kontrak di ADR-0023, terutama cara token magic link sampai ke verifikasi, sebelum 16.4, 16.7, dan 17.1_
@@ -274,7 +274,7 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 - [x] 23. E2E tests [NEW]
   - [x] 23.1 Happy path E2E test `@owner:muzaki`
     - _File: `e2e/happy-path.spec.ts`_
-  - [x] 23.2 Queue pause E2E test `@owner:muzaki`
+  - [x] 23.2 ~~Queue pause E2E test~~ → Error retry E2E test `@owner:muzaki` _(ADR-006 §4.3: tidak ada pause, test retry behavior)_
     - _File: `e2e/expiry-and-guards.spec.ts`_
   - [x] 23.3 Payment retry E2E test `@owner:akbar`
     - _Test in `e2e/happy-path.spec.ts`_
@@ -444,9 +444,9 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
 | Owner | Done | Remaining | Total | Progress |
 |-------|------|-----------|-------|----------|
 | **Muzaki** | 72 | 11 | 83 | 87% |
-| **Akbar** | 33 | 1 | 34 | 97% |
+| **Akbar** | 34 | 0 | 34 | 100% |
 | **Shared** | 4 | 1 | 5 | 80% |
-| **TOTAL** | **109** | **13** | **122** | **89%** |
+| **TOTAL** | **110** | **12** | **122** | **90%** |
 
 ### Remaining Tasks by Owner
 
@@ -461,8 +461,7 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
 - Task 28 (Booking Alignment): 28.2-28.4
 - Task 31 (Auth Alignment): 31.3
 
-**Akbar (1 remaining):**
-- Task 15 (Payment Checkpoint)
+**Akbar (0 remaining — COMPLETE!):**
 
 **Shared (1 remaining):**
 - Task 22 (Full Application Checkpoint)

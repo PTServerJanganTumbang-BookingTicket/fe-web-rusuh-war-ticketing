@@ -121,11 +121,12 @@ Setiap Customer melewati 4 tahap berurutan:
 | **Persetujuan_Data_Pribadi** | Pernyataan persetujuan eksplisit yang diberikan Customer saat registrasi untuk mengizinkan sistem memproses NIK milik pihak ketiga (teman) sebagai data pendamping; bersifat mandatory untuk menyelesaikan registrasi; diatur berdasarkan UU PDP No. 27 Tahun 2022; pencabutan hanya dapat dilakukan melalui tim operasional. |
 | **Consent_Record**       | Rekam jejak immutable yang menyimpan bukti persetujuan Customer: timestamp, versi kebijakan privasi, dan identitas akun; digunakan sebagai bukti kepatuhan UU PDP. |
 | **Keterlibatan_Aktif**   | Satu posisi antrian atau booking yang belum terminal; dasar penegakan BR-07 untuk customer login. |
-| **Pause_Admission**      | Kondisi saat circuit breaker Dukcapil atau payment gateway OPEN; tidak ada grant baru, antrian berhenti maju, posisi tidak hilang. |
-| **Pause_TTL_Grace**      | Tambahan 60 detik pada tenggat booking/pembayaran yang sedang berjalan, diberikan saat pause dimulai. |
-| **Sold_Out_Sementara**   | Status stok nol tetapi kursi masih dapat kembali dari booking yang kedaluwarsa; final setelah 930 detik. |
+| **Pause_Admission**      | ❌ **DIHAPUS (ADR-006 §4.3)**: Sebelumnya kondisi saat circuit breaker OPEN yang mem-pause admission. Sekarang breaker OPEN → panggilan ke dependensi gagal cepat (fail closed) dengan error yang dapat di-retry; antrian **tetap maju**. |
+| **Pause_TTL_Grace**      | ❌ **DIHAPUS (ADR-006 §4.3)**: Sebelumnya tambahan 60 detik pada tenggat saat pause dimulai. Sekarang tenggat tidak pernah digeser. |
+| **Sold_Out_Sementara**   | Status stok nol tetapi kursi masih dapat kembali dari booking yang kedaluwarsa; **reversibel selama 930 detik**, setelah itu `CLOSED` dan stream SSE ditutup dengan `410 Gone`. |
 | **CAPTCHA_Tak_Terlihat** | Verifikasi berbasis skor tanpa teka-teki; token diambil sebelum sale buka. |
 | **Display_Block**        | Jawaban siap-render dari server (`enabled`, `action`, `label_key`, `badge_key`); frontend tidak menghitung presedensi. |
+| **CAS**                  | *Compare-And-Swap* — mengubah nilai hanya bila ia **masih** sama dengan yang dibaca, dalam satu operasi atomik; pihak yang kalah balapan mendapat 0 baris dan berhenti sebelum efek sampingnya, sehingga dua proses bersamaan tetap aman tanpa lock. |
 
 ---
 
@@ -527,8 +528,8 @@ Setiap Customer melewati 4 tahap berurutan:
 | BR-18 | **Kode Error Standar API**: Booking_Service menggunakan kode error standar: `INSUFFICIENT_STOCK` (409), `QUOTA_EXCEEDED` (409), `HOLD_EXPIRED` (410), `INVALID_NIK_FORMAT` (400), `DUPLICATE_NIK_IN_REQUEST` (400), `NIK_ALREADY_USED` (409). Frontend menerjemahkan kode ke pesan lokal sesuai bahasa Customer. |
 | BR-19 | Refund untuk booking **Disputed** (callback sukses tiba setelah booking dibatalkan final) **tidak otomatis** di POC — ditandai, dilaporkan di dashboard, dan dieksekusi manual melalui dashboard payment gateway. |
 | BR-20 | **Sold out bersifat sementara**: kursi dari booking yang kedaluwarsa dijual kembali pada posisi antrian yang sama. Final setelah **930 detik** tanpa kemungkinan kursi kembali; setelah itu stream SSE ditutup dengan `410 Gone`. |
-| BR-21 | **Pause admission**: Saat circuit breaker Dukcapil ATAU payment gateway OPEN (dependensi tidak dapat dipakai), admission di-pause — tidak ada grant baru dan tidak ada posisi antrian yang hilang. Berlaku sama untuk kedua dependensi. |
-| BR-22 | **Pause TTL Grace**: Tenggat booking dan pembayaran yang sedang berjalan digeser **+60 detik** (`PAUSE_TTL_GRACE_SECONDS`) saat pause dimulai — bukan saat berakhir — agar gangguan sistem tidak memakan waktu customer. |
+| BR-21 | ❌ **DIHAPUS (ADR-006 §4.3)**: ~~Pause admission saat circuit breaker OPEN~~. Sekarang breaker OPEN → panggilan ke dependensi gagal cepat (fail closed) dengan error yang dapat di-retry; antrian **tetap maju**, tidak ada pause admission. |
+| BR-22 | ❌ **DIHAPUS (ADR-006 §4.3)**: ~~Pause TTL Grace (+60 detik saat pause dimulai)~~. Sekarang tenggat tidak pernah digeser. |
 
 ---
 
