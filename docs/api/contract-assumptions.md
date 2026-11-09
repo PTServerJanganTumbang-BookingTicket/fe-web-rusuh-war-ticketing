@@ -2,6 +2,8 @@
 
 Asumsi yang tersisa di bawah. Profil akun (`GET /accounts/me`) dan ubah alias (`PATCH /accounts/me/saved-niks/{id}`) tidak lagi dipakai FE: halaman `/account` menampilkan email dan NIK tersamar dari sesi, dan alias hanya bisa ditambah atau dihapus. Test `api-conformance.test.ts` memastikan FE hanya memanggil endpoint yang ada di kontrak.
 
+Kontrak terbaru ada di [`docs/api/api-contracts.md`](api-contracts.md) (v2.12.0, disalin dari repo `documentations`). `api-contract.md` di folder ini adalah ekspor lama dan tidak dipelihara.
+
 Field di bawah dipakai FE tetapi **belum ada** di kontrak (`docs/api/api-contract.md`, `src/core/data/http/openapi.json`). Bentuknya asumsi FE, dibangun terhadap mock MSW (`src/mocks/api/auth.ts`). Setiap baris perlu disepakati dengan BE dan diusulkan ke repo [`documentations`](https://github.com/PTServerJanganTumbang-BookingTicket/documentations) sebelum dianggap final (ADR-0023 butir 1). Saat kontrak diperbarui, ikuti skill `sync-api-contract` dan hapus baris yang sudah masuk kontrak.
 
 | Kebutuhan FE | Asumsi | Dipakai di | Bila BE belum menyediakan |

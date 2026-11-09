@@ -61,6 +61,7 @@ export function createHttpQueueService({
           400: "CAPTCHA_FAILED",
           403: "CAPTCHA_FAILED",
           409: "SALE_NOT_OPEN",
+          410: "SALE_CLOSED",
           429: "RATE_LIMITED",
           503: "QUEUE_FULL",
         },

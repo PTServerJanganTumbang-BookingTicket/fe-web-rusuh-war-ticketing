@@ -21,6 +21,10 @@ export type QueueStatusProps = {
   eta?: { label: string; value: string };
   progress?: { percent: number; label: string };
   updatedNote?: string;
+  /** Data antrian belum diperbarui server: angka tetap tampil tapi diredupkan. */
+  stale?: boolean;
+  /** Info sale (mis. stok sedang habis) yang tidak mengakhiri antrian. */
+  notice?: string;
   note?: string;
   action?: { label: string; onClick: () => void; disabled?: boolean };
   /** Keluar dari antrian; hanya saat menunggu. Membuka dialog konfirmasi. */
@@ -101,6 +105,8 @@ function StatusCard({
   eta,
   progress,
   updatedNote,
+  stale,
+  notice,
   note,
   action,
   leave,
@@ -117,11 +123,14 @@ function StatusCard({
             </Badge>
           ) : null}
           {state === "waiting" && position ? (
-            <>
+            <div
+              data-stale={stale ? "true" : undefined}
+              className={cn("flex flex-col items-center gap-3", stale && "opacity-60")}
+            >
               <p className="type-title text-muted-foreground">{position.label}</p>
               <p className="type-h1 text-primary tabular-nums">{position.value}</p>
               <p className="type-title text-muted-foreground">{position.suffix}</p>
-            </>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-4 py-6">
               {state === "loading" ? (
@@ -146,6 +155,12 @@ function StatusCard({
         {state === "waiting" ? (
           <>
             <Separator />
+            {notice ? (
+              <Alert variant="warning" role="status">
+                <InfoIcon />
+                <AlertDescription className="type-body1 text-foreground">{notice}</AlertDescription>
+              </Alert>
+            ) : null}
             {eta ? (
               <div className="flex items-center gap-4 rounded-xl border border-border px-5 py-4">
                 <ClockIcon aria-hidden="true" className="size-6 shrink-0 text-primary" />

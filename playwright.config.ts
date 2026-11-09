@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.PORT ?? 3000);
 // Lokal memakai Chrome yang terpasang; CI memasang Chromium bawaan Playwright.
 const channel = process.env.CI ? undefined : "chrome";
-const RESPONSIVE_SPECS = [/responsive\.spec\.ts/, /happy-path\.spec\.ts/];
+const RESPONSIVE_SPECS = [/responsive\.spec\.ts/, /happy-path\.spec\.ts/, /saved-nik\.spec\.ts/];
 
 export default defineConfig({
   testDir: "./e2e",

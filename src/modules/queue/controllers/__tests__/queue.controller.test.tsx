@@ -141,29 +141,82 @@ describe("useQueueController", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("SSE: now_serving dari stream menggantikan snapshot, lalu `grant` mengambil token dari /queue/me", async () => {
-    push.mockClear();
-    const fakes = setupFakeEventSources();
-    const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
-    server.use(
-      http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 204 })),
-    );
-    const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
-      wrapper: createWrapper(container),
+  describe("SSE (kontrak v2.12)", () => {
+    const tick = (nowServing: number, state = "OPEN") => ({
+      nowServing,
+      state,
+      ratePerMin: 318,
+      serverTime: "2026-10-24T13:10:00.000Z",
     });
-    await waitFor(() => expect(result.current.status.state).toBe("waiting"));
-    const stream = fakes.find(`/events/${OPEN_EVENT_ID}/queue/stream`)!;
 
-    // Tiket customer 32.748; now_serving 32.648 berarti posisi 100.
-    act(() => {
-      stream.emit("open");
-      stream.emit("message", { nowServing: 32_648, state: "OPEN", ratePerMin: 318, paused: false });
+    async function waitingWithStream() {
+      push.mockClear();
+      const fakes = setupFakeEventSources();
+      const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
+      server.use(
+        http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 204 })),
+      );
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+      const stream = fakes.find(`/events/${OPEN_EVENT_ID}/queue/stream`)!;
+      // `open` dan pesan pertama datang bersamaan; memisahkannya memberi polling kesempatan menimpa snapshot.
+      const first = (nowServing: number) =>
+        act(() => {
+          stream.emit("open");
+          stream.emit("message", tick(nowServing));
+        });
+      return { result, stream, first };
+    }
+
+    it("nowServing dari stream menggantikan snapshot, lalu nowServing >= ticket_no mengambil token", async () => {
+      const { result, stream, first } = await waitingWithStream();
+      // Tiket customer 32.748; nowServing 32.648 berarti posisi 100.
+      first(32_648);
+      expect(result.current.status.position?.value).toBe("#100");
+
+      server.use(grantedMe("gt_sse"));
+      act(() => stream.emit("message", tick(32_748)));
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+      expect(stream.closed).toBe(true);
     });
-    expect(result.current.status.position?.value).toBe("#100");
 
-    server.use(grantedMe("gt_sse"));
-    act(() => stream.emit("grant", {}));
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
-    expect(stream.closed).toBe(true);
+    it("FULL_BOOKED: estimasi disembunyikan dan ada pemberitahuan; OPEN memulihkannya", async () => {
+      const { result, stream, first } = await waitingWithStream();
+      first(32_648);
+      expect(result.current.status.eta).toBeDefined();
+
+      act(() => stream.emit("status", { state: "FULL_BOOKED", fullBookedAt: "x", serverTime: "x" }));
+      await waitFor(() => expect(result.current.status.notice).toContain("Tiket sedang habis"));
+      expect(result.current.status.eta).toBeUndefined();
+      expect(result.current.status.position?.value).toBe("#100");
+      expect(stream.closed).toBe(false);
+
+      act(() => stream.emit("status", { state: "OPEN", serverTime: "x" }));
+      await waitFor(() => expect(result.current.status.notice).toBeUndefined());
+      expect(result.current.status.eta).toBeDefined();
+    });
+
+    it("stale: posisi dipertahankan, catatan menjadi Memperbarui, stream tidak ditutup", async () => {
+      const { result, stream, first } = await waitingWithStream();
+      first(32_648);
+      act(() => stream.emit("stale", { stale: true, state: "OPEN", message: "x", serverTime: "x" }));
+      await waitFor(() => expect(result.current.status.stale).toBe(true));
+      expect(result.current.status.updatedNote).toBe("Memperbarui…");
+      expect(result.current.status.position?.value).toBe("#100");
+      expect(stream.closed).toBe(false);
+
+      act(() => stream.emit("message", tick(32_650)));
+      await waitFor(() => expect(result.current.status.stale).toBe(false));
+    });
+
+    it("sold-out menutup stream dan menampilkan antrian berakhir", async () => {
+      const { result, stream } = await waitingWithStream();
+      act(() => stream.emit("sold-out", { state: "CLOSED", message: "Tiket sudah habis", serverTime: "x" }));
+      await waitFor(() => expect(result.current.status.state).toBe("error"));
+      expect(result.current.status.message).toBe("Penjualan tiket untuk acara ini sudah ditutup.");
+      expect(stream.closed).toBe(true);
+    });
   });
 });

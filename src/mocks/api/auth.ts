@@ -105,6 +105,8 @@ export function authHandlers(state: MockState, baseUrl: string) {
         saved_niks: state.savedNiks.map((saved) => ({
           id: saved.id,
           nik_masked: saved.nikMasked,
+          // Asumsi FE (contract-assumptions.md): NIK lengkap hanya untuk pemilik akun, supaya bisa dipilih di booking.
+          nik: saved.nik,
           label: saved.label,
           verified_at: saved.verifiedAt,
           status: "VERIFIED",

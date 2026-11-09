@@ -56,24 +56,56 @@ export const queueMeSchema = z.discriminatedUnion("state", [
 
 export type QueueMe = z.infer<typeof queueMeSchema>;
 
-/** Pesan SSE antrian yang dipakai FE. Token tidak pernah lewat SSE; `grant` hanya pemicu panggilan `/queue/me`. */
+/** State sale di stream (kontrak §3.2, v2.12). `FULL_BOOKED` reversibel; hanya `CLOSED` yang final. */
+export type QueueSaleState = "SCHEDULED" | "OPEN" | "FULL_BOOKED" | "CLOSED";
+
+const saleStateSchema = z.enum(["SCHEDULED", "OPEN", "FULL_BOOKED", "CLOSED"]);
+
+/**
+ * Pesan SSE antrian yang dipakai FE. Token tidak pernah lewat SSE: saat `nowServing >= ticket_no` klien memanggil
+ * `GET /queue/me`. Teks `message` dari server tidak dipakai untuk bercabang, hanya `stale`, `state`, dan nama event.
+ */
 export type QueueStreamMessage =
-  { type: "serving"; nowServing: number } | { type: "grant" } | { type: "closed" };
+  | { type: "serving"; nowServing: number; saleState: QueueSaleState }
+  | { type: "status"; saleState: QueueSaleState }
+  | { type: "stale"; stale: boolean; saleState: QueueSaleState }
+  | { type: "closed" }
+  | { type: "reconnect" };
 
 export const queueStreamSchemas = {
   message: z
-    .object({ nowServing: z.number() })
-    .transform((event): QueueStreamMessage => ({ type: "serving", nowServing: event.nowServing })),
-  grant: z.unknown().transform((): QueueStreamMessage => ({ type: "grant" })),
+    .object({ nowServing: z.number(), state: saleStateSchema })
+    .transform((event): QueueStreamMessage => ({
+      type: "serving",
+      nowServing: event.nowServing,
+      saleState: event.state,
+    })),
+  status: z
+    .object({ state: saleStateSchema })
+    .transform((event): QueueStreamMessage => ({ type: "status", saleState: event.state })),
+  stale: z
+    .object({ stale: z.boolean(), state: saleStateSchema })
+    .transform((event): QueueStreamMessage => ({
+      type: "stale",
+      stale: event.stale,
+      saleState: event.state,
+    })),
   "sold-out": z.unknown().transform((): QueueStreamMessage => ({ type: "closed" })),
+  reconnect: z.unknown().transform((): QueueStreamMessage => ({ type: "reconnect" })),
 };
 
 /** Posisi dihitung dari tiket customer dan now_serving event (kontrak: position = ticket_no − now_serving). */
-export function waitingState(ticket: QueueTicket, nowServing: number): QueueState {
+export function waitingState(
+  ticket: QueueTicket,
+  nowServing: number,
+  live: { fullBooked?: boolean; stale?: boolean } = {},
+): QueueState {
   const position = Math.max(ticket.ticketNo - nowServing, 0);
   return {
     status: "waiting",
     eventName: ticket.eventName,
+    fullBooked: live.fullBooked ?? false,
+    stale: live.stale ?? false,
     position,
     joinedPosition: ticket.joinedPosition,
     etaSeconds: Math.round(position * ticket.secondsPerPosition),

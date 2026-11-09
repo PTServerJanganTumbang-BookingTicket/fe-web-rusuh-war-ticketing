@@ -22,7 +22,7 @@ const POLL_TIERS = [
 ];
 
 const saleState = (event: MockEvent) => {
-  if (event.status === "SOLD_OUT") return "SOLD_OUT";
+  if (event.status === "SOLD_OUT") return "CLOSED";
   return event.queueState === "NOT_OPEN" ? "SCHEDULED" : "OPEN";
 };
 
@@ -92,34 +92,46 @@ export function eventHandlers(state: MockState, baseUrl: string) {
     typeof EventSource === "undefined"
       ? []
       : [
-          // Event tanpa nama membawa now_serving; `grant` hanya memberi tahu, token diambil dari /queue/me.
-          sse<{ message: unknown; grant: unknown; "sold-out": unknown }>(
+          // Bentuk v2.12: pesan tanpa nama membawa nowServing, state, ratePerMin, serverTime. Tidak ada event `grant`;
+          // klien memanggil /queue/me saat nowServing >= ticket_no.
+          sse<{ message: unknown; status: unknown; stale: unknown; "sold-out": unknown; reconnect: unknown }>(
             `${baseUrl}/events/:eventId/queue/stream`,
             ({ params, client, request, cookies }) => {
               const eventId = String(params.eventId);
               const event = state.findEvent(eventId);
-              const entry = findEntry(state, eventId, request, cookies);
               const push = () => {
+                // Join bisa selesai setelah stream terbuka, jadi tiket dicari ulang tiap tick.
+                const entry = findEntry(state, eventId, request, cookies);
                 if (!event || event.status === "SOLD_OUT") {
-                  client.send({ event: "sold-out", data: { message: "Penjualan sudah ditutup" } });
+                  client.send({
+                    event: "sold-out",
+                    data: {
+                      state: "CLOSED",
+                      message: "Tiket sudah habis",
+                      serverTime: new Date().toISOString(),
+                    },
+                  });
                   stop();
                   return;
                 }
                 const serving = state.advanceServing(eventId);
-                client.send({
-                  id: String(serving),
-                  data: {
-                    nowServing: serving,
-                    state: event.queueState,
-                    ratePerMin: RATE_PER_MIN,
-                    paused: false,
-                    serverTime: new Date().toISOString(),
-                  },
-                });
-                if (entry && (entry.grantToken || serving >= entry.ticketNo)) {
-                  client.send({ event: "grant", data: {} });
+                try {
+                  client.send({
+                    id: String(serving),
+                    data: {
+                      nowServing: serving,
+                      state: saleState(event),
+                      ratePerMin: RATE_PER_MIN,
+                      serverTime: new Date().toISOString(),
+                    },
+                  });
+                } catch {
+                  // Klien sudah menutup stream (masuk setelah giliran tiba); MSW di browser tidak memberi abort.
                   stop();
+                  return;
                 }
+                // Pesan ini yang membuat klien memanggil /queue/me; stream ditutup di sini sebelum klien menutupnya sendiri.
+                if (entry && (entry.grantToken || serving >= entry.ticketNo)) stop();
               };
               function stop() {
                 clearInterval(timer);

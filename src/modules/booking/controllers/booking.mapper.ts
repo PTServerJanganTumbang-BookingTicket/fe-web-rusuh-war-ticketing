@@ -125,10 +125,18 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     const aliases = input.aliases ?? [];
     const pickedId = form.aliasPicks?.[slot.key];
     const picked = aliases.find((alias) => alias.id === pickedId);
+    // Satu judul per kategori ("Normal × 2"), bukan "Normal × 1" yang berulang untuk tiap tiket.
+    const firstOfCategory =
+      slots.findIndex((other) => other.categoryId === slot.categoryId) === slots.indexOf(slot);
+    const quantity = slots.filter((other) => other.categoryId === slot.categoryId).length;
     return {
       id: slot.key,
-      title: t("booking.holder.ticket", { category: slot.categoryName }),
-      priceLabel: formatIdr(slot.priceIdr),
+      heading: firstOfCategory
+        ? {
+            title: t("checkout.summary.line", { category: slot.categoryName, count: quantity }),
+            priceLabel: t("checkout.summary.each", { price: formatIdr(slot.priceIdr) }),
+          }
+        : undefined,
       nik: {
         label: t("booking.holder.nik.label", { number: slot.number }),
         placeholder: t("booking.holder.nik.placeholder"),
