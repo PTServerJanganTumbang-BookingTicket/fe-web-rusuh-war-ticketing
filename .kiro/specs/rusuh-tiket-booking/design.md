@@ -333,7 +333,7 @@ export type WaitingRoomState =
       joinedPosition: number; // Initial position for progress bar
       etaSeconds: number;
       ratePerMin: number;
-      paused: boolean;        // BR-21: show banner when true, position NOT lost
+      paused: boolean;        // ❌ DIHAPUS (ADR-006 §4.3): field tetap ada untuk backward compat, selalu false
     }
   | {
       status: 'granted';      // 'grant' SSE event received; fetching access_token
@@ -404,7 +404,7 @@ export type QueueSsePayload = {
   nowServing: number;
   state: 'SCHEDULED' | 'OPEN' | 'SOLD_OUT' | 'CLOSED'; // Sale lifecycle
   ratePerMin: number;  // For ETA calculation (BR-11)
-  paused: boolean;     // BR-21: admission paused (circuit breaker OPEN)
+  paused: boolean;     // ❌ DIHAPUS (ADR-006 §4.3): selalu false, tidak ada pause admission
   serverTime: string;  // ISO-8601 — client syncs clock offset (BR-10)
 };
 
@@ -626,8 +626,8 @@ export const TTL_BOOKING_SECONDS = 300; // 5 menit
 /** Interval refresh stok (ADR-0004) */
 export const STOCK_REFRESH_INTERVAL_MS = 15_000;
 
-/** BR-22: Tambahan waktu TTL saat sistem pause */
-export const PAUSE_TTL_GRACE_SECONDS = 60;
+/** ❌ DIHAPUS (ADR-006 §4.3): BR-22 tidak berlaku lagi — tenggat tidak pernah digeser */
+// export const PAUSE_TTL_GRACE_SECONDS = 60; // DEPRECATED
 ```
 
 ```typescript
@@ -952,7 +952,7 @@ export type ApiErrorCode =
   | 'QUEUE_FULL'                // Antrian mencapai kapasitas 300k
   | 'CAPTCHA_REQUIRED'          // captcha_token tidak disertakan
   | 'CAPTCHA_INVALID'           // Token CAPTCHA invalid/expired/used
-  | 'ADMISSION_PAUSED'          // BR-21: circuit breaker OPEN
+  | 'ADMISSION_PAUSED'          // ❌ DIHAPUS (ADR-006 §4.3): tidak digunakan, antrian tetap maju
   // Auth errors
   | 'CONSENT_REQUIRED'          // Persetujuan PDP belum diberikan
   | 'TERMS_NOT_ACCEPTED'        // T&C belum diterima
@@ -1038,7 +1038,7 @@ export const CAPTCHA_PREFETCH_BEFORE_SALE_MS = 300_000;
 export const CAPTCHA_REFRESH_INTERVAL_MS = 60_000;
 
 // core/domain/system-state.model.ts
-// Ref: BR-21 (pause admission saat circuit breaker), BR-22 (TTL +60s saat pause)
+// Ref: ❌ BR-21, BR-22 DIHAPUS (ADR-006 §4.3) — breaker OPEN = fail closed, antrian tetap maju
 export type CircuitBreakerState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 export type SystemHealthState = {
@@ -1275,7 +1275,7 @@ interface QueueDefaultSseEvent {
   nowServing: number;
   state: 'SCHEDULED' | 'OPEN' | 'SOLD_OUT' | 'CLOSED';
   ratePerMin: number;     // For ETA: P/R * 60 * 1.2 (BR-11)
-  paused: boolean;        // BR-21: true → show banner, DO NOT lose position
+  paused: boolean;        // ❌ DIHAPUS (ADR-006 §4.3): selalu false, tidak ada pause admission
   serverTime: string;     // BR-10: client syncs offset from this
 }
 
@@ -1415,7 +1415,7 @@ export const paymentKeys = {
 };
 
 // core/controllers/system.queries.ts
-// Ref: BR-21, BR-22 — system health state untuk pause admission
+// Ref: ❌ BR-21, BR-22 DIHAPUS (ADR-006 §4.3) — tidak ada pause admission
 export const systemKeys = {
   all: ['system'] as const,
   health: () => [...systemKeys.all, 'health'] as const,
@@ -1430,7 +1430,7 @@ export const systemKeys = {
 | Claim slot (waiting_slot) | 1s | None | Position = 0, no slot available (Req 3 AC3a) |
 | Stock refresh | 15s | ±20% | Always |
 | Order status | 3s | ±20% | SSE not connected |
-| System health | 10s | ±20% | SSE not connected (BR-21) |
+| System health | 10s | ±20% | SSE not connected |
 
 ### Local State (useReducer)
 
@@ -1539,11 +1539,13 @@ type UIState = {
 
 **Validates: Requirements 13.2, 13.3**
 
-### Property 14: Pause TTL Grace Extension
+### Property 14: ~~Pause TTL Grace Extension~~ ❌ DIHAPUS (ADR-006 §4.3)
 
-*For any* booking or payment session with active TTL when system pause begins (circuit breaker OPEN), the TTL expiry SHALL be extended by exactly PAUSE_TTL_GRACE_SECONDS (60 seconds) from pause start time.
+~~*For any* booking or payment session with active TTL when system pause begins (circuit breaker OPEN), the TTL expiry SHALL be extended by exactly PAUSE_TTL_GRACE_SECONDS (60 seconds) from pause start time.~~
 
-**Validates: Requirements BR-21, BR-22**
+**Status: DIHAPUS** — Tenggat tidak pernah digeser. Breaker OPEN → fail closed dengan error yang dapat di-retry; antrian tetap maju.
+
+~~**Validates: Requirements BR-21, BR-22**~~
 
 ### Property 15: CAPTCHA Token Prefetch Before Sale
 
@@ -1814,13 +1816,13 @@ stateDiagram-v2
     WaitingSlot --> WaitingSlot: No slot (polling 1s)
     WaitingRoom --> Home: Cancel queue
     WaitingRoom --> Home: TTL expired
-    WaitingRoom --> WaitingRoom: Admission paused (BR-21)
+    WaitingRoom --> WaitingRoom: Retry on error
     
     DetailTicket --> DetailTicket: Select tickets
     DetailTicket --> DetailTicket: Fill NIK & email
     DetailTicket --> Payment: Submit booking
     DetailTicket --> Home: TTL_Booking expired
-    DetailTicket --> DetailTicket: TTL extended (pause, BR-22)
+    DetailTicket --> DetailTicket: Retry on error
     
     Payment --> Payment: Select method
     Payment --> Payment: Change method (Req 6 AC19)
@@ -1828,7 +1830,7 @@ stateDiagram-v2
     Payment --> Success: Paid
     Payment --> Home: TTL_Payment expired
     Payment --> Home: Cancel payment
-    Payment --> Payment: TTL extended (pause, BR-22)
+    Payment --> Payment: Retry on error
     
     Success --> [*]: E-ticket sent
 ```
