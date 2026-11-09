@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/primitives/Button";
+import { Button } from "@/components/ui/button";
 
 export type FilterTab = {
   id: string;

@@ -42,8 +42,8 @@ describe("isEmail", () => {
 
 describe("validateSavedNikInput", () => {
   it("membuat alias: nama alias dan NIK 16 digit wajib", () => {
-    expect(validateSavedNikInput({ label: "Budi", nik: "3171000000000033" }, { mode: "create" })).toBeNull();
-    expect(validateSavedNikInput({ label: "  ", nik: "" }, { mode: "create" })).toEqual({
+    expect(validateSavedNikInput({ label: "Budi", nik: "3171000000000033" })).toBeNull();
+    expect(validateSavedNikInput({ label: "  ", nik: "" })).toEqual({
       label: "required",
       nik: "format",
     });
@@ -51,17 +51,14 @@ describe("validateSavedNikInput", () => {
 
   it("nama alias dibatasi panjangnya", () => {
     const label = "a".repeat(SAVED_NIK_LABEL_MAX_LENGTH + 1);
-    expect(validateSavedNikInput({ label, nik: "3171000000000033" }, { mode: "create" })).toEqual({
+    expect(validateSavedNikInput({ label, nik: "3171000000000033" })).toEqual({
       label: "too_long",
     });
-    expect(
-      validateSavedNikInput({ label: label.slice(1), nik: "3171000000000033" }, { mode: "create" }),
-    ).toBeNull();
+    expect(validateSavedNikInput({ label: label.slice(1), nik: "3171000000000033" })).toBeNull();
   });
 
-  it("mengubah alias: NIK kosong berarti tetap, NIK yang diisi harus 16 digit", () => {
-    expect(validateSavedNikInput({ label: "Budi", nik: "" }, { mode: "edit" })).toBeNull();
-    expect(validateSavedNikInput({ label: "Budi", nik: "123" }, { mode: "edit" })).toEqual({
+  it("NIK yang diisi harus 16 digit angka", () => {
+    expect(validateSavedNikInput({ label: "Budi", nik: "123" })).toEqual({
       nik: "format",
     });
   });

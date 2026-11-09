@@ -16,6 +16,11 @@ const badgeVariants = cva(
           "border-border bg-input/20 text-foreground dark:bg-input/30 [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Status Signal DS: sukses, informasi, peringatan, galat.
+        success: "bg-signal-bg-valid text-signal-valid",
+        info: "bg-signal-bg-info text-signal-info",
+        warning: "bg-signal-bg-warning text-signal-warning",
+        error: "bg-signal-bg-error text-signal-error",
       },
     },
     defaultVariants: {
@@ -24,12 +29,9 @@ const badgeVariants = cva(
   },
 );
 
-function Badge({
-  className,
-  variant = "default",
-  render,
-  ...props
-}: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+type BadgeProps = useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>;
+
+function Badge({ className, variant = "default", render, ...props }: BadgeProps) {
   return useRender({
     defaultTagName: "span",
     props: mergeProps<"span">(
@@ -46,4 +48,4 @@ function Badge({
   });
 }
 
-export { Badge, badgeVariants };
+export { Badge, badgeVariants, type BadgeProps };

@@ -48,13 +48,10 @@ type RedirectContext = z.infer<typeof verifySchema>["data"]["redirect_context"];
 /** Endpoint akun yang boleh diteruskan. Path di luar daftar ini dijawab 404 tanpa menyentuh BE. */
 const ACCOUNT_ROUTES: { pattern: RegExp; methods: string[]; target: (match: RegExpMatchArray) => string }[] =
   [
-    // Asumsi: `GET /accounts/me` belum ada di kontrak (docs/api/contract-assumptions.md).
-    { pattern: /^profile$/, methods: ["GET"], target: () => "/accounts/me" },
     { pattern: /^saved-niks$/, methods: ["GET", "POST"], target: () => "/accounts/me/saved-niks" },
     {
-      // PATCH masih asumsi; kontrak baru punya DELETE (docs/api/contract-assumptions.md).
       pattern: /^saved-niks\/([\w-]+)$/,
-      methods: ["PATCH", "DELETE"],
+      methods: ["DELETE"],
       target: (match) => `/accounts/me/saved-niks/${match[1]}`,
     },
     { pattern: /^tickets$/, methods: ["GET"], target: () => "/users/me/tickets" },

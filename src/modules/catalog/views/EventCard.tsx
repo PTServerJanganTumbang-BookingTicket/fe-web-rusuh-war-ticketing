@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Badge, type BadgeProps } from "@/components/ui/primitives/Badge";
-import { Button } from "@/components/ui/primitives/Button";
-import { Card } from "@/components/ui/primitives/Card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/components/ui/cn.utils";
 import { ArrowRightIcon, CalendarIcon } from "@/components/ui/icons";
 
 export type EventCardProps = {
@@ -39,7 +40,7 @@ export function EventCard({
 
   return (
     <article className="group">
-      <Card className="overflow-hidden p-0 transition-shadow hover:shadow-lg">
+      <Card className="gap-0 overflow-hidden rounded-xl py-0 transition-shadow hover:shadow-lg">
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
             src={imageUrl || "/images/concert-placeholder.webp"}
@@ -48,7 +49,10 @@ export function EventCard({
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
-          <Badge variant={badgeVariant[statusTone]} className="absolute left-3 top-3">
+          <Badge
+            variant={badgeVariant[statusTone]}
+            className="absolute left-3 top-3 h-6 px-3 text-xs font-semibold"
+          >
             {statusLabel}
           </Badge>
         </div>
@@ -66,12 +70,10 @@ export function EventCard({
             </span>
           </div>
           {available ? (
-            <Button asChild className="w-full" size="lg">
-              <Link href={cta.href!}>
-                {cta.label}
-                <ArrowRightIcon aria-hidden="true" className="size-3.5 -rotate-45" />
-              </Link>
-            </Button>
+            <Link href={cta.href!} className={cn(buttonVariants({ size: "lg" }), "w-full")}>
+              {cta.label}
+              <ArrowRightIcon aria-hidden="true" className="size-3.5 -rotate-45" />
+            </Link>
           ) : (
             <Button disabled className="w-full" size="lg" variant="outline" aria-disabled="true">
               {cta.label}

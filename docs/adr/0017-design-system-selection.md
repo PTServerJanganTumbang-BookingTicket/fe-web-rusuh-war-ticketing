@@ -67,7 +67,7 @@ src/components/ui/
 
 ### Halaman Demo
 
-- `/ds-sample` — Demonstrasi komponen primitif
+- `/signal-demo` — dihapus (halaman demo tidak dipakai produk)
 - `/signal-demo` — Demonstrasi interaktif (input validation, progress)
 
 ## Aturan Penggunaan

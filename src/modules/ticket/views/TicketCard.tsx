@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Badge, type BadgeProps } from "@/components/ui/primitives/Badge";
-import { Card } from "@/components/ui/primitives/Card";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { CalendarIcon, MapPinIcon } from "@/components/ui/icons";
 import type { TicketStatus } from "../domain/ticket.model";
 
@@ -15,14 +15,13 @@ export type TicketCardProps = {
   venue: string;
   imageUrl: string;
   category: string;
-  seatNumber?: string;
   holderName: string;
   nikMasked: string;
   status: TicketStatus;
   statusLabel: string;
   statusTone: "success" | "info" | "warning" | "danger";
   /** Label baris detail dari i18n. */
-  labels: { category: string; seat: string; holderName: string; nik: string };
+  labels: { category: string; holderName: string; nik: string };
 };
 
 const badgeVariant: Record<TicketCardProps["statusTone"], NonNullable<BadgeProps["variant"]>> = {
@@ -43,7 +42,6 @@ export function TicketCard({
   venue,
   imageUrl,
   category,
-  seatNumber,
   holderName,
   nikMasked,
   statusLabel,
@@ -52,7 +50,7 @@ export function TicketCard({
 }: TicketCardProps) {
   return (
     <Link href={`/tickets/${id}`} className="block">
-      <Card className="overflow-hidden p-0 transition-shadow hover:shadow-lg">
+      <Card className="gap-0 overflow-hidden rounded-xl py-0 transition-shadow hover:shadow-lg">
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
             src={imageUrl || "/images/concert-placeholder.webp"}
@@ -61,7 +59,10 @@ export function TicketCard({
             className="object-cover"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
-          <Badge variant={badgeVariant[statusTone]} className="absolute left-3 top-3">
+          <Badge
+            variant={badgeVariant[statusTone]}
+            className="absolute left-3 top-3 h-6 px-3 text-xs font-semibold"
+          >
             {statusLabel}
           </Badge>
         </div>
@@ -80,12 +81,6 @@ export function TicketCard({
               <span className="text-muted-foreground">{labels.category}</span>
               <span className="font-medium text-foreground">{category}</span>
             </div>
-            {seatNumber && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{labels.seat}</span>
-                <span className="font-medium text-foreground">{seatNumber}</span>
-              </div>
-            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">{labels.holderName}</span>
               <span className="font-medium text-foreground">{holderName}</span>

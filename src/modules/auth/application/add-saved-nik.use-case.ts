@@ -13,7 +13,7 @@ export function createAddSavedNikUseCase({
 }): AddSavedNikUseCase {
   return (input) => {
     const cleaned = { label: input.label.trim(), nik: input.nik };
-    if (validateSavedNikInput(cleaned, { mode: "create" })) {
+    if (validateSavedNikInput(cleaned)) {
       return Promise.reject(new AppFailure({ kind: "api", code: "NIK_INVALID", status: 400 }));
     }
     return savedNikService.add(cleaned);

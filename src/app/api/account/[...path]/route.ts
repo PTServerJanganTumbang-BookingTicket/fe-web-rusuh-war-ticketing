@@ -8,4 +8,4 @@ async function forward(request: Request, { params }: Context) {
   return getServerDependencies().accountGateway.forward(request, path.join("/"));
 }
 
-export { forward as GET, forward as POST, forward as PATCH, forward as DELETE };
+export { forward as GET, forward as POST, forward as DELETE };

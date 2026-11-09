@@ -1,4 +1,5 @@
 // Home. Requirement: FR-01–05. Wireframe 9.1. ADR-0007 (static + ISR).
+import { legalLinks } from "@/core/controllers/site-chrome.utils";
 import { t } from "@/core/i18n/t.utils";
 import type { CatalogDependencies } from "../application/catalog.dependencies";
 import { toEventCardProps } from "./event-card.mapper";
@@ -32,6 +33,7 @@ export async function loadHomeViewProps({ listEventsUseCase }: CatalogDependenci
       copyright: t("home.footer.copyright"),
       tagline: t("home.footer.tagline"),
       infoBanner: t("home.footer.infoBanner"),
+      links: legalLinks(),
     },
     emptyLabel: t("home.empty"),
   };

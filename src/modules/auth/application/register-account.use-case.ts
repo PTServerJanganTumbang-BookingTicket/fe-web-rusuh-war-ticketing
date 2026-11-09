@@ -9,5 +9,5 @@ export function createRegisterAccountUseCase({
 }: {
   authService: AuthProtocol;
 }): RegisterAccountUseCase {
-  return (input) => authService.register({ ...input, email: input.email.trim(), name: input.name.trim() });
+  return (input) => authService.register({ ...input, email: input.email.trim() });
 }

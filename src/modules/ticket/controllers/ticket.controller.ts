@@ -2,7 +2,7 @@
 
 /**
  * Ticket Controllers — client-side hooks for ticket module.
- * Requirement: 7.1 (e-tiket berisi NIK_Attendee, kategori, nomor bangku, QR code).
+ * Requirement: 7.1 (e-tiket berisi NIK_Attendee, kategori, QR code).
  * ADR-0004 (TanStack Query).
  */
 

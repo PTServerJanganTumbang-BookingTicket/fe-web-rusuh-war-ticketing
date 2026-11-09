@@ -8,6 +8,7 @@ import type { QueueTicket } from "./queue-state.schema";
 export type QueueTicketCache = {
   get(eventId: string): QueueTicket | undefined;
   set(eventId: string, ticket: QueueTicket): void;
+  delete(eventId: string): void;
 };
 
 export function createMemoryQueueTicketService(): QueueTicketCache {
@@ -15,5 +16,6 @@ export function createMemoryQueueTicketService(): QueueTicketCache {
   return {
     get: (eventId) => tickets.get(eventId),
     set: (eventId, ticket) => void tickets.set(eventId, ticket),
+    delete: (eventId) => void tickets.delete(eventId),
   };
 }

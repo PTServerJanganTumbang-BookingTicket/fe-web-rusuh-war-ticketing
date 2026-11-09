@@ -61,7 +61,6 @@ function buildViewInput(overrides: Partial<BookingViewInput> = {}): BookingViewI
     selection: { vip: 1 },
     remainingMs: 287_000, // ~4:47 remaining
     form: {
-      buyerName: "",
       contactEmail: "",
       niks: {},
       checks: {},
@@ -71,7 +70,6 @@ function buildViewInput(overrides: Partial<BookingViewInput> = {}): BookingViewI
     submitting: false,
     onAdd: vi.fn(),
     onRemove: vi.fn(),
-    onBuyerName: vi.fn(),
     onContactEmail: vi.fn(),
     onNik: vi.fn(),
     onNikBlur: vi.fn(),
@@ -94,9 +92,6 @@ const validEmailArb = fc
     fc.stringMatching(/^[a-z]{2,5}$/),
   )
   .map(([local, domain, tld]) => `${local}@${domain}.${tld}`);
-
-/** Generate non-empty buyer name */
-const validBuyerNameArb = fc.string({ minLength: 1, maxLength: 50 }).filter((s) => s.trim() !== "");
 
 /** Generate positive remaining time (valid countdown) */
 const positiveRemainingMsArb = fc.integer({ min: 1, max: 600_000 }); // 1ms to 10 minutes
@@ -121,19 +116,17 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
   it("Property 1: submit.disabled === false when form is valid, has tickets, time remaining, not submitting", () => {
     fc.assert(
       fc.property(
-        validBuyerNameArb,
         validEmailArb,
         validNikArb,
         validNikArb,
         positiveRemainingMsArb,
-        (buyerName, email, nik1, _nik2, remainingMs) => {
+        (email, nik1, _nik2, remainingMs) => {
           const selection = { vip: 1 };
           const form: BookingForm = {
-            buyerName,
             contactEmail: email,
             niks: { "vip-0": nik1 },
             checks: {},
-            touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
+            touched: new Set(["contactEmail", "nik:vip-0"]),
             submitted: false,
           };
 
@@ -170,35 +163,28 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
    */
   it("Property 2: submit.disabled === true when countdown timer expired (remainingMs <= 0)", () => {
     fc.assert(
-      fc.property(
-        validBuyerNameArb,
-        validEmailArb,
-        validNikArb,
-        expiredRemainingMsArb,
-        (buyerName, email, nik, expiredMs) => {
-          const selection = { vip: 1 };
-          const form: BookingForm = {
-            buyerName,
-            contactEmail: email,
-            niks: { "vip-0": nik },
-            checks: {},
-            touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
-            submitted: false,
-          };
+      fc.property(validEmailArb, validNikArb, expiredRemainingMsArb, (email, nik, expiredMs) => {
+        const selection = { vip: 1 };
+        const form: BookingForm = {
+          contactEmail: email,
+          niks: { "vip-0": nik },
+          checks: {},
+          touched: new Set(["contactEmail", "nik:vip-0"]),
+          submitted: false,
+        };
 
-          // Build view with expired time
-          const viewInput = buildViewInput({
-            form,
-            selection,
-            remainingMs: expiredMs,
-            submitting: false,
-          });
-          const view = toBookingViewProps(viewInput);
+        // Build view with expired time
+        const viewInput = buildViewInput({
+          form,
+          selection,
+          remainingMs: expiredMs,
+          submitting: false,
+        });
+        const view = toBookingViewProps(viewInput);
 
-          // PRESERVATION: Expired countdown must disable submit
-          expect(view.submit.disabled).toBe(true);
-        },
-      ),
+        // PRESERVATION: Expired countdown must disable submit
+        expect(view.submit.disabled).toBe(true);
+      }),
       { numRuns: 50 },
     );
   });
@@ -213,34 +199,28 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
    */
   it("Property 3: submit.disabled === true when no ticket selected (count === 0)", () => {
     fc.assert(
-      fc.property(
-        validBuyerNameArb,
-        validEmailArb,
-        positiveRemainingMsArb,
-        (buyerName, email, remainingMs) => {
-          const selection = {}; // No tickets
-          const form: BookingForm = {
-            buyerName,
-            contactEmail: email,
-            niks: {},
-            checks: {},
-            touched: new Set(["buyerName", "contactEmail"]),
-            submitted: false,
-          };
+      fc.property(validEmailArb, positiveRemainingMsArb, (email, remainingMs) => {
+        const selection = {}; // No tickets
+        const form: BookingForm = {
+          contactEmail: email,
+          niks: {},
+          checks: {},
+          touched: new Set(["contactEmail"]),
+          submitted: false,
+        };
 
-          // Build view with no selection
-          const viewInput = buildViewInput({
-            form,
-            selection,
-            remainingMs,
-            submitting: false,
-          });
-          const view = toBookingViewProps(viewInput);
+        // Build view with no selection
+        const viewInput = buildViewInput({
+          form,
+          selection,
+          remainingMs,
+          submitting: false,
+        });
+        const view = toBookingViewProps(viewInput);
 
-          // PRESERVATION: No tickets must disable submit
-          expect(view.submit.disabled).toBe(true);
-        },
-      ),
+        // PRESERVATION: No tickets must disable submit
+        expect(view.submit.disabled).toBe(true);
+      }),
       { numRuns: 50 },
     );
   });
@@ -255,36 +235,29 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
    */
   it("Property 4: submit.disabled === true when submitting in progress (submitting === true)", () => {
     fc.assert(
-      fc.property(
-        validBuyerNameArb,
-        validEmailArb,
-        validNikArb,
-        positiveRemainingMsArb,
-        (buyerName, email, nik, remainingMs) => {
-          const selection = { vip: 1 };
-          const form: BookingForm = {
-            buyerName,
-            contactEmail: email,
-            niks: { "vip-0": nik },
-            checks: {},
-            touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
-            submitted: false,
-          };
+      fc.property(validEmailArb, validNikArb, positiveRemainingMsArb, (email, nik, remainingMs) => {
+        const selection = { vip: 1 };
+        const form: BookingForm = {
+          contactEmail: email,
+          niks: { "vip-0": nik },
+          checks: {},
+          touched: new Set(["contactEmail", "nik:vip-0"]),
+          submitted: false,
+        };
 
-          // Build view with submitting === true
-          const viewInput = buildViewInput({
-            form,
-            selection,
-            remainingMs,
-            submitting: true, // Submitting in progress
-          });
-          const view = toBookingViewProps(viewInput);
+        // Build view with submitting === true
+        const viewInput = buildViewInput({
+          form,
+          selection,
+          remainingMs,
+          submitting: true, // Submitting in progress
+        });
+        const view = toBookingViewProps(viewInput);
 
-          // PRESERVATION: Submitting must disable button and show busy state
-          expect(view.submit.disabled).toBe(true);
-          expect(view.submit.busy).toBe(true);
-        },
-      ),
+        // PRESERVATION: Submitting must disable button and show busy state
+        expect(view.submit.disabled).toBe(true);
+        expect(view.submit.busy).toBe(true);
+      }),
       { numRuns: 50 },
     );
   });
@@ -305,7 +278,6 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
         (nik, verifiedName) => {
           const selection = { vip: 1 };
           const form: BookingForm = {
-            buyerName: "Test User",
             contactEmail: "test@example.com",
             niks: { "vip-0": nik },
             checks: {
@@ -315,7 +287,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
                 result: { status: "valid", name: verifiedName },
               },
             },
-            touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
+            touched: new Set(["contactEmail", "nik:vip-0"]),
             submitted: false,
           };
 
@@ -358,7 +330,6 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
         for (const { status, expectedContains } of rejectedStatuses) {
           const selection = { vip: 1 };
           const form: BookingForm = {
-            buyerName: "Test User",
             contactEmail: "test@example.com",
             niks: { "vip-0": nik },
             checks: {
@@ -368,7 +339,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
                 result: { status },
               },
             },
-            touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
+            touched: new Set(["contactEmail", "nik:vip-0"]),
             submitted: true, // Show errors
           };
 
@@ -405,7 +376,6 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
       fc.property(validNikArb, (nik) => {
         const selection = { vip: 1 };
         const form: BookingForm = {
-          buyerName: "Test User",
           contactEmail: "test@example.com",
           niks: { "vip-0": nik },
           checks: {
@@ -414,7 +384,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
               state: "checking",
             },
           },
-          touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
+          touched: new Set(["contactEmail", "nik:vip-0"]),
           submitted: false,
         };
 
@@ -453,14 +423,13 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
   it("General Preservation: submit.disabled === false for all valid form states", () => {
     fc.assert(
       fc.property(
-        validBuyerNameArb,
         validEmailArb,
         validNikArb,
         validNikArb,
         validNikArb,
         fc.integer({ min: 1, max: 3 }), // 1-3 tickets
         positiveRemainingMsArb,
-        (buyerName, email, nik1, nik2, nik3, ticketCount, remainingMs) => {
+        (email, nik1, nik2, nik3, ticketCount, remainingMs) => {
           // Generate unique NIKs - each nik is exactly 16 chars from validNikArb
           const baseNiks = [nik1, nik2, nik3];
           const uniqueNiks = baseNiks.map((nik, i) => {
@@ -491,11 +460,10 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
           }
 
           const form: BookingForm = {
-            buyerName,
             contactEmail: email,
             niks,
             checks: {},
-            touched: new Set(["buyerName", "contactEmail", ...slotKeys.map((k) => `nik:${k}`)]),
+            touched: new Set(["contactEmail", ...slotKeys.map((k) => `nik:${k}`)]),
             submitted: false,
           };
 
@@ -531,11 +499,10 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
   it("valid single ticket form → submit enabled", () => {
     const form: BookingForm = {
-      buyerName: "John Doe",
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
       checks: {},
-      touched: new Set(["buyerName", "contactEmail", "nik:vip-0"]),
+      touched: new Set(["contactEmail", "nik:vip-0"]),
       submitted: false,
     };
 
@@ -553,7 +520,6 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
   it("valid multi-ticket form with unique NIKs → submit enabled", () => {
     const form: BookingForm = {
-      buyerName: "John Doe",
       contactEmail: "john@example.com",
       niks: {
         "vip-0": "3171000000000022",
@@ -579,7 +545,6 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
   it("valid form but time expired → submit disabled", () => {
     const form: BookingForm = {
-      buyerName: "John Doe",
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
       checks: {},
@@ -600,7 +565,6 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
   it("valid form but no tickets → submit disabled", () => {
     const form: BookingForm = {
-      buyerName: "John Doe",
       contactEmail: "john@example.com",
       niks: {},
       checks: {},
@@ -621,7 +585,6 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
   it("valid form but submitting → submit disabled with busy state", () => {
     const form: BookingForm = {
-      buyerName: "John Doe",
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
       checks: {},
@@ -643,7 +606,6 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
   it("verified NIK shows success message with name", () => {
     const form: BookingForm = {
-      buyerName: "John Doe",
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
       checks: {
@@ -677,7 +639,6 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
 
     for (const { status, errorContains } of testCases) {
       const form: BookingForm = {
-        buyerName: "John Doe",
         contactEmail: "john@example.com",
         niks: { "vip-0": "3171000000000022" },
         checks: {

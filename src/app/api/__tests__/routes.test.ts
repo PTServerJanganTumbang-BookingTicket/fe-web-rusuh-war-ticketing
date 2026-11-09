@@ -94,6 +94,6 @@ describe("route akun yang meneruskan ke gateway", () => {
     });
     expect(await response.text()).toBe("forward");
     expect(gateway.forward).toHaveBeenCalledWith(request, "saved-niks/abc");
-    expect([route.GET, route.POST, route.PATCH].every((handler) => handler === route.DELETE)).toBe(true);
+    expect([route.GET, route.POST].every((handler) => handler === route.DELETE)).toBe(true);
   });
 });

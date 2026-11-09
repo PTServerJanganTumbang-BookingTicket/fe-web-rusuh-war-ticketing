@@ -46,12 +46,10 @@ export function toTicketCardProps(ticket: TicketSummary): TicketCardProps {
     venue: ticket.event.venue,
     imageUrl: ticket.event.imageUrl ?? "/images/concert-placeholder.webp",
     category: ticket.category,
-    seatNumber: ticket.seatNumber,
     holderName: ticket.holderName,
     nikMasked: ticket.nikMasked,
     labels: {
       category: t("ticket.detail.category"),
-      seat: t("ticket.detail.seat"),
       holderName: t("ticket.detail.holderName"),
       nik: t("ticket.detail.nik"),
     },
@@ -67,7 +65,6 @@ export function toETicketViewProps(eticket: ETicket, chrome: SiteChrome): ETicke
   const date = dateFormatter().format(new Date(eticket.event.date));
   const details: ETicketViewProps["details"] = [
     { label: t("ticket.detail.category"), value: eticket.category },
-    ...(eticket.seatNumber ? [{ label: t("ticket.detail.seat"), value: eticket.seatNumber }] : []),
     ...(eticket.priceIdr > 0
       ? [{ label: t("ticket.detail.price"), value: priceFormatter.format(eticket.priceIdr) }]
       : []),

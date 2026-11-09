@@ -1,3 +1,4 @@
+import { NIK_LENGTH } from "@/core/domain/nik.utils";
 import { COUNTDOWN_URGENT_AT_MS } from "@/core/domain/time/countdown.constants";
 import { formatMmSs } from "@/core/domain/time/format-mm-ss.utils";
 import { formatIdr } from "@/core/controllers/format-currency.utils";
@@ -26,7 +27,6 @@ export type NikCheckState =
   | { nik: string; state: "failed" };
 
 export type BookingForm = {
-  buyerName: string;
   contactEmail: string;
   niks: Readonly<Record<string, string>>;
   /** Slot yang pemegangnya alias: kunci slot → id alias. NIK alias tetap ada di `niks`. */
@@ -53,7 +53,6 @@ export type BookingViewInput = {
   focusNik?: { slotKey: string; n: number } | null;
   onAdd: (categoryId: string) => void;
   onRemove: (categoryId: string) => void;
-  onBuyerName: (value: string) => void;
   onContactEmail: (value: string) => void;
   onNik: (slotKey: string, value: string) => void;
   onNikBlur: (slotKey: string) => void;
@@ -84,9 +83,9 @@ export function nikError(
   return undefined;
 }
 
-/** Form siap dikirim: pemesan lengkap, tiap tiket punya NIK unik berformat benar, dan tidak ada NIK yang ditolak. */
+/** Form siap dikirim: email pemesan valid, tiap tiket punya NIK unik berformat benar, dan tidak ada NIK yang ditolak. */
 export function isBookingFormValid(form: BookingForm, slotKeys: string[]): boolean {
-  if (slotKeys.length === 0 || form.buyerName.trim() === "" || !isEmail(form.contactEmail)) return false;
+  if (slotKeys.length === 0 || !isEmail(form.contactEmail)) return false;
   const niks = Object.fromEntries(slotKeys.map((key) => [key, form.niks[key] ?? ""]));
   const duplicates = duplicateNikSlots(niks);
   return slotKeys.every((key) => {
@@ -136,6 +135,7 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
         // NIK alias ditampilkan tersamar; nilai lengkapnya hanya dikirim ke server.
         value: picked ? picked.nikMasked : nik,
         readOnly: Boolean(picked),
+        maxLength: NIK_LENGTH,
         focusKey: input.focusNik?.slotKey === slot.key ? input.focusNik.n : undefined,
         error,
         success: error ? undefined : success,
@@ -161,7 +161,6 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
               onChange: (value: string) => input.onHolderAlias?.(slot.key, value),
             }
           : undefined,
-      seat: { label: t("booking.holder.seat.label"), value: t("booking.holder.seat.value") },
     };
   });
 
@@ -204,15 +203,6 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     buyer: {
       title: t("booking.buyer.title"),
       hint: t("booking.buyer.hint"),
-      name: {
-        label: t("booking.buyer.name.label"),
-        placeholder: t("booking.buyer.name.placeholder"),
-        value: form.buyerName,
-        error:
-          show("buyerName") && form.buyerName.trim() === "" ? t("booking.buyer.name.required") : undefined,
-        onChange: input.onBuyerName,
-        onBlur: () => input.onFieldBlur("buyerName"),
-      },
       email: {
         label: t("booking.buyer.email.label"),
         placeholder: t("booking.buyer.email.placeholder"),

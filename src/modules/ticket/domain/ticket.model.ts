@@ -1,6 +1,6 @@
 /**
  * Ticket domain models.
- * Ref: Requirement 7.1 (e-tiket berisi NIK_Attendee, kategori, nomor bangku, QR code).
+ * Ref: Requirement 7.1 (e-tiket berisi NIK_Attendee, kategori, QR code).
  * Ref: API Contract - GET /users/me/tickets, GET /tickets/{id}/eticket
  */
 
@@ -26,8 +26,6 @@ export type TicketSummary = {
   };
   /** Kategori tiket (VIP, Festival, dll) */
   category: string;
-  /** Nomor bangku/seat (jika ada) */
-  seatNumber?: string;
   /** NIK pemegang tiket (masked untuk privacy, e.g., "3201****0001") */
   nikMasked: string;
   /** Nama pemegang tiket */
@@ -59,8 +57,6 @@ export type ETicket = {
   category: string;
   /** Harga tiket (IDR) */
   priceIdr: number;
-  /** Nomor bangku/seat */
-  seatNumber?: string;
   /** NIK pemegang (full, hanya untuk pemilik tiket) */
   nik: string;
   /** Nama pemegang tiket */

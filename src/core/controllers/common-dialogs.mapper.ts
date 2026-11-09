@@ -17,6 +17,7 @@ export function toConnectionProblemDialog({
 }: Retry): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "network",
     title: t("dialog.connection.title"),
     description: t("dialog.connection.description"),
     primary: { label: t("dialog.retry"), onClick: onRetry, busy: retrying },
@@ -32,6 +33,7 @@ export function toSomethingWentWrongDialog({
 }: Retry): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "error",
     title: t("dialog.unknown.title"),
     description: t("dialog.unknown.description"),
     primary: { label: t("dialog.retry"), onClick: onRetry, busy: retrying },

@@ -84,6 +84,10 @@ export function createHttpQueueService({
       return toQueueState(ticket, me);
     },
 
+    leave(eventId: string): void {
+      queueTicketCache.delete(eventId);
+    },
+
     getEvent(eventId: string): Promise<QueueEvent> {
       return httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueEventSchema);
     },

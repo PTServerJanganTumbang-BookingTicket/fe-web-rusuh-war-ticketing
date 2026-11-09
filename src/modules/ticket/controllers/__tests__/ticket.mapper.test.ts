@@ -37,17 +37,12 @@ describe("toETicketViewProps", () => {
     ]);
   });
 
-  it("harga, bangku, nama, dan email tampil bila ada", () => {
+  it("harga, nama, dan email tampil bila ada, tanpa nomor bangku", () => {
     const view = toETicketViewProps(
-      { ...eticket, priceIdr: 1_500_000, seatNumber: "A-12", holderName: "Rina", holderEmail: "r@x.co" },
+      { ...eticket, priceIdr: 1_500_000, holderName: "Rina", holderEmail: "r@x.co" },
       toSiteChrome(),
     );
-    expect(view.details.map((row) => row.label)).toEqual([
-      "Kategori",
-      "Nomor bangku",
-      "Harga",
-      "Nomor tiket",
-    ]);
+    expect(view.details.map((row) => row.label)).toEqual(["Kategori", "Harga", "Nomor tiket"]);
     expect(view.holder.map((row) => row.value)).toEqual(["Rina", "3171********xx22", "r@x.co"]);
   });
 

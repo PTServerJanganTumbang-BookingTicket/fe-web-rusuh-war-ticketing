@@ -38,7 +38,6 @@ export function createHttpAuthService({
         {
           email: input.email,
           nik: input.nik,
-          name: input.name,
           consent: { accepted: true, policy_version: input.policyVersion },
         },
         z.unknown(),

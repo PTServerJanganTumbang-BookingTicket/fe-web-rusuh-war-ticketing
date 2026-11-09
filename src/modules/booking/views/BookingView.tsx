@@ -31,6 +31,8 @@ export type TextFieldProps = {
   readOnly?: boolean;
   /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah data" di modal NIK. */
   focusKey?: number;
+  /** Batas panjang isian; karakter berlebih ditolak peramban. */
+  maxLength?: number;
   onChange: (value: string) => void;
   onBlur?: () => void;
 };
@@ -51,7 +53,6 @@ export type TicketHolderProps = {
   nik: TextFieldProps;
   /** Pilihan alias; hanya ada untuk customer yang masuk dan punya alias. */
   holder?: HolderSourceProps;
-  seat: { label: string; value: string };
 };
 
 export type BookingViewProps = Omit<SiteShellProps, "children"> & {
@@ -59,7 +60,7 @@ export type BookingViewProps = Omit<SiteShellProps, "children"> & {
   countdown: CountdownBannerProps;
   error?: string;
   dialog?: ActionDialogProps;
-  buyer: { title: string; name: TextFieldProps; email: TextFieldProps; hint: string };
+  buyer: { title: string; email: TextFieldProps; hint: string };
   categories: { title: string; limit: string; items: CategoryRowProps[] };
   holders?: { title: string; hint: string; items: TicketHolderProps[]; footnote: string };
   event?: EventSummaryCardProps;
@@ -105,6 +106,7 @@ function TextInput({
         className={field.readOnly ? "bg-signal-disable" : undefined}
         inputMode={inputMode}
         autoComplete={autoComplete}
+        maxLength={field.maxLength}
         aria-invalid={Boolean(field.error)}
         aria-describedby={describedBy}
         onChange={(event) => field.onChange(event.target.value)}
@@ -209,10 +211,7 @@ export function BookingView(props: BookingViewProps) {
             ) : null}
 
             <SectionCard title={buyer.title}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <TextInput id="buyer-name" field={buyer.name} autoComplete="name" />
-                <TextInput id="buyer-email" field={buyer.email} inputMode="email" autoComplete="email" />
-              </div>
+              <TextInput id="buyer-email" field={buyer.email} inputMode="email" autoComplete="email" />
               <p className="type-body2 text-muted-foreground">{buyer.hint}</p>
             </SectionCard>
 
@@ -243,22 +242,13 @@ export function BookingView(props: BookingViewProps) {
                       {holder.holder ? (
                         <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
                       ) : null}
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
                         <TextInput
                           id={`nik-${holder.id}`}
                           field={holder.nik}
                           inputMode="numeric"
                           autoComplete="off"
                         />
-                        <Field>
-                          <FieldLabel htmlFor={`seat-${holder.id}`}>{holder.seat.label}</FieldLabel>
-                          <Input
-                            id={`seat-${holder.id}`}
-                            value={holder.seat.value}
-                            readOnly
-                            className="bg-signal-disable"
-                          />
-                        </Field>
                       </div>
                     </li>
                   ))}

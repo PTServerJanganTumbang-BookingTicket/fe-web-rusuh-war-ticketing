@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "../primitives/Button";
+import { buttonVariants } from "../button";
 import { cn } from "../cn.utils";
 import { UserRoundIcon } from "../icons";
 
@@ -101,12 +101,16 @@ export function Navbar({ items, loginHref, loginLabel, account, language }: Navb
               </span>
             </Link>
           ) : (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={loginHref}>
-                <UserRoundIcon className="size-4" />
-                {loginLabel}
-              </Link>
-            </Button>
+            <Link
+              href={loginHref}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "gap-1.5 border-primary text-primary hover:text-primary",
+              )}
+            >
+              <UserRoundIcon className="size-4" />
+              {loginLabel}
+            </Link>
           )}
         </div>
       </div>

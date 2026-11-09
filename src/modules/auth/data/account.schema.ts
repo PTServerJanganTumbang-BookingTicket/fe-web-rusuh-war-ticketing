@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Account, EventSummary, LoginResult, Profile, SavedNikList } from "../domain/account.model";
+import type { Account, EventSummary, LoginResult, SavedNikList } from "../domain/account.model";
 
 const accountSchema = z
   .object({ email: z.string(), nik_masked: z.string() })
@@ -60,19 +60,4 @@ export const savedNikListSchema = z
       label: saved.label,
       verifiedAt: saved.verified_at,
     })),
-  }));
-
-/** `data` dari `GET /accounts/me` (diteruskan lewat `/api/account/profile`). Bentuk ini asumsi FE. */
-export const profileSchema = z
-  .object({
-    name: z.string(),
-    email: z.string(),
-    nik_masked: z.string(),
-    created_at: z.string().nullish(),
-  })
-  .transform((profile): Profile => ({
-    name: profile.name,
-    email: profile.email,
-    nikMasked: profile.nik_masked,
-    memberSince: profile.created_at ?? null,
   }));

@@ -31,7 +31,6 @@ export async function passQueue(page: Page, query = "") {
 }
 
 export async function pickVipAndContinue(page: Page) {
-  await page.getByRole("textbox", { name: "Nama lengkap" }).fill("Rina Pratama");
   await page.getByRole("textbox", { name: "Email" }).fill("rina@example.com");
   await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
   const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
