@@ -2,9 +2,9 @@
 
 // Waiting Room. Requirement: FR-06–10, NFR-05, NFR-06. Wireframe 9.2. ADR-0016 (SSE + polling cadangan), ADR-0010 (sesi).
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
@@ -30,8 +30,16 @@ function errorKey(error: AppError): MessageKey {
 export function useQueueController(eventId: string): QueueViewProps {
   const siteChrome = useSiteChrome();
   const router = useRouter();
-  const { getQueueStateUseCase, getQueueEventUseCase, watchQueueStateUseCase, startSessionUseCase, random } =
-    useDependencies<QueueDependencies & CoreDependencies>();
+  const {
+    getQueueStateUseCase,
+    getQueueEventUseCase,
+    watchQueueStateUseCase,
+    leaveQueueUseCase,
+    startSessionUseCase,
+    random,
+  } = useDependencies<QueueDependencies & CoreDependencies>();
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const queryClient = useQueryClient();
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
     watch: (observer) => watchQueueStateUseCase(eventId, observer),
@@ -56,8 +64,27 @@ export function useQueueController(eventId: string): QueueViewProps {
     mutate(admittedToken);
   }, [admittedToken, mutate]);
 
+  const leaveQueue = () => {
+    leaveQueueUseCase(eventId);
+    queryClient.removeQueries({ queryKey: queueKeys.position(eventId) });
+    router.push("/");
+  };
+  const closeLeave = () => setConfirmingLeave(false);
+  const leaveDialog: QueueViewProps["dialog"] = confirmingLeave
+    ? {
+        tone: "warning",
+        illustration: "confirmation",
+        title: t("queue.leave.title"),
+        description: t("queue.leave.description"),
+        primary: { label: t("queue.leave.confirm"), onClick: leaveQueue },
+        secondary: { label: t("queue.leave.stay"), onClick: closeLeave },
+        onDismiss: closeLeave,
+      }
+    : undefined;
+
   const page = (status: QueueStatusProps) =>
     toQueueViewProps({
+      dialog: leaveDialog,
       chrome: siteChrome,
       eventName: event.data?.name ?? (data?.eventName || undefined),
       event: event.data,
@@ -75,7 +102,12 @@ export function useQueueController(eventId: string): QueueViewProps {
     });
   }
 
-  if (data?.status === "waiting") return page(toWaitingStatus(data));
+  if (data?.status === "waiting") {
+    return page({
+      ...toWaitingStatus(data),
+      leave: { label: t("queue.leave.button"), onClick: () => setConfirmingLeave(true) },
+    });
+  }
 
   if (data?.status === "ended") {
     return page({

@@ -91,6 +91,22 @@ describe("useLoginController", () => {
     expect(sent().mockLink?.href).toMatch(/^\/login\/verify#token=/);
   });
 
+  it("setelah link terkirim: modal info dengan ilustrasi email dan teks dari spreadsheet, ditutup sekali", async () => {
+    const { form, result } = mount();
+    act(() => form().email.onChange("you@example.com"));
+    act(() => form().submit.onSubmit());
+    await waitFor(() => expect(result.current.kind).toBe("sent"));
+    expect(result.current.dialog).toMatchObject({
+      tone: "info",
+      illustration: "email",
+      description: "Periksa link tautan yang telah dikirim ke Email anda untuk menyelesaikan Login",
+      primary: { label: "Mengerti" },
+    });
+    const ok = result.current.dialog?.primary;
+    act(() => ok && "onClick" in ok && ok.onClick());
+    expect(result.current.dialog).toBeUndefined();
+  });
+
   it("429 dari server: pesan batas permintaan, tetap di form", async () => {
     server.use(
       http.post(`${MOCK_API_BASE_URL}/auth/magic-link`, () =>
@@ -121,11 +137,12 @@ describe("useLoginController", () => {
     const { form, result } = mount();
     act(() => form().email.onChange("you@example.com"));
     act(() => form().submit.onSubmit());
-    await waitFor(() => expect(result.current.dialog?.title).toBe("Koneksi bermasalah"));
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Tidak ada jaringan"));
     expect(form().error).toBeUndefined();
     act(() => click(result.current.dialog?.primary));
     await waitFor(() => expect(result.current.kind).toBe("sent"));
-    expect(result.current.dialog).toBeUndefined();
+    // Dialog galat diganti modal info link terkirim.
+    expect(result.current.dialog?.illustration).toBe("email");
   });
 
   it("layanan auth galat (5xx): dialog layanan sedang tidak tersedia, email tetap", async () => {

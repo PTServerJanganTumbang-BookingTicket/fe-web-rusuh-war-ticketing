@@ -15,14 +15,13 @@ export type TicketCardProps = {
   venue: string;
   imageUrl: string;
   category: string;
-  seatNumber?: string;
   holderName: string;
   nikMasked: string;
   status: TicketStatus;
   statusLabel: string;
   statusTone: "success" | "info" | "warning" | "danger";
   /** Label baris detail dari i18n. */
-  labels: { category: string; seat: string; holderName: string; nik: string };
+  labels: { category: string; holderName: string; nik: string };
 };
 
 const badgeVariant: Record<TicketCardProps["statusTone"], NonNullable<BadgeProps["variant"]>> = {
@@ -43,7 +42,6 @@ export function TicketCard({
   venue,
   imageUrl,
   category,
-  seatNumber,
   holderName,
   nikMasked,
   statusLabel,
@@ -83,12 +81,6 @@ export function TicketCard({
               <span className="text-muted-foreground">{labels.category}</span>
               <span className="font-medium text-foreground">{category}</span>
             </div>
-            {seatNumber && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{labels.seat}</span>
-                <span className="font-medium text-foreground">{seatNumber}</span>
-              </div>
-            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">{labels.holderName}</span>
               <span className="font-medium text-foreground">{holderName}</span>

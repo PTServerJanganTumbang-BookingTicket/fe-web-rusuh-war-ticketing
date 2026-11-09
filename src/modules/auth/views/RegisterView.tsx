@@ -18,6 +18,8 @@ type TextField = {
   error?: string;
   /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah email" di dialog. */
   focusKey?: number;
+  /** Batas panjang isian; karakter berlebih ditolak peramban. */
+  maxLength?: number;
   onChange: (value: string) => void;
   /** Galat bentuk tampil setelah field ditinggalkan, bukan saat masih diketik. */
   onBlur?: () => void;
@@ -46,7 +48,11 @@ export type RegisterFormProps = {
 export type RegisterViewProps = Omit<SiteShellProps, "children"> &
   RegisterFormProps & { dialog?: ActionDialogProps };
 
-type InputProps = { type?: string; autoComplete?: string; inputMode?: "email" | "numeric" };
+type InputProps = {
+  type?: string;
+  autoComplete?: string;
+  inputMode?: "email" | "numeric";
+};
 
 function TextInput({
   id,
@@ -74,6 +80,7 @@ function TextInput({
         id={id}
         value={field.value}
         required={field.required}
+        maxLength={field.maxLength}
         disabled={busy}
         aria-invalid={Boolean(field.error)}
         aria-describedby={describedBy || undefined}

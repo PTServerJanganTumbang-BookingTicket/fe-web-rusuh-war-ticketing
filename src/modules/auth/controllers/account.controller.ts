@@ -11,6 +11,7 @@ import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { NIK_LENGTH, sanitizeNikInput } from "@/core/domain/nik.utils";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import {
   toNikMismatchDialog,
@@ -226,9 +227,10 @@ export function useAccountController(): AccountViewProps {
       placeholder: t("booking.holder.nik.placeholder"),
       value: nik,
       focusKey: focusNik || undefined,
+      maxLength: NIK_LENGTH,
       error: invalid?.nik ? t("register.nik.invalid") : undefined,
-      // Hanya digit: spasi atau tanda baca dari salinan KTP dibuang.
-      onChange: (value) => setNik(value.replace(/\D/g, "")),
+      // Hanya digit, maksimal 16: spasi, tanda baca, dan digit berlebih ditolak.
+      onChange: (value) => setNik(sanitizeNikInput(value)),
     },
   });
   const submit: AliasFormProps["submit"] = {

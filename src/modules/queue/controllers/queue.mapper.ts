@@ -45,12 +45,20 @@ export type QueuePageInput = {
   eventName?: string;
   event?: QueueEvent;
   status: QueueStatusProps;
+  dialog?: QueueViewProps["dialog"];
 };
 
 /** Halaman Waiting Room: breadcrumb, judul, panel status, kartu event, dan tips. */
-export function toQueueViewProps({ chrome, eventName, event, status }: QueuePageInput): QueueViewProps {
+export function toQueueViewProps({
+  chrome,
+  eventName,
+  event,
+  status,
+  dialog,
+}: QueuePageInput): QueueViewProps {
   return {
     ...chrome,
+    dialog,
     breadcrumb: [
       { label: t("queue.breadcrumb.home"), href: "/" },
       ...(eventName ? [{ label: eventName }] : []),

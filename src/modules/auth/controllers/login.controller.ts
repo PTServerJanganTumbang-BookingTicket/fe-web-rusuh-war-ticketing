@@ -38,6 +38,8 @@ export function useLoginController(): LoginViewProps {
   // Galat baru tampil setelah field ditinggalkan atau form dikirim, bukan saat mengetik.
   const [touched, setTouched] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  /** Dialog info setelah link terkirim; ditutup customer sekali, tidak muncul lagi saat kirim ulang. */
+  const [sentInfoOpen, setSentInfoOpen] = useState(false);
   const [resendAt, setResendAt] = useState<string | undefined>(undefined);
 
   const startCooldown = () => setResendAt(new Date(clock.now() + RESEND_COOLDOWN_MS).toISOString());
@@ -46,6 +48,7 @@ export function useLoginController(): LoginViewProps {
     onSuccess: (_, address) => {
       modal.close();
       setSentTo(address.trim());
+      setSentInfoOpen(true);
       startCooldown();
     },
     onError: (failure) => openFailure(failure, "request"),
@@ -83,6 +86,17 @@ export function useLoginController(): LoginViewProps {
 
   if (sentTo) {
     const waiting = cooldownMs > 0;
+    if (!dialog && sentInfoOpen) {
+      const closeInfo = () => setSentInfoOpen(false);
+      dialog = {
+        tone: "info",
+        illustration: "email",
+        title: t("login.sentDialog.title"),
+        description: t("login.sentDialog.description"),
+        primary: { label: t("login.sentDialog.ok"), onClick: closeInfo },
+        onDismiss: closeInfo,
+      };
+    }
     return {
       ...chrome,
       kind: "sent",

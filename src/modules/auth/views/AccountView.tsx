@@ -31,6 +31,8 @@ type TextField = {
   error?: string;
   /** Berubah saat field perlu difokus lagi, misalnya setelah "Ubah data" di modal NIK. */
   focusKey?: number;
+  /** Batas panjang isian; karakter berlebih ditolak peramban. */
+  maxLength?: number;
   onChange: (value: string) => void;
 };
 
@@ -307,7 +309,7 @@ function AliasForm({ id, title, label, nik, notice, submit }: AliasFormProps) {
       </h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput id={`${id}-label`} field={label} autoComplete="off" />
-        <TextInput id={`${id}-nik`} field={nik} inputMode="numeric" autoComplete="off" maxLength={16} />
+        <TextInput id={`${id}-nik`} field={nik} inputMode="numeric" autoComplete="off" />
       </div>
       <Alert variant="info" role="note" className="border-signal-info">
         <ShieldCheckIcon />
@@ -332,7 +334,6 @@ function TextInput({
   field: TextField;
   inputMode?: "numeric";
   autoComplete?: string;
-  maxLength?: number;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -349,6 +350,7 @@ function TextInput({
         id={id}
         value={field.value}
         placeholder={field.placeholder}
+        maxLength={field.maxLength}
         className="bg-background"
         aria-invalid={Boolean(field.error)}
         aria-describedby={describedBy}

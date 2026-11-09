@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { CircleAlertIcon, CircleCheckIcon, ClockIcon, InfoIcon, MailIcon } from "../icons";
@@ -18,11 +19,27 @@ export type ActionDialogAction =
 export type ActionDialogTone = "error" | "warning" | "info" | "success";
 export type ActionDialogIcon = "alert" | "clock" | "mail" | "check" | "info";
 
+/**
+ * Ilustrasi Signal DS (spreadsheet "Icon & Asset reference for SJT"). Menggantikan lingkaran ikon bila ada.
+ * Berkas di `public/images/illustrations/`.
+ */
+export type ActionDialogIllustration = "network" | "confirmation" | "success" | "email" | "error";
+
+const ILLUSTRATIONS: Record<ActionDialogIllustration, string> = {
+  network: "/images/illustrations/network-failed.webp",
+  confirmation: "/images/illustrations/confirmation.webp",
+  success: "/images/illustrations/success.webp",
+  email: "/images/illustrations/check-email.webp",
+  error: "/images/illustrations/error.webp",
+};
+
 export type ActionDialogProps = {
   /** Warna lingkaran ikon. `error` galat, `warning` sesi atau waktu, `info` tinjauan, `success` selesai. */
   tone: ActionDialogTone;
   /** Ikon di lingkaran; bawaan mengikuti `tone`. */
   icon?: ActionDialogIcon;
+  /** Ilustrasi Signal DS di atas judul; menggantikan ikon. */
+  illustration?: ActionDialogIllustration;
   title: string;
   description: string;
   /** Ringkasan isian, misalnya email dan NIK sebelum mendaftar. */
@@ -86,19 +103,30 @@ function ActionButton({ action, variant }: { action: ActionDialogAction; variant
 }
 
 function Body({ props, header }: { props: ActionDialogProps; header: ReactNode }) {
-  const { tone, icon, details, note, error, primary, secondary } = props;
+  const { tone, icon, illustration, details, note, error, primary, secondary } = props;
   const Icon = ICONS[icon ?? TONE_ICON[tone]];
   return (
     <>
-      <span
-        aria-hidden="true"
-        className={cn(
-          "flex size-16 items-center justify-center rounded-full [&_svg]:size-7",
-          TONE_CLASS[tone],
-        )}
-      >
-        <Icon />
-      </span>
+      {illustration ? (
+        <Image
+          src={ILLUSTRATIONS[illustration]}
+          alt=""
+          aria-hidden="true"
+          width={180}
+          height={150}
+          className="mx-auto h-auto w-40"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-16 items-center justify-center rounded-full [&_svg]:size-7",
+            TONE_CLASS[tone],
+          )}
+        >
+          <Icon />
+        </span>
+      )}
       {header}
       {details?.length ? (
         <dl className="flex flex-col gap-3 rounded-2xl border border-border p-4">

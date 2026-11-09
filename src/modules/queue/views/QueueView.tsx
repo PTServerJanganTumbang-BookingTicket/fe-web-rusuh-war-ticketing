@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/components/ui/cn.utils";
+import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 import { EventSummaryCard, type EventSummaryCardProps } from "@/components/ui/layout/CheckoutCards";
 import { PageHeader } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
@@ -22,6 +23,8 @@ export type QueueStatusProps = {
   updatedNote?: string;
   note?: string;
   action?: { label: string; onClick: () => void; disabled?: boolean };
+  /** Keluar dari antrian; hanya saat menunggu. Membuka dialog konfirmasi. */
+  leave?: { label: string; onClick: () => void };
 };
 
 export type QueueEventCardProps = EventSummaryCardProps;
@@ -35,6 +38,8 @@ export type QueueViewProps = Omit<SiteShellProps, "children"> & {
   status: QueueStatusProps;
   event?: QueueEventCardProps;
   tips: { title: string; items: QueueTip[] };
+  /** Konfirmasi keluar dari antrian. */
+  dialog?: ActionDialogProps;
 };
 
 const tipIcons = { nik: IdCardIcon, tickets: TicketIcon, connection: WifiIcon };
@@ -55,6 +60,7 @@ export function QueueView({
   status,
   event,
   tips,
+  dialog,
 }: QueueViewProps) {
   return (
     <SiteShell nav={nav} footer={footer}>
@@ -82,6 +88,7 @@ export function QueueView({
           </section>
         </aside>
       </div>
+      {dialog ? <ActionDialog {...dialog} /> : null}
     </SiteShell>
   );
 }
@@ -96,6 +103,7 @@ function StatusCard({
   updatedNote,
   note,
   action,
+  leave,
 }: QueueStatusProps) {
   return (
     <Card className="gap-0 rounded-2xl py-0">
@@ -163,6 +171,17 @@ function StatusCard({
             <InfoIcon />
             <AlertDescription className="type-body1 text-foreground">{note}</AlertDescription>
           </Alert>
+        ) : null}
+
+        {leave ? (
+          <Button
+            variant="outline"
+            size="lg"
+            className="self-center border-primary text-primary hover:text-primary"
+            onClick={leave.onClick}
+          >
+            {leave.label}
+          </Button>
         ) : null}
       </CardContent>
     </Card>

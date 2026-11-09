@@ -65,6 +65,14 @@ describe("useRegisterController", () => {
     expect(form().submit.disabled).toBe(false);
   });
 
+  it("NIK menolak digit setelah ke-16, juga pada tempelan berspasi", () => {
+    const { form, fill } = mount();
+    fill({ nik: "31710000000000449999" });
+    expect(form().nik.value).toBe("3171000000000044");
+    fill({ nik: "3171 0000 0000 0044 55" });
+    expect(form().nik.value).toBe("3171000000000044");
+  });
+
   it("NIK hanya menerima digit dan harus 16 digit", () => {
     const { form, fill } = mount();
     fill({ email: "alex@example.com", nik: "3171 0000-0000", consent: true });
@@ -94,6 +102,12 @@ describe("useRegisterController", () => {
     expect(review?.details?.map((item) => item.value)).toEqual(["alex@example.com", "3171000000000044"]);
     act(() => click(review?.primary));
     await waitFor(() => expect(result.current.dialog?.tone).toBe("success"));
+    // Modal info setelah register: ilustrasi dan teks dari spreadsheet referensi aset.
+    expect(result.current.dialog).toMatchObject({
+      illustration: "success",
+      description:
+        "Anda berhasil mendaftarkan akun, silahkan cek email anda dan lakukan verifikasi dengan mengakses link yang telah dikirimkan",
+    });
     act(() => click(result.current.dialog?.primary));
     expect(push).toHaveBeenCalledWith("/register/verify-email");
     expect(body).toEqual({
@@ -144,7 +158,7 @@ describe("useRegisterController", () => {
     fill({ email: "alex@example.com", nik: "3171000000000044", consent: true });
     act(() => form().submit.onSubmit());
     act(() => click(result.current.dialog?.primary));
-    await waitFor(() => expect(result.current.dialog?.title).toBe("Koneksi bermasalah"));
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Tidak ada jaringan"));
   });
 
   it("NIK ditolak Dukcapil (400): dialog Periksa NIK, Ubah data memfokus field NIK", async () => {

@@ -15,7 +15,8 @@ describe("dialog umum", () => {
     const dialog = toConnectionProblemDialog({ ...options, retrying: true });
     expect(dialog).toMatchObject({
       tone: "error",
-      title: "Koneksi bermasalah",
+      title: "Tidak ada jaringan",
+      illustration: "network",
       primary: { label: "Coba lagi", busy: true },
     });
     expect(dialog.secondary).toBeUndefined();
@@ -28,7 +29,7 @@ describe("dialog umum", () => {
   });
 
   it("galat tanpa dialog khusus: koneksi untuk jaringan, selain itu terjadi kesalahan", () => {
-    expect(toRequestFailedDialog({ kind: "network" }, actions()).title).toBe("Koneksi bermasalah");
+    expect(toRequestFailedDialog({ kind: "network" }, actions()).title).toBe("Tidak ada jaringan");
     expect(toRequestFailedDialog({ kind: "unknown", status: 500 }, actions()).title).toBe(
       "Terjadi kesalahan",
     );

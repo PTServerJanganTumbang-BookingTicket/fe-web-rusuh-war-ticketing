@@ -21,6 +21,7 @@ describe("createGetQueueStateUseCase", () => {
         getEvent: async () => {
           throw new Error("tidak dipakai");
         },
+        leave: () => undefined,
       },
     });
     expect(await getQueueStateUseCase("evt-1")).toBe(state);
@@ -44,6 +45,7 @@ describe("createGetQueueEventUseCase", () => {
           throw new Error("tidak dipakai");
         },
         getEvent: async (eventId) => ({ ...event, name: `${event.name} ${eventId}` }),
+        leave: () => undefined,
       },
     });
     expect((await getQueueEventUseCase("evt-1")).name).toBe("Konser A evt-1");

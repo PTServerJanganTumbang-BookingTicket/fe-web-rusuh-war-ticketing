@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DependencyProvider } from "@/core/controllers/dependencies.context";
+import { useOfflineDialog } from "@/core/controllers/offline-dialog.hook";
+import { ActionDialog } from "@/components/ui/layout/ActionDialog";
 import { readAppConfig } from "./app-config.reader";
 import { createAppContainer } from "./container";
 
@@ -11,6 +13,12 @@ function createQueryClient(mocking: boolean) {
   // membutuhkan children ter-render di server).
   if (mocking && typeof window !== "undefined") onlineManager.setOnline(false);
   return new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
+}
+
+/** Dialog "tanpa jaringan" untuk semua halaman yang memasang AppProviders. */
+function OfflineDialog() {
+  const dialog = useOfflineDialog();
+  return dialog ? <ActionDialog {...dialog} /> : null;
 }
 
 // Dipasang di layout route yang butuh data klien, bukan di root layout (ADR-0007).
@@ -32,7 +40,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <DependencyProvider dependencies={container.cradle}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        <OfflineDialog />
+      </QueryClientProvider>
     </DependencyProvider>
   );
 }

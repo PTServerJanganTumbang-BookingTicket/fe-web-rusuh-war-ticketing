@@ -8,7 +8,6 @@ test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
   });
 
   test("form pemesan kosong, stok tampil, dan tombol lanjut mati tanpa tiket", async ({ page }) => {
-    await expect(page.getByRole("textbox", { name: "Nama lengkap" })).toBeEmpty();
     await expect(page.getByText("Sisa 12")).toBeVisible();
     await expect(page.getByText("Belum ada tiket dipilih.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Lanjut ke Pembayaran" })).toBeDisabled();

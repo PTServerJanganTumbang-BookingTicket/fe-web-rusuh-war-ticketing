@@ -26,7 +26,6 @@ const event = {
 };
 
 const emptyForm: BookingForm = {
-  buyerName: "",
   contactEmail: "",
   niks: {},
   checks: {},
@@ -46,7 +45,6 @@ const build = (overrides: Partial<Parameters<typeof toBookingViewProps>[0]> = {}
     submitting: false,
     onAdd: vi.fn(),
     onRemove: vi.fn(),
-    onBuyerName: vi.fn(),
     onContactEmail: vi.fn(),
     onNik: vi.fn(),
     onNikBlur: vi.fn(),
@@ -79,7 +77,8 @@ describe("toBookingViewProps", () => {
   it("satu slot identitas per tiket, dengan nomor bangku otomatis", () => {
     const holders = build().holders?.items ?? [];
     expect(holders.map((holder) => holder.nik.label)).toEqual(["NIK tiket 1", "NIK tiket 2"]);
-    expect(holders[0]).toMatchObject({ title: "VIP × 1", seat: { value: "Ditentukan otomatis" } });
+    expect(holders[0]).toMatchObject({ title: "VIP × 1" });
+    expect(holders[0]).not.toHaveProperty("seat");
     expect(build({ selection: {} }).holders).toBeUndefined();
   });
 
@@ -91,9 +90,7 @@ describe("toBookingViewProps", () => {
   });
 
   it("galat pemesan baru tampil setelah dikirim", () => {
-    expect(build().buyer.name.error).toBeUndefined();
     const submitted = build({ form: { ...emptyForm, submitted: true } });
-    expect(submitted.buyer.name.error).toBe("Isi nama lengkap pemesan.");
     expect(submitted.buyer.email.error).toBe("Masukkan alamat email yang valid.");
   });
 
@@ -116,7 +113,6 @@ describe("toBookingViewProps", () => {
     // With valid form data, button should be enabled
     const validForm: BookingForm = {
       ...emptyForm,
-      buyerName: "Rina",
       contactEmail: "rina@example.com",
       niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
     };
@@ -126,22 +122,11 @@ describe("toBookingViewProps", () => {
   it("tombol lanjut mati saat form tidak valid", () => {
     // Empty form with tickets selected should disable button
     expect(build().submit.disabled).toBe(true);
-    // Missing buyer name
-    expect(
-      build({
-        form: {
-          ...emptyForm,
-          contactEmail: "rina@example.com",
-          niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
-        },
-      }).submit.disabled,
-    ).toBe(true);
     // Invalid email
     expect(
       build({
         form: {
           ...emptyForm,
-          buyerName: "Rina",
           contactEmail: "invalid",
           niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
         },
@@ -152,7 +137,6 @@ describe("toBookingViewProps", () => {
       build({
         form: {
           ...emptyForm,
-          buyerName: "Rina",
           contactEmail: "rina@example.com",
           niks: { "vip-0": "3171000000000022" },
         },
@@ -163,7 +147,6 @@ describe("toBookingViewProps", () => {
       build({
         form: {
           ...emptyForm,
-          buyerName: "Rina",
           contactEmail: "rina@example.com",
           niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000022" },
         },
@@ -197,7 +180,6 @@ describe("nikError", () => {
 describe("isBookingFormValid", () => {
   const valid: BookingForm = {
     ...emptyForm,
-    buyerName: "Rina",
     contactEmail: "rina@example.com",
     niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
   };
@@ -205,7 +187,6 @@ describe("isBookingFormValid", () => {
   it("butuh pemesan lengkap dan NIK unik berformat benar untuk setiap tiket", () => {
     expect(isBookingFormValid(valid, ["vip-0", "vip-1"])).toBe(true);
     expect(isBookingFormValid(valid, [])).toBe(false);
-    expect(isBookingFormValid({ ...valid, buyerName: " " }, ["vip-0"])).toBe(false);
     expect(
       isBookingFormValid({ ...valid, niks: { "vip-0": "1", "vip-1": "3171000000000033" } }, [
         "vip-0",

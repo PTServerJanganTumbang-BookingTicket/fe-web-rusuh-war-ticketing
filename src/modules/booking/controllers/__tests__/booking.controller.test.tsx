@@ -91,6 +91,13 @@ describe("useBookingController", () => {
     expect(view().summary.lines).toEqual([]);
   });
 
+  it("NIK tiket menolak digit setelah ke-16", async () => {
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().holders?.items[0]?.nik.onChange("31710000000012349999"));
+    expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
+  });
+
   it("NIK dicek ke Dukcapil saat field ditinggalkan", async () => {
     const { view } = await readyView();
     add(view, "cat_vip");
@@ -151,7 +158,6 @@ describe("useBookingController", () => {
     const { view } = await readyView();
     add(view, "cat_vip");
     act(() => view().submit.onSubmit());
-    expect(view().buyer.name.error).toBe("Isi nama lengkap pemesan.");
     expect(view().holders?.items[0]?.nik.error).toBe("NIK harus 16 digit angka.");
     expect(push).not.toHaveBeenCalled();
   });
@@ -161,7 +167,6 @@ describe("useBookingController", () => {
     const { view } = await readyView();
     add(view, "cat_vip");
     add(view, "cat_festival");
-    act(() => view().buyer.name.onChange("Rina"));
     act(() => view().buyer.email.onChange("rina@example.com"));
     act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
     act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
@@ -215,7 +220,6 @@ describe("useBookingController", () => {
     expect(view().submit.disabled).toBe(true);
 
     act(() => second()?.nik.onChange("3171000000005678"));
-    act(() => view().buyer.name.onChange("Rina"));
     act(() => view().buyer.email.onChange("rina@example.com"));
     act(() => view().submit.onSubmit());
     await waitFor(() => expect(push).toHaveBeenCalledWith("/orders/RB-ALIAS/pay"));
@@ -251,11 +255,10 @@ describe("useBookingController", () => {
     );
     const { view } = await readyView();
     add(view, "cat_vip");
-    act(() => view().buyer.name.onChange("Rina"));
     act(() => view().buyer.email.onChange("rina@example.com"));
     act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
     act(() => view().submit.onSubmit());
-    await waitFor(() => expect(view().dialog?.title).toBe("Koneksi bermasalah"));
+    await waitFor(() => expect(view().dialog?.title).toBe("Tidak ada jaringan"));
     expect(view().error).toBeUndefined();
     const retry = view().dialog?.primary;
     act(() => retry && "onClick" in retry && retry.onClick());

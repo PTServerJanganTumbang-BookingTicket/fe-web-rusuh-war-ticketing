@@ -16,7 +16,6 @@
  *
  * Test cases covered:
  * - Form with invalid NIK format (not 16 digits) → expect `submit.disabled === true`
- * - Form with empty `buyerName` → expect `submit.disabled === true`
  * - Form with invalid email format → expect `submit.disabled === true`
  * - Form with duplicate NIK across slots → expect `submit.disabled === true`
  * - Form with rejected NIK (Dukcapil status !== "valid") → expect `submit.disabled === true`
@@ -57,7 +56,6 @@ const event = {
 };
 
 const emptyForm: BookingForm = {
-  buyerName: "",
   contactEmail: "",
   niks: {},
   checks: {},
@@ -77,7 +75,6 @@ function buildViewInput(overrides: Partial<BookingViewInput> = {}): BookingViewI
     submitting: false,
     onAdd: vi.fn(),
     onRemove: vi.fn(),
-    onBuyerName: vi.fn(),
     onContactEmail: vi.fn(),
     onNik: vi.fn(),
     onNikBlur: vi.fn(),
@@ -121,12 +118,6 @@ const invalidEmailArb = fc.oneof(
   fc.string({ minLength: 1, maxLength: 20 }).filter((s) => !s.includes("@")), // No @ symbol
 );
 
-/** Generate non-empty buyer name */
-const validBuyerNameArb = fc.string({ minLength: 1, maxLength: 50 }).filter((s) => s.trim() !== "");
-
-/** Generate empty or whitespace-only buyer name */
-const emptyBuyerNameArb = fc.oneof(fc.constant(""), fc.constant(" "), fc.constant("   "), fc.constant("\t"));
-
 /** Generate rejected NIK check state */
 // ─── Property Tests ──────────────────────────────────────────────────────────
 
@@ -139,49 +130,12 @@ describe("Bug Condition: Form Validation Feedback", () => {
    */
   it("Property 1: submit.disabled === true when NIK format is invalid (not 16 digits)", () => {
     fc.assert(
-      fc.property(invalidNikFormatArb, validBuyerNameArb, validEmailArb, (invalidNik, buyerName, email) => {
+      fc.property(invalidNikFormatArb, validEmailArb, (invalidNik, email) => {
         const form: BookingForm = {
-          buyerName,
           contactEmail: email,
           niks: { "vip-0": invalidNik },
           checks: {},
-          touched: new Set(["nik:vip-0", "buyerName", "contactEmail"]),
-          submitted: true,
-        };
-
-        const slotKeys = ["vip-0"];
-
-        // Verify that isBookingFormValid returns false for this input
-        const isValid = isBookingFormValid(form, slotKeys);
-        expect(isValid).toBe(false);
-
-        // Build the view props
-        const viewInput = buildViewInput({ form, selection: { vip: 1 } });
-        const view = toBookingViewProps(viewInput);
-
-        // BUG CONDITION: submit.disabled should be true when form is invalid
-        // This test is EXPECTED TO FAIL because the bug exists
-        expect(view.submit.disabled).toBe(true);
-      }),
-      { numRuns: 50 },
-    );
-  });
-
-  /**
-   * Property 2: Form with empty buyerName → submit.disabled === true
-   *
-   * When the buyer name is empty or whitespace-only,
-   * the submit button MUST be disabled.
-   */
-  it("Property 2: submit.disabled === true when buyerName is empty", () => {
-    fc.assert(
-      fc.property(emptyBuyerNameArb, validNikArb, validEmailArb, (emptyName, nik, email) => {
-        const form: BookingForm = {
-          buyerName: emptyName,
-          contactEmail: email,
-          niks: { "vip-0": nik },
-          checks: {},
-          touched: new Set(["nik:vip-0", "buyerName", "contactEmail"]),
+          touched: new Set(["nik:vip-0", "contactEmail"]),
           submitted: true,
         };
 
@@ -211,13 +165,12 @@ describe("Bug Condition: Form Validation Feedback", () => {
    */
   it("Property 3: submit.disabled === true when email format is invalid", () => {
     fc.assert(
-      fc.property(invalidEmailArb, validBuyerNameArb, validNikArb, (invalidEmail, buyerName, nik) => {
+      fc.property(invalidEmailArb, validNikArb, (invalidEmail, nik) => {
         const form: BookingForm = {
-          buyerName,
           contactEmail: invalidEmail,
           niks: { "vip-0": nik },
           checks: {},
-          touched: new Set(["nik:vip-0", "buyerName", "contactEmail"]),
+          touched: new Set(["nik:vip-0", "contactEmail"]),
           submitted: true,
         };
 
@@ -247,17 +200,16 @@ describe("Bug Condition: Form Validation Feedback", () => {
    */
   it("Property 4: submit.disabled === true when duplicate NIK exists across slots", () => {
     fc.assert(
-      fc.property(validNikArb, validBuyerNameArb, validEmailArb, (duplicateNik, buyerName, email) => {
+      fc.property(validNikArb, validEmailArb, (duplicateNik, email) => {
         // Create a form with 2 tickets having the same NIK
         const form: BookingForm = {
-          buyerName,
           contactEmail: email,
           niks: {
             "vip-0": duplicateNik,
             "vip-1": duplicateNik, // Same NIK = duplicate
           },
           checks: {},
-          touched: new Set(["nik:vip-0", "nik:vip-1", "buyerName", "contactEmail"]),
+          touched: new Set(["nik:vip-0", "nik:vip-1", "contactEmail"]),
           submitted: true,
         };
 
@@ -287,18 +239,17 @@ describe("Bug Condition: Form Validation Feedback", () => {
    */
   it("Property 5: submit.disabled === true when NIK is rejected by Dukcapil", () => {
     fc.assert(
-      fc.property(validNikArb, validBuyerNameArb, validEmailArb, (nik, buyerName, email) => {
+      fc.property(validNikArb, validEmailArb, (nik, email) => {
         // Generate a rejected check state for the NIK
         const rejectedStatuses: Array<"not_found" | "inactive" | "used"> = ["not_found", "inactive", "used"];
         for (const rejectedStatus of rejectedStatuses) {
           const form: BookingForm = {
-            buyerName,
             contactEmail: email,
             niks: { "vip-0": nik },
             checks: {
               "vip-0": { nik, state: "done", result: { status: rejectedStatus } },
             },
-            touched: new Set(["nik:vip-0", "buyerName", "contactEmail"]),
+            touched: new Set(["nik:vip-0", "contactEmail"]),
             submitted: true,
           };
 
@@ -338,7 +289,6 @@ describe("Bug Condition: Form Validation Feedback", () => {
       {
         description: "invalid NIK format",
         form: {
-          buyerName: "Test User",
           contactEmail: "test@example.com",
           niks: { "vip-0": "12345" }, // Not 16 digits
           checks: {},
@@ -347,20 +297,8 @@ describe("Bug Condition: Form Validation Feedback", () => {
         },
       },
       {
-        description: "empty buyer name",
-        form: {
-          buyerName: "",
-          contactEmail: "test@example.com",
-          niks: { "vip-0": "3171000000000022" },
-          checks: {},
-          touched: new Set(),
-          submitted: true,
-        },
-      },
-      {
         description: "invalid email",
         form: {
-          buyerName: "Test User",
           contactEmail: "notanemail",
           niks: { "vip-0": "3171000000000022" },
           checks: {},
@@ -371,7 +309,6 @@ describe("Bug Condition: Form Validation Feedback", () => {
       {
         description: "duplicate NIK",
         form: {
-          buyerName: "Test User",
           contactEmail: "test@example.com",
           niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000022" },
           checks: {},
@@ -382,7 +319,6 @@ describe("Bug Condition: Form Validation Feedback", () => {
       {
         description: "rejected NIK (not_found)",
         form: {
-          buyerName: "Test User",
           contactEmail: "test@example.com",
           niks: { "vip-0": "3171000000000022" },
           checks: { "vip-0": { nik: "3171000000000022", state: "done", result: { status: "not_found" } } },

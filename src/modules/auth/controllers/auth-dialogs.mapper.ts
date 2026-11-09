@@ -17,6 +17,7 @@ export function toServiceUnavailableDialog({
 }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "error",
     title: t("dialog.serviceUnavailable.title"),
     description: t("dialog.serviceUnavailable.description"),
     primary: { label: t("dialog.retry"), onClick: onRetry, busy: retrying },
@@ -37,6 +38,7 @@ export function toRegistrationFailedDialog({
 }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "error",
     title: t("dialog.registrationFailed.title"),
     description: t("dialog.registrationFailed.description"),
     primary: { label: t("dialog.retry"), onClick: onRetry, busy: retrying },

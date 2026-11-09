@@ -87,3 +87,13 @@ test.describe("Dokumen hukum", () => {
     await expect(page).toHaveURL(/\/terms$/);
   });
 });
+
+test.describe("Batas NIK 16 digit", () => {
+  test("isian NIK menolak karakter setelah digit ke-16", async ({ page }) => {
+    await page.goto("/register");
+    const nik = page.getByRole("textbox", { name: /^NIK/ });
+    await nik.pressSequentially("31710000000000449999");
+    await expect(nik).toHaveValue("3171000000000044");
+    await expect(nik).toHaveAttribute("maxlength", "16");
+  });
+});

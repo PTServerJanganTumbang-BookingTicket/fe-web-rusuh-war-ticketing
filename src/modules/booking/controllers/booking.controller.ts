@@ -10,6 +10,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { serverOffsetMs } from "@/core/domain/time/remaining-ms.utils";
+import { sanitizeNikInput } from "@/core/domain/nik.utils";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
@@ -71,7 +72,6 @@ export function useBookingController(eventId: string): BookingScreen {
   // Gagal memuat alias (tamu, atau BE belum mengirim NIK lengkap) hanya berarti isian manual.
   const aliases = useQuery(holderAliasesQuery({ listHolderAliasesUseCase }));
   const [selection, dispatch] = useReducer(selectionReducer, {});
-  const [buyerName, setBuyerName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [niks, setNiks] = useState<Record<string, string>>({});
   /** Slot yang pemegangnya dipilih dari alias: kunci slot → id alias. */
@@ -158,7 +158,7 @@ export function useBookingController(eventId: string): BookingScreen {
     };
   }
 
-  const form = { buyerName, contactEmail, niks, aliasPicks, checks, touched, submitted };
+  const form = { contactEmail, niks, aliasPicks, checks, touched, submitted };
   const touch = (field: string) => setTouched((current) => new Set(current).add(field));
 
   // NIK dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
@@ -242,10 +242,9 @@ export function useBookingController(eventId: string): BookingScreen {
           activeBooked: session.quota.used,
         }),
       onRemove: (categoryId) => dispatch({ type: "REMOVE_TICKET", categoryId }),
-      onBuyerName: setBuyerName,
       onContactEmail: setContactEmail,
-      // Hanya digit: spasi atau tanda baca dari salinan KTP dibuang, panjang divalidasi.
-      onNik: (slotKey, value) => setNiks((current) => ({ ...current, [slotKey]: value.replace(/\D/g, "") })),
+      // Hanya digit, maksimal 16: spasi, tanda baca, dan digit berlebih ditolak.
+      onNik: (slotKey, value) => setNiks((current) => ({ ...current, [slotKey]: sanitizeNikInput(value) })),
       onNikBlur: (slotKey) => checkNik(slotKey),
       aliases: aliases.data ?? [],
       // Memilih alias mengisi NIK slot itu; "isi manual" mengosongkan NIK supaya tidak terkirim tanpa sengaja.

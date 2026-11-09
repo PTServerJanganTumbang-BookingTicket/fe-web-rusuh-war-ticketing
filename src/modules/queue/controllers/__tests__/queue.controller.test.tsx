@@ -46,6 +46,39 @@ describe("useQueueController", () => {
     expect(result.current.status.progress?.percent).toBe(33);
   });
 
+  it("keluar dari antrian: konfirmasi dulu, batal menutup dialog, ya membuang tiket dan kembali ke Home", async () => {
+    push.mockClear();
+    const container = setupTestContainer();
+    const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+      wrapper: createWrapper(container),
+    });
+    await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+    expect(result.current.dialog).toBeUndefined();
+
+    act(() => result.current.status.leave?.onClick());
+    expect(result.current.dialog).toMatchObject({
+      tone: "warning",
+      illustration: "confirmation",
+      title: "Keluar dari antrian?",
+      description:
+        "Anda akan keluar dari antrian, anda akan mendapatkan nomor antrian baru jika memutuskan untuk masuk kembali",
+      primary: { label: "Ya, keluar" },
+      secondary: { label: "Tetap di antrian" },
+    });
+    // Tetap di antrian: dialog tertutup, tidak ke mana-mana.
+    const stay = result.current.dialog?.secondary;
+    act(() => stay && "onClick" in stay && stay.onClick());
+    expect(result.current.dialog).toBeUndefined();
+    expect(push).not.toHaveBeenCalled();
+
+    act(() => result.current.status.leave?.onClick());
+    expect(container.cradle.queueTicketCache.get(OPEN_EVENT_ID)).toBeDefined();
+    const confirm = result.current.dialog?.primary;
+    act(() => confirm && "onClick" in confirm && confirm.onClick());
+    expect(container.cradle.queueTicketCache.get(OPEN_EVENT_ID)).toBeUndefined();
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
   it("saat giliran tiba menyimpan grant satu kali lalu pindah ke Detail Ticket", async () => {
     push.mockClear();
     const started = vi.fn();

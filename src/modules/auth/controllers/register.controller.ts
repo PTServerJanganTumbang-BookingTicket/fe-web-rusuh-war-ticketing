@@ -10,6 +10,7 @@ import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { legalLinks } from "@/core/controllers/site-chrome.utils";
+import { NIK_LENGTH, sanitizeNikInput } from "@/core/domain/nik.utils";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import { toConnectionProblemDialog } from "@/core/controllers/common-dialogs.mapper";
 import { toNikMismatchDialog } from "@/core/controllers/nik-dialog.mapper";
@@ -89,6 +90,7 @@ export function useRegisterController(): RegisterViewProps {
   if (register.isSuccess) {
     dialog = {
       tone: "success",
+      illustration: "success",
       title: t("register.success.title"),
       description: t("register.success.message"),
       note: t("register.success.note"),
@@ -150,9 +152,10 @@ export function useRegisterController(): RegisterViewProps {
       hint: t("register.nik.hint"),
       value: nik,
       focusKey: focus?.field === "nik" ? focus.n : undefined,
+      maxLength: NIK_LENGTH,
       error: errors.nik,
-      // Spasi dan tanda baca dari salinan KTP dibuang; panjang divalidasi, tidak dipotong.
-      onChange: (value) => setNik(value.replace(/\D/g, "")),
+      // Hanya digit (spasi dan tanda baca dari salinan KTP dibuang), maksimal 16: digit berlebih ditolak.
+      onChange: (value) => setNik(sanitizeNikInput(value)),
       onBlur: () => setTouched((current) => ({ ...current, nik: nik !== "" })),
     },
     consent: {

@@ -61,6 +61,12 @@ describe("useAccountController", () => {
     expect(outside).toEqual([]);
   });
 
+  it("NIK alias menolak digit setelah ke-16", async () => {
+    const { ready } = await mountSignedIn();
+    act(() => ready().add?.nik.onChange("31710000000000449999"));
+    expect(ready().add?.nik.value).toBe("3171000000000044");
+  });
+
   it("menambah alias lalu daftar dimuat ulang dan form dikosongkan", async () => {
     const { ready } = await mountSignedIn();
     act(() => {

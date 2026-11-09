@@ -15,6 +15,7 @@ Galeri dialog (`/signal-demo/dialogs`) sudah dihapus; dialog diuji lewat test bu
 | Design system | `src/components/ui/media-query.hook.ts` | `useMediaQuery(MOBILE_QUERY)`; server dan render pertama dianggap desktop. |
 | Core controllers | `src/core/controllers/modal.hook.ts` | `useModal<M>()` (state modal per layar) dan tipe `ActionDialogModel`. |
 | Core controllers | `src/core/controllers/common-dialogs.mapper.ts` | Dialog lintas modul: koneksi, terjadi kesalahan, sesi berakhir. |
+| Core controllers | `src/core/controllers/offline-dialog.hook.ts` | Dialog "tanpa jaringan" global (dipasang di `AppProviders`), muncul saat peramban offline. |
 | Core controllers | `src/core/controllers/nik-dialog.mapper.ts` | Dialog verifikasi NIK (Detail Ticket, alias, register). |
 | Modul auth | `src/modules/auth/controllers/auth-dialogs.mapper.ts` | Dialog login dan register. |
 
@@ -28,6 +29,7 @@ bentuk harus dilakukan di keduanya.
 |---|---|---|
 | `tone` | ya | `error` (merah), `warning` (kuning, sesi atau waktu), `info` (biru, tinjauan), `success` (hijau). |
 | `icon` | tidak | `alert`, `clock`, `mail`, `check`, `info`. Bawaan mengikuti `tone`. |
+| `illustration` | tidak | Ilustrasi Signal DS menggantikan ikon: `network`, `confirmation`, `success`, `email`, `error` (`public/images/illustrations/`). |
 | `title`, `description` | ya | Judul singkat dan satu sampai dua kalimat penjelasan. Dari i18n. |
 | `details` | tidak | Ringkasan isian (label dan nilai), misalnya email dan NIK sebelum mendaftar. |
 | `note` | tidak | Catatan kecil di bawah ringkasan atau penjelasan. |
@@ -138,3 +140,17 @@ Teks lengkap ada di `src/core/i18n/id.messages.ts` dengan awalan `dialog.` (dan 
 4. Di controller: tambah `kind` ke tipe `useModal`, buka dari `onError` atau hasil use case, lalu petakan ke `dialog`.
 5. Test: builder (teks dan aksi) dan controller (pemicu, isian tetap, aksi coba lagi atau ubah data).
 6. Tambah baris di katalog ini.
+
+## Ilustrasi dan teks dari spreadsheet referensi aset
+
+Sumber: spreadsheet "Icon & Asset reference for SJT". Ilustrasi diambil dari lembar sprite Signal DS
+(`illustration-lg-row2/3/5`) lalu dipotong per gambar menjadi WebP.
+
+| Dialog | Ilustrasi | Teks (ID) | Di mana |
+|---|---|---|---|
+| Tanpa jaringan | `network` (failed) | Anda terputus, periksa koneksi internet anda | `offline-dialog.hook.ts` (offline), `toConnectionProblemDialog` (permintaan tanpa respons) |
+| Keluar dari antrian | `confirmation` | Anda akan keluar dari antrian, anda akan mendapatkan nomor antrian baru jika memutuskan untuk masuk kembali | `queue.controller.ts` |
+| Info setelah register | `success` | Anda berhasil mendaftarkan akun, silahkan cek email anda dan lakukan verifikasi dengan mengakses link yang telah dikirimkan | `register.controller.ts` |
+| Info setelah login | `email` (submit) | Periksa link tautan yang telah dikirim ke Email anda untuk menyelesaikan Login | `login.controller.ts` |
+| Error umum (timeout atau galat BE) | `error` (load_data_failed) | Terjadi kesalahan, silahkan coba kembali | `toSomethingWentWrongDialog`, layanan auth, pendaftaran gagal |
+| Konfirmasi untuk booking | | Belum diisi di spreadsheet | Belum dibuat |
