@@ -21,6 +21,7 @@ export type HomeViewProps = {
     copyright: string;
     tagline: string;
     infoBanner?: string;
+    links?: { label: string; href: string }[];
   };
   emptyLabel?: string;
   errorMessage?: string;

@@ -10,11 +10,13 @@ Hasilnya ada di `emails/dist/*.html` (tidak di-commit). Isi `<title>` tiap templ
 
 ## Placeholder
 
-Format Mustache: `{{nama}}`, dan `{{#tickets}}...{{/tickets}}` untuk blok berulang. Semua template juga memakai `{{supportEmail}}`.
+Format Mustache: `{{nama}}`, dan `{{#tickets}}...{{/tickets}}` untuk blok berulang. Semua template juga memakai `{{supportEmail}}`, `{{logoUrl}}`, dan `{{appUrl}}` (header).
+
+`logoUrl` adalah URL logo PNG yang bisa diakses publik (lebar 2x dari 160px, yaitu 320px, supaya tajam di layar retina). Klien email memblokir gambar `data:` dan SVG, jadi berkasnya perlu di-host di CDN atau di `public/` aplikasi ini. `appUrl` adalah origin aplikasi web.
 
 | Template | Kegunaan | Sumber | Placeholder |
 |---|---|---|---|
-| `verify-register` | Verifikasi email saat daftar | Req 1 AC7-8, kontrak §1.4 | `customerName`, `verificationUrl` |
+| `verify-register` | Verifikasi email saat daftar (link 15 menit, sekali pakai, tujuan `/register/verified?token=`) | Req 1 AC7-8, kontrak `GET /auth/verify-email` | `customerName`, `verificationUrl` |
 | `login-link` | Magic link | Kontrak §1.1 | `customerName`, `loginUrl`, `expiryMinutes` |
 | `booking-expired` | Booking kedaluwarsa | Req 7 AC2 | `bookingCode`, `eventName`, `eventUrl` |
 | `ticket-issued` | E-tiket terbit | Req 7 AC1 | `eventName`, `eventDate`, `eventVenue`, `bookingCode`, `tickets[]`: `ticketId`, `qrCodeUrl`, `category`, `nikMasked` |

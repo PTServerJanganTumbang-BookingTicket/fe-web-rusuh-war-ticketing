@@ -29,8 +29,14 @@ export type RegisterFormProps = {
   intro: string;
   email: TextField;
   nik: TextField;
-  name: TextField;
-  consent: { label: string; checked: boolean; error?: string; onChange: (checked: boolean) => void };
+  consent: {
+    label: string;
+    /** Dokumen yang disetujui; dibuka di tab baru supaya isian form tidak hilang. */
+    links: { label: string; href: string }[];
+    checked: boolean;
+    error?: string;
+    onChange: (checked: boolean) => void;
+  };
   requiredNote: string;
   /** `disabled` saat isian belum valid (email, NIK, persetujuan): tombol abu-abu dan tidak bisa diklik. */
   submit: { label: string; busy: boolean; disabled: boolean; onSubmit: () => void };
@@ -91,7 +97,7 @@ export function RegisterView({ nav, footer, dialog, ...form }: RegisterViewProps
 }
 
 function RegisterForm(props: RegisterFormProps) {
-  const { heading, intro, email, nik, name, consent, requiredNote, submit, login } = props;
+  const { heading, intro, email, nik, consent, requiredNote, submit, login } = props;
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!submit.disabled) submit.onSubmit();
@@ -108,7 +114,6 @@ function RegisterForm(props: RegisterFormProps) {
           inputMode="email"
         />
         <TextInput id="register-nik" field={nik} busy={submit.busy} inputMode="numeric" autoComplete="off" />
-        <TextInput id="register-name" field={name} busy={submit.busy} autoComplete="name" />
         <Field orientation="horizontal" data-invalid={Boolean(consent.error)}>
           <Checkbox
             id="register-consent"
@@ -127,6 +132,21 @@ function RegisterForm(props: RegisterFormProps) {
             {consent.label}
           </FieldLabel>
         </Field>
+        <p className="type-body2 text-muted-foreground">
+          {consent.links.map((link, index) => (
+            <span key={link.href}>
+              {index > 0 ? " · " : null}
+              <Link
+                href={link.href}
+                target="_blank"
+                rel="noopener"
+                className="font-semibold text-primary underline-offset-4 hover:underline"
+              >
+                {link.label}
+              </Link>
+            </span>
+          ))}
+        </p>
         {consent.error ? <FieldError id="register-consent-error">{consent.error}</FieldError> : null}
         <Button
           type="submit"

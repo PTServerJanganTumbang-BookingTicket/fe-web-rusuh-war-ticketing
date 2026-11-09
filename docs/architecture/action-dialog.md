@@ -4,7 +4,7 @@ Satu komponen untuk semua dialog yang meminta customer memilih tindakan: galat y
 berakhir, dan tinjauan sebelum mengirim. Galat field biasa tetap di bawah field, dan pesan bisnis (stok berubah, NIK
 sudah dipakai di event ini) tetap di kartu layar.
 
-Galeri hidup: `/signal-demo/dialogs` (buka di lebar < 640px untuk melihat versi sheet).
+Galeri dialog (`/signal-demo/dialogs`) sudah dihapus; dialog diuji lewat test builder dan controller.
 
 ## Bagian
 
@@ -137,4 +137,4 @@ Teks lengkap ada di `src/core/i18n/id.messages.ts` dengan awalan `dialog.` (dan 
    lebih dari satu modul, selain itu di `controllers/` modul pemakainya.
 4. Di controller: tambah `kind` ke tipe `useModal`, buka dari `onError` atau hasil use case, lalu petakan ke `dialog`.
 5. Test: builder (teks dan aksi) dan controller (pemicu, isian tetap, aksi coba lagi atau ubah data).
-6. Tambah baris di katalog ini dan entri di galeri `src/app/(public)/signal-demo/dialogs/page.tsx`.
+6. Tambah baris di katalog ini.

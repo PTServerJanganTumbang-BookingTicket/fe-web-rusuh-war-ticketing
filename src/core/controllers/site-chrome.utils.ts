@@ -15,6 +15,14 @@ export type NavLanguage = {
   onChange: (value: string) => void;
 };
 
+/** Tautan dokumen hukum di footer dan di bawah persetujuan register. */
+export function legalLinks() {
+  return [
+    { label: t("home.footer.terms"), href: "/terms" },
+    { label: t("home.footer.privacy"), href: "/privacy" },
+  ];
+}
+
 /** Navbar dan footer situs, sama dengan Home. Bentuknya cocok dengan `SiteShellProps` tanpa `children`. */
 export type SiteChrome = {
   nav: {
@@ -26,7 +34,7 @@ export type SiteChrome = {
     /** Ada saat layar bisa berganti bahasa (client). */
     language?: NavLanguage;
   };
-  footer: { copyright: string; tagline: string };
+  footer: { copyright: string; tagline: string; links: { label: string; href: string }[] };
 };
 
 /** Huruf awal untuk avatar: "budi.santoso@x.co" → "BS". */
@@ -89,6 +97,6 @@ export function toSiteChrome({
             }
           : undefined,
     },
-    footer: { copyright: t("home.footer.copyright"), tagline: t("home.footer.tagline") },
+    footer: { copyright: t("home.footer.copyright"), tagline: t("home.footer.tagline"), links: legalLinks() },
   };
 }

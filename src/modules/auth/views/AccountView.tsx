@@ -4,7 +4,6 @@ import {
   IdCardIcon,
   InfoIcon,
   LogOutIcon,
-  PencilIcon,
   PlusIcon,
   ShieldCheckIcon,
   TicketIcon,
@@ -45,7 +44,6 @@ export type AliasFormProps = {
   /** Pemberitahuan UU PDP: NIK orang lain disimpan hanya dengan sepengetahuan pemiliknya. */
   notice: string;
   submit: { label: string; disabled: boolean; onSubmit: () => void };
-  cancel?: { label: string; onClick: () => void };
 };
 
 export type SavedNikItem = {
@@ -55,10 +53,7 @@ export type SavedNikItem = {
   initials: string;
   nikMasked: string;
   /** Teks tombol terlihat di `text`; nama alias ada di `label` (aria-label). */
-  edit: Action;
   remove: Action;
-  /** Ada saat alias ini sedang diubah. */
-  form?: AliasFormProps;
 };
 
 export type AccountViewProps = Omit<SiteShellProps, "children"> & { header: PageHeaderProps } & (
@@ -248,52 +243,36 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
             </div>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
-              {saved.items.map((item) =>
-                item.form ? (
-                  <li key={item.id} className="sm:col-span-2">
-                    <AliasForm {...item.form} />
-                  </li>
-                ) : (
-                  <li
-                    key={item.id}
-                    className="flex items-center gap-3 rounded-xl border border-border p-4 transition-colors hover:border-primary/40"
+              {saved.items.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-xl border border-border p-4 transition-colors hover:border-primary/40"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="type-body1 flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="type-body1 flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary"
+                    {item.initials}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="type-body1 truncate font-semibold">{item.label}</p>
+                    <p className="type-body2 tabular-nums text-muted-foreground">{item.nikMasked}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      disabled={saved.busy}
+                      onClick={item.remove.onClick}
+                      aria-label={item.remove.label}
+                      title={item.remove.text}
                     >
-                      {item.initials}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="type-body1 truncate font-semibold">{item.label}</p>
-                      <p className="type-body2 tabular-nums text-muted-foreground">{item.nikMasked}</p>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={saved.busy}
-                        onClick={item.edit.onClick}
-                        aria-label={item.edit.label}
-                        title={item.edit.text}
-                      >
-                        <PencilIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        disabled={saved.busy}
-                        onClick={item.remove.onClick}
-                        aria-label={item.remove.label}
-                        title={item.remove.text}
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </div>
-                  </li>
-                ),
-              )}
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
 
@@ -310,7 +289,7 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
   );
 }
 
-function AliasForm({ id, title, label, nik, notice, submit, cancel }: AliasFormProps) {
+function AliasForm({ id, title, label, nik, notice, submit }: AliasFormProps) {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     submit.onSubmit();
@@ -323,11 +302,7 @@ function AliasForm({ id, title, label, nik, notice, submit, cancel }: AliasFormP
       className="flex flex-col gap-4 rounded-xl border border-border bg-signal-disable/40 p-4 sm:p-5"
     >
       <h3 id={`${id}-title`} className="type-body1 flex items-center gap-2 font-semibold">
-        {cancel ? (
-          <PencilIcon aria-hidden="true" className="size-4 text-primary" />
-        ) : (
-          <PlusIcon aria-hidden="true" className="size-4 text-primary" />
-        )}
+        <PlusIcon aria-hidden="true" className="size-4 text-primary" />
         {title}
       </h3>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -339,17 +314,6 @@ function AliasForm({ id, title, label, nik, notice, submit, cancel }: AliasFormP
         <AlertDescription className="text-foreground">{notice}</AlertDescription>
       </Alert>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        {cancel ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            disabled={submit.disabled}
-            onClick={cancel.onClick}
-          >
-            {cancel.label}
-          </Button>
-        ) : null}
         <Button type="submit" size="lg" disabled={submit.disabled} aria-busy={submit.disabled}>
           {submit.disabled ? <Spinner data-icon="inline-start" /> : null}
           {submit.label}

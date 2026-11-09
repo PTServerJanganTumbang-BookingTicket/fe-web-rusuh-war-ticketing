@@ -35,6 +35,29 @@ async function readyView({ signedIn = false }: { signedIn?: boolean } = {}) {
   return { ...hook, view };
 }
 
+/**
+ * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar alias. Kontrak saat ini hanya
+ * membawa `nik_masked`, jadi mock bawaan tidak menyertakannya dan test pemilihan alias menambahkannya di sini.
+ */
+const savedNiksWithFullNik = http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
+  HttpResponse.json({
+    meta: { code: 200, message: "Success" },
+    data: {
+      max_entries: 5,
+      saved_niks: [
+        {
+          id: "snk_1",
+          label: "Budi",
+          nik: "3171000000000033",
+          nik_masked: "3171********xx33",
+          verified_at: "2026-10-20T08:11:00Z",
+          status: "VERIFIED",
+        },
+      ],
+    },
+  }),
+);
+
 describe("useBookingController", () => {
   const add = (view: () => BookingViewProps, id: string) =>
     act(() =>
@@ -157,6 +180,7 @@ describe("useBookingController", () => {
     push.mockClear();
     let tickets: unknown;
     server.use(
+      savedNiksWithFullNik,
       http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
         tickets = ((await request.json()) as { tickets: unknown }).tickets;
         return HttpResponse.json(
@@ -202,6 +226,7 @@ describe("useBookingController", () => {
   });
 
   it("kembali ke isian manual mengosongkan NIK dari alias", async () => {
+    server.use(savedNiksWithFullNik);
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
     await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());

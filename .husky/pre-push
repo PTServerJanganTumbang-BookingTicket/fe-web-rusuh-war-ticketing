@@ -1,0 +1,4 @@
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+# Gerbang lokal sebelum push: tipe dan test yang sama dengan CI (lint ditangani lint-staged saat commit).
+npm run typecheck && npm test

@@ -498,25 +498,7 @@ describe("queueUpdatesService", () => {
   });
 });
 
-describe("savedNikService dan profileService", () => {
-  it("update mengirim PATCH berisi label dan nama, dan NIK hanya bila diganti", async () => {
-    const bodies: unknown[] = [];
-    server.use(
-      http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, async ({ request, params }) => {
-        bodies.push({ id: params.id, body: await request.json() });
-        return envelope({});
-      }),
-    );
-    const { savedNikService, authService } = setupTestContainer().cradle;
-    await authService.verify("mt_alias");
-    await savedNikService.update("snk_1", { label: "Budi", nik: "" });
-    await savedNikService.update("snk_1", { label: "Budi", nik: "3171000000000044" });
-    expect(bodies).toEqual([
-      { id: "snk_1", body: { label: "Budi" } },
-      { id: "snk_1", body: { label: "Budi", nik: "3171000000000044" } },
-    ]);
-  });
-
+describe("savedNikService", () => {
   it("add mengirim POST berisi NIK dan label", async () => {
     let body: unknown;
     server.use(
@@ -529,43 +511,6 @@ describe("savedNikService dan profileService", () => {
     await authService.verify("mt_alias");
     await savedNikService.add({ label: "Sari", nik: "3171000000000044" });
     expect(body).toEqual({ nik: "3171000000000044", label: "Sari" });
-  });
-
-  it("update: NIK sudah tersimpan di alias lain menjadi SAVED_NIK_REJECTED", async () => {
-    server.use(
-      http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, () =>
-        envelope({}, 409, "NIK already saved"),
-      ),
-    );
-    const { savedNikService, authService } = setupTestContainer().cradle;
-    await authService.verify("mt_alias");
-    expect(await failureOf(savedNikService.update("snk_1", { label: "B", nik: "3171000000000044" }))).toEqual(
-      {
-        kind: "api",
-        code: "SAVED_NIK_REJECTED",
-        status: 409,
-      },
-    );
-  });
-
-  it("profil dari GET /accounts/me dipetakan ke model domain", async () => {
-    const { profileService, authService } = setupTestContainer().cradle;
-    await authService.verify("mt_profile");
-    expect(await profileService.get()).toEqual({
-      name: "JOHN DOE",
-      email: "you@example.com",
-      nikMasked: "3171********xx22",
-      memberSince: "2026-10-01T09:00:00Z",
-    });
-  });
-
-  it("profil tanpa sesi: UNAUTHENTICATED", async () => {
-    const { profileService } = setupTestContainer().cradle;
-    expect(await failureOf(profileService.get())).toEqual({
-      kind: "api",
-      code: "UNAUTHENTICATED",
-      status: 401,
-    });
   });
 });
 

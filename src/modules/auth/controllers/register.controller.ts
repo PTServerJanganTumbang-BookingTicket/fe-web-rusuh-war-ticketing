@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { legalLinks } from "@/core/controllers/site-chrome.utils";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import { toConnectionProblemDialog } from "@/core/controllers/common-dialogs.mapper";
 import { toNikMismatchDialog } from "@/core/controllers/nik-dialog.mapper";
@@ -44,7 +45,6 @@ export function useRegisterController(): RegisterViewProps {
   const { registerAccountUseCase } = useDependencies<AuthDependencies>();
   const [email, setEmail] = useState("");
   const [nik, setNik] = useState("");
-  const [name, setName] = useState("");
   // Tidak pernah tercentang otomatis (UU PDP).
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -53,7 +53,7 @@ export function useRegisterController(): RegisterViewProps {
   const [reviewing, setReviewing] = useState(false);
   // Satu permintaan saja: tombol terkunci selama berjalan, galat membuka kunci tanpa menghapus isian.
   const register = useMutation({
-    mutationFn: () => registerAccountUseCase({ email, nik, name, policyVersion: PRIVACY_POLICY_VERSION }),
+    mutationFn: () => registerAccountUseCase({ email, nik, policyVersion: PRIVACY_POLICY_VERSION }),
     onSuccess: () => {
       modal.close();
       queryClient.setQueryData(authKeys.pendingRegistration, email.trim());
@@ -117,7 +117,6 @@ export function useRegisterController(): RegisterViewProps {
       details: [
         { label: t("register.confirm.email"), value: email.trim() },
         { label: t("register.confirm.nik"), value: nik },
-        ...(name.trim() ? [{ label: t("register.confirm.name"), value: name.trim() }] : []),
       ],
       note: busy ? t("register.confirm.busyNote") : undefined,
       error: inlineError,
@@ -156,9 +155,9 @@ export function useRegisterController(): RegisterViewProps {
       onChange: (value) => setNik(value.replace(/\D/g, "")),
       onBlur: () => setTouched((current) => ({ ...current, nik: nik !== "" })),
     },
-    name: { label: t("register.name.label"), value: name, onChange: setName },
     consent: {
       label: t("register.consent.label"),
+      links: legalLinks(),
       checked: consent,
       error: errors.consent,
       onChange: setConsent,

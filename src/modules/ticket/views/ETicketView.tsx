@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge, type BadgeProps } from "@/components/ui/primitives/Badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
 
@@ -98,7 +98,10 @@ export function ETicketView({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
               <div className="absolute right-5 bottom-5 left-5 flex flex-col gap-2">
-                <Badge variant={badgeVariant[statusTone]} className="self-start">
+                <Badge
+                  variant={badgeVariant[statusTone]}
+                  className="h-6 self-start px-3 text-xs font-semibold"
+                >
                   {statusLabel}
                 </Badge>
                 <p className="type-h4 text-background">{eventName}</p>

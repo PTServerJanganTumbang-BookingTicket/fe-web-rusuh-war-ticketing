@@ -26,15 +26,11 @@ export type SavedNikInputError = {
  * Validasi bentuk alias sebelum dikirim. Saat membuat, NIK wajib; saat mengubah, NIK kosong berarti tetap.
  * Mengembalikan `null` bila isian siap dikirim.
  */
-export function validateSavedNikInput(
-  input: SavedNikInput,
-  { mode }: { mode: "create" | "edit" },
-): SavedNikInputError | null {
+export function validateSavedNikInput(input: SavedNikInput): SavedNikInputError | null {
   const errors: SavedNikInputError = {};
   const label = input.label.trim();
   if (label === "") errors.label = "required";
   else if (label.length > SAVED_NIK_LABEL_MAX_LENGTH) errors.label = "too_long";
-  const keepNik = mode === "edit" && input.nik === "";
-  if (!keepNik && !isNikFormat(input.nik)) errors.nik = "format";
+  if (!isNikFormat(input.nik)) errors.nik = "format";
   return errors.label || errors.nik ? errors : null;
 }

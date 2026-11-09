@@ -36,29 +36,29 @@ describe("useAccountController", () => {
     expect(result.current.kind === "signedOut" && result.current.login.href).toBe("/login");
   });
 
-  it("menampilkan profil dari GET /accounts/me dan alias dari server", async () => {
+  it("menampilkan email dan NIK dari sesi, dan alias dari server", async () => {
     const { ready } = await mountSignedIn();
-    await waitFor(() => expect(ready().profile.fields[0]).toEqual({ label: "Nama", value: "JOHN DOE" }));
-    expect(ready().profile.fields.map((field) => field.value)).toEqual([
-      "JOHN DOE",
-      "you@example.com",
-      "3171********xx22",
-      "1 Oktober 2026",
-    ]);
-    expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi"]);
-    expect(ready().saved.count).toBe("1/5");
-    expect(ready().profile).toMatchObject({ name: "JOHN DOE", initials: "JD" });
-    expect(ready().saved.items[0]?.initials).toBe("B");
-  });
-
-  it("profil gagal dimuat: tetap tampil dengan email dan NIK dari sesi", async () => {
-    server.use(http.get(`${MOCK_API_BASE_URL}/accounts/me`, () => HttpResponse.error()));
-    const { ready } = await mountSignedIn();
+    await waitFor(() => expect(ready().saved.items).toHaveLength(1));
     expect(ready().profile.fields).toEqual([
       { label: "Email", value: "you@example.com" },
       { label: "NIK terdaftar", value: "3171********xx22" },
     ]);
     expect(ready().profile).toMatchObject({ name: "you@example.com", initials: "YE" });
+    expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi"]);
+    expect(ready().saved.count).toBe("1/5");
+    expect(ready().saved.items[0]?.initials).toBe("B");
+  });
+
+  it("tidak memanggil endpoint di luar kontrak (profil, ubah alias)", async () => {
+    const outside: string[] = [];
+    server.events.on("request:start", ({ request }) => {
+      const { pathname } = new URL(request.url);
+      if (pathname.endsWith("/accounts/me") || request.method === "PATCH") outside.push(pathname);
+    });
+    const { ready } = await mountSignedIn();
+    await waitFor(() => expect(ready().saved.items).toHaveLength(1));
+    server.events.removeAllListeners();
+    expect(outside).toEqual([]);
   });
 
   it("menambah alias lalu daftar dimuat ulang dan form dikosongkan", async () => {
@@ -130,43 +130,6 @@ describe("useAccountController", () => {
     act(() => retry && "onClick" in retry && retry.onClick());
     await waitFor(() => expect(ready().dialog).toBeUndefined());
     expect(attempts).toBe(2);
-  });
-
-  it("mengubah nama alias tanpa mengirim NIK, lalu form tambah kembali", async () => {
-    let body: unknown;
-    server.use(
-      http.patch(`${MOCK_API_BASE_URL}/accounts/me/saved-niks/:id`, async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json({ meta: { code: 200, message: "Saved NIK updated" }, data: {} });
-      }),
-    );
-    const { ready } = await mountSignedIn();
-    act(() => ready().saved.items[0]?.edit.onClick());
-    expect(ready().add).toBeUndefined();
-    const form = () => ready().saved.items[0]?.form;
-    expect(form()?.label.value).toBe("Budi");
-    expect(form()?.nik.value).toBe("");
-    act(() => form()?.label.onChange("Budi S"));
-    act(() => form()?.submit.onSubmit());
-    await waitFor(() => expect(body).toEqual({ label: "Budi S" }));
-    await waitFor(() => expect(ready().saved.items[0]?.form).toBeUndefined());
-    expect(ready().add).toBeDefined();
-  });
-
-  it("mengganti NIK alias lewat form ubah", async () => {
-    const { ready } = await mountSignedIn();
-    act(() => ready().saved.items[0]?.edit.onClick());
-    act(() => ready().saved.items[0]?.form?.nik.onChange("3171000000000044"));
-    act(() => ready().saved.items[0]?.form?.submit.onSubmit());
-    await waitFor(() => expect(ready().saved.items[0]?.nikMasked).toBe("3171********xx44"));
-  });
-
-  it("batal mengubah menutup form tanpa request", async () => {
-    const { ready } = await mountSignedIn();
-    act(() => ready().saved.items[0]?.edit.onClick());
-    act(() => ready().saved.items[0]?.form?.cancel?.onClick());
-    expect(ready().saved.items[0]?.form).toBeUndefined();
-    expect(ready().add?.label.value).toBe("");
   });
 
   it("menghapus alias lewat dialog konfirmasi", async () => {

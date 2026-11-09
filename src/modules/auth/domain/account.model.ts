@@ -5,7 +5,6 @@ export type Account = { email: string; nikMasked: string };
  * Profil akun dari `GET /accounts/me`. Endpoint ini masih asumsi (docs/api/contract-assumptions.md); bila belum
  * ada, halaman profil memakai `Account` dari sesi.
  */
-export type Profile = { name: string; email: string; nikMasked: string; memberSince: string | null };
 
 /**
  * Alias: NIK orang lain (atau milik sendiri) dengan nama panggilan, sudah diverifikasi Dukcapil saat disimpan
@@ -18,7 +17,7 @@ export type SavedNik = {
   verifiedAt: string;
 };
 
-/** Isian form alias setelah dirapikan. Saat mengubah, `nik` kosong berarti NIK tidak diganti. */
+/** Isian form alias setelah dirapikan. */
 export type SavedNikInput = { label: string; nik: string };
 
 export type SavedNikList = { maxEntries: number; savedNiks: SavedNik[] };
@@ -26,7 +25,6 @@ export type SavedNikList = { maxEntries: number; savedNiks: SavedNik[] };
 export type RegisterInput = {
   email: string;
   nik: string;
-  name: string;
   /** Persetujuan wajib dicentang sendiri oleh customer (UU PDP); versi kebijakan dikirim bersama. */
   policyVersion: string;
 };

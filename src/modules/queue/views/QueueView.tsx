@@ -9,7 +9,7 @@ import { cn } from "@/components/ui/cn.utils";
 import { EventSummaryCard, type EventSummaryCardProps } from "@/components/ui/layout/CheckoutCards";
 import { PageHeader } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
-import { Progress } from "@/components/ui/primitives/Progress";
+import { Progress } from "@/components/ui/progress";
 
 export type QueueStatusProps = {
   state: "loading" | "waiting" | "admitted" | "error";

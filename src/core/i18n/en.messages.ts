@@ -47,10 +47,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "account.signedOut.message": "Log in to see your profile and ticket holder aliases.",
   "account.signedOut.cta": "Log in",
   "account.profile.title": "Account details",
-  "account.name.label": "Name",
   "account.email.label": "Email",
   "account.nik.label": "Registered NIK",
-  "account.memberSince.label": "Member since",
   "account.tickets.cta": "View my tickets",
   "account.saved.title": "Ticket holder aliases",
   "account.saved.count": "{count}/{max}",
@@ -60,9 +58,6 @@ export const en: Partial<Record<MessageKey, string>> = {
     "Under Indonesia's Personal Data Protection Law (UU PDP), a NIK is personal data. Only save someone else's NIK with their consent. It is used to verify tickets and protected under the Privacy Policy.",
   "account.saved.empty.title": "No aliases yet",
   "account.saved.empty": "Add your first alias with the form below.",
-  "account.saved.edit": "Edit {label}",
-  "account.saved.editShort": "Edit",
-  "account.saved.edit.title": "Edit alias {label}",
   "account.saved.remove": "Delete {label}",
   "account.saved.removeShort": "Delete",
   "account.saved.removing": "Deleting…",
@@ -76,9 +71,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   "account.saved.label.invalid": "Enter an alias.",
   "account.saved.label.tooLong": "Alias can be at most {max} characters.",
   "account.saved.nik.label": "NIK",
-  "account.saved.nik.editLabel": "New NIK (optional)",
-  "account.saved.nik.editHint":
-    "Leave empty to keep the current NIK. A new NIK is checked again with Dukcapil.",
   "account.saved.submit": "Save alias",
   "account.saved.saving": "Saving…",
   "account.saved.full": "Your alias list is full. Delete one to add another.",
@@ -354,7 +346,6 @@ export const en: Partial<Record<MessageKey, string>> = {
     "Make sure your email address and NIK are correct before continuing. These details are used to verify your account.",
   "register.confirm.email": "Email address",
   "register.confirm.nik": "NIK (National Identity Number)",
-  "register.confirm.name": "Full name",
   "register.confirm.submit": "Confirm & register",
   "register.confirm.edit": "Edit details",
   "register.confirm.busy": "Registering…",
@@ -396,6 +387,47 @@ export const en: Partial<Record<MessageKey, string>> = {
   "register.verifyFailed.network": "Connection problem, we couldn't check the link. Try again.",
   "register.verifyFailed.retry": "Try again",
   "register.verifyFailed.login": "Request a login link",
+  "legal.draft": "Draft text. Pending legal review before it takes effect.",
+  "legal.version": "Version {version}",
+  "legal.terms.heading": "Terms and Conditions",
+  "legal.terms.intro": "The rules for buying tickets with Rusuh Booking Tiket.",
+  "legal.terms.s1.title": "Account and identity",
+  "legal.terms.s1.body":
+    "One NIK can be used for one ticket per event. Each NIK is checked with Dukcapil, and mismatched data makes the order fail.",
+  "legal.terms.s2.title": "Queue and purchase limit",
+  "legal.terms.s2.body":
+    "Purchases go through the official queue. One order is limited to 3 tickets. We use automatic security checks to keep bots out.",
+  "legal.terms.s3.title": "Payment",
+  "legal.terms.s3.body":
+    "Tickets are held for the payment time shown on screen. If time runs out or payment fails, the tickets are released and you need to order again.",
+  "legal.terms.s4.title": "E-tickets",
+  "legal.terms.s4.body":
+    "E-tickets are issued after a successful payment and sent to the buyer's email. Show the QR code and the ticket holder's ID at the venue.",
+  "legal.terms.s5.title": "Changes to these terms",
+  "legal.terms.s5.body":
+    "These terms may change. The version in force when you register is recorded with your consent.",
+  "legal.privacy.heading": "Privacy Policy",
+  "legal.privacy.intro":
+    "How we collect and use your personal data under Indonesia's Personal Data Protection Law (UU PDP).",
+  "legal.privacy.s1.title": "Data we collect",
+  "legal.privacy.s1.body":
+    "Email address, NIK, name (optional), a device identifier for the queue, and your order history.",
+  "legal.privacy.s2.title": "How we use it",
+  "legal.privacy.s2.body":
+    "To create your account, verify ticket holders' identity, process payment, issue e-tickets, and prevent queue abuse.",
+  "legal.privacy.s3.title": "Other people's NIK",
+  "legal.privacy.s3.body":
+    "You may only save or use someone else's NIK as an alias with the owner's knowledge and consent.",
+  "legal.privacy.s4.title": "Your rights",
+  "legal.privacy.s4.body":
+    "You may request access to, correction of, and deletion of your personal data under applicable regulations.",
+  "legal.privacy.s5.title": "Contact",
+  "legal.privacy.s5.body":
+    "Questions about personal data can go to the support email shown in every email we send.",
+  "register.consent.links.terms": "Terms and Conditions",
+  "register.consent.links.privacy": "Privacy Policy",
+  "home.footer.terms": "Terms and Conditions",
+  "home.footer.privacy": "Privacy Policy",
   "register.title": "Register",
   "register.heading": "Create a Rusuh account",
   "register.intro":
@@ -404,9 +436,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "register.nik.label": "NIK",
   "register.nik.hint": "16 digits as on your KTP. Verified with Dukcapil once, at registration.",
   "register.nik.invalid": "NIK must be 16 digits.",
-  "register.name.label": "Full name (optional)",
   "register.consent.label":
-    "I agree to the processing of my personal data in accordance with the Privacy Policy.",
+    "I agree to the Terms and Conditions and to the processing of my personal data in accordance with the Privacy Policy.",
   "register.consent.required": "Consent is required to create an account.",
   "register.submit": "Create account",
   "register.submitting": "Creating account…",

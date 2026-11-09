@@ -1,8 +1,8 @@
 "use client";
 
-// Profil dan alias (saved NIK). Requirement: FR-30, BR-02. ADR-0011, ADR-0023 (halaman yang butuh akun meminta
-// login sendiri; tidak ada redirect paksa dari proxy). Profil dari `GET /accounts/me` masih asumsi; bila gagal,
-// halaman tetap tampil dengan email dan NIK dari sesi.
+// Akun dan alias (saved NIK). Requirement: FR-30, BR-02. ADR-0011, ADR-0023 (halaman yang butuh akun meminta
+// login sendiri; tidak ada redirect paksa dari proxy). Identitas yang tampil berasal dari sesi (email dan NIK
+// tersamar); kontrak tidak punya endpoint profil maupun ubah alias, jadi alias hanya ditambah atau dihapus.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
-import { intlLocale } from "@/core/i18n/locale.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import {
@@ -28,7 +27,7 @@ import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
 import { SAVED_NIK_LABEL_MAX_LENGTH } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
-import { accountQuery, authKeys, profileQuery, savedNiksQuery } from "./auth.queries";
+import { accountQuery, authKeys, savedNiksQuery } from "./auth.queries";
 import type { AccountViewProps, AliasFormProps } from "../views/AccountView";
 
 const savedNikErrors = {
@@ -36,17 +35,6 @@ const savedNikErrors = {
   NIK_INVALID: "account.error.NIK_INVALID",
   UNAUTHENTICATED: "account.error.UNAUTHENTICATED",
 } as const;
-
-const memberSinceFormat = () =>
-  new Intl.DateTimeFormat(intlLocale(), {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Asia/Jakarta",
-  });
-
-/** Form yang terbuka: tambah alias, atau ubah satu alias. Hanya satu form sekaligus. */
-type FormMode = { kind: "create" } | { kind: "edit"; id: string };
 
 /** Dua huruf awal untuk avatar: "Budi Santoso" → "BS", "you@example.com" → "Y". */
 function initialsOf(name: string): string {
@@ -61,9 +49,7 @@ function initialsOf(name: string): string {
 }
 
 type AccountModal =
-  | { kind: NikDialogKind; target: FormMode }
-  | { kind: "sessionExpired" }
-  | { kind: "removeFailed"; id: string };
+  { kind: NikDialogKind } | { kind: "sessionExpired" } | { kind: "removeFailed"; id: string };
 
 const isSessionEnded = (error: AppError) => error.kind === "api" && error.code === "UNAUTHENTICATED";
 
@@ -98,53 +84,43 @@ export function useAccountController(): AccountViewProps {
   const queryClient = useQueryClient();
   const {
     getAccountUseCase,
-    getProfileUseCase,
     listSavedNiksUseCase,
     addSavedNikUseCase,
-    updateSavedNikUseCase,
     removeSavedNikUseCase,
     signOutUseCase,
   } = useDependencies<AuthDependencies>();
   const account = useQuery(accountQuery({ getAccountUseCase }));
   const signedIn = Boolean(account.data);
   const saved = useQuery({ ...savedNiksQuery({ listSavedNiksUseCase }), enabled: signedIn });
-  const profile = useQuery({ ...profileQuery({ getProfileUseCase }), enabled: signedIn, retry: false });
 
-  const [mode, setMode] = useState<FormMode>({ kind: "create" });
   const [label, setLabel] = useState("");
   const [nik, setNik] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<SavedNik | null>(null);
 
   const resetForm = () => {
-    setMode({ kind: "create" });
     setLabel("");
     setNik("");
     setSubmitted(false);
   };
   const refreshSaved = () => queryClient.invalidateQueries({ queryKey: authKeys.savedNiks });
   const save = useMutation({
-    mutationFn: (target: FormMode) =>
-      target.kind === "edit"
-        ? updateSavedNikUseCase(target.id, { label, nik })
-        : addSavedNikUseCase({ label, nik }),
+    mutationFn: () => addSavedNikUseCase({ label, nik }),
     onSuccess: async () => {
       nikModal.close();
       resetForm();
       await refreshSaved();
     },
-    onError: (error, target) => {
+    onError: (error) => {
       const kind = saveDialogKindOf(toAppError(error));
-      if (kind === "sessionExpired") nikModal.open({ kind });
-      else if (kind) nikModal.open({ kind, target });
+      if (kind) nikModal.open({ kind });
     },
   });
   const remove = useMutation({
     mutationFn: (id: string) => removeSavedNikUseCase(id),
-    onSuccess: async (_, id) => {
+    onSuccess: async () => {
       nikModal.close();
       setPendingRemove(null);
-      if (mode.kind === "edit" && mode.id === id) resetForm();
       await refreshSaved();
     },
     onError: (error, id) => {
@@ -159,7 +135,6 @@ export function useAccountController(): AccountViewProps {
     onSuccess: () => {
       queryClient.setQueryData(authKeys.account, null);
       queryClient.removeQueries({ queryKey: authKeys.savedNiks });
-      queryClient.removeQueries({ queryKey: authKeys.profile });
       router.push("/");
     },
   });
@@ -201,7 +176,7 @@ export function useAccountController(): AccountViewProps {
     dialog = toNikMismatchDialog({ onEdit: editNik, onDismiss: nikModal.close });
   } else if (openModal?.kind === "unavailable") {
     dialog = toNikUnavailableDialog({
-      onRetry: () => save.mutate(openModal.target),
+      onRetry: () => save.mutate(),
       onEdit: editNik,
       onDismiss: nikModal.close,
       retrying: save.isPending,
@@ -235,9 +210,9 @@ export function useAccountController(): AccountViewProps {
       onDismiss: cancelRemove,
     };
   }
-  const invalid = submitted ? validateSavedNikInput({ label, nik }, { mode: mode.kind }) : null;
+  const invalid = submitted ? validateSavedNikInput({ label, nik }) : null;
 
-  const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "nik" | "notice"> => ({
+  const formFields = (): Pick<AliasFormProps, "label" | "nik" | "notice"> => ({
     notice: t("account.saved.pdp"),
     label: {
       label: t("account.saved.label.label"),
@@ -247,9 +222,8 @@ export function useAccountController(): AccountViewProps {
       onChange: setLabel,
     },
     nik: {
-      label: editing ? t("account.saved.nik.editLabel") : t("account.saved.nik.label"),
+      label: t("account.saved.nik.label"),
       placeholder: t("booking.holder.nik.placeholder"),
-      hint: editing ? t("account.saved.nik.editHint") : undefined,
       value: nik,
       focusKey: focusNik || undefined,
       error: invalid?.nik ? t("register.nik.invalid") : undefined,
@@ -257,34 +231,23 @@ export function useAccountController(): AccountViewProps {
       onChange: (value) => setNik(value.replace(/\D/g, "")),
     },
   });
-  const submitFor = (target: FormMode): AliasFormProps["submit"] => ({
+  const submit: AliasFormProps["submit"] = {
     label: save.isPending ? t("account.saved.saving") : t("account.saved.submit"),
     disabled: save.isPending,
     onSubmit: () => {
       setSubmitted(true);
-      if (!validateSavedNikInput({ label, nik }, { mode: target.kind })) save.mutate(target);
+      if (!validateSavedNikInput({ label, nik })) save.mutate();
     },
-  });
+  };
 
-  const editingId = mode.kind === "edit" ? mode.id : null;
-  const profileData = profile.data;
   let errorKey: MessageKey | undefined;
   if (failed) errorKey = authErrorKey(toAppError(failed), savedNikErrors);
   const fields = [
-    ...(profileData?.name ? [{ label: t("account.name.label"), value: profileData.name }] : []),
-    { label: t("account.email.label"), value: profileData?.email ?? account.data.email },
-    { label: t("account.nik.label"), value: profileData?.nikMasked ?? account.data.nikMasked },
-    ...(profileData?.memberSince
-      ? [
-          {
-            label: t("account.memberSince.label"),
-            value: memberSinceFormat().format(new Date(profileData.memberSince)),
-          },
-        ]
-      : []),
+    { label: t("account.email.label"), value: account.data.email },
+    { label: t("account.nik.label"), value: account.data.nikMasked },
   ];
 
-  const displayName = profileData?.name || account.data.email;
+  const displayName = account.data.email;
   return {
     ...page,
     kind: "ready",
@@ -292,7 +255,7 @@ export function useAccountController(): AccountViewProps {
       title: t("account.profile.title"),
       name: displayName,
       initials: initialsOf(displayName),
-      email: profileData?.email ?? account.data.email,
+      email: account.data.email,
       fields,
       tickets: { label: t("account.tickets.cta"), href: "/tickets" },
     },
@@ -309,44 +272,23 @@ export function useAccountController(): AccountViewProps {
         label: item.label,
         initials: initialsOf(item.label),
         nikMasked: item.nikMasked,
-        edit: {
-          text: t("account.saved.editShort"),
-          label: t("account.saved.edit", { label: item.label }),
-          onClick: () => {
-            setMode({ kind: "edit", id: item.id });
-            setLabel(item.label);
-            setNik("");
-            setSubmitted(false);
-            save.reset();
-          },
-        },
         remove: {
           text: t("account.saved.removeShort"),
           label: t("account.saved.remove", { label: item.label }),
           onClick: () => setPendingRemove(item),
         },
-        form:
-          editingId === item.id
-            ? {
-                id: `alias-${item.id}`,
-                title: t("account.saved.edit.title", { label: item.label }),
-                ...formFields(true),
-                submit: submitFor({ kind: "edit", id: item.id }),
-                cancel: { label: t("account.saved.cancel"), onClick: resetForm },
-              }
-            : undefined,
       })),
     },
     fullNotice: full && saved.data ? t("account.saved.full") : undefined,
     notice: t("account.notice"),
     add:
-      (full && saved.data) || editingId
+      full && saved.data
         ? undefined
         : {
             id: "alias-new",
             title: t("account.saved.add.title"),
-            ...formFields(false),
-            submit: submitFor({ kind: "create" }),
+            ...formFields(),
+            submit,
           },
     dialog,
     signOut: { label: t("account.signOut"), disabled: signOut.isPending, onClick: () => signOut.mutate() },

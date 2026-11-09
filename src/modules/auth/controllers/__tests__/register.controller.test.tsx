@@ -36,6 +36,7 @@ describe("useRegisterController", () => {
   it("persetujuan tidak tercentang otomatis dan wajib dicentang", () => {
     const { form, fill } = mount();
     expect(form().consent.checked).toBe(false);
+    expect(form().consent.links.map((link) => link.href)).toEqual(["/terms", "/privacy"]);
     fill({ email: "alex@example.com", nik: "3171000000000044" });
     act(() => form().submit.onSubmit());
     expect(form().consent.error).toBe("Persetujuan diperlukan untuk membuat akun.");
@@ -85,17 +86,12 @@ describe("useRegisterController", () => {
     );
     const { form, fill, result } = mount();
     fill({ email: "alex@example.com", nik: "3171000000000044", consent: true });
-    act(() => form().name.onChange(" Alex "));
     act(() => form().submit.onSubmit());
     // Submit hanya membuka tinjauan; belum ada request sampai dikonfirmasi.
     expect(body).toBeUndefined();
     const review = result.current.dialog;
     expect(review?.title).toBe("Konfirmasi datamu");
-    expect(review?.details?.map((item) => item.value)).toEqual([
-      "alex@example.com",
-      "3171000000000044",
-      "Alex",
-    ]);
+    expect(review?.details?.map((item) => item.value)).toEqual(["alex@example.com", "3171000000000044"]);
     act(() => click(review?.primary));
     await waitFor(() => expect(result.current.dialog?.tone).toBe("success"));
     act(() => click(result.current.dialog?.primary));
@@ -103,7 +99,6 @@ describe("useRegisterController", () => {
     expect(body).toEqual({
       email: "alex@example.com",
       nik: "3171000000000044",
-      name: "Alex",
       consent: { accepted: true, policy_version: "2026-10-01" },
     });
   });

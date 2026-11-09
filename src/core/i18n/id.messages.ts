@@ -189,7 +189,6 @@ export const id = {
     "Pastikan alamat email dan NIK sudah benar sebelum lanjut. Data ini dipakai untuk memverifikasi akunmu.",
   "register.confirm.email": "Alamat email",
   "register.confirm.nik": "NIK (Nomor Induk Kependudukan)",
-  "register.confirm.name": "Nama lengkap",
   "register.confirm.submit": "Konfirmasi & daftar",
   "register.confirm.edit": "Ubah data",
   "register.confirm.busy": "Mendaftarkan…",
@@ -230,6 +229,47 @@ export const id = {
   "register.verifyFailed.network": "Koneksi bermasalah, link belum bisa diperiksa. Coba lagi.",
   "register.verifyFailed.retry": "Coba lagi",
   "register.verifyFailed.login": "Minta link login",
+  "legal.draft": "Draf teks. Sedang menunggu peninjauan tim hukum sebelum berlaku.",
+  "legal.version": "Versi {version}",
+  "legal.terms.heading": "Syarat dan Ketentuan",
+  "legal.terms.intro": "Aturan memakai Rusuh Booking Tiket untuk membeli tiket.",
+  "legal.terms.s1.title": "Akun dan identitas",
+  "legal.terms.s1.body":
+    "Satu NIK hanya bisa dipakai untuk satu tiket di satu event. NIK diperiksa ke Dukcapil, dan data yang tidak cocok membuat pemesanan ditolak.",
+  "legal.terms.s2.title": "Antrean dan batas pembelian",
+  "legal.terms.s2.body":
+    "Pembelian melewati antrean resmi. Satu pesanan dibatasi 3 tiket. Kami memakai verifikasi keamanan otomatis untuk mencegah bot.",
+  "legal.terms.s3.title": "Pembayaran",
+  "legal.terms.s3.body":
+    "Tiket ditahan selama waktu pembayaran yang tampil di layar. Jika waktu habis atau pembayaran gagal, tiket dilepas kembali dan kamu perlu memesan ulang.",
+  "legal.terms.s4.title": "E-tiket",
+  "legal.terms.s4.body":
+    "E-tiket terbit setelah pembayaran berhasil dan dikirim ke email pemesan. Tunjukkan QR code dan identitas pemegang tiket saat masuk venue.",
+  "legal.terms.s5.title": "Perubahan ketentuan",
+  "legal.terms.s5.body":
+    "Ketentuan ini dapat berubah. Versi yang berlaku saat kamu mendaftar tercatat bersama persetujuanmu.",
+  "legal.privacy.heading": "Kebijakan Privasi",
+  "legal.privacy.intro":
+    "Cara kami mengumpulkan dan memakai data pribadimu sesuai UU Pelindungan Data Pribadi.",
+  "legal.privacy.s1.title": "Data yang kami kumpulkan",
+  "legal.privacy.s1.body":
+    "Alamat email, NIK, nama (opsional), pengenal perangkat untuk antrean, dan riwayat pesanan.",
+  "legal.privacy.s2.title": "Tujuan penggunaan",
+  "legal.privacy.s2.body":
+    "Membuat akun, memverifikasi identitas pemegang tiket, memproses pembayaran, menerbitkan e-tiket, dan mencegah penyalahgunaan antrean.",
+  "legal.privacy.s3.title": "NIK orang lain",
+  "legal.privacy.s3.body":
+    "Kamu hanya boleh menyimpan atau memakai NIK orang lain sebagai alias dengan sepengetahuan dan persetujuan pemiliknya.",
+  "legal.privacy.s4.title": "Hakmu",
+  "legal.privacy.s4.body":
+    "Kamu berhak meminta akses, perbaikan, dan penghapusan data pribadimu sesuai peraturan yang berlaku.",
+  "legal.privacy.s5.title": "Kontak",
+  "legal.privacy.s5.body":
+    "Pertanyaan tentang data pribadi dapat dikirim ke email dukungan yang tertera di setiap email dari kami.",
+  "register.consent.links.terms": "Syarat dan Ketentuan",
+  "register.consent.links.privacy": "Kebijakan Privasi",
+  "home.footer.terms": "Syarat dan Ketentuan",
+  "home.footer.privacy": "Kebijakan Privasi",
   "register.title": "Daftar",
   "register.heading": "Buat akun Rusuh",
   "register.intro":
@@ -238,8 +278,8 @@ export const id = {
   "register.nik.label": "NIK",
   "register.nik.hint": "16 digit sesuai KTP. Diverifikasi ke Dukcapil sekali saat daftar.",
   "register.nik.invalid": "NIK harus 16 digit angka.",
-  "register.name.label": "Nama lengkap (opsional)",
-  "register.consent.label": "Saya menyetujui pemrosesan data pribadi sesuai Kebijakan Privasi.",
+  "register.consent.label":
+    "Saya menyetujui Syarat dan Ketentuan serta pemrosesan data pribadi sesuai Kebijakan Privasi.",
   "register.consent.required": "Persetujuan diperlukan untuk membuat akun.",
   "register.submit": "Buat akun",
   "register.submitting": "Membuat akun…",
@@ -261,10 +301,8 @@ export const id = {
   "account.signedOut.message": "Masuk untuk melihat profil dan alias pemegang tiket.",
   "account.signedOut.cta": "Masuk",
   "account.profile.title": "Data akun",
-  "account.name.label": "Nama",
   "account.email.label": "Email",
   "account.nik.label": "NIK terdaftar",
-  "account.memberSince.label": "Bergabung sejak",
   "account.tickets.cta": "Lihat tiket saya",
   "account.saved.title": "Alias pemegang tiket",
   "account.saved.count": "{count}/{max}",
@@ -274,9 +312,6 @@ export const id = {
     "Sesuai UU Pelindungan Data Pribadi (UU PDP), NIK adalah data pribadi. Simpan NIK orang lain hanya dengan persetujuan pemiliknya. NIK dipakai untuk verifikasi tiket dan dilindungi sesuai Kebijakan Privasi.",
   "account.saved.empty.title": "Belum ada alias",
   "account.saved.empty": "Tambahkan alias pertama lewat form di bawah.",
-  "account.saved.edit": "Ubah {label}",
-  "account.saved.editShort": "Ubah",
-  "account.saved.edit.title": "Ubah alias {label}",
   "account.saved.remove": "Hapus {label}",
   "account.saved.removeShort": "Hapus",
   "account.saved.removing": "Menghapus…",
@@ -290,8 +325,6 @@ export const id = {
   "account.saved.label.invalid": "Isi nama alias.",
   "account.saved.label.tooLong": "Nama alias maksimal {max} karakter.",
   "account.saved.nik.label": "NIK",
-  "account.saved.nik.editLabel": "NIK baru (opsional)",
-  "account.saved.nik.editHint": "Kosongkan bila NIK tidak berubah. NIK baru dicek ulang ke Dukcapil.",
   "account.saved.submit": "Simpan alias",
   "account.saved.saving": "Menyimpan…",
   "account.saved.full": "Daftar alias sudah penuh. Hapus satu untuk menambah.",

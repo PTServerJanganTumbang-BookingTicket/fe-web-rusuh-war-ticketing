@@ -111,7 +111,7 @@ docker build -t rusuh-fe \
 docker run --rm -p 3000:3000 rusuh-fe
 ```
 
-Image berisi hasil standalone saja, berjalan sebagai user non-root, dan menyediakan `/api/health` untuk probe. Rencana deploy ke Cloudflare: [docs/deploy](docs/deploy/cloudflare-cicd-plan.md).
+Image berisi hasil standalone saja, berjalan sebagai user non-root, dan menyediakan `/api/health` untuk probe. Deploy ke Vercel dengan DNS Cloudflare: [docs/deploy](docs/deploy/vercel-cloudflare-dns.md).
 
 ## Dokumentasi
 

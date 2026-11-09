@@ -1,5 +1,7 @@
 "use client";
 
+import { legalLinks } from "@/core/controllers/site-chrome.utils";
+
 import { useEffect, useState } from "react";
 import { ScreenLoading } from "@/components/ui/layout/PageSkeleton";
 import { t } from "@/core/i18n/t.utils";
@@ -50,6 +52,7 @@ function CatalogContent() {
         copyright: t("home.footer.copyright"),
         tagline: t("home.footer.tagline"),
         infoBanner: t("home.footer.infoBanner"),
+        links: legalLinks(),
       }}
       emptyLabel={t("home.empty")}
       errorMessage={getErrorMessage()}

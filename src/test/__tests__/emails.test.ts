@@ -38,6 +38,12 @@ describe("template email", () => {
     },
   );
 
+  it.each(Object.keys(PLACEHOLDERS))("%s memuat logo dari logoUrl di header", async (name) => {
+    const html = await compileTemplate(name);
+    expect(html).toMatch(/<img[^>]+src="\{\{logoUrl\}\}"/);
+    expect(html).toContain("{{appUrl}}");
+  });
+
   it("satu blok ticket-issued berulang per tiket", async () => {
     const html = await compileTemplate("ticket-issued");
 
