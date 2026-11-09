@@ -4,6 +4,7 @@ import { createResendMagicLinkUseCase } from "./application/resend-magic-link.us
 import { createRegisterAccountUseCase } from "./application/register-account.use-case";
 import { createResendVerificationUseCase } from "./application/resend-verification.use-case";
 import { createVerifyLoginUseCase } from "./application/verify-login.use-case";
+import { createVerifyEmailUseCase } from "./application/verify-email.use-case";
 import { createGetAccountUseCase } from "./application/get-account.use-case";
 import { createGetEventSummaryUseCase } from "./application/get-event-summary.use-case";
 import { createSignOutUseCase } from "./application/sign-out.use-case";
@@ -36,6 +37,7 @@ export function authModule(): NameAndRegistrationPair<AuthRegistry> {
     registerAccountUseCase: asFunction(createRegisterAccountUseCase).singleton(),
     resendVerificationUseCase: asFunction(createResendVerificationUseCase).singleton(),
     verifyLoginUseCase: asFunction(createVerifyLoginUseCase).singleton(),
+    verifyEmailUseCase: asFunction(createVerifyEmailUseCase).singleton(),
     getAccountUseCase: asFunction(createGetAccountUseCase).singleton(),
     getEventSummaryUseCase: asFunction(createGetEventSummaryUseCase).singleton(),
     signOutUseCase: asFunction(createSignOutUseCase).singleton(),

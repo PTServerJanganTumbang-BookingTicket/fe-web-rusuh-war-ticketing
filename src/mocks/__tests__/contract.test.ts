@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupServer } from "msw/node";
 import { createHandlers, MOCK_API_BASE_URL, type Scenario } from "../handlers";
+import { FAILING_CAPTCHA_TOKEN } from "../api/events";
 
 type Operation = {
   operationId: string;
@@ -65,6 +66,7 @@ async function expectContract<Data = Record<string, unknown>>(
   return body as { meta: { code: number; message: string }; data: Data };
 }
 
+const CAPTCHA = { captcha_token: "test-captcha-token" };
 const DEVICE = { "x-device-id": "d3f1a9c4b70e42f88a1c5e6072b9d4af" };
 const BEARER = { authorization: "Bearer at_test" };
 const api = (pathname: string, init: RequestInit = {}) => fetch(`${MOCK_API_BASE_URL}${pathname}`, init);
@@ -84,7 +86,7 @@ function useServer(scenario?: Scenario) {
 
 /** Join antrian; token dari Set-Cookie dikirim ulang lewat X-Queue-Token seperti klien mobile. */
 async function joinQueue(eventId = "evt_konser_a") {
-  const joined = await post(`/events/${eventId}/queue/join`, {}, DEVICE);
+  const joined = await post(`/events/${eventId}/queue/join`, CAPTCHA, DEVICE);
   const token = /queue_token=([^;]+)/.exec(joined.headers.get("set-cookie") ?? "")?.[1] ?? "";
   return { "x-queue-token": token };
 }
@@ -216,29 +218,47 @@ describe("Events dan Queue", () => {
   });
 
   it("joinQueue: tamu tanpa X-Device-Id ditolak, antrian penuh 503", async () => {
-    expect((await post("/events/evt_konser_a/queue/join", {})).status).toBe(400);
-    await expectContract(await post("/events/evt_konser_b/queue/join", {}, DEVICE), "joinQueue", 503);
-    const joined = await post("/events/evt_konser_a/queue/join", {}, DEVICE);
+    expect((await post("/events/evt_konser_a/queue/join", CAPTCHA)).status).toBe(400);
+    await expectContract(await post("/events/evt_konser_b/queue/join", CAPTCHA, DEVICE), "joinQueue", 503);
+    const joined = await post("/events/evt_konser_a/queue/join", CAPTCHA, DEVICE);
     expect(joined.headers.get("set-cookie")).toContain("queue_token=");
-    await expectContract(joined, "joinQueue", 200, "joined");
+    await expectContract(joined, "joinQueue", 200, "1");
+    const rejoined = await post("/events/evt_konser_a/queue/join", CAPTCHA, {
+      ...DEVICE,
+      cookie: `queue_token=${/queue_token=([^;]+)/.exec(joined.headers.get("set-cookie") ?? "")?.[1] ?? ""}`,
+    });
+    expect(rejoined.status).toBe(200);
+  });
+
+  it("joinQueue: tanpa captcha_token 400 CAPTCHA_REQUIRED, token ditolak 403 CAPTCHA_FAILED", async () => {
+    const missing = await expectContract(
+      await post("/events/evt_konser_a/queue/join", {}, DEVICE),
+      "joinQueue",
+      400,
+      "4",
+    );
+    expect(missing.meta).toMatchObject({ error_code: "CAPTCHA_REQUIRED" });
+    const rejected = await expectContract(
+      await post("/events/evt_konser_a/queue/join", { captcha_token: FAILING_CAPTCHA_TOKEN }, DEVICE),
+      "joinQueue",
+      403,
+    );
+    expect(rejected.meta).toMatchObject({ error_code: "CAPTCHA_FAILED" });
   });
 
   it("getQueueMe: 401 tanpa token, QUEUED lalu GRANTED", async () => {
     expect((await api("/events/evt_konser_c/queue/me")).status).toBe(401);
     const headers = await joinQueue();
-    await expectContract(
-      await api("/events/evt_konser_a/queue/me", { headers }),
-      "getQueueMe",
-      200,
-      "queued",
-    );
+    await expectContract(await api("/events/evt_konser_a/queue/me", { headers }), "getQueueMe", 200, "1");
     await api("/events/evt_konser_a/queue/me", { headers });
-    await expectContract(
-      await api("/events/evt_konser_a/queue/me", { headers }),
-      "getQueueMe",
-      200,
-      "granted",
-    );
+    await expectContract(await api("/events/evt_konser_a/queue/me", { headers }), "getQueueMe", 200, "2");
+  });
+
+  it("getEvent membawa konfigurasi captcha untuk join antrian", async () => {
+    const event = (await (await api("/events/evt_konser_a")).json()) as {
+      data: { captcha: { provider: string; site_key: string } };
+    };
+    expect(event.data.captcha).toMatchObject({ provider: "turnstile" });
   });
 
   it("getNowServing", async () => {
@@ -285,12 +305,7 @@ describe("Booking, NIK, Payment, dan tiket", () => {
 
   it("createBooking: batas 3 tiket, lalu sukses, lalu NIK terpakai", async () => {
     const four = ["3171000000000022", "3171000000000033", "3171000000000044", "3171000000000055"];
-    await expectContract(
-      await post("/bookings", bookingRequest(four), grant),
-      "createBooking",
-      400,
-      "max_tickets",
-    );
+    await expectContract(await post("/bookings", bookingRequest(four), grant), "createBooking", 400, "2");
     const created = await expectContract(
       await post(
         "/bookings",
@@ -311,7 +326,7 @@ describe("Booking, NIK, Payment, dan tiket", () => {
       await post("/bookings", bookingRequest(["3171000000000022"]), other),
       "createBooking",
       409,
-      "nik_taken",
+      "4",
     );
   });
 
@@ -360,9 +375,17 @@ describe("Booking, NIK, Payment, dan tiket", () => {
 
   it("webhook FAILED lalu PAID menerbitkan tiket", async () => {
     const webhook = (status: string) =>
-      post("/payments/webhook", { external_id: bookingId, status }, { "x-callback-signature": "sig" });
-    expect((await post("/payments/webhook", { external_id: bookingId, status: "PAID" })).status).toBe(401);
-    await expectContract(await webhook("FAILED"), "paymentWebhook", 200);
+      post("/payments/webhook", {
+        order_id: bookingId,
+        transaction_status: status,
+        status_code: "200",
+        gross_amount: "1700000.00",
+        signature_key: "sig",
+      });
+    expect(
+      (await post("/payments/webhook", { order_id: bookingId, transaction_status: "settlement" })).status,
+    ).toBe(401);
+    await expectContract(await webhook("deny"), "paymentWebhook", 200);
     await expectContract(
       await api(`/payments/${bookingId}/status`, { headers: grant }),
       "getPaymentStatus",
@@ -371,7 +394,7 @@ describe("Booking, NIK, Payment, dan tiket", () => {
     );
     await post(`/payments/${bookingId}/retry`, {}, grant);
     await post(`/payments/${bookingId}`, { method: "bank_transfer", bank: "bni" }, grant);
-    await webhook("PAID");
+    await webhook("settlement");
     await expectContract(
       await api(`/payments/${bookingId}/status`, { headers: grant }),
       "getPaymentStatus",
@@ -379,12 +402,12 @@ describe("Booking, NIK, Payment, dan tiket", () => {
       "paid",
     );
     await expectContract(await api(`/bookings/${bookingId}`, { headers: grant }), "getBooking", 200, "paid");
-    const tickets = await expectContract(
-      await api(`/bookings/${bookingId}/tickets`, { headers: grant }),
-      "getBookingTickets",
-      200,
-    );
-    expect(tickets.data).toHaveLength(2);
+    // Endpoint /bookings/{id}/tickets dihapus; e-tiket dibuka lewat eticket_url (?t=) di detail booking.
+    const paid = (await (await api(`/bookings/${bookingId}`, { headers: grant })).json()) as {
+      data: { tickets: { ticket_id: string; eticket_url: string }[] };
+    };
+    expect(paid.data.tickets).toHaveLength(2);
+    expect(paid.data.tickets[0]?.eticket_url).toMatch(/^\/tickets\/.+\/eticket\?t=.+/);
   });
 
   it("getMyTickets dan getEticket", async () => {
@@ -452,7 +475,7 @@ describe("Skenario TTL", () => {
         await api("/events/evt_konser_a/queue/me", { headers: queue }),
         "getQueueMe",
         200,
-        "expired",
+        "6",
       );
     });
   });

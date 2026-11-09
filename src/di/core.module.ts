@@ -23,6 +23,8 @@ import {
 } from "@/core/data/sse/event-source-stream.client";
 import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
 import { createSystemClockService } from "@/core/data/system-clock.service";
+import { createTurnstileCaptchaService } from "@/core/data/captcha/turnstile-captcha.service";
+import type { CaptchaProtocol } from "@/core/domain/captcha.protocol";
 
 export type CoreRegistry = CoreDependencies & {
   fetchFn: FetchFn;
@@ -35,6 +37,7 @@ export type CoreRegistry = CoreDependencies & {
   sessionService: SessionProtocol;
   credentialStore: CredentialStoreProtocol;
   sessionAccountService: SessionAccountProtocol;
+  captcha: CaptchaProtocol;
 };
 
 // `fetch` dibungkus supaya dibaca saat dipanggil: MSW dan test mengganti `globalThis.fetch` setelah container dibuat.
@@ -49,6 +52,7 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     fetchFn: asValue(lateBoundFetch),
     clock: asFunction(createSystemClockService).singleton(),
     random: asFunction(createMathRandomService).singleton(),
+    captcha: asFunction(createTurnstileCaptchaService).singleton(),
     localePreference: asFunction(createWebStorageLocalePreferenceService).singleton(),
     httpClient: asFunction(createFetchHttpClient).singleton(),
     bffHttpClient: asFunction(({ appConfig: config, fetchFn }: { appConfig: AppConfig; fetchFn: FetchFn }) =>

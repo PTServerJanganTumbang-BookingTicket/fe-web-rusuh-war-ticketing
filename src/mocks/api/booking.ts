@@ -39,7 +39,8 @@ const issuedTicket = (ticket: BookedTicket) => ({
   category: ticket.category,
   price: ticket.price,
   nik_masked: maskNik(ticket.nik),
-  eticket_url: `/tickets/${ticket.ticketId}/eticket`,
+  // `?t=` membawa token e-tiket supaya Success Page bisa membukanya tanpa akun (NFR-10).
+  eticket_url: `/tickets/${ticket.ticketId}/eticket?t=mock-${ticket.ticketId}`,
 });
 
 const total = (booking: Booking) => booking.tickets.reduce((sum, ticket) => sum + ticket.price, 0);
@@ -159,7 +160,7 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
       if (!tickets || tickets.length === 0 || typeof contactEmail !== "string")
         return fail(400, "tickets and contact_email are required");
       if (tickets.length > MAX_TICKETS_PER_ORDER)
-        return fail(400, `Maximum ${MAX_TICKETS_PER_ORDER} tickets per order`);
+        return fail(400, `Maximum ${MAX_TICKETS_PER_ORDER} tickets per order`, {}, "QTY_EXCEEDED");
       if (new Set(tickets.map((ticket) => ticket.nik)).size !== tickets.length)
         return fail(400, "Duplicate NIK in request");
       if (
@@ -169,16 +170,16 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
       )
         return fail(409, "Booking already exists for this grant");
       if (tickets.some((ticket) => lookupNik(ticket.nik)?.status !== "ACTIVE"))
-        return fail(400, "NIK not found or inactive");
+        return fail(400, "NIK not found or inactive", {}, "NIK_UNVERIFIED");
       if (tickets.some((ticket) => state.usedNiks.has(`${event.id}:${ticket.nik}`)))
-        return fail(409, "NIK sudah digunakan untuk event ini");
+        return fail(409, "NIK sudah digunakan untuk event ini", {}, "NIK_ALREADY_USED");
 
       const wanted = new Map<string, number>();
       for (const ticket of tickets) wanted.set(ticket.categoryId, (wanted.get(ticket.categoryId) ?? 0) + 1);
       for (const [categoryId, quantity] of wanted) {
         const category = event.categories.find((item) => item.id === categoryId);
         if (!category) return fail(400, `Unknown category ${categoryId}`);
-        if (category.available < quantity) return fail(409, "Stok tidak mencukupi");
+        if (category.available < quantity) return fail(409, "Stok tidak mencukupi", {}, "INSUFFICIENT_STOCK");
       }
 
       const now = Date.now();
@@ -240,14 +241,6 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
       const booking = requireBooking(state, grant, String(params.bookingId));
       if (booking instanceof Response) return booking;
       return ok(bookingBody(state, booking, Date.now()));
-    }),
-
-    http.get(`${baseUrl}/bookings/:bookingId/tickets`, ({ params, request }) => {
-      const grant = requireGrant(state, request, { checkExpiry: false });
-      if (grant instanceof Response) return grant;
-      const booking = requireBooking(state, grant, String(params.bookingId));
-      if (booking instanceof Response) return booking;
-      return ok(booking.status === "PAID" ? booking.tickets.map(issuedTicket) : []);
     }),
   ];
 }

@@ -6,6 +6,7 @@ import {
   LogOutIcon,
   PencilIcon,
   PlusIcon,
+  ShieldCheckIcon,
   TicketIcon,
   Trash2Icon,
   UserRoundIcon,
@@ -40,9 +41,9 @@ export type AliasFormProps = {
   id: string;
   title: string;
   label: TextField;
-  /** Nama lengkap pemilik NIK sesuai KTP. */
-  name: TextField;
   nik: TextField;
+  /** Pemberitahuan UU PDP: NIK orang lain disimpan hanya dengan sepengetahuan pemiliknya. */
+  notice: string;
   submit: { label: string; disabled: boolean; onSubmit: () => void };
   cancel?: { label: string; onClick: () => void };
 };
@@ -50,8 +51,6 @@ export type AliasFormProps = {
 export type SavedNikItem = {
   id: string;
   label: string;
-  /** Nama lengkap sesuai KTP; kosong untuk alias lama yang disimpan sebelum field ini ada. */
-  name?: string;
   /** Huruf awal nama alias untuk avatar. */
   initials: string;
   nikMasked: string;
@@ -267,7 +266,6 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="type-body1 truncate font-semibold">{item.label}</p>
-                      {item.name ? <p className="type-body2 truncate text-foreground">{item.name}</p> : null}
                       <p className="type-body2 tabular-nums text-muted-foreground">{item.nikMasked}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -312,7 +310,7 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
   );
 }
 
-function AliasForm({ id, title, label, name, nik, submit, cancel }: AliasFormProps) {
+function AliasForm({ id, title, label, nik, notice, submit, cancel }: AliasFormProps) {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     submit.onSubmit();
@@ -334,11 +332,12 @@ function AliasForm({ id, title, label, name, nik, submit, cancel }: AliasFormPro
       </h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextInput id={`${id}-label`} field={label} autoComplete="off" />
-        <TextInput id={`${id}-name`} field={name} autoComplete="off" />
-        <div className="sm:col-span-2">
-          <TextInput id={`${id}-nik`} field={nik} inputMode="numeric" autoComplete="off" maxLength={16} />
-        </div>
+        <TextInput id={`${id}-nik`} field={nik} inputMode="numeric" autoComplete="off" maxLength={16} />
       </div>
+      <Alert variant="info" role="note" className="border-signal-info">
+        <ShieldCheckIcon />
+        <AlertDescription className="text-foreground">{notice}</AlertDescription>
+      </Alert>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         {cancel ? (
           <Button

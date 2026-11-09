@@ -3,8 +3,8 @@
 // Verifikasi email setelah register. Requirement: FR-31. ADR-0023.
 // Desain "Confirmation & Success": verify your email → verification link sent → your email is verified.
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useSyncExternalStore } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
@@ -76,15 +76,74 @@ export function useVerifyEmailController(): RegistrationStatusViewProps {
   };
 }
 
-/** Tujuan link verifikasi di email. Kontrak belum punya endpoint verifikasi pendaftaran; layar ini statis. */
+const subscribeToLocation = (onChange: () => void) => {
+  window.addEventListener("hashchange", onChange);
+  window.addEventListener("popstate", onChange);
+  return () => {
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener("popstate", onChange);
+  };
+};
+/** Token ada di query (`?token=`) atau fragmen (`#token=`); keduanya dikenali supaya tautan email tidak bergantung bentuknya. */
+const readEmailToken = () =>
+  new URLSearchParams(window.location.search).get("token") ??
+  new URLSearchParams(window.location.hash.slice(1)).get("token");
+const noTokenOnServer = () => undefined;
+
+/**
+ * Tujuan link verifikasi di email (`/register/verified?token=...`). Token dikonfirmasi ke `GET /auth/verify-email`;
+ * tidak ada sesi yang terbit. Tautan kedaluwarsa (15 menit) cukup diganti dengan meminta link login.
+ */
 export function useEmailVerifiedController(): RegistrationStatusViewProps {
   const siteChrome = useSiteChrome();
+  const { verifyEmailUseCase } = useDependencies<AuthDependencies>();
+  const token = useSyncExternalStore(subscribeToLocation, readEmailToken, noTokenOnServer);
+  // Tautan sekali pakai: tidak boleh diulang otomatis, dan hasilnya tidak basi selama halaman terbuka.
+  const verify = useQuery({
+    queryKey: authKeys.emailVerification(token ?? ""),
+    queryFn: () => verifyEmailUseCase(token ?? "").then(() => true),
+    enabled: Boolean(token),
+    retry: false,
+    staleTime: Infinity,
+  });
+
+  // Di server (token belum terbaca) dan selama pemeriksaan berjalan, tampilkan status memverifikasi.
+  if (token === undefined || (token && verify.isPending)) {
+    return {
+      ...siteChrome,
+      tone: "info",
+      title: t("register.verifying.title"),
+      message: t("register.verifying.message"),
+      status: t("register.verifying.message"),
+    };
+  }
+
+  if (verify.isSuccess) {
+    return {
+      ...siteChrome,
+      tone: "success",
+      title: t("register.verified.title"),
+      message: t("register.verified.message"),
+      link: { label: t("register.verified.login"), href: "/login" },
+      footnote: t("register.verified.note"),
+    };
+  }
+
+  const networkProblem = verify.isError && toAppError(verify.error).kind === "network";
   return {
     ...siteChrome,
-    tone: "success",
-    title: t("register.verified.title"),
-    message: t("register.verified.message"),
-    link: { label: t("register.verified.login"), href: "/login" },
-    footnote: t("register.verified.note"),
+    tone: "error",
+    title: t("register.verifyFailed.title"),
+    message: networkProblem ? t("register.verifyFailed.network") : t("register.verifyFailed.message"),
+    detail: networkProblem ? undefined : t("register.verifyFailed.detail"),
+    action: networkProblem
+      ? {
+          label: t("register.verifyFailed.retry"),
+          busy: false,
+          disabled: false,
+          onClick: () => void verify.refetch(),
+        }
+      : undefined,
+    link: { label: t("register.verifyFailed.login"), href: "/login" },
   };
 }

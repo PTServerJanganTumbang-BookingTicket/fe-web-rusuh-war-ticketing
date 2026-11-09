@@ -7,6 +7,8 @@ export interface AuthProtocol {
   register(input: RegisterInput): Promise<void>;
   /** Kirim ulang email verifikasi pendaftaran. */
   resendVerification(email: string): Promise<void>;
+  /** Konfirmasi email dari tautan pendaftaran (`GET /auth/verify-email`). Tidak menerbitkan sesi. */
+  verifyEmail(token: string): Promise<void>;
   /** Menukar token dari link email dengan sesi akun di cookie httpOnly. */
   verify(token: string): Promise<LoginResult>;
   /** `null` berarti tamu. */

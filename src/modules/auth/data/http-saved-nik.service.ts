@@ -17,20 +17,30 @@ export function createHttpSavedNikService({
       return bffHttpClient.get("/account/saved-niks", savedNikListSchema, options);
     },
 
-    async add({ nik, label, name }: SavedNikInput): Promise<void> {
-      // 400: NIK tidak ditemukan atau nonaktif di Dukcapil. 409: sudah tersimpan atau daftar penuh.
-      // `name` asumsi FE (docs/api/contract-assumptions.md); BE yang belum mengenalnya mengabaikannya.
-      await bffHttpClient.post("/account/saved-niks", { nik, label, name }, z.unknown(), {
-        errorCodes: { 400: "NIK_INVALID", 401: "UNAUTHENTICATED", 409: "SAVED_NIK_REJECTED" },
+    async add({ nik, label }: SavedNikInput): Promise<void> {
+      // 422: NIK tidak ditemukan atau nonaktif di Dukcapil. 409: sudah tersimpan atau daftar penuh.
+      // 503 (Dukcapil tidak menjawab) jatuh ke galat tak dikenal; 400 tetap dikenali untuk BE lama.
+      await bffHttpClient.post("/account/saved-niks", { nik, label }, z.unknown(), {
+        errorCodes: {
+          400: "NIK_INVALID",
+          401: "UNAUTHENTICATED",
+          409: "SAVED_NIK_REJECTED",
+          422: "NIK_INVALID",
+        },
       });
     },
 
     async update(id: string, input: SavedNikInput): Promise<void> {
       // NIK hanya dikirim bila diganti, supaya NIK lama tidak perlu ada di klien.
-      const fields = { label: input.label, name: input.name };
+      const fields = { label: input.label };
       const body = input.nik ? { ...fields, nik: input.nik } : fields;
       await bffHttpClient.patch(`/account/saved-niks/${encodeURIComponent(id)}`, body, z.unknown(), {
-        errorCodes: { 400: "NIK_INVALID", 401: "UNAUTHENTICATED", 409: "SAVED_NIK_REJECTED" },
+        errorCodes: {
+          400: "NIK_INVALID",
+          401: "UNAUTHENTICATED",
+          409: "SAVED_NIK_REJECTED",
+          422: "NIK_INVALID",
+        },
       });
     },
 

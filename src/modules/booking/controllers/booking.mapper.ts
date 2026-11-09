@@ -15,13 +15,6 @@ import { aliasOptionsFor } from "../domain/ticket-holders.rules";
 import type { BookingViewProps, TicketHolderProps } from "../views/BookingView";
 import type { ActionDialogModel } from "@/core/controllers/modal.hook";
 
-/** Nama panggilan plus nama lengkap bila ada, supaya alias dengan nama panggilan mirip bisa dibedakan. */
-function aliasName(alias: HolderAlias): string {
-  return alias.name
-    ? t("booking.holder.source.named", { label: alias.label, name: alias.name })
-    : alias.label;
-}
-
 /** Bulan singkat mengikuti bahasa aktif. */
 const eventDate = () =>
   new Intl.DateTimeFormat(intlLocale(), { day: "2-digit", month: "short", year: "numeric" });
@@ -159,8 +152,8 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
                 ...aliasOptionsFor(slot.key, aliases, niks).map(({ alias, takenByOtherTicket }) => ({
                   value: alias.id,
                   label: takenByOtherTicket
-                    ? t("booking.holder.source.taken", { label: aliasName(alias), nik: alias.nikMasked })
-                    : t("booking.holder.source.alias", { label: aliasName(alias), nik: alias.nikMasked }),
+                    ? t("booking.holder.source.taken", { label: alias.label, nik: alias.nikMasked })
+                    : t("booking.holder.source.alias", { label: alias.label, nik: alias.nikMasked }),
                   disabled: takenByOtherTicket && alias.id !== picked?.id,
                 })),
               ],

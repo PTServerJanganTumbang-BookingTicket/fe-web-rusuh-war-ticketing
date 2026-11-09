@@ -66,16 +66,18 @@ export function paymentHandlers(state: MockState, baseUrl: string) {
 
   return [
     // Didaftarkan sebelum `/payments/:bookingId` supaya "webhook" tidak terbaca sebagai booking_id.
+    // Format Midtrans Core API: tanda tangan ada di body (`signature_key`), bukan header.
     http.post(`${baseUrl}/payments/webhook`, async ({ request }) => {
-      if (!request.headers.get("x-callback-signature")) return fail(401, "Invalid signature");
       const body = await readJson(request);
-      const booking = state.bookings.get(String(field(body, "external_id")));
+      if (typeof field(body, "signature_key") !== "string") return fail(401, "Invalid signature");
+      // `order_id` bisa membawa nomor percobaan ("RB-00912:2"); booking_id ada sebelum titik dua.
+      const booking = state.bookings.get(String(field(body, "order_id")).split(":")[0] ?? "");
       if (!booking) return fail(404, "Booking not found");
       state.refreshBooking(booking, Date.now());
-      const status = field(body, "status");
+      const status = field(body, "transaction_status");
       if (booking.status === "PENDING_PAYMENT" && booking.payment?.status === "PENDING") {
-        if (status === "PAID") state.markPaid(booking, Date.now());
-        if (status === "FAILED") {
+        if (status === "settlement" || status === "capture") state.markPaid(booking, Date.now());
+        if (status === "deny" || status === "cancel" || status === "expire") {
           booking.payment.status = "FAILED";
           booking.payment.failureReason = "Kartu ditolak penerbit";
         }
@@ -110,7 +112,8 @@ export function paymentHandlers(state: MockState, baseUrl: string) {
     http.post(`${baseUrl}/payments/:bookingId`, async ({ params, request }) => {
       const booking = withBooking(request, String(params.bookingId));
       if (booking instanceof Response) return booking;
-      if (booking.status !== "PENDING_PAYMENT") return fail(409, `Booking is ${booking.status}`);
+      if (booking.status !== "PENDING_PAYMENT")
+        return fail(409, `Booking is ${booking.status}`, {}, "BOOKING_STATUS_INVALID");
       if (booking.payment?.status === "PENDING") return fail(409, "Payment already initiated");
       const body = await readJson(request);
       const method = field(body, "method");
@@ -193,7 +196,7 @@ export function paymentHandlers(state: MockState, baseUrl: string) {
             category: ticket.category,
             price: ticket.price,
             status: (event?.date ?? "") < today ? "EXPIRED" : "VALID",
-            eticket_url: `/tickets/${ticket.ticketId}/eticket`,
+            eticket_url: `/tickets/${ticket.ticketId}/eticket?t=mock-${ticket.ticketId}`,
           };
         })
         .filter((ticket) => {
