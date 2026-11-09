@@ -173,7 +173,7 @@ describe("useBookingController", () => {
     const second = () => view().holders?.items[1];
     expect(first()?.holder?.options.map((option) => option.label)).toEqual([
       "Isi NIK manual",
-      "Budi (Budi Santoso) · 3171********xx33",
+      "Budi · 3171********xx33",
     ]);
 
     act(() => first()?.holder?.onChange("snk_1"));
@@ -181,7 +181,7 @@ describe("useBookingController", () => {
     await waitFor(() => expect(first()?.nik.success).toBe("Terverifikasi atas nama JANE DOE"));
     // Alias yang sudah dipakai tiket 1 tidak bisa dipilih untuk tiket 2 (BR-02).
     expect(second()?.holder?.options[1]).toMatchObject({
-      label: "Budi (Budi Santoso) · 3171********xx33 (sudah dipakai tiket lain)",
+      label: "Budi · 3171********xx33 (sudah dipakai tiket lain)",
       disabled: true,
     });
 

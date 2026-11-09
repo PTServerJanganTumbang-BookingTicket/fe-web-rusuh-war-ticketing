@@ -131,6 +131,9 @@ export const id = {
   "queue.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
   "queue.error.QUEUE_TOKEN_INVALID": "Sesi antrianmu tidak valid. Masuk antrian lagi dari awal.",
   "queue.error.QUEUE_FULL": "Antrian sedang penuh. Coba lagi beberapa saat lagi.",
+  "queue.error.CAPTCHA_FAILED": "Verifikasi keamanan gagal. Muat ulang halaman ini lalu coba lagi.",
+  "queue.error.SALE_NOT_OPEN": "Penjualan belum dibuka. Kembali lagi saat penjualan dimulai.",
+  "queue.error.RATE_LIMITED": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
   "queue.ended.expired": "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
   "queue.ended.confirmed": "Pembayaranmu sudah selesai. Lihat tiketmu di halaman Tiket saya.",
   "queue.ended.closed": "Penjualan tiket untuk acara ini sudah ditutup.",
@@ -218,6 +221,15 @@ export const id = {
   "register.verified.note":
     "Verifikasi email tidak membuat sesi login. Konteks booking yang tertunda dipulihkan setelah kamu masuk.",
   "register.verified.login": "Lanjut ke halaman masuk",
+  "register.verifying.title": "Memverifikasi emailmu",
+  "register.verifying.message": "Sebentar, kami sedang memeriksa link verifikasimu.",
+  "register.verifyFailed.title": "Link verifikasi tidak berlaku",
+  "register.verifyFailed.message": "Link ini sudah dipakai, kedaluwarsa, atau tidak lengkap.",
+  "register.verifyFailed.detail":
+    "Link berlaku 15 menit. Minta link login baru: masuk lewat link itu juga memverifikasi emailmu.",
+  "register.verifyFailed.network": "Koneksi bermasalah, link belum bisa diperiksa. Coba lagi.",
+  "register.verifyFailed.retry": "Coba lagi",
+  "register.verifyFailed.login": "Minta link login",
   "register.title": "Daftar",
   "register.heading": "Buat akun Rusuh",
   "register.intro":
@@ -258,6 +270,8 @@ export const id = {
   "account.saved.count": "{count}/{max}",
   "account.saved.hint":
     "Simpan NIK teman atau keluarga sekali, lalu pilih sebagai pemegang tiket saat membeli.",
+  "account.saved.pdp":
+    "Sesuai UU Pelindungan Data Pribadi (UU PDP), NIK adalah data pribadi. Simpan NIK orang lain hanya dengan persetujuan pemiliknya. NIK dipakai untuk verifikasi tiket dan dilindungi sesuai Kebijakan Privasi.",
   "account.saved.empty.title": "Belum ada alias",
   "account.saved.empty": "Tambahkan alias pertama lewat form di bawah.",
   "account.saved.edit": "Ubah {label}",
@@ -275,10 +289,6 @@ export const id = {
   "account.saved.label.placeholder": "Contoh: Budi (adik)",
   "account.saved.label.invalid": "Isi nama alias.",
   "account.saved.label.tooLong": "Nama alias maksimal {max} karakter.",
-  "account.saved.name.label": "Nama lengkap",
-  "account.saved.name.placeholder": "Sesuai KTP, contoh: Budi Santoso",
-  "account.saved.name.invalid": "Isi nama lengkap sesuai KTP.",
-  "account.saved.name.tooLong": "Nama lengkap maksimal {max} karakter.",
   "account.saved.nik.label": "NIK",
   "account.saved.nik.editLabel": "NIK baru (opsional)",
   "account.saved.nik.editHint": "Kosongkan bila NIK tidak berubah. NIK baru dicek ulang ke Dukcapil.",
@@ -331,7 +341,6 @@ export const id = {
   "booking.holder.source.label": "Pemegang tiket {number}",
   "booking.holder.source.manual": "Isi NIK manual",
   "booking.holder.source.alias": "{label} · {nik}",
-  "booking.holder.source.named": "{label} ({name})",
   "booking.holder.source.taken": "{label} · {nik} (sudah dipakai tiket lain)",
   "booking.holder.source.hint": "Pilih alias dari profilmu atau isi NIK manual.",
   "booking.holder.seat.label": "Nomor bangku",

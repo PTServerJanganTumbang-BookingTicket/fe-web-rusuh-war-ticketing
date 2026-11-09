@@ -22,6 +22,9 @@ type HttpPaymentSimulatorDependencies = {
 /** Outcome yang diizinkan untuk simulasi */
 type SimulationOutcome = "PAID" | "FAILED";
 
+/** Status transaksi Midtrans yang dikirim callback untuk tiap outcome. */
+const TRANSACTION_STATUS: Record<SimulationOutcome, string> = { PAID: "settlement", FAILED: "deny" };
+
 /* ========================================================================== */
 /*                              Service Factory                               */
 /* ========================================================================== */
@@ -41,18 +44,17 @@ export const createHttpPaymentSimulatorService = ({
    */
   const settle = async (bookingId: string, outcome: SimulationOutcome): Promise<void> => {
     const webhookPath = "/payments/webhook";
+    // Format Midtrans Core API: tanda tangan ada di body (`signature_key`), bukan header.
     const requestBody = {
-      external_id: bookingId,
-      status: outcome,
-    };
-    const requestOptions = {
-      headers: {
-        "x-callback-signature": "mock-signature",
-      },
+      order_id: bookingId,
+      transaction_status: TRANSACTION_STATUS[outcome],
+      status_code: "200",
+      gross_amount: "0.00",
+      signature_key: "mock-signature",
     };
 
     // Response diabaikan, yang penting request berhasil
-    await httpClient.post(webhookPath, requestBody, z.unknown(), requestOptions);
+    await httpClient.post(webhookPath, requestBody, z.unknown());
   };
 
   return {

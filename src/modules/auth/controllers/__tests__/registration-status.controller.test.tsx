@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -58,9 +58,48 @@ describe("useVerifyEmailController", () => {
 });
 
 describe("useEmailVerifiedController", () => {
-  it("layar statis: email terverifikasi dengan tautan masuk", () => {
-    const { result } = renderHook(() => useEmailVerifiedController(), { wrapper: createWrapper() });
-    expect(result.current.tone).toBe("success");
+  const visit = (suffix: string) => window.history.replaceState(null, "", `/register/verified${suffix}`);
+  const mountVerified = () =>
+    renderHook(() => useEmailVerifiedController(), { wrapper: createWrapper(setupTestContainer()) });
+
+  afterEach(() => visit(""));
+
+  it("token valid di query: memverifikasi lalu menampilkan email terverifikasi dengan tautan masuk", async () => {
+    visit("?token=abc");
+    const { result } = mountVerified();
+    expect(result.current.tone).toBe("info");
+    await waitFor(() => expect(result.current.tone).toBe("success"));
     expect(result.current.link?.href).toBe("/login");
+  });
+
+  it("token di fragmen URL juga dikenali", async () => {
+    visit("#token=abc");
+    const { result } = mountVerified();
+    await waitFor(() => expect(result.current.tone).toBe("success"));
+  });
+
+  it("token kedaluwarsa atau sudah dipakai: pesan tautan tidak berlaku dan arahan minta link login", async () => {
+    visit("?token=expired");
+    const { result } = mountVerified();
+    await waitFor(() => expect(result.current.tone).toBe("error"));
+    expect(result.current.title).toBe("Link verifikasi tidak berlaku");
+    expect(result.current.detail).toContain("link login");
+    expect(result.current.link?.href).toBe("/login");
+    expect(result.current.action).toBeUndefined();
+  });
+
+  it("tanpa token: tautan tidak lengkap, tidak ada klaim terverifikasi", () => {
+    visit("");
+    const { result } = mountVerified();
+    expect(result.current.tone).toBe("error");
+  });
+
+  it("koneksi putus: bisa dicoba lagi, tanpa menyebut tautan kedaluwarsa", async () => {
+    visit("?token=abc");
+    server.use(http.get(`${MOCK_API_BASE_URL}/auth/verify-email`, () => HttpResponse.error()));
+    const { result } = mountVerified();
+    await waitFor(() => expect(result.current.tone).toBe("error"));
+    expect(result.current.message).toContain("Koneksi bermasalah");
+    expect(result.current.action?.label).toBe("Coba lagi");
   });
 });

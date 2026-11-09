@@ -11,7 +11,6 @@ export const holderAliasListSchema = z
       z.object({
         id: z.string(),
         label: z.string(),
-        name: z.string().nullish(),
         nik_masked: z.string(),
         nik: z.string().optional(),
       }),
@@ -24,7 +23,6 @@ export const holderAliasListSchema = z
             {
               id: saved.id,
               label: saved.label,
-              name: saved.name?.trim() || null,
               nik: saved.nik,
               nikMasked: saved.nik_masked,
             },

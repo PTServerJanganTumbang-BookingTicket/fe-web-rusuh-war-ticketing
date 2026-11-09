@@ -5,6 +5,7 @@ import type { ListSavedNiksUseCase } from "../application/list-saved-niks.use-ca
 import type { GetProfileUseCase } from "../application/get-profile.use-case";
 
 export const authKeys = {
+  emailVerification: (token: string) => ["auth", "email-verification", token] as const,
   // Sama dengan kunci sesi navbar di core: masuk dan keluar langsung terlihat di navbar.
   account: sessionKeys.account,
   savedNiks: ["auth", "saved-niks"] as const,

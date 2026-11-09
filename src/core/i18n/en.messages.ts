@@ -56,6 +56,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "account.saved.count": "{count}/{max}",
   "account.saved.hint":
     "Save a friend's or family member's NIK once, then pick them as a ticket holder at checkout.",
+  "account.saved.pdp":
+    "Under Indonesia's Personal Data Protection Law (UU PDP), a NIK is personal data. Only save someone else's NIK with their consent. It is used to verify tickets and protected under the Privacy Policy.",
   "account.saved.empty.title": "No aliases yet",
   "account.saved.empty": "Add your first alias with the form below.",
   "account.saved.edit": "Edit {label}",
@@ -73,10 +75,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   "account.saved.label.placeholder": "e.g. Budi (brother)",
   "account.saved.label.invalid": "Enter an alias.",
   "account.saved.label.tooLong": "Alias can be at most {max} characters.",
-  "account.saved.name.label": "Full name",
-  "account.saved.name.placeholder": "As on the ID card, e.g. Budi Santoso",
-  "account.saved.name.invalid": "Enter the full name as on the ID card.",
-  "account.saved.name.tooLong": "Full name can be at most {max} characters.",
   "account.saved.nik.label": "NIK",
   "account.saved.nik.editLabel": "New NIK (optional)",
   "account.saved.nik.editHint":
@@ -131,7 +129,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.holder.source.label": "Ticket holder {number}",
   "booking.holder.source.manual": "Enter NIK manually",
   "booking.holder.source.alias": "{label} · {nik}",
-  "booking.holder.source.named": "{label} ({name})",
   "booking.holder.source.taken": "{label} · {nik} (used by another ticket)",
   "booking.holder.source.hint": "Pick an alias from your profile or enter a NIK manually.",
   "booking.holder.seat.label": "Seat number",
@@ -300,6 +297,9 @@ export const en: Partial<Record<MessageKey, string>> = {
   "queue.error.unknown": "Something went wrong. Reload this page.",
   "queue.error.QUEUE_TOKEN_INVALID": "Your queue session is invalid. Join the queue again from the start.",
   "queue.error.QUEUE_FULL": "The queue is full right now. Try again in a moment.",
+  "queue.error.CAPTCHA_FAILED": "Security check failed. Reload this page and try again.",
+  "queue.error.SALE_NOT_OPEN": "Sales have not opened yet. Come back when they start.",
+  "queue.error.RATE_LIMITED": "Too many attempts. Wait a moment and try again.",
   "queue.ended.expired": "Your ticket selection time has run out. Join the queue again from the start.",
   "queue.ended.confirmed": "Your payment is complete. See your tickets on the My tickets page.",
   "queue.ended.closed": "Ticket sales for this event are closed.",
@@ -387,6 +387,15 @@ export const en: Partial<Record<MessageKey, string>> = {
   "register.verified.note":
     "Email verification doesn't start a login session. Any pending booking context is restored after you log in.",
   "register.verified.login": "Continue to login",
+  "register.verifying.title": "Verifying your email",
+  "register.verifying.message": "One moment while we check your verification link.",
+  "register.verifyFailed.title": "This verification link is no longer valid",
+  "register.verifyFailed.message": "The link was already used, has expired, or is incomplete.",
+  "register.verifyFailed.detail":
+    "Links last 15 minutes. Request a new login link: signing in with it also verifies your email.",
+  "register.verifyFailed.network": "Connection problem, we couldn't check the link. Try again.",
+  "register.verifyFailed.retry": "Try again",
+  "register.verifyFailed.login": "Request a login link",
   "register.title": "Register",
   "register.heading": "Create a Rusuh account",
   "register.intro":

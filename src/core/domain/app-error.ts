@@ -1,5 +1,6 @@
-// Katalog error code FE (ADR-0009). Kontrak belum membawa kode di body, jadi service memetakan status HTTP
-// per endpoint ke kode ini (`RequestOptions.errorCodes`); `meta.message` yang sama persis juga dikenali.
+// Katalog error code FE (ADR-0009). Kontrak membawa `meta.error_code`, tetapi kodenya per endpoint dan lebih halus
+// daripada kebutuhan UI, jadi service memetakan status HTTP per endpoint ke kode ini (`RequestOptions.errorCodes`);
+// `meta.message` yang sama persis juga dikenali.
 export type ApiErrorCode =
   | "NIK_INVALID"
   | "QUOTA_EXCEEDED"
@@ -9,10 +10,13 @@ export type ApiErrorCode =
   | "SLOT_TAKEN_OVER"
   | "PAYMENT_EXPIRED"
   | "QUEUE_FULL"
+  | "CAPTCHA_FAILED"
+  | "SALE_NOT_OPEN"
   | "RATE_LIMITED"
   | "NIK_ALREADY_REGISTERED"
   | "CONSENT_REQUIRED"
   | "LOGIN_LINK_INVALID"
+  | "EMAIL_LINK_INVALID"
   | "UNAUTHENTICATED"
   | "SAVED_NIK_REJECTED"
   | "BOOKING_REJECTED"
@@ -34,10 +38,13 @@ const API_ERROR_CODES: readonly string[] = [
   "SLOT_TAKEN_OVER",
   "PAYMENT_EXPIRED",
   "QUEUE_FULL",
+  "CAPTCHA_FAILED",
+  "SALE_NOT_OPEN",
   "RATE_LIMITED",
   "NIK_ALREADY_REGISTERED",
   "CONSENT_REQUIRED",
   "LOGIN_LINK_INVALID",
+  "EMAIL_LINK_INVALID",
   "UNAUTHENTICATED",
   "SAVED_NIK_REJECTED",
   "BOOKING_REJECTED",

@@ -94,6 +94,15 @@ describe("eventService", () => {
   });
 });
 
+/** Callback Midtrans Core API; tanda tangan ada di body. */
+const midtransCallback = (orderId: string, transactionStatus: string) => ({
+  order_id: orderId,
+  transaction_status: transactionStatus,
+  status_code: "200",
+  gross_amount: "1500000.00",
+  signature_key: "sig",
+});
+
 describe("queueService", () => {
   it("join dengan X-Device-Id lalu memetakan QUEUED ke waiting", async () => {
     const container = setupTestContainer();
@@ -106,7 +115,8 @@ describe("queueService", () => {
       eventName: "Konser A",
       position: 832,
       joinedPosition: 1248,
-      etaSeconds: 160,
+      // 832 posisi x 60 / 318 per menit (laju dari /queue/serving).
+      etaSeconds: 157,
       retryAfterMs: 5000,
     });
     server.events.removeAllListeners();
@@ -139,6 +149,76 @@ describe("queueService", () => {
       code: "QUEUE_FULL",
       status: 503,
     });
+  });
+
+  it("join mengirim captcha_token dari konfigurasi CAPTCHA event", async () => {
+    const { queueService } = setupTestContainer().cradle;
+    let body: unknown;
+    server.events.on("request:start", async ({ request }) => {
+      if (request.url.endsWith("/queue/join")) body = await request.clone().json();
+    });
+    await queueService.getState(OPEN_EVENT_ID);
+    server.events.removeAllListeners();
+    expect(body).toEqual({ captcha_token: "mock-captcha-token" });
+  });
+
+  it("event tanpa konfigurasi CAPTCHA tetap join dengan token kosong", async () => {
+    let body: unknown;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/:id`, () =>
+        envelope({ id: OPEN_EVENT_ID, name: "Konser A", location: { venue: "GBK", city: "Jakarta" } }),
+      ),
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, async ({ request }) => {
+        body = await request.json();
+        return envelope({ ticket_no: 10, position: 5, queue_token: "qt_1" });
+      }),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "QUEUED", ticket_no: 10, now_serving: 5 }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 5 });
+    expect(body).toEqual({ captcha_token: "" });
+  });
+
+  it.each([
+    [400, "CAPTCHA_FAILED"],
+    [403, "CAPTCHA_FAILED"],
+    [409, "SALE_NOT_OPEN"],
+    [429, "RATE_LIMITED"],
+  ])("join %i menjadi %s", async (status, code) => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () => envelope({}, status, "ditolak")),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toEqual({ kind: "api", code, status });
+  });
+
+  it("join antrian kosong langsung diberi giliran: tanpa nomor antrian, state diambil dari /queue/me", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({
+          granted: true,
+          grant_token: "gt_abc123",
+          queue_token: "qt_1",
+          booking_expires_at: "2026-11-10T02:05:00Z",
+        }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "GRANTED", grant_token: "gt_abc123", booking_expires_at: "2026-11-10T02:05:00Z" }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({
+      status: "admitted",
+      accessToken: "gt_abc123",
+    });
+  });
+
+  it("laju antrian tidak tersedia: join tetap berhasil, ETA 0", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 503, "down")));
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", etaSeconds: 0 });
   });
 
   it("401 dari /queue/me menjadi QUEUE_TOKEN_INVALID", async () => {
@@ -245,8 +325,8 @@ describe("orderService", () => {
     await orderService.initiatePayment(bookingId, "gopay");
     await fetch(`${MOCK_API_BASE_URL}/payments/webhook`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-callback-signature": "sig" },
-      body: JSON.stringify({ external_id: bookingId, status: "PAID" }),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(midtransCallback(bookingId, "settlement")),
     });
     expect(await orderService.getPaymentStatus(bookingId)).toMatchObject({ status: "PAID" });
     expect((await orderService.getOrder(bookingId)).status).toBe("PAID");
@@ -262,8 +342,8 @@ describe("orderService: status akhir", () => {
     await orderService.initiatePayment(bookingId, "bank_transfer", "bri");
     await fetch(`${MOCK_API_BASE_URL}/payments/webhook`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-callback-signature": "sig" },
-      body: JSON.stringify({ external_id: bookingId, status: "FAILED" }),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(midtransCallback(bookingId, "deny")),
     });
     expect(await orderService.getOrder(bookingId)).toMatchObject({
       status: "FAILED",
@@ -429,15 +509,15 @@ describe("savedNikService dan profileService", () => {
     );
     const { savedNikService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_alias");
-    await savedNikService.update("snk_1", { label: "Budi", name: "Budi Santoso", nik: "" });
-    await savedNikService.update("snk_1", { label: "Budi", name: "Budi Santoso", nik: "3171000000000044" });
+    await savedNikService.update("snk_1", { label: "Budi", nik: "" });
+    await savedNikService.update("snk_1", { label: "Budi", nik: "3171000000000044" });
     expect(bodies).toEqual([
-      { id: "snk_1", body: { label: "Budi", name: "Budi Santoso" } },
-      { id: "snk_1", body: { label: "Budi", name: "Budi Santoso", nik: "3171000000000044" } },
+      { id: "snk_1", body: { label: "Budi" } },
+      { id: "snk_1", body: { label: "Budi", nik: "3171000000000044" } },
     ]);
   });
 
-  it("add mengirim POST berisi NIK, label, dan nama lengkap", async () => {
+  it("add mengirim POST berisi NIK dan label", async () => {
     let body: unknown;
     server.use(
       http.post(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, async ({ request }) => {
@@ -447,8 +527,8 @@ describe("savedNikService dan profileService", () => {
     );
     const { savedNikService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_alias");
-    await savedNikService.add({ label: "Sari", name: "Sari Dewi", nik: "3171000000000044" });
-    expect(body).toEqual({ nik: "3171000000000044", label: "Sari", name: "Sari Dewi" });
+    await savedNikService.add({ label: "Sari", nik: "3171000000000044" });
+    expect(body).toEqual({ nik: "3171000000000044", label: "Sari" });
   });
 
   it("update: NIK sudah tersimpan di alias lain menjadi SAVED_NIK_REJECTED", async () => {
@@ -459,13 +539,13 @@ describe("savedNikService dan profileService", () => {
     );
     const { savedNikService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_alias");
-    expect(
-      await failureOf(savedNikService.update("snk_1", { label: "B", name: "B", nik: "3171000000000044" })),
-    ).toEqual({
-      kind: "api",
-      code: "SAVED_NIK_REJECTED",
-      status: 409,
-    });
+    expect(await failureOf(savedNikService.update("snk_1", { label: "B", nik: "3171000000000044" }))).toEqual(
+      {
+        kind: "api",
+        code: "SAVED_NIK_REJECTED",
+        status: 409,
+      },
+    );
   });
 
   it("profil dari GET /accounts/me dipetakan ke model domain", async () => {
@@ -512,7 +592,7 @@ describe("holderAliasService", () => {
     const { holderAliasService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_aliases");
     expect(await holderAliasService.list()).toEqual([
-      { id: "snk_1", label: "Budi", name: "Budi Santoso", nik: "3171000000000033", nikMasked: "3171****33" },
+      { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171****33" },
     ]);
   });
 

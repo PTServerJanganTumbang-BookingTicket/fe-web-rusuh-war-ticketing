@@ -1,5 +1,5 @@
 import { http, sse } from "msw";
-import { fail, hasBearer, iso, ok, paginate } from "./envelope";
+import { fail, field, hasBearer, iso, ok, paginate, readJson } from "./envelope";
 import { QUEUE_CAPACITY, type MockEvent } from "./fixtures";
 import type { MockState } from "./state";
 
@@ -7,6 +7,24 @@ const RATE_PER_MIN = 318;
 const POLL_AFTER_MS = 5_000;
 const QUEUE_TICK_MS = 2_000;
 const MAX_STREAM_TICKS = 15;
+
+/** Kunci uji Cloudflare Turnstile (selalu lolos). Mode mock tidak memuat skrip Turnstile. */
+const CAPTCHA = { provider: "turnstile", site_key: "1x00000000000000000000BB" };
+/** Token yang ditolak mock dengan 403 CAPTCHA_FAILED, untuk menguji jalur gagal. */
+export const FAILING_CAPTCHA_TOKEN = "captcha-fail";
+
+/** Batas poll antrian berdasarkan jarak ke giliran (kontrak: poll_tiers). */
+const POLL_TIERS = [
+  { max_position: 10, poll_after_ms: 1_000 },
+  { max_position: 100, poll_after_ms: 2_000 },
+  { max_position: 1_000, poll_after_ms: 5_000 },
+  { max_position: null, poll_after_ms: 10_000 },
+];
+
+const saleState = (event: MockEvent) => {
+  if (event.status === "SOLD_OUT") return "SOLD_OUT";
+  return event.queueState === "NOT_OPEN" ? "SCHEDULED" : "OPEN";
+};
 
 function eventBase(event: MockEvent) {
   return {
@@ -40,6 +58,7 @@ function eventDetail(event: MockEvent) {
     ...eventBase(event),
     time: event.time,
     description: event.description,
+    captcha: CAPTCHA,
     ticket_categories: event.categories.map((category) => ({
       ...category,
       status: category.available > 0 ? "AVAILABLE" : "SOLD_OUT",
@@ -138,16 +157,32 @@ export function eventHandlers(state: MockState, baseUrl: string) {
     }),
 
     // Join ulang dengan token yang sama mengembalikan tiket yang sudah ada (re-entrancy).
-    http.post(`${baseUrl}/events/:eventId/queue/join`, ({ params, request, cookies }) => {
+    http.post(`${baseUrl}/events/:eventId/queue/join`, async ({ params, request, cookies }) => {
       const event = state.findEvent(String(params.eventId));
       if (!event) return fail(404, "Event not found");
       const deviceId = request.headers.get("x-device-id");
-      if (!deviceId && !hasBearer(request)) return fail(400, "DEVICE_ID_REQUIRED");
+      if (!deviceId && !hasBearer(request)) return fail(400, "DEVICE_ID_REQUIRED", {}, "DEVICE_ID_REQUIRED");
+      const captchaToken = field(await readJson(request), "captcha_token");
+      if (typeof captchaToken !== "string" || captchaToken === "")
+        return fail(400, "captcha_token is required", {}, "CAPTCHA_REQUIRED");
+      if (captchaToken === FAILING_CAPTCHA_TOKEN) return fail(403, "CAPTCHA failed", {}, "CAPTCHA_FAILED");
       if (event.queueState === "FULL")
-        return fail(503, "Antrian sedang penuh", { queue_state: "FULL", queue_capacity: QUEUE_CAPACITY });
-      if (event.queueState === "NOT_OPEN") return fail(409, "Antrian belum dibuka");
+        return fail(
+          503,
+          "Antrian sedang penuh",
+          { queue_state: "FULL", queue_capacity: QUEUE_CAPACITY },
+          "QUEUE_FULL",
+        );
+      if (event.queueState === "NOT_OPEN")
+        return fail(
+          409,
+          "Antrian belum dibuka",
+          { queue_state: "NOT_OPEN", sale_starts_at: event.saleStartsAt },
+          "SALE_NOT_OPEN",
+        );
 
-      const entry = findEntry(state, event.id, request, cookies) ?? state.joinQueue(event.id, deviceId);
+      const existing = findEntry(state, event.id, request, cookies);
+      const entry = existing ?? state.joinQueue(event.id, deviceId);
       const serving = state.servingOf(event.id);
       const position = Math.max(entry.ticketNo - serving, 0);
       const response = ok(
@@ -155,9 +190,10 @@ export function eventHandlers(state: MockState, baseUrl: string) {
           ticket_no: entry.ticketNo,
           now_serving: serving,
           position,
-          estimated_wait_minutes: Math.ceil(position / RATE_PER_MIN),
+          queue_token: entry.token,
           sse_url: `/events/${event.id}/queue/stream`,
           event: { id: event.id, name: event.name },
+          ...(existing ? { rejoined: true, state: "QUEUED" } : {}),
         },
         { message: "Successfully joined queue" },
       );
@@ -204,8 +240,10 @@ export function eventHandlers(state: MockState, baseUrl: string) {
       const eventId = String(params.eventId);
       if (!state.findEvent(eventId)) return fail(404, "Event not found");
       return ok({
-        now_serving: state.advanceServing(eventId),
+        now_serving: state.servingOf(eventId),
         rate_per_min: RATE_PER_MIN,
+        state: saleState(state.findEvent(eventId)!),
+        poll_tiers: POLL_TIERS,
         paused: false,
         server_time: new Date().toISOString(),
         poll_after_ms: POLL_AFTER_MS,

@@ -1,4 +1,4 @@
-import { SAVED_NIK_LABEL_MAX_LENGTH, SAVED_NIK_NAME_MAX_LENGTH } from "./auth.constants";
+import { SAVED_NIK_LABEL_MAX_LENGTH } from "./auth.constants";
 import type { SavedNikInput } from "./account.model";
 
 /** Validasi bentuk di klien supaya galat muncul sebelum request; server tetap memvalidasi ulang. */
@@ -19,7 +19,6 @@ export function isNikFormat(value: string): boolean {
 
 export type SavedNikInputError = {
   label?: "required" | "too_long";
-  name?: "required" | "too_long";
   nik?: "format";
 };
 
@@ -35,10 +34,7 @@ export function validateSavedNikInput(
   const label = input.label.trim();
   if (label === "") errors.label = "required";
   else if (label.length > SAVED_NIK_LABEL_MAX_LENGTH) errors.label = "too_long";
-  const name = input.name.trim();
-  if (name === "") errors.name = "required";
-  else if (name.length > SAVED_NIK_NAME_MAX_LENGTH) errors.name = "too_long";
   const keepNik = mode === "edit" && input.nik === "";
   if (!keepNik && !isNikFormat(input.nik)) errors.nik = "format";
-  return errors.label || errors.name || errors.nik ? errors : null;
+  return errors.label || errors.nik ? errors : null;
 }

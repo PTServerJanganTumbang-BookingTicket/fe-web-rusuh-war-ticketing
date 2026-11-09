@@ -28,33 +28,28 @@ async function rejection(promise: Promise<unknown>) {
 }
 
 describe("createAddSavedNikUseCase", () => {
-  it("merapikan nama alias dan nama lengkap lalu meneruskan semuanya", async () => {
+  it("merapikan nama alias lalu meneruskan alias dan NIK", async () => {
     const { savedNikService, calls } = fakeSavedNikService();
     await createAddSavedNikUseCase({ savedNikService })({
       nik: "3171000000000033",
       label: "  Budi ",
-      name: " Budi Santoso ",
     });
-    expect(calls.added).toEqual([{ nik: "3171000000000033", label: "Budi", name: "Budi Santoso" }]);
+    expect(calls.added).toEqual([{ nik: "3171000000000033", label: "Budi" }]);
   });
 
   it("NIK bukan 16 digit ditolak tanpa memanggil server", async () => {
     const { savedNikService, calls } = fakeSavedNikService();
     expect(
-      await rejection(
-        createAddSavedNikUseCase({ savedNikService })({ nik: "123", label: "Budi", name: "Budi" }),
-      ),
+      await rejection(createAddSavedNikUseCase({ savedNikService })({ nik: "123", label: "Budi" })),
     ).toMatchObject({
       code: "NIK_INVALID",
     });
     expect(calls.added).toEqual([]);
   });
 
-  it("nama lengkap kosong ditolak tanpa memanggil server", async () => {
+  it("nama alias kosong ditolak tanpa memanggil server", async () => {
     const { savedNikService, calls } = fakeSavedNikService();
-    await rejection(
-      createAddSavedNikUseCase({ savedNikService })({ nik: "3171000000000033", label: "Budi", name: " " }),
-    );
+    await rejection(createAddSavedNikUseCase({ savedNikService })({ nik: "3171000000000033", label: " " }));
     expect(calls.added).toEqual([]);
   });
 });
@@ -64,17 +59,14 @@ describe("createUpdateSavedNikUseCase", () => {
     const { savedNikService, calls } = fakeSavedNikService();
     await createUpdateSavedNikUseCase({ savedNikService })("snk_1", {
       label: " Budi S ",
-      name: " Budi Santoso ",
       nik: "",
     });
-    expect(calls.updated).toEqual([["snk_1", { label: "Budi S", name: "Budi Santoso", nik: "" }]]);
+    expect(calls.updated).toEqual([["snk_1", { label: "Budi S", nik: "" }]]);
   });
 
   it("nama kosong ditolak tanpa memanggil server", async () => {
     const { savedNikService, calls } = fakeSavedNikService();
-    await rejection(
-      createUpdateSavedNikUseCase({ savedNikService })("snk_1", { label: " ", name: "Budi", nik: "" }),
-    );
+    await rejection(createUpdateSavedNikUseCase({ savedNikService })("snk_1", { label: " ", nik: "" }));
     expect(calls.updated).toEqual([]);
   });
 });

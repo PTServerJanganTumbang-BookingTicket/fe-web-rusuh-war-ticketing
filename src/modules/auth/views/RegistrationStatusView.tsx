@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleCheckIcon, MailIcon } from "@/components/ui/icons";
+import { CircleAlertIcon, CircleCheckIcon, MailIcon } from "@/components/ui/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/components/ui/cn.utils";
 import { Spinner } from "@/components/ui/spinner";
@@ -8,8 +8,14 @@ import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell
 
 type LinkProps = { label: string; href: string };
 
+const statusIcon = {
+  info: <MailIcon />,
+  success: <CircleCheckIcon />,
+  error: <CircleAlertIcon />,
+};
+
 export type RegistrationStatusViewProps = Omit<SiteShellProps, "children"> & {
-  tone: "info" | "success";
+  tone: "info" | "success" | "error";
   title: string;
   message: string;
   steps?: string[];
@@ -28,12 +34,7 @@ export function RegistrationStatusView(props: RegistrationStatusViewProps) {
   const { nav, footer, tone, title, message, steps, detail, status, error, action, link, footnote } = props;
   return (
     <SiteShell nav={nav} footer={footer}>
-      <AuthCard
-        tone={tone}
-        icon={tone === "success" ? <CircleCheckIcon /> : <MailIcon />}
-        title={title}
-        description={message}
-      >
+      <AuthCard tone={tone} icon={statusIcon[tone]} title={title} description={message}>
         {steps ? (
           <ol className="type-body2 flex list-decimal flex-col gap-1 pl-5 text-foreground">
             {steps.map((step) => (

@@ -3,24 +3,40 @@ import { QUEUE_POLL_FALLBACK_MS } from "../domain/queue.constants";
 import type { QueueEvent } from "../domain/queue-event.model";
 import type { QueueState } from "../domain/queue-state.model";
 
-/** `data` dari `POST /events/{event_id}/queue/join`. */
+/**
+ * `data` dari `POST /events/{event_id}/queue/join`. Ada tiga bentuk: antrian baru, join ulang (`rejoined`, tanpa
+ * `event`), dan antrian kosong yang langsung diberi giliran (`granted`, tanpa nomor). Kontrak tidak membawa estimasi
+ * tunggu: ETA dihitung dari `rate_per_min` di `/queue/serving`.
+ */
 export const queueJoinSchema = z
   .object({
-    ticket_no: z.number(),
-    now_serving: z.number(),
-    position: z.number(),
-    estimated_wait_minutes: z.number(),
-    event: z.object({ id: z.string(), name: z.string() }),
+    ticket_no: z.number().optional(),
+    position: z.number().optional(),
   })
-  .transform((join) => ({
-    eventName: join.event.name,
-    ticketNo: join.ticket_no,
-    joinedPosition: join.position,
-    // Laju dari estimasi server, dipakai untuk ETA saat posisi bergerak.
-    secondsPerPosition: join.position > 0 ? (join.estimated_wait_minutes * 60) / join.position : 0,
-  }));
+  .transform((join) => ({ ticketNo: join.ticket_no ?? 0, joinedPosition: join.position ?? 0 }));
 
-export type QueueTicket = z.infer<typeof queueJoinSchema>;
+export type QueueJoin = z.infer<typeof queueJoinSchema>;
+
+/** Tiket antrian customer di satu event, dipakai bersama service HTTP dan SSE. */
+export type QueueTicket = QueueJoin & {
+  eventName: string;
+  /** Detik per posisi, dari laju antrian server; 0 bila laju belum diketahui. */
+  secondsPerPosition: number;
+};
+
+/** `data` dari `GET /events/{event_id}/queue/serving`; hanya laju yang dipakai FE. */
+export const queueServingSchema = z.object({ rate_per_min: z.number() });
+
+/** `data` dari `GET /events/{event_id}` untuk join: nama event dan konfigurasi CAPTCHA (bisa tidak ada). */
+export const queueJoinEventSchema = z
+  .object({
+    name: z.string(),
+    captcha: z.object({ provider: z.string(), site_key: z.string() }).nullish(),
+  })
+  .transform((event) => ({
+    name: event.name,
+    captcha: event.captcha ? { provider: event.captcha.provider, siteKey: event.captcha.site_key } : null,
+  }));
 
 const grantedStates = z.object({
   state: z.enum(["GRANTED", "SELECTING"]),

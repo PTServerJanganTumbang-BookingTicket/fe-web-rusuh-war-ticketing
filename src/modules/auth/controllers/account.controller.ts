@@ -26,7 +26,7 @@ import {
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
 import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
-import { SAVED_NIK_LABEL_MAX_LENGTH, SAVED_NIK_NAME_MAX_LENGTH } from "../domain/auth.constants";
+import { SAVED_NIK_LABEL_MAX_LENGTH } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
 import { accountQuery, authKeys, profileQuery, savedNiksQuery } from "./auth.queries";
 import type { AccountViewProps, AliasFormProps } from "../views/AccountView";
@@ -89,12 +89,6 @@ function labelError(error: SavedNikInputError["label"]): string | undefined {
   return undefined;
 }
 
-function nameError(error: SavedNikInputError["name"]): string | undefined {
-  if (error === "required") return t("account.saved.name.invalid");
-  if (error === "too_long") return t("account.saved.name.tooLong", { max: SAVED_NIK_NAME_MAX_LENGTH });
-  return undefined;
-}
-
 export function useAccountController(): AccountViewProps {
   const siteChrome = useSiteChrome();
   const nikModal = useModal<AccountModal>();
@@ -118,7 +112,6 @@ export function useAccountController(): AccountViewProps {
 
   const [mode, setMode] = useState<FormMode>({ kind: "create" });
   const [label, setLabel] = useState("");
-  const [name, setName] = useState("");
   const [nik, setNik] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<SavedNik | null>(null);
@@ -126,7 +119,6 @@ export function useAccountController(): AccountViewProps {
   const resetForm = () => {
     setMode({ kind: "create" });
     setLabel("");
-    setName("");
     setNik("");
     setSubmitted(false);
   };
@@ -134,8 +126,8 @@ export function useAccountController(): AccountViewProps {
   const save = useMutation({
     mutationFn: (target: FormMode) =>
       target.kind === "edit"
-        ? updateSavedNikUseCase(target.id, { label, name, nik })
-        : addSavedNikUseCase({ label, name, nik }),
+        ? updateSavedNikUseCase(target.id, { label, nik })
+        : addSavedNikUseCase({ label, nik }),
     onSuccess: async () => {
       nikModal.close();
       resetForm();
@@ -243,22 +235,16 @@ export function useAccountController(): AccountViewProps {
       onDismiss: cancelRemove,
     };
   }
-  const invalid = submitted ? validateSavedNikInput({ label, name, nik }, { mode: mode.kind }) : null;
+  const invalid = submitted ? validateSavedNikInput({ label, nik }, { mode: mode.kind }) : null;
 
-  const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "name" | "nik"> => ({
+  const formFields = (editing: boolean): Pick<AliasFormProps, "label" | "nik" | "notice"> => ({
+    notice: t("account.saved.pdp"),
     label: {
       label: t("account.saved.label.label"),
       placeholder: t("account.saved.label.placeholder"),
       value: label,
       error: labelError(invalid?.label),
       onChange: setLabel,
-    },
-    name: {
-      label: t("account.saved.name.label"),
-      placeholder: t("account.saved.name.placeholder"),
-      value: name,
-      error: nameError(invalid?.name),
-      onChange: setName,
     },
     nik: {
       label: editing ? t("account.saved.nik.editLabel") : t("account.saved.nik.label"),
@@ -276,7 +262,7 @@ export function useAccountController(): AccountViewProps {
     disabled: save.isPending,
     onSubmit: () => {
       setSubmitted(true);
-      if (!validateSavedNikInput({ label, name, nik }, { mode: target.kind })) save.mutate(target);
+      if (!validateSavedNikInput({ label, nik }, { mode: target.kind })) save.mutate(target);
     },
   });
 
@@ -321,7 +307,6 @@ export function useAccountController(): AccountViewProps {
       items: list.savedNiks.map((item) => ({
         id: item.id,
         label: item.label,
-        name: item.name ?? undefined,
         initials: initialsOf(item.label),
         nikMasked: item.nikMasked,
         edit: {
@@ -330,7 +315,6 @@ export function useAccountController(): AccountViewProps {
           onClick: () => {
             setMode({ kind: "edit", id: item.id });
             setLabel(item.label);
-            setName(item.name ?? "");
             setNik("");
             setSubmitted(false);
             save.reset();

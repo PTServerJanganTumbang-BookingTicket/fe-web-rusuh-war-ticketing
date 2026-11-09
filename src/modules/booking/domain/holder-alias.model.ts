@@ -5,8 +5,6 @@
 export type HolderAlias = {
   id: string;
   label: string;
-  /** Nama lengkap sesuai KTP (asumsi FE); `null` bila BE belum mengirim. */
-  name: string | null;
   nik: string;
   nikMasked: string;
 };

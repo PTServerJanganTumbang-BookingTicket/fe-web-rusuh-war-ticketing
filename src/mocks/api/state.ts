@@ -55,8 +55,6 @@ export type SavedNik = {
   nik: string;
   nikMasked: string;
   label: string;
-  /** Nama lengkap sesuai KTP, asumsi FE. */
-  name: string;
   verifiedAt: string;
 };
 
@@ -87,7 +85,6 @@ export function createMockState(config: ScenarioConfig) {
       nik: "3171000000000033",
       nikMasked: maskNik("3171000000000033"),
       label: "Budi",
-      name: "Budi Santoso",
       verifiedAt: "2026-10-20T08:11:00Z",
     },
   ];

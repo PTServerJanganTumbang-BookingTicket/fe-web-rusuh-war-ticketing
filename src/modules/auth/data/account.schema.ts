@@ -48,8 +48,6 @@ export const savedNikListSchema = z
         id: z.string(),
         nik_masked: z.string(),
         label: z.string(),
-        // Asumsi FE: kontrak belum punya nama lengkap di saved NIK.
-        name: z.string().nullish(),
         verified_at: z.string(),
       }),
     ),
@@ -60,7 +58,6 @@ export const savedNikListSchema = z
       id: saved.id,
       nikMasked: saved.nik_masked,
       label: saved.label,
-      name: saved.name?.trim() || null,
       verifiedAt: saved.verified_at,
     })),
   }));
