@@ -33,6 +33,7 @@ export type SiteChrome = {
     account?: NavAccount;
     /** Ada saat layar bisa berganti bahasa (client). */
     language?: NavLanguage;
+    menu?: { label: string; closeLabel: string };
   };
   footer: { copyright: string; tagline: string; links: { label: string; href: string }[] };
 };
@@ -71,6 +72,7 @@ export function toSiteChrome({
         { label: t("home.nav.myTickets"), href: "/tickets" },
         { label: t("home.nav.help"), href: "/help" },
       ].map((item) => (item.href === active ? { ...item, active: true } : item)),
+      menu: { label: t("nav.menu"), closeLabel: t("nav.menu.close") },
       loginHref: "/login",
       loginLabel: t("home.login"),
       account: account

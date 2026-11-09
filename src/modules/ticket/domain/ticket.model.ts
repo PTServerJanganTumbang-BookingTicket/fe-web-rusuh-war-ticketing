@@ -26,9 +26,11 @@ export type TicketSummary = {
   };
   /** Kategori tiket (VIP, Festival, dll) */
   category: string;
-  /** NIK pemegang tiket (masked untuk privacy, e.g., "3201****0001") */
+  /** Harga tiket (IDR); 0 bila tidak dikirim. */
+  priceIdr: number;
+  /** NIK pemegang tiket (masked); kosong karena list di kontrak tidak mengirimnya. */
   nikMasked: string;
-  /** Nama pemegang tiket */
+  /** Nama pemegang tiket; kosong karena list di kontrak tidak mengirimnya. */
   holderName: string;
   /** Status tiket */
   status: TicketStatus;

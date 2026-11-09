@@ -45,14 +45,16 @@ export function toTicketCardProps(ticket: TicketSummary): TicketCardProps {
     eventDate: dateFormatter().format(new Date(ticket.event.date)),
     venue: ticket.event.venue,
     imageUrl: ticket.event.imageUrl ?? "/images/concert-placeholder.webp",
-    category: ticket.category,
-    holderName: ticket.holderName,
-    nikMasked: ticket.nikMasked,
-    labels: {
-      category: t("ticket.detail.category"),
-      holderName: t("ticket.detail.holderName"),
-      nik: t("ticket.detail.nik"),
-    },
+    // Baris tanpa nilai tidak ditampilkan: list di kontrak hanya mengirim kategori, harga, dan nomor tiket.
+    details: [
+      { label: t("ticket.detail.category"), value: ticket.category },
+      ...(ticket.priceIdr > 0
+        ? [{ label: t("ticket.detail.price"), value: priceFormatter.format(ticket.priceIdr) }]
+        : []),
+      ...(ticket.holderName ? [{ label: t("ticket.detail.holderName"), value: ticket.holderName }] : []),
+      ...(ticket.nikMasked ? [{ label: t("ticket.detail.nik"), value: ticket.nikMasked, mono: true }] : []),
+      { label: t("ticket.detail.ticketId"), value: ticket.id, mono: true },
+    ],
     status: ticket.status,
     statusLabel: label,
     statusTone: tone,

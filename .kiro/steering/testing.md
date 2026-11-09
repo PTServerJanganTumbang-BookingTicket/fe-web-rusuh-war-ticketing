@@ -47,6 +47,8 @@ Aturan menulis test controller: unik `eventId` atau `orderId` per test (state mo
 
 - Menjalankan: `npm run test:e2e` (server dev dengan mock MSW dijalankan otomatis atau dipakai ulang bila sudah jalan di port 3000). Lokal memakai Chrome yang terpasang; CI memasang Chromium.
 - Proyek utama adalah viewport mobile (Pixel 7), karena payment page dipakai ulang di WebView.
+- **Responsif**: `mobile-chrome` (Pixel 7) menjalankan seluruh suite. Proyek `small-mobile` (360×640), `tablet` (768×1024), `desktop` (1280×800), dan `wide-desktop` (1920×1080) menjalankan `happy-path.spec.ts` dan `responsive.spec.ts`. Spek responsif memeriksa tanpa scroll horizontal, tanpa elemen keluar viewport, target sentuh minimal 24px (WCAG 2.2 SC 2.5.8), dialog muat di layar, dan tanpa error console. Komponen baru yang bisa diklik harus lolos cek ini di semua viewport.
+- Tanpa Chrome terpasang, jalankan dengan `CI=1 npm run test:e2e` (Chromium bawaan Playwright).
 - **Jam palsu**: `page.clock.install()` lalu `page.clock.runFor(...)`. Waktu nyata tetap berjalan di bawah jam palsu, jadi nilai countdown awal dicek rentangnya, bukan angka pasti. Dilarang `waitForTimeout` sebagai pengganti menunggu kondisi.
 - Skenario mock dipilih lewat `?scenario=` di URL Waiting Room (`booking-expiring`, `payment-expiring`). Setiap tes mendapat worker MSW baru, jadi state mock tidak bocor antar tes.
 - Selektor memakai peran dan nama aksesibel (`getByRole`), sehingga tes juga memeriksa aksesibilitas dasar.

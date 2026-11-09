@@ -10,6 +10,7 @@ export {
   ConstructionIcon,
   LandmarkIcon,
   Loader2Icon,
+  MenuIcon,
   MinusIcon,
   QrCodeIcon,
   ShieldCheckIcon,

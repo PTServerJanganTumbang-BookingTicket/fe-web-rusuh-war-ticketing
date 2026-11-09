@@ -11,10 +11,10 @@ import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { authErrorKey } from "./auth-error.mapper";
-import { authKeys } from "./auth.queries";
 import { toLoginLinkFailedDialog } from "./auth-dialogs.mapper";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useModal } from "@/core/controllers/modal.hook";
+import { refreshAfterSignIn } from "@/core/controllers/session.cache";
 import { sessionAccountQuery } from "@/core/controllers/session.queries";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import type { VerifyLoginViewProps } from "../views/VerifyLoginView";
@@ -41,7 +41,7 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
   const token = useSyncExternalStore(subscribeToHash, readToken, noTokenOnServer);
   const verify = useMutation({
     mutationFn: (value: string) => verifyLoginUseCase(value),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.account }),
+    onSuccess: () => refreshAfterSignIn(queryClient),
     onError: (error) => {
       const appError = toAppError(error);
       if (appError.kind === "api" && appError.code === "LOGIN_LINK_INVALID")
