@@ -34,11 +34,7 @@ function TicketContent() {
   const { nav } = useSiteChrome({ active: "/tickets" });
   const ticketCards = tickets.map(toTicketCardProps);
 
-  const getErrorMessage = (): string | undefined => {
-    if (error?.kind === "api" && error.code === "UNAUTHENTICATED") return t("ticket.error.UNAUTHENTICATED");
-    if (error) return t("ticket.error");
-    return undefined;
-  };
+  const signedOut = error?.kind === "api" && error.code === "UNAUTHENTICATED";
 
   return (
     <MyTicketsView
@@ -53,7 +49,15 @@ function TicketContent() {
         links: legalLinks(),
       }}
       emptyLabel={t("ticket.empty")}
-      errorMessage={getErrorMessage()}
+      errorMessage={error && !signedOut ? t("ticket.error") : undefined}
+      signedOut={
+        signedOut
+          ? {
+              message: t("ticket.error.UNAUTHENTICATED"),
+              login: { label: t("ticket.signedOut.cta"), href: "/login" },
+            }
+          : undefined
+      }
       loading={isLoading && tickets.length === 0 && !error ? t("common.loading") : undefined}
     />
   );

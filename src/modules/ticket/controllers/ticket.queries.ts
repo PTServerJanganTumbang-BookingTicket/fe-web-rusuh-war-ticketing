@@ -1,4 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
+import { toAppError } from "@/core/domain/app-error";
 import type { GetMyTicketsUseCase } from "../application/get-my-tickets.use-case";
 import type { GetTicketUseCase } from "../application/get-ticket.use-case";
 
@@ -19,6 +20,11 @@ export function myTicketsQueryOptions({ getMyTicketsUseCase }: { getMyTicketsUse
     queryKey: ticketKeys.myTickets(),
     queryFn: getMyTicketsUseCase,
     staleTime: 30_000, // 30 seconds
+    // Tamu (401) tidak perlu dicoba ulang: tampilkan ajakan masuk segera.
+    retry: (failureCount, error) => {
+      const appError = toAppError(error);
+      return !(appError.kind === "api" && appError.code === "UNAUTHENTICATED") && failureCount < 2;
+    },
   });
 }
 

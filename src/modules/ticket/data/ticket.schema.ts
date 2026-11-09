@@ -23,6 +23,7 @@ const ticketSummarySchema = z.object({
     image_url: z.string().optional(),
   }),
   category: z.string(),
+  price: z.number().optional(),
   status: ticketStatusSchema,
 });
 
@@ -38,6 +39,7 @@ export const myTicketsResponseSchema = z.array(ticketSummarySchema).transform((t
       imageUrl: ticket.event.image_url,
     },
     category: ticket.category,
+    priceIdr: ticket.price ?? 0,
     nikMasked: "",
     holderName: "",
     status: ticket.status,

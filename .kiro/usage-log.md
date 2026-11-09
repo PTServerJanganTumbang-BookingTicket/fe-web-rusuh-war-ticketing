@@ -443,3 +443,29 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Input**: Spreadsheet referensi aset (Sheet1), tiga lembar sprite Signal DS (`illustration-lg-row2/3/5`, diunduh dengan persetujuan).
 - **Output**: `sanitizeNikInput` (hanya digit, digit ke-17 dst ditolak) dan `maxLength` di input NIK booking, register, dan alias. Nama pemesan dihapus dari form booking (kontrak hanya butuh email). Nomor bangku dihapus dari form pemegang tiket, kartu tiket, dan e-tiket. Lima ilustrasi dipotong dari lembar sprite menjadi WebP di `public/images/illustrations/`; \`ActionDialog\` mendapat prop \`illustration\`. Modal baru: tanpa jaringan global (\`AppProviders\`), konfirmasi keluar antrian (tombol "Keluar dari antrian" di Waiting Room), info setelah login. Teks modal register, koneksi, dan galat umum mengikuti spreadsheet.
 - **Review manusia**: Teks Inggris saya perbaiki tata bahasanya dari spreadsheet ("You are disconnect" menjadi "You are disconnected", "Your have successfully Register" menjadi "You have successfully registered"); teks Indonesia verbatim. Kontrak belum punya endpoint keluar antrian, jadi "nomor antrian baru" bergantung pada BE saat join ulang. Baris "Confirmation for Booking" di spreadsheet masih kosong, modalnya belum dibuat. Pemetaan ilustrasi per modal (mis. envelope untuk info login) adalah pilihan saya dari lembar sprite; ganti bila desain menunjuk gambar lain.
+
+## 2026-11-10 — E2E lintas viewport dan perbaikan target sentuh
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Meningkatkan cakupan E2E dengan pemeriksaan responsif di berbagai ukuran layar.
+- **Input**: `playwright.config.ts`, `e2e/*.spec.ts`, komponen layout (`Navbar`, `Footer`, `PageHeader`, `LegalView`).
+- **Output**: Empat proyek Playwright baru (`small-mobile` 360px, `tablet` 768px, `desktop` 1280px, `wide-desktop` 1920px) yang menjalankan happy path dan `responsive.spec.ts` (tanpa scroll horizontal, tanpa elemen keluar viewport, target sentuh minimal 24px, dialog muat di layar dan bisa ditutup dengan Escape, tanpa error console). Hasil pertama menemukan tautan footer, navbar, breadcrumb, dan tautan silang halaman legal setinggi 20px; semuanya diberi `min-h-6`. Footer ditumpuk vertikal di layar sempit.
+- **Review manusia**: Error console 401 dari cek sesi anonim dan `ERR_NAME_NOT_RESOLVED` pada stream SSE mock (kadang tidak dicegat MSW saat jam palsu aktif; controller jatuh ke polling) dikecualikan di tes. Kotak centang dan radio dikecualikan dari cek ukuran karena area sentuhnya diperluas lewat `::after`. Tampilan visual belum dilihat manual di tiap breakpoint.
+
+## 2026-11-10 — Standarisasi primitif UI ke Base UI
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Semua kontrol interaktif memakai Base UI (shadcn style base-mira), bukan elemen buatan sendiri.
+- **Output**: Komponen baru `radio-group.tsx`, `toggle-group.tsx`, `select.tsx` di `src/components/ui`. Dimigrasi: pilihan metode pembayaran (`role="radio"` manual menjadi `RadioGroup`), pilihan bank dan sakelar bahasa Navbar (tombol `aria-pressed` manual menjadi `ToggleGroup`), pilihan sumber pemegang tiket (`<select>` native menjadi `Select`). ESLint kini melarang impor `radix-ui`/`@radix-ui/*` dan `<select>` native. `jsx-a11y/label-has-associated-control` dikenalkan pada `RadioGroupItem` dan `Checkbox`.
+- **Review manusia**: `Select` Base UI (popup di portal) belum dilihat di browser karena hanya muncul bila ada NIK tersimpan; belum ada tes untuknya. Tampilan kartu metode pembayaran belum dibandingkan secara visual dengan sebelumnya.
+
+## 2026-11-10 — Sesi setelah login, Tiket Saya, dan navigasi mobile
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Memperbaiki keadaan setelah login: navbar, halaman Tiket Saya, dan akses navigasi di layar kecil.
+- **Input**: Alur `/login/verify` sampai `/tickets` di dev server (mock MSW), spesifikasi `GET /users/me/tickets`.
+- **Output**: (1) Navbar di bawah 768px tidak punya navigasi sama sekali; `NavbarMenu` (tombol hamburger + panel bawah) menampilkan Jelajahi event, Tiket saya, Bantuan, dan tombol Masuk menjadi ikon di layar sempit agar muat di 320px. (2) Kartu Tiket Saya menampilkan baris "Nama" dan "NIK" kosong karena list di kontrak tidak mengirimnya; kini baris tanpa nilai disembunyikan dan harga serta nomor tiket tampil. (3) Tamu di Tiket Saya melihat kerangka tanpa akhir karena 401 dicoba ulang; kini langsung muncul ajakan masuk. (4) `session.cache.ts`: masuk menyegarkan semua data, keluar membuang data milik akun; kueri sesi ikut menyegarkan saat tab difokuskan. (5) `e2e/session.spec.ts` dan tes navigasi di `responsive.spec.ts`.
+- **Review manusia**: Tombol masuk di layar sempit hanya ikon (nama tetap ada lewat `aria-label`). Kontrak list tiket belum mengirim nama pemegang dan NIK; baris itu kembali tampil otomatis bila BE menambahkannya. Dengan BE asli, 401 dari `/api/account/tickets` bergantung pada cookie yang disetel route same-origin; belum diuji.

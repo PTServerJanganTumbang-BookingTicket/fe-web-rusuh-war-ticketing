@@ -9,6 +9,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "common.loading": "Loading…",
   // Navbar dan footer
   "nav.account": "My profile ({email})",
+  "nav.menu": "Menu",
+  "nav.menu.close": "Close menu",
   "nav.language.label": "Language",
   "nav.language.id": "Bahasa Indonesia",
   "nav.language.en": "English",
@@ -160,6 +162,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "ticket.error": "We couldn't load your tickets. Try again shortly.",
   "ticket.eticket.title": "E-Ticket",
   "ticket.error.UNAUTHENTICATED": "Log in to see your tickets.",
+  "ticket.signedOut.cta": "Log in",
   "ticket.status.ISSUED": "Active",
   "ticket.status.USED": "Used",
   "ticket.status.CANCELLED": "Cancelled",

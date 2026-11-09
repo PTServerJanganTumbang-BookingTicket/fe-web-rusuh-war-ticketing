@@ -11,6 +11,7 @@ import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { clearAfterSignOut } from "@/core/controllers/session.cache";
 import { NIK_LENGTH, sanitizeNikInput } from "@/core/domain/nik.utils";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import {
@@ -134,8 +135,7 @@ export function useAccountController(): AccountViewProps {
   const signOut = useMutation({
     mutationFn: () => signOutUseCase(),
     onSuccess: () => {
-      queryClient.setQueryData(authKeys.account, null);
-      queryClient.removeQueries({ queryKey: authKeys.savedNiks });
+      clearAfterSignOut(queryClient);
       router.push("/");
     },
   });

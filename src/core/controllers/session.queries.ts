@@ -13,6 +13,8 @@ export function sessionAccountQuery(deps: { getSessionAccountUseCase: GetSession
     queryFn: () => deps.getSessionAccountUseCase(),
     // Sesi jarang berubah selama satu kunjungan; masuk dan keluar menulis cache ini langsung.
     staleTime: 5 * 60_000,
+    // Masuk atau keluar di tab lain mengubah cookie; saat tab ini difokuskan lagi navbar menyesuaikan.
+    refetchOnWindowFocus: true,
     retry: false,
   });
 }

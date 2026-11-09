@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
 import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
@@ -17,6 +19,8 @@ export type MyTicketsViewProps = {
   };
   emptyLabel?: string;
   errorMessage?: string;
+  /** Tamu belum masuk: ajakan masuk menggantikan daftar. */
+  signedOut?: { message: string; login: { label: string; href: string } };
   /** Teks status memuat untuk pembaca layar; selama ada, kartu tiket tampil sebagai kerangka. */
   loading?: string;
 };
@@ -33,6 +37,7 @@ export function MyTicketsView({
   footer,
   emptyLabel,
   errorMessage,
+  signedOut,
   loading,
 }: MyTicketsViewProps) {
   return (
@@ -44,7 +49,16 @@ export function MyTicketsView({
             <h1 className="type-h3 text-foreground">{title}</h1>
             <p className="type-body1 text-muted-foreground">{subtitle}</p>
           </div>
-          {errorMessage && (
+          {signedOut ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+              <TicketIcon aria-hidden="true" className="size-8" />
+              <p className="type-body1 text-muted-foreground">{signedOut.message}</p>
+              <Link href={signedOut.login.href} className={buttonVariants({ size: "lg" })}>
+                {signedOut.login.label}
+              </Link>
+            </div>
+          ) : null}
+          {!signedOut && errorMessage && (
             <div className="rounded-lg bg-signal-bg-error p-4 text-signal-error">{errorMessage}</div>
           )}
           {loading ? (
@@ -53,7 +67,7 @@ export function MyTicketsView({
               <CardGridSkeleton />
             </div>
           ) : null}
-          {!loading && !errorMessage && tickets.length === 0 && (
+          {!signedOut && !loading && !errorMessage && tickets.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <TicketIcon aria-hidden="true" className="size-8" />
               <p className="type-body1 text-muted-foreground">{emptyLabel}</p>

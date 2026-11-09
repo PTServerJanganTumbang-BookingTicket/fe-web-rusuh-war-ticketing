@@ -20,8 +20,36 @@ export default defineConfig([
       ],
       "jsx-a11y/click-events-have-key-events": "error",
       "jsx-a11y/no-static-element-interactions": "error",
-      "jsx-a11y/label-has-associated-control": "error",
+      "jsx-a11y/label-has-associated-control": [
+        "error",
+        { controlComponents: ["RadioGroupItem", "Checkbox"], assert: "either" },
+      ],
       "jsx-a11y/anchor-is-valid": "error",
+    },
+  },
+  {
+    // Standarisasi primitif UI ke Base UI (shadcn style base-mira); Radix tidak dipakai.
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["radix-ui", "@radix-ui/*"],
+              message: "Pakai komponen Base UI di src/components/ui (@base-ui/react).",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='select']",
+          message:
+            "Pakai komponen Select dari src/components/ui/select.tsx (Base UI), bukan <select> native.",
+        },
+      ],
     },
   },
   {

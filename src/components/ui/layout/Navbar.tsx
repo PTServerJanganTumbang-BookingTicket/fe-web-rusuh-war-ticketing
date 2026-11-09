@@ -2,6 +2,8 @@ import Link from "next/link";
 import { buttonVariants } from "../button";
 import { cn } from "../cn.utils";
 import { UserRoundIcon } from "../icons";
+import { NavbarMenu } from "./NavbarMenu";
+import { ToggleGroup, ToggleGroupItem } from "../toggle-group";
 
 export type NavItem = {
   label: string;
@@ -24,6 +26,8 @@ export type NavbarProps = {
   loginLabel: string;
   /** Ada saat customer masuk; menggantikan tombol masuk. */
   account?: NavbarAccount;
+  /** Menu untuk layar sempit; tanpa ini tautan utama hanya terlihat di layar lebar. */
+  menu?: { label: string; closeLabel: string };
   /** Pengganti bahasa. Tidak ada di header merek (fallback memuat). */
   language?: NavbarLanguage;
 };
@@ -39,34 +43,31 @@ export type NavbarLanguage = {
 /** Tombol bahasa bersebelahan (ID | EN). Pilihan aktif ditandai `aria-pressed`; nama lengkap ada di `aria-label`. */
 function LanguageSwitch({ label, value, options, onChange }: NavbarLanguage) {
   return (
-    <div
-      role="group"
+    <ToggleGroup
       aria-label={label}
-      className="flex h-9 items-center rounded-full border border-border p-0.5 text-xs font-semibold"
+      value={[value]}
+      onValueChange={(next) => {
+        const chosen = next.find((item) => item !== value);
+        if (chosen) onChange(chosen);
+      }}
+      className="h-9 items-center rounded-full border border-border p-0.5 text-xs font-semibold"
     >
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={selected}
-            aria-label={option.label}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              "h-full min-w-9 rounded-full px-2 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-              selected ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-primary",
-            )}
-          >
-            {option.short}
-          </button>
-        );
-      })}
-    </div>
+      {options.map((option) => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          aria-label={option.label}
+          variant="segment"
+          size="fill"
+        >
+          {option.short}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }
 
-export function Navbar({ items, loginHref, loginLabel, account, language }: NavbarProps) {
+export function Navbar({ items, loginHref, loginLabel, account, language, menu }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -76,7 +77,7 @@ export function Navbar({ items, loginHref, loginLabel, account, language }: Navb
             <Link
               key={item.href}
               href={item.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${item.active ? "text-primary" : "text-muted-foreground"}`}
+              className={`inline-flex min-h-6 items-center text-sm font-medium transition-colors hover:text-primary ${item.active ? "text-primary" : "text-muted-foreground"}`}
             >
               {item.label}
             </Link>
@@ -103,15 +104,17 @@ export function Navbar({ items, loginHref, loginLabel, account, language }: Navb
           ) : (
             <Link
               href={loginHref}
+              aria-label={loginLabel}
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
                 "gap-1.5 border-primary text-primary hover:text-primary",
               )}
             >
-              <UserRoundIcon className="size-4" />
-              {loginLabel}
+              <UserRoundIcon aria-hidden="true" className="size-4" />
+              <span className="hidden sm:inline">{loginLabel}</span>
             </Link>
           )}
+          {menu ? <NavbarMenu items={items} {...menu} /> : null}
         </div>
       </div>
     </header>

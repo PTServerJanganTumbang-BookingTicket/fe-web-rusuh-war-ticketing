@@ -34,7 +34,7 @@ export function LegalView({ nav, footer, header, notice, sections, other, versio
         <p className="type-body2 text-muted-foreground">{version}</p>
         <Link
           href={other.href}
-          className="type-body2 font-semibold text-primary underline-offset-4 hover:underline"
+          className="type-body2 inline-flex min-h-6 items-center self-start font-semibold text-primary underline-offset-4 hover:underline"
         >
           {other.label}
         </Link>

@@ -35,14 +35,14 @@ export function Footer({ copyright, tagline, infoBanner, links }: FooterProps) {
           </div>
         </div>
       )}
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
           <span className="type-body2 text-muted-foreground">{copyright}</span>
           {links?.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="type-body2 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              className="type-body2 inline-flex min-h-6 items-center text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               {link.label}
             </Link>

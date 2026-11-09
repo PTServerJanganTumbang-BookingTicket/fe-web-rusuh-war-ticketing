@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import {
   CountdownBanner,
@@ -129,19 +130,22 @@ function HolderSourceSelect({ id, source }: { id: string; source: HolderSourcePr
   return (
     <Field>
       <FieldLabel htmlFor={id}>{source.label}</FieldLabel>
-      <select
-        id={id}
+      <Select
         value={source.value}
-        aria-describedby={`${id}-hint`}
-        onChange={(event) => source.onChange(event.target.value)}
-        className="type-body2 h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        onValueChange={(next) => next != null && source.onChange(next)}
+        items={source.options.map((option) => ({ value: option.value, label: option.label }))}
       >
-        {source.options.map((option) => (
-          <option key={option.value} value={option.value} disabled={option.disabled}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id={id} aria-describedby={`${id}-hint`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {source.options.map((option) => (
+            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <FieldDescription id={`${id}-hint`}>{source.hint}</FieldDescription>
     </Field>
   );

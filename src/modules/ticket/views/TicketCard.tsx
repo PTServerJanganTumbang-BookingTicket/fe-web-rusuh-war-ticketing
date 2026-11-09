@@ -14,14 +14,11 @@ export type TicketCardProps = {
   eventDate: string;
   venue: string;
   imageUrl: string;
-  category: string;
-  holderName: string;
-  nikMasked: string;
   status: TicketStatus;
   statusLabel: string;
   statusTone: "success" | "info" | "warning" | "danger";
-  /** Label baris detail dari i18n. */
-  labels: { category: string; holderName: string; nik: string };
+  /** Baris detail yang punya nilai (kategori, harga, nomor tiket, dst.). */
+  details: { label: string; value: string; mono?: boolean }[];
 };
 
 const badgeVariant: Record<TicketCardProps["statusTone"], NonNullable<BadgeProps["variant"]>> = {
@@ -41,12 +38,9 @@ export function TicketCard({
   eventDate,
   venue,
   imageUrl,
-  category,
-  holderName,
-  nikMasked,
   statusLabel,
   statusTone,
-  labels,
+  details,
 }: TicketCardProps) {
   return (
     <Link href={`/tickets/${id}`} className="block">
@@ -76,20 +70,22 @@ export function TicketCard({
             <MapPinIcon aria-hidden="true" className="size-3.5 shrink-0" />
             <span className="truncate">{venue}</span>
           </div>
-          <div className="space-y-1 border-t border-signal-disable pt-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.category}</span>
-              <span className="font-medium text-foreground">{category}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.holderName}</span>
-              <span className="font-medium text-foreground">{holderName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.nik}</span>
-              <span className="font-mono text-xs text-muted-foreground">{nikMasked}</span>
-            </div>
-          </div>
+          <dl className="space-y-1 border-t border-signal-disable pt-3 text-sm">
+            {details.map((row) => (
+              <div key={row.label} className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">{row.label}</dt>
+                <dd
+                  className={
+                    row.mono
+                      ? "truncate font-mono text-xs text-muted-foreground"
+                      : "font-medium text-foreground"
+                  }
+                >
+                  {row.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </Card>
     </Link>

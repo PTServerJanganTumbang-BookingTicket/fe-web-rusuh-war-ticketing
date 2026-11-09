@@ -24,7 +24,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/components/ui/cn.utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   CountdownBanner,
   EventSummaryCard,
@@ -236,30 +238,21 @@ const MethodSelection = ({ stage }: MethodSelectionProps) => {
         </Alert>
       )}
 
-      <div role="radiogroup" aria-label={title} className="flex flex-col gap-3">
+      <RadioGroup
+        aria-label={title}
+        value={methods.find((method) => method.selected)?.id ?? null}
+        onValueChange={(value) => methods.find((method) => method.id === value)?.onSelect()}
+      >
         {methods.map((method) => {
           const IconComponent = PAYMENT_METHOD_ICONS[method.icon];
-          const isSelected = method.selected;
-          const buttonClasses = cn(
-            "flex w-full items-center gap-4 rounded-xl border p-4 text-left",
-            "transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-            "disabled:cursor-not-allowed disabled:opacity-60 sm:p-5",
-            isSelected ? "border-primary bg-signal-bg-info" : "border-border hover:bg-accent",
-          );
-          const radioClasses = cn(
-            "size-5 shrink-0 rounded-full border-2",
-            isSelected ? "border-[6px] border-primary" : "border-input",
-          );
-
           return (
-            <button
+            <label
               key={method.id}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              disabled={method.disabled}
-              onClick={method.onSelect}
-              className={buttonClasses}
+              className={cn(
+                "flex w-full cursor-pointer items-center gap-4 rounded-xl border p-4 text-left transition-colors sm:p-5",
+                "has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50 has-disabled:cursor-not-allowed has-disabled:opacity-60",
+                method.selected ? "border-primary bg-signal-bg-info" : "border-border hover:bg-accent",
+              )}
             >
               <span
                 aria-hidden="true"
@@ -271,36 +264,35 @@ const MethodSelection = ({ stage }: MethodSelectionProps) => {
                 <span className="type-title block text-foreground">{method.title}</span>
                 <span className="type-body2 block text-muted-foreground">{method.description}</span>
               </span>
-              <span aria-hidden="true" className={radioClasses} />
-            </button>
+              <RadioGroupItem value={method.id} disabled={method.disabled} aria-label={method.title} />
+            </label>
           );
         })}
-      </div>
+      </RadioGroup>
 
       {banks != null && (
         <fieldset className="flex flex-col gap-2">
           <legend className="type-body1-bold mb-2">{banks.label}</legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {banks.options.map((bank) => {
-              const bankButtonClasses = cn(
-                "type-body1-bold h-11 rounded-lg border outline-none",
-                "focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                bank.selected ? "border-primary bg-brand-tint text-primary" : "border-border hover:bg-accent",
-              );
-
-              return (
-                <button
-                  key={bank.code}
-                  type="button"
-                  aria-pressed={bank.selected}
-                  onClick={bank.onSelect}
-                  className={bankButtonClasses}
-                >
-                  {bank.name}
-                </button>
-              );
-            })}
-          </div>
+          <ToggleGroup
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            value={banks.options.filter((bank) => bank.selected).map((bank) => bank.code)}
+            onValueChange={(next) => {
+              const code = next[next.length - 1];
+              banks.options.find((bank) => bank.code === code)?.onSelect();
+            }}
+          >
+            {banks.options.map((bank) => (
+              <ToggleGroupItem
+                key={bank.code}
+                value={bank.code}
+                variant="toggle"
+                size="lg"
+                className="type-body1-bold rounded-lg"
+              >
+                {bank.name}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           {banks.error != null && (
             <p role="alert" className="type-body2 text-signal-error">
               {banks.error}

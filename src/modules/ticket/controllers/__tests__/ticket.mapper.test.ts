@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
-import type { ETicket } from "../../domain/ticket.model";
-import { toETicketViewProps } from "../ticket.mapper";
+import type { ETicket, TicketSummary } from "../../domain/ticket.model";
+import { toETicketViewProps, toTicketCardProps } from "../ticket.mapper";
 
 const eticket: ETicket = {
   id: "TKT-001",
@@ -53,5 +53,34 @@ describe("toETicketViewProps", () => {
     );
     expect(view.instructions).toBeUndefined();
     expect(view.eventDate).toBe("Jumat, 25 Desember 2026");
+  });
+});
+
+describe("toTicketCardProps", () => {
+  const summary: TicketSummary = {
+    id: "TKT-001",
+    event: { id: "evt_konser_a", name: "Konser A", date: "2026-12-25", venue: "GBK" },
+    category: "VIP",
+    priceIdr: 1_500_000,
+    nikMasked: "",
+    holderName: "",
+    status: "ISSUED",
+    issuedAt: "",
+  };
+
+  it("baris tanpa nilai (nama, NIK) tidak muncul; kategori, harga, dan nomor tiket muncul", () => {
+    const labels = toTicketCardProps(summary).details.map((row) => row.label);
+    expect(labels).toEqual(["Kategori", "Harga", "Nomor tiket"]);
+  });
+
+  it("nama dan NIK tampil bila kontrak kelak mengirimnya", () => {
+    const { details } = toTicketCardProps({ ...summary, holderName: "Rina", nikMasked: "3171********0044" });
+    expect(details.map((row) => row.label)).toContain("Nama");
+    expect(details.find((row) => row.label === "NIK")?.mono).toBe(true);
+  });
+
+  it("harga 0 tidak ditampilkan", () => {
+    const { details } = toTicketCardProps({ ...summary, priceIdr: 0 });
+    expect(details.map((row) => row.label)).not.toContain("Harga");
   });
 });
