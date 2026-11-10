@@ -162,7 +162,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   // Tiket dan e-tiket
   "ticket.title": "My Tickets",
   "ticket.subtitle": "All the tickets you've bought",
-  "ticket.empty": "No tickets yet. Start by buying tickets for your favourite event!",
+  "ticket.empty": "You still not buy any Tickets from any event, please buy to fill this page",
   "ticket.error": "We couldn't load your tickets. Try again shortly.",
   "ticket.eticket.title": "E-Ticket",
   "ticket.error.UNAUTHENTICATED": "Log in to see your tickets.",
@@ -244,7 +244,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "home.list.label": "Event List",
   "home.list.title": "Upcoming Events",
   "home.list.subtitle": "Find the exciting experiences waiting for you",
-  "home.empty": "No events yet.",
+  "home.empty": "There is no active event in this page",
   "home.event.cta": "Buy Tickets →",
   "home.event.cta.queue": "Buy Tickets →",
   "home.event.cta.book": "Buy Tickets →",

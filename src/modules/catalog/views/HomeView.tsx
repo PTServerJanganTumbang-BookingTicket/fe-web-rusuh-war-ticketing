@@ -51,7 +51,9 @@ export function HomeView(props: HomeViewProps) {
               <CardGridSkeleton />
             </div>
           ) : null}
-          {!loading && !errorMessage && events.length === 0 && <EmptyState title={emptyLabel ?? ""} />}
+          {!loading && !errorMessage && events.length === 0 && (
+            <EmptyState illustration="events" title={emptyLabel ?? ""} />
+          )}
           {events.length > 0 && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (

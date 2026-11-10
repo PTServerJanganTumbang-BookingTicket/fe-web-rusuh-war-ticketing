@@ -82,7 +82,7 @@ export const id = {
   "home.list.title": "Event Mendatang",
   "home.list.subtitle": "Temukan pengalaman seru yang menunggumu",
   // Event Card
-  "home.empty": "Belum ada acara.",
+  "home.empty": "Tidak ada event aktif didalam halaman ini",
   "home.event.cta": "Beli Tiket →",
   "home.event.cta.queue": "Beli Tiket →",
   "home.event.cta.book": "Beli Tiket →",
@@ -564,7 +564,7 @@ export const id = {
   // Ticket
   "ticket.title": "Tiket Saya",
   "ticket.subtitle": "Semua tiket yang sudah kamu beli",
-  "ticket.empty": "Belum ada tiket. Mulai beli tiket event favoritmu!",
+  "ticket.empty": "Anda belum membeli tiket dari event manapun, Silahkan beli tiket dari event",
   "ticket.error": "Tiket belum bisa dimuat. Coba lagi sebentar lagi.",
   "ticket.eticket.title": "E-Tiket",
   "ticket.error.UNAUTHENTICATED": "Masuk untuk melihat tiketmu.",
