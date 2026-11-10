@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { PageSkeleton } from "@/components/ui/layout/PageSkeleton";
+import { EmptyState } from "@/components/ui/layout/EmptyState";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
 import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
 
@@ -238,11 +239,7 @@ function AliasesCard({ saved, add, fullNotice }: ReadyProps) {
           ) : null}
 
           {saved.items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-8 text-center">
-              <UsersRoundIcon aria-hidden="true" className="size-8 text-muted-foreground" />
-              <p className="type-body1 font-semibold">{saved.emptyTitle}</p>
-              <p className="type-body2 text-muted-foreground">{saved.emptyLabel}</p>
-            </div>
+            <EmptyState bordered title={saved.emptyTitle} description={saved.emptyLabel} />
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {saved.items.map((item) => (

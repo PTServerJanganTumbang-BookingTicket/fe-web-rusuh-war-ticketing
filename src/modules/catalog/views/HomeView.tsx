@@ -1,5 +1,6 @@
 import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
+import { EmptyState } from "@/components/ui/layout/EmptyState";
 import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
 import { HeroSection } from "./HeroSection";
 import { EventCard, type EventCardProps } from "./EventCard";
@@ -50,9 +51,7 @@ export function HomeView(props: HomeViewProps) {
               <CardGridSkeleton />
             </div>
           ) : null}
-          {!loading && !errorMessage && events.length === 0 && (
-            <p className="type-body1 text-muted-foreground">{emptyLabel}</p>
-          )}
+          {!loading && !errorMessage && events.length === 0 && <EmptyState title={emptyLabel ?? ""} />}
           {events.length > 0 && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (

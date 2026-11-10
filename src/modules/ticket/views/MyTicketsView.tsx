@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
+import { EmptyState } from "@/components/ui/layout/EmptyState";
 import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
 import { TicketCard, type TicketCardProps } from "./TicketCard";
 import { TicketIcon } from "@/components/ui/icons";
@@ -68,10 +69,7 @@ export function MyTicketsView({
             </div>
           ) : null}
           {!signedOut && !loading && !errorMessage && tickets.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <TicketIcon aria-hidden="true" className="size-8" />
-              <p className="type-body1 text-muted-foreground">{emptyLabel}</p>
-            </div>
+            <EmptyState title={emptyLabel ?? ""} />
           )}
           {tickets.length > 0 && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
