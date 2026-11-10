@@ -19,6 +19,8 @@ import {
 export type AccountGateway = {
   /** `POST /api/auth/verify` `{ token }` → `GET /auth/verify` di BE, lalu menyetel cookie akun. */
   verify(request: Request): Promise<Response>;
+  /** `POST /api/auth/verify-email` `{ token }` → `GET /auth/verify-email` di BE (token lewat cookie). Tanpa sesi. */
+  verifyEmail(request: Request): Promise<Response>;
   /** `GET /api/auth/session` → akun dari cookie, atau `null` untuk tamu. */
   session(request: Request): Response;
   /** `POST /api/auth/logout` → menghapus cookie akun. Kontrak belum punya endpoint logout (ADR-0023 usulan 3). */
@@ -160,6 +162,20 @@ export function createAccountGatewayService({
           }),
         ],
       );
+    },
+
+    async verifyEmail(request) {
+      const body: unknown = await request.json().catch(() => undefined);
+      const token = typeof body === "object" && body !== null && "token" in body ? body.token : undefined;
+      if (typeof token !== "string" || token === "") return envelope(400, "token is required");
+
+      // Kontrak tertulis `?token=`, tetapi BE yang berjalan membaca cookie `magic_token` (seperti /auth/verify).
+      // Keduanya dikirim supaya cocok dengan kontrak sekarang dan implementasi sekarang.
+      const response = await callBackend(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
+        headers: { cookie: `magic_token=${encodeURIComponent(token)}` },
+      });
+      if (!response) return envelope(502, "Backend unavailable");
+      return passThrough(response);
     },
 
     session(request) {

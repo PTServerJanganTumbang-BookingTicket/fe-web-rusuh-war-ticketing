@@ -54,8 +54,8 @@ export function createHttpAuthService({
 
     async verifyEmail(token: string): Promise<void> {
       // Tautan berlaku 15 menit, sekali pakai. Kedaluwarsa bukan jalan buntu: minta link login, akunnya ikut terverifikasi.
-      await httpClient.get(`/auth/verify-email?token=${encodeURIComponent(token)}`, z.unknown(), {
-        errorCodes: { 400: "EMAIL_LINK_INVALID" },
+      await bffHttpClient.post("/auth/verify-email", { token }, z.unknown(), {
+        errorCodes: { 400: "EMAIL_LINK_INVALID", 401: "EMAIL_LINK_INVALID" },
       });
     },
 

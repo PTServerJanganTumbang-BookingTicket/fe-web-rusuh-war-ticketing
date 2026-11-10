@@ -133,7 +133,10 @@ export function useEmailVerifiedController(): RegistrationStatusViewProps {
     };
   }
 
-  const networkProblem = verify.isError && toAppError(verify.error).kind === "network";
+  // Putus koneksi, atau route same-origin menjawab 5xx karena BE tidak terjangkau: bisa dicoba lagi.
+  const failure = verify.isError ? toAppError(verify.error) : undefined;
+  const networkProblem =
+    failure?.kind === "network" || (failure?.kind === "unknown" && (failure.status ?? 0) >= 500);
   return {
     ...siteChrome,
     tone: "error",

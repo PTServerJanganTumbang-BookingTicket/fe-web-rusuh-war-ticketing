@@ -96,6 +96,50 @@ describe("accountGateway.verify", () => {
   });
 });
 
+describe("accountGateway.verifyEmail", () => {
+  it("mengirim token sebagai cookie magic_token dan query token, tanpa menyetel cookie akun", async () => {
+    let seen: { cookie: string | null; query: string | null } | undefined;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/auth/verify-email`, ({ request }) => {
+        seen = {
+          cookie: request.headers.get("cookie"),
+          query: new URL(request.url).searchParams.get("token"),
+        };
+        return HttpResponse.json({ meta: { code: 200, message: "Email verified" }, data: {} });
+      }),
+    );
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyEmail(
+      api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: "a b" }) }),
+    );
+    expect(seen).toEqual({ cookie: "magic_token=a%20b", query: "a b" });
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("token kedaluwarsa dari BE diteruskan apa adanya; tanpa token 400; BE mati 502", async () => {
+    const { accountGateway } = setupTestContainer().cradle;
+    expect(
+      (
+        await accountGateway.verifyEmail(
+          api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: "expired" }) }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await accountGateway.verifyEmail(api("/auth/verify-email", { method: "POST", body: "{}" }))).status,
+    ).toBe(400);
+    server.use(http.get(`${MOCK_API_BASE_URL}/auth/verify-email`, () => HttpResponse.error()));
+    expect(
+      (
+        await accountGateway.verifyEmail(
+          api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: "x" }) }),
+        )
+      ).status,
+    ).toBe(502);
+  });
+});
+
 describe("accountGateway.session dan logout", () => {
   it("tamu mendapat account null; sesi mengembalikan profil dari cookie", async () => {
     const { accountGateway, session } = await signIn();
