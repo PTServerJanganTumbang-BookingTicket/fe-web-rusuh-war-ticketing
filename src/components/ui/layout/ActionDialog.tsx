@@ -23,7 +23,7 @@ export type ActionDialogIcon = "alert" | "clock" | "mail" | "check" | "info";
  * Ilustrasi Signal DS (spreadsheet "Icon & Asset reference for SJT"). Menggantikan lingkaran ikon bila ada.
  * Berkas di `public/images/illustrations/`.
  */
-export type ActionDialogIllustration = "network" | "confirmation" | "success" | "email" | "error";
+export type ActionDialogIllustration = "network" | "confirmation" | "success" | "email" | "error" | "box";
 
 const ILLUSTRATIONS: Record<ActionDialogIllustration, string> = {
   network: "/images/illustrations/network-failed.webp",
@@ -31,6 +31,7 @@ const ILLUSTRATIONS: Record<ActionDialogIllustration, string> = {
   success: "/images/illustrations/success.webp",
   email: "/images/illustrations/check-email.webp",
   error: "/images/illustrations/error.webp",
+  box: "/images/illustrations/empty-box.webp",
 };
 
 export type ActionDialogProps = {

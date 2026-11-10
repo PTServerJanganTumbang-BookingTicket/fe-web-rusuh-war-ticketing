@@ -45,3 +45,13 @@ describe("totalPriceIdr", () => {
     expect(totalPriceIdr({}, categories)).toBe(0);
   });
 });
+
+describe("CLAMP_TO_STOCK", () => {
+  it("memangkas jumlah ke stok terbaru dan membuang kategori yang habis", () => {
+    const next = selectionReducer(
+      { cat_vip: 2, cat_festival: 1, cat_tribune: 1 },
+      { type: "CLAMP_TO_STOCK", stock: { cat_vip: 1, cat_festival: 0, cat_tribune: 5 } },
+    );
+    expect(next).toEqual({ cat_vip: 1, cat_tribune: 1 });
+  });
+});

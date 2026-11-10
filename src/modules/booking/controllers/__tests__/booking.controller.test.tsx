@@ -35,10 +35,6 @@ async function readyView({ signedIn = false }: { signedIn?: boolean } = {}) {
   return { ...hook, view };
 }
 
-/**
- * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar NIK tersimpan. Kontrak
- * hanya membawa `nik_masked`; mock bawaan sudah menyertakan `nik`, dan di sini daftarnya dibuat eksplisit.
- */
 /** Submit membuka ringkasan pesanan; booking baru dibuat setelah customer memilih lanjut. */
 async function submitAndConfirm(view: () => BookingViewProps) {
   act(() => view().submit.onSubmit());
@@ -47,6 +43,10 @@ async function submitAndConfirm(view: () => BookingViewProps) {
   act(() => confirm && "onClick" in confirm && confirm.onClick());
 }
 
+/**
+ * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar NIK tersimpan. Kontrak
+ * hanya membawa `nik_masked`; mock bawaan sudah menyertakan `nik`, dan di sini daftarnya dibuat eksplisit.
+ */
 const savedNiksOf = (...niks: string[]) =>
   http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
     HttpResponse.json({
@@ -207,6 +207,95 @@ describe("useBookingController", () => {
     expect(view().dialog).toBeUndefined();
     expect(created).toBe(false);
     expect(push).not.toHaveBeenCalled();
+  });
+
+  describe("stok berubah saat submit (409 INSUFFICIENT_STOCK)", () => {
+    const insufficient = () =>
+      http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
+        HttpResponse.json(
+          {
+            meta: { code: 409, message: "Stok VIP tidak mencukupi", error_code: "INSUFFICIENT_STOCK" },
+            data: { available: 0, requested: 1 },
+          },
+          { status: 409 },
+        ),
+      );
+    const stockOf = (available: Readonly<Record<string, number>>) =>
+      http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () =>
+        HttpResponse.json({
+          meta: { code: 200, message: "Success" },
+          data: {
+            event: { name: "Konser A" },
+            session: {
+              expires_at: new Date(Date.now() + 300_000).toISOString(),
+              server_time: new Date().toISOString(),
+            },
+            categories: Object.entries(available).map(([id, left]) => ({
+              id,
+              name: id === "cat_vip" ? "VIP" : "Festival",
+              description: "",
+              price: 100_000,
+              available: left,
+            })),
+            rules: { max_tickets_per_order: 3 },
+          },
+        }),
+      );
+
+    async function submitIntoStockError(view: () => BookingViewProps) {
+      add(view, "cat_vip");
+      act(() => view().buyer.email.onChange("rina@example.com"));
+      act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+      await submitAndConfirm(view);
+      await waitFor(() => expect(view().dialog?.title).toBe("Tiket tidak tersedia"));
+    }
+
+    it("sebagian kategori habis: modal minta pilih kategori lain, pilihan dipangkas ke stok terbaru", async () => {
+      push.mockClear();
+      replace.mockClear();
+      server.use(insufficient());
+      const { view } = await readyView();
+      server.use(stockOf({ cat_vip: 0, cat_festival: 5 }));
+      await submitIntoStockError(view);
+      await waitFor(() =>
+        expect(view().categories.items.find((item) => item.id === "cat_vip")?.soldOut).toBe(true),
+      );
+      expect(view().dialog?.primary).toMatchObject({ label: "Pilih kategori lain" });
+
+      const another = view().dialog?.primary;
+      act(() => another && "onClick" in another && another.onClick());
+      expect(view().dialog).toBeUndefined();
+      expect(view().holders).toBeUndefined();
+      expect(push).not.toHaveBeenCalled();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("semua habis: hitung mundur 10 detik lalu kembali ke Beranda", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        replace.mockClear();
+        server.use(insufficient());
+        const { view } = await readyView();
+        server.use(stockOf({ cat_vip: 0, cat_festival: 0 }));
+        await submitIntoStockError(view);
+        await waitFor(() =>
+          expect(view().dialog?.primary).toMatchObject({ label: "Kembali ke Beranda (10)" }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(3000);
+        });
+        expect(view().dialog?.primary).toMatchObject({ label: "Kembali ke Beranda (7)" });
+        expect(replace).not.toHaveBeenCalled();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(7000);
+        });
+        expect(replace).toHaveBeenCalledWith("/");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it("tamu tidak melihat pilihan alias; NIK diisi manual", async () => {

@@ -32,8 +32,10 @@ import { isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
 import { bookingEventQuery, bookingSessionQuery, holderAliasesQuery } from "./booking.queries";
 import {
   isBookingFormValid,
+  SOLD_OUT_REDIRECT_SECONDS,
   toBookingConfirmDialog,
   toBookingViewProps,
+  toStockUnavailableDialog,
   type NikCheckState,
 } from "./booking.mapper";
 import type { BookingViewProps } from "../views/BookingView";
@@ -60,6 +62,7 @@ export function useBookingController(eventId: string): BookingScreen {
     | { kind: NikDialogKind; slotKey: string }
     | { kind: "submitFailed"; input: SubmitBookingInput }
     | { kind: "confirm"; input: SubmitBookingInput }
+    | { kind: "stock" }
   >();
   /** Fokus kembali ke field NIK setelah "Ubah data"; `n` berubah tiap permintaan supaya fokus terulang. */
   const [focusNik, setFocusNik] = useState<{ slotKey: string; n: number } | null>(null);
@@ -86,6 +89,7 @@ export function useBookingController(eventId: string): BookingScreen {
   const [checks, setChecks] = useState<Record<string, NikCheckState>>({});
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
+  const [stockSeconds, setStockSeconds] = useState(SOLD_OUT_REDIRECT_SECONDS);
   const session = query.data;
 
   const submit = useMutation({
@@ -93,10 +97,29 @@ export function useBookingController(eventId: string): BookingScreen {
     onSuccess: ({ bookingId }) => router.push(`/orders/${encodeURIComponent(bookingId)}/pay`),
     // Stok, NIK ditolak, atau grant habis tetap di layar; koneksi dan galat server jadi dialog dengan coba lagi.
     onError: (failure, input) => {
-      if (isUnexpectedError(toAppError(failure))) nikModal.open({ kind: "submitFailed", input });
+      const error = toAppError(failure);
+      if (error.kind === "api" && error.code === "STOCK_INSUFFICIENT") {
+        // Stok berubah di server: muat ulang supaya modal tahu sebagian atau semua kategori habis.
+        void query.refetch();
+        setStockSeconds(SOLD_OUT_REDIRECT_SECONDS);
+        nikModal.open({ kind: "stock" });
+      } else if (isUnexpectedError(error)) nikModal.open({ kind: "submitFailed", input });
       else nikModal.close();
     },
   });
+
+  // Semua kategori habis: hitung mundur lalu kembali ke Beranda. Sebagian habis: modal menunggu pilihan customer.
+  const stockOpen = nikModal.modal?.kind === "stock";
+  const allSoldOut = Boolean(session) && session!.categories.every((category) => category.stock <= 0);
+  const countingDown = stockOpen && allSoldOut;
+  useEffect(() => {
+    if (!countingDown) return;
+    const id = setInterval(() => setStockSeconds((seconds) => seconds - 1), 1000);
+    return () => clearInterval(id);
+  }, [countingDown]);
+  useEffect(() => {
+    if (countingDown && stockSeconds <= 0) router.replace("/");
+  }, [countingDown, stockSeconds, router]);
 
   const offsetMs = session ? serverOffsetMs(Date.parse(session.serverNow), query.dataUpdatedAt) : 0;
   const remainingMs = useCountdown(session?.expiresAt, offsetMs);
@@ -226,6 +249,19 @@ export function useBookingController(eventId: string): BookingScreen {
       submitting: submit.isPending,
       onConfirm: () => submit.mutate(open.input),
       onDismiss: nikModal.close,
+    });
+  } else if (open?.kind === "stock" && session) {
+    dialog = toStockUnavailableDialog({
+      allSoldOut,
+      secondsLeft: stockSeconds,
+      onPickAnother: () => {
+        dispatch({
+          type: "CLAMP_TO_STOCK",
+          stock: Object.fromEntries(session.categories.map((category) => [category.id, category.stock])),
+        });
+        nikModal.close();
+      },
+      onGoHome: () => router.replace("/"),
     });
   } else if (open?.kind === "submitFailed" && submit.error) {
     dialog = toRequestFailedDialog(toAppError(submit.error), {

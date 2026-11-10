@@ -150,6 +150,11 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.confirm.event": "Event",
   "booking.confirm.email": "Email",
   "booking.confirm.back": "Review again",
+  "booking.stock.title": "Ticket unavailable",
+  "booking.stock.description":
+    "Ticket you’re choosing is not available, please select another ticket category",
+  "booking.stock.another": "Choose another category",
+  "booking.stock.home": "Back to Home ({seconds})",
   "booking.expired.title": "Booking session ended",
   "booking.expired.cta": "Queue again",
   "booking.expired.redirecting": "Booking time is up. Taking you back to the waiting room…",

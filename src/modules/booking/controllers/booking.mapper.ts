@@ -337,3 +337,33 @@ export function toBookingConfirmDialog({
     onDismiss,
   };
 }
+
+/** Detik hitung mundur kembali ke Beranda saat semua kategori habis (sheet Signal DS: 10 detik). */
+export const SOLD_OUT_REDIRECT_SECONDS = 10;
+
+/**
+ * Stok berubah antara memilih tiket dan submit (409 `INSUFFICIENT_STOCK`). Sebagian kategori habis: customer
+ * memilih kategori lain. Semua habis: kembali ke Beranda dengan hitung mundur.
+ */
+export function toStockUnavailableDialog({
+  allSoldOut,
+  secondsLeft,
+  onPickAnother,
+  onGoHome,
+}: {
+  allSoldOut: boolean;
+  secondsLeft: number;
+  onPickAnother: () => void;
+  onGoHome: () => void;
+}): ActionDialogModel {
+  return {
+    tone: "warning",
+    illustration: "box",
+    title: t("booking.stock.title"),
+    description: t("booking.stock.description"),
+    primary: allSoldOut
+      ? { label: t("booking.stock.home", { seconds: Math.max(secondsLeft, 0) }), onClick: onGoHome }
+      : { label: t("booking.stock.another"), onClick: onPickAnother },
+    onDismiss: allSoldOut ? onGoHome : onPickAnother,
+  };
+}
