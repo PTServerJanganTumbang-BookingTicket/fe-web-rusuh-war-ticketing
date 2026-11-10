@@ -14,6 +14,7 @@ const baseEvent: Event = {
   name: "Konser A — Jakarta",
   venue: "GBK",
   date: "2026-12-25T12:00:00.000Z",
+  category: "LIVE MUSIC",
   imageUrl: "/images/event-1.jpg",
   status: "AVAILABLE",
   queueState: "OPEN",
@@ -113,5 +114,67 @@ describe("toEventCardProps", () => {
     const props = toEventCardProps(baseEvent);
     expect(props.location).toBe("GBK");
     expect(props.category).toBe("LIVE MUSIC");
+  });
+});
+
+describe("toEventCardProps: kondisi tombol dan chip (kontrak §2.1)", () => {
+  const disabled = (labelKey: string, badgeKey?: string): Event["display"] => ({
+    enabled: false,
+    action: "disabled",
+    labelKey,
+    badgeKey,
+  });
+
+  it("belum dibuka: tombol 'Buka <waktu absolut>' dan chip BELUM DIBUKA bernada info", () => {
+    const props = toEventCardProps({
+      ...baseEvent,
+      queueState: "NOT_OPEN",
+      saleStartsAt: "2026-11-10T02:00:00Z",
+      display: disabled("home.event.notOpen", "home.event.badge.notOpen"),
+    });
+    expect(props.cta).toEqual({ label: "Buka 10 Nov 09:00" });
+    expect(props.statusLabel).toBe("BELUM DIBUKA");
+    expect(props.statusTone).toBe("info");
+  });
+
+  it("belum dibuka tanpa jadwal: tombol memakai label umum", () => {
+    const props = toEventCardProps({ ...baseEvent, display: disabled("home.event.notOpen") });
+    expect(props.cta).toEqual({ label: "Belum Dibuka" });
+  });
+
+  it("antrian penuh: chip ANTRIAN PENUH bernada peringatan walau stok masih ada", () => {
+    const props = toEventCardProps({
+      ...baseEvent,
+      queueState: "FULL",
+      display: disabled("home.event.queueFull", "home.event.badge.queueFull"),
+    });
+    expect(props.statusLabel).toBe("ANTRIAN PENUH");
+    expect(props.statusTone).toBe("warning");
+  });
+
+  it("habis sementara (bisa kembali): chip PENUH SEMENTARA, tombol nonaktif", () => {
+    const props = toEventCardProps({
+      ...baseEvent,
+      status: "SOLD_OUT",
+      display: disabled("home.event.soldOutMayReturn", "home.event.badge.fullBooked"),
+    });
+    expect(props.statusLabel).toBe("PENUH SEMENTARA");
+    expect(props.statusTone).toBe("warning");
+    expect(props.cta).toEqual({ label: "Stok Habis Sementara" });
+  });
+
+  it("sold out final: chip SOLD OUT bernada bahaya", () => {
+    const props = toEventCardProps({
+      ...baseEvent,
+      status: "SOLD_OUT",
+      display: disabled("home.event.soldOut", "home.event.status.SOLD_OUT"),
+    });
+    expect(props.statusLabel).toBe("SOLD OUT");
+    expect(props.statusTone).toBe("danger");
+    expect(props.cta).toEqual({ label: "Habis Terjual" });
+  });
+
+  it("kategori event dibawa ke kartu", () => {
+    expect(toEventCardProps({ ...baseEvent, category: "FESTIVAL" }).category).toBe("FESTIVAL");
   });
 });

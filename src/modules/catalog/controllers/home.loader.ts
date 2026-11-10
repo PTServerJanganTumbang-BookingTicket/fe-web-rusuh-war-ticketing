@@ -37,6 +37,11 @@ export async function loadHomeViewProps({ listEventsUseCase }: CatalogDependenci
       links: legalLinks(),
     },
     emptyLabel: t("home.empty"),
+    categoryFilter: {
+      label: t("home.filter.label"),
+      all: t("home.filter.all"),
+      empty: t("home.filter.empty"),
+    },
   };
   try {
     return { ...base, events: (await listEventsUseCase()).map(toEventCardProps) };

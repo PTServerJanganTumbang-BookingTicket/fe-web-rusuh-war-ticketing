@@ -51,6 +51,8 @@ describe("eventService", () => {
       name: "Konser A",
       date: "2026-12-25",
       venue: "GBK, Jakarta",
+      category: "LIVE MUSIC",
+      saleStartsAt: "2026-11-10T02:00:00Z",
       imageUrl: "/images/concert-placeholder.webp",
       status: "AVAILABLE",
       queueState: "OPEN",

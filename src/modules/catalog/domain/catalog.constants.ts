@@ -8,3 +8,9 @@ export const CATALOG_REFRESH_INTERVAL_MS = 5_000;
 
 /** Waktu sebelum sold out menjadi final (15.5 menit = 930 detik) (BR-20). */
 export const SOLD_OUT_FINAL_TIMEOUT_SECONDS = 930;
+
+/** Kategori bila BE tidak mengirim `category` (kontrak §2.1 selalu mengirim; ini hanya jaring pengaman). */
+export const DEFAULT_CATEGORY = "EVENT";
+
+/** Nilai tab "Semua" pada filter kategori Home. */
+export const ALL_CATEGORIES = "all";

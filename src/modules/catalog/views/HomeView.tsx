@@ -3,7 +3,8 @@ import { Footer } from "@/components/ui/layout/Footer";
 import { EmptyState } from "@/components/ui/layout/EmptyState";
 import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
 import { HeroSection } from "./HeroSection";
-import { EventCard, type EventCardProps } from "./EventCard";
+import type { EventCardProps } from "./EventCard";
+import { EventGrid } from "./EventGrid";
 
 export type HomeViewProps = {
   nav: NavbarProps;
@@ -25,13 +26,15 @@ export type HomeViewProps = {
     links?: { label: string; href: string }[];
   };
   emptyLabel?: string;
+  /** Teks filter kategori; tanpa ini daftar tampil tanpa filter. */
+  categoryFilter?: { label: string; all: string; empty: string };
   errorMessage?: string;
   /** Teks status memuat untuk pembaca layar; selama ada, kartu event tampil sebagai kerangka. */
   loading?: string;
 };
 
 export function HomeView(props: HomeViewProps) {
-  const { nav, hero, eventList, events, footer, emptyLabel, errorMessage, loading } = props;
+  const { nav, hero, eventList, events, footer, emptyLabel, categoryFilter, errorMessage, loading } = props;
   return (
     <div className="flex min-h-screen flex-col bg-signal-disable">
       <Navbar {...nav} />
@@ -55,11 +58,12 @@ export function HomeView(props: HomeViewProps) {
             <EmptyState illustration="events" title={emptyLabel ?? ""} />
           )}
           {events.length > 0 && (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((event) => (
-                <EventCard key={event.id} {...event} />
-              ))}
-            </div>
+            <EventGrid
+              events={events}
+              filterLabel={categoryFilter?.label ?? ""}
+              allLabel={categoryFilter?.all ?? ""}
+              emptyCategoryLabel={categoryFilter?.empty ?? ""}
+            />
           )}
         </section>
       </main>

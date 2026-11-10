@@ -7,6 +7,7 @@ const event: Event = {
   name: "Konser A",
   venue: "GBK",
   date: "2026-12-25T12:00:00.000Z",
+  category: "LIVE MUSIC",
   imageUrl: "/images/event-1.jpg",
   status: "AVAILABLE",
   queueState: "OPEN",
