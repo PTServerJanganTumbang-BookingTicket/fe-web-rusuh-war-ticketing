@@ -55,6 +55,8 @@ export function createHttpBookingService({
       return httpClient.post("/bookings", body, createdBookingSchema, {
         headers: grantHeaders(credentialStore),
         errorCodes: { 400: "BOOKING_INVALID", 401: "ACCESS_EXPIRED", 409: "BOOKING_REJECTED" },
+        // 409 punya dua arti: NIK terpakai (BOOKING_REJECTED) dan stok kurang (INSUFFICIENT_STOCK, layar tersendiri).
+        serverErrorCodes: { INSUFFICIENT_STOCK: "STOCK_INSUFFICIENT" },
       });
     },
   };

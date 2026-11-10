@@ -289,6 +289,30 @@ describe("bookingService", () => {
       status: 401,
     });
   });
+
+  it("submit 409: error_code INSUFFICIENT_STOCK menjadi STOCK_INSUFFICIENT, 409 lain tetap BOOKING_REJECTED", async () => {
+    const submit = () =>
+      setupTestContainer().cradle.bookingService.submitBooking({
+        eventId: OPEN_EVENT_ID,
+        contactEmail: "rina@example.com",
+        termsVersion: "v1",
+        tickets: [{ categoryId: "cat_vip", nik: "3171000000000033" }],
+      });
+    const conflict = (errorCode?: string) =>
+      http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
+        HttpResponse.json(
+          { meta: { code: 409, message: "x", ...(errorCode ? { error_code: errorCode } : {}) } },
+          { status: 409 },
+        ),
+      );
+
+    server.use(conflict("INSUFFICIENT_STOCK"));
+    expect(await failureOf(submit())).toEqual({ kind: "api", code: "STOCK_INSUFFICIENT", status: 409 });
+    server.use(conflict("NIK_ALREADY_USED"));
+    expect(await failureOf(submit())).toEqual({ kind: "api", code: "BOOKING_REJECTED", status: 409 });
+    server.use(conflict());
+    expect(await failureOf(submit())).toEqual({ kind: "api", code: "BOOKING_REJECTED", status: 409 });
+  });
 });
 
 describe("orderService", () => {

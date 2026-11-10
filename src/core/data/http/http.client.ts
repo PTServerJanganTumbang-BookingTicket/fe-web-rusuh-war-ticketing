@@ -8,6 +8,11 @@ export type RequestOptions = {
    * `meta.message`, jadi service yang tahu arti 401 atau 409 di endpoint-nya (ADR-0009).
    */
   errorCodes?: Partial<Record<number, ApiErrorCode>>;
+  /**
+   * Arti `meta.error_code` dari server untuk endpoint ini (mis. `INSUFFICIENT_STOCK`). Dipakai lebih dulu daripada
+   * `errorCodes`, karena satu status (409) bisa berarti beberapa hal berbeda.
+   */
+  serverErrorCodes?: Readonly<Record<string, ApiErrorCode>>;
 };
 
 /**
