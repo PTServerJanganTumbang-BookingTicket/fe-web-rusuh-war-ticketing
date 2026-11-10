@@ -72,7 +72,6 @@ function removeDialogKindOf(error: AppError): "sessionExpired" | "removeFailed" 
 }
 
 function labelError(error: SavedNikInputError["label"]): string | undefined {
-  if (error === "required") return t("account.saved.label.invalid");
   if (error === "too_long") return t("account.saved.label.tooLong", { max: SAVED_NIK_LABEL_MAX_LENGTH });
   return undefined;
 }

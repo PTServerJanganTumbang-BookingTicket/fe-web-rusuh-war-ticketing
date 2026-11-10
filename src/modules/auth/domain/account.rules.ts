@@ -18,19 +18,26 @@ export function isNikFormat(value: string): boolean {
 }
 
 export type SavedNikInputError = {
-  label?: "required" | "too_long";
+  label?: "too_long";
   nik?: "format";
 };
 
 /**
- * Validasi bentuk alias sebelum dikirim. Saat membuat, NIK wajib; saat mengubah, NIK kosong berarti tetap.
+ * Alias bersifat opsional di UI, tetapi kontrak (Apidog) mewajibkan `label`. Alias kosong diisi
+ * dari 4 digit terakhir NIK supaya tetap bisa dibedakan di daftar tanpa membuka NIK lengkap.
+ */
+export function savedNikLabelOf(label: string, nik: string): string {
+  const trimmed = label.trim();
+  return trimmed === "" ? `NIK ••${nik.slice(-4)}` : trimmed;
+}
+
+/**
+ * Validasi bentuk alias sebelum dikirim. NIK wajib 16 digit; alias boleh kosong tetapi dibatasi panjangnya.
  * Mengembalikan `null` bila isian siap dikirim.
  */
 export function validateSavedNikInput(input: SavedNikInput): SavedNikInputError | null {
   const errors: SavedNikInputError = {};
-  const label = input.label.trim();
-  if (label === "") errors.label = "required";
-  else if (label.length > SAVED_NIK_LABEL_MAX_LENGTH) errors.label = "too_long";
+  if (input.label.trim().length > SAVED_NIK_LABEL_MAX_LENGTH) errors.label = "too_long";
   if (!isNikFormat(input.nik)) errors.nik = "format";
   return errors.label || errors.nik ? errors : null;
 }

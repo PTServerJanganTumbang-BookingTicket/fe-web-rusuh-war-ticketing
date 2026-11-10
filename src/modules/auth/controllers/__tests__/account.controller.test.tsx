@@ -79,6 +79,15 @@ describe("useAccountController", () => {
     expect(ready().add?.nik.value).toBe("");
   });
 
+  it("alias boleh dikosongkan: NIK tetap tersimpan dengan nama dari 4 digit terakhir", async () => {
+    const { ready } = await mountSignedIn();
+    act(() => ready().add?.nik.onChange("3171000000000044"));
+    act(() => ready().add?.submit.onSubmit());
+    await waitFor(() =>
+      expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi", "NIK ••0044"]),
+    );
+  });
+
   it("isian alias tidak valid ditolak di form tanpa request", async () => {
     let posted = false;
     server.use(
@@ -90,7 +99,7 @@ describe("useAccountController", () => {
     const { ready } = await mountSignedIn();
     act(() => ready().add?.nik.onChange("31710000"));
     act(() => ready().add?.submit.onSubmit());
-    expect(ready().add?.label.error).toBe("Isi nama alias.");
+    expect(ready().add?.label.error).toBeUndefined();
     expect(ready().add?.notice).toContain("UU Pelindungan Data Pribadi");
     expect(ready().add?.nik.error).toBe("NIK harus 16 digit angka.");
     expect(posted).toBe(false);

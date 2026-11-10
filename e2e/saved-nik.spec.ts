@@ -14,7 +14,7 @@ test.describe("Alias NIK di profil", () => {
     await expect(page.getByText("Budi", { exact: true })).toBeVisible();
     await expect(page.getByText("3171********xx33")).toBeVisible();
 
-    await page.getByRole("textbox", { name: "Nama alias" }).fill("Sari");
+    await page.getByRole("textbox", { name: "Nama alias (opsional)" }).fill("Sari");
     await page.getByRole("textbox", { name: "NIK", exact: true }).fill("3171000000000044");
     await page.getByRole("button", { name: "Simpan alias" }).click();
     await expect(page.getByText("3171********xx44")).toBeVisible();
@@ -24,13 +24,24 @@ test.describe("Alias NIK di profil", () => {
     await expect(page.getByText("3171********xx44")).toHaveCount(0);
   });
 
-  test("nama alias kosong dan NIK format salah ditolak di form tanpa memanggil server", async ({ page }) => {
+  test("alias boleh kosong: NIK tersimpan dengan nama dari 4 digit terakhir", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/account");
+    await page.getByRole("textbox", { name: "NIK", exact: true }).fill("3171000000000055");
+    await page.getByRole("button", { name: "Simpan alias" }).click();
+    await expect(page.getByText("3171********xx55")).toBeVisible();
+    await expect(page.getByText("NIK ••0055")).toBeVisible();
+  });
+
+  test("NIK format salah ditolak di form tanpa memanggil server, alias kosong tidak jadi galat", async ({
+    page,
+  }) => {
     await signIn(page);
     await page.goto("/account");
     await page.getByRole("textbox", { name: "NIK", exact: true }).fill("31710000");
     await page.getByRole("button", { name: "Simpan alias" }).click();
-    await expect(page.getByText("Isi nama alias.")).toBeVisible();
     await expect(page.getByText("NIK harus 16 digit angka.")).toBeVisible();
+    await expect(page.getByText("Isi nama alias.")).toHaveCount(0);
   });
 });
 
@@ -79,5 +90,32 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
     await expect(page.getByRole("textbox", { name: "NIK tiket 1" })).toBeEditable();
     await expect(page.getByRole("combobox", { name: "Pemegang tiket 1" })).toHaveCount(0);
+  });
+
+  test("tamu mengetik NIK manual, terverifikasi, lalu lanjut bayar", async ({ page }) => {
+    await installFakeClock(page);
+    await passQueue(page);
+    await page.getByRole("textbox", { name: "Email" }).fill("tamu@example.com");
+    await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
+    const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
+    await nik.fill("3171000000000033");
+    await nik.blur();
+    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+    await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
+  });
+
+  test("customer masuk bisa kembali ke isian manual walau punya alias", async ({ page }) => {
+    await signIn(page);
+    await installFakeClock(page);
+    await passQueue(page);
+    await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
+    await page.getByRole("combobox", { name: "Pemegang tiket 1" }).click();
+    await page.getByRole("option", { name: "Budi · 3171********xx33" }).click();
+    await page.getByRole("combobox", { name: "Pemegang tiket 1" }).click();
+    await page.getByRole("option", { name: "Isi NIK manual" }).click();
+    const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
+    await expect(nik).toBeEditable();
+    await expect(nik).toHaveValue("");
   });
 });
