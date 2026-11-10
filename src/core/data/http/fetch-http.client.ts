@@ -5,7 +5,7 @@ import type { HttpClient, RequestOptions } from "./http.client";
 
 /** Pembungkus semua response kontrak. `data` tidak ada pada sebagian response sukses (mis. POST /auth/magic-link). */
 const envelopeSchema = z.object({
-  meta: z.object({ code: z.number(), message: z.string() }),
+  meta: z.object({ code: z.number(), message: z.string(), error_code: z.string().optional() }),
   data: z.unknown().optional(),
 });
 
@@ -34,7 +34,11 @@ async function request<T>(
   if (response.status === 204) return schema.parse(undefined);
 
   if (!response.ok) {
-    const code = options.errorCodes?.[response.status] ?? parseApiErrorCode(envelope.data?.meta.message);
+    const serverCode = envelope.success ? envelope.data.meta.error_code : undefined;
+    const code =
+      (serverCode ? options.serverErrorCodes?.[serverCode] : undefined) ??
+      options.errorCodes?.[response.status] ??
+      parseApiErrorCode(envelope.data?.meta.message);
     throw new AppFailure(
       code ? { kind: "api", code, status: response.status } : { kind: "unknown", status: response.status },
     );

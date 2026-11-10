@@ -37,6 +37,14 @@ export async function pickVipAndContinue(page: Page) {
   await nik.fill("3171000000000033");
   await nik.blur();
   await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
-  await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+  await confirmOrder(page);
   await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
+}
+
+/** Lanjut ke pembayaran lewat dialog "Periksa pesananmu"; booking baru dibuat setelah dikonfirmasi. */
+export async function confirmOrder(page: Page) {
+  await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+  const dialog = page.getByRole("dialog", { name: "Periksa pesananmu" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
 }

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { installFakeClock, passQueue } from "./helpers";
+import { confirmOrder, installFakeClock, passQueue } from "./helpers";
 
 async function signIn(page: Page) {
   await page.goto("/login/verify#token=abc123");
@@ -64,7 +64,7 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await expect(nik).toHaveAttribute("readonly", "");
     await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
 
-    await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+    await confirmOrder(page);
     await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
   });
 
@@ -101,7 +101,7 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await nik.fill("3171000000000033");
     await nik.blur();
     await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
-    await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+    await confirmOrder(page);
     await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
   });
 

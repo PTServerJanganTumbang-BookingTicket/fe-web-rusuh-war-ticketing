@@ -290,3 +290,80 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     notice: t("booking.notice"),
   };
 }
+
+/**
+ * Konfirmasi ringkasan pesanan sebelum membuat booking dan pindah ke pembayaran. Menampilkan acara, email,
+ * tiket per kategori, dan total supaya customer bisa memeriksa sebelum waktu pembayaran berjalan.
+ */
+export function toBookingConfirmDialog({
+  session,
+  event,
+  selection,
+  contactEmail,
+  submitting,
+  onConfirm,
+  onDismiss,
+}: {
+  session: BookingSession;
+  event?: BookingEvent;
+  selection: Selection;
+  contactEmail: string;
+  submitting: boolean;
+  onConfirm: () => void;
+  onDismiss: () => void;
+}): ActionDialogModel {
+  const lines = session.categories
+    .filter((category) => (selection[category.id] ?? 0) > 0)
+    .map((category) => {
+      const quantity = selection[category.id] ?? 0;
+      return {
+        label: t("checkout.summary.line", { category: category.name, count: quantity }),
+        value: formatIdr(category.priceIdr * quantity),
+      };
+    });
+  return {
+    tone: "info",
+    illustration: "confirmation",
+    title: t("booking.confirm.title"),
+    description: t("booking.confirm.description"),
+    details: [
+      { label: t("booking.confirm.event"), value: event?.name ?? session.eventName },
+      { label: t("booking.confirm.email"), value: contactEmail.trim() },
+      ...lines,
+      { label: t("checkout.summary.total"), value: formatIdr(totalPriceIdr(selection, session.categories)) },
+    ],
+    primary: { label: t("booking.submit"), onClick: onConfirm, busy: submitting },
+    secondary: { label: t("booking.confirm.back"), onClick: onDismiss },
+    onDismiss,
+  };
+}
+
+/** Detik hitung mundur kembali ke Beranda saat semua kategori habis (sheet Signal DS: 10 detik). */
+export const SOLD_OUT_REDIRECT_SECONDS = 10;
+
+/**
+ * Stok berubah antara memilih tiket dan submit (409 `INSUFFICIENT_STOCK`). Sebagian kategori habis: customer
+ * memilih kategori lain. Semua habis: kembali ke Beranda dengan hitung mundur.
+ */
+export function toStockUnavailableDialog({
+  allSoldOut,
+  secondsLeft,
+  onPickAnother,
+  onGoHome,
+}: {
+  allSoldOut: boolean;
+  secondsLeft: number;
+  onPickAnother: () => void;
+  onGoHome: () => void;
+}): ActionDialogModel {
+  return {
+    tone: "warning",
+    illustration: "box",
+    title: t("booking.stock.title"),
+    description: t("booking.stock.description"),
+    primary: allSoldOut
+      ? { label: t("booking.stock.home", { seconds: Math.max(secondsLeft, 0) }), onClick: onGoHome }
+      : { label: t("booking.stock.another"), onClick: onPickAnother },
+    onDismiss: allSoldOut ? onGoHome : onPickAnother,
+  };
+}

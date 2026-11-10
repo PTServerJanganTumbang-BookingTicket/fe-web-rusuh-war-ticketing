@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { passQueue, installFakeClock } from "./helpers";
+import { confirmOrder, passQueue, installFakeClock } from "./helpers";
 
 test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
   test.beforeEach(async ({ page }) => {
@@ -44,6 +44,31 @@ test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
     for (const number of [1, 2, 3]) {
       await expect(page.getByRole("textbox", { name: `NIK tiket ${number}` })).toBeVisible();
     }
+  });
+
+  test("sebelum bayar ada ringkasan pesanan; Periksa lagi menutupnya tanpa membuat booking", async ({
+    page,
+  }) => {
+    await page.getByRole("textbox", { name: "Email" }).fill("rina@example.com");
+    await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
+    const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
+    await nik.fill("3171000000000033");
+    await nik.blur();
+    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+
+    await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
+    const dialog = page.getByRole("dialog", { name: "Periksa pesananmu" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("rina@example.com")).toBeVisible();
+    await expect(dialog.getByText("VIP × 1")).toBeVisible();
+    await expect(dialog.getByText("Total bayar")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Periksa lagi" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/events\/evt_konser_a\/book$/);
+
+    await confirmOrder(page);
+    await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
   });
 
   test("peringatan merah di 60 detik terakhir", async ({ page }) => {
