@@ -19,6 +19,8 @@ export type MyTicketsViewProps = {
     links?: { label: string; href: string }[];
   };
   emptyLabel?: string;
+  /** Ajakan di keadaan kosong, misalnya menuju daftar event. */
+  emptyAction?: { label: string; href: string };
   errorMessage?: string;
   /** Tamu belum masuk: ajakan masuk menggantikan daftar. */
   signedOut?: { message: string; login: { label: string; href: string } };
@@ -37,6 +39,7 @@ export function MyTicketsView({
   tickets,
   footer,
   emptyLabel,
+  emptyAction,
   errorMessage,
   signedOut,
   loading,
@@ -69,7 +72,13 @@ export function MyTicketsView({
             </div>
           ) : null}
           {!signedOut && !loading && !errorMessage && tickets.length === 0 && (
-            <EmptyState illustration="tickets" title={emptyLabel ?? ""} />
+            <EmptyState illustration="tickets" title={emptyLabel ?? ""}>
+              {emptyAction ? (
+                <Link href={emptyAction.href} className={buttonVariants({ size: "lg" })}>
+                  {emptyAction.label}
+                </Link>
+              ) : null}
+            </EmptyState>
           )}
           {tickets.length > 0 && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

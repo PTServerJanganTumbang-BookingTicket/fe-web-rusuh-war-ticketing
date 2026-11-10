@@ -14,7 +14,6 @@ export async function loadHomeViewProps({ listEventsUseCase }: CatalogDependenci
     nav: {
       items: [
         { label: t("home.nav.explore"), href: "/", active: true },
-        { label: t("home.nav.myTickets"), href: "/tickets" },
         { label: t("home.nav.help"), href: "/help" },
       ],
       menu: { label: t("nav.menu"), closeLabel: t("nav.menu.close") },

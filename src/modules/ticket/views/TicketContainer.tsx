@@ -49,6 +49,7 @@ function TicketContent() {
         links: legalLinks(),
       }}
       emptyLabel={t("ticket.empty")}
+      emptyAction={{ label: t("ticket.empty.cta"), href: "/" }}
       errorMessage={error && !signedOut ? t("ticket.error") : undefined}
       signedOut={
         signedOut

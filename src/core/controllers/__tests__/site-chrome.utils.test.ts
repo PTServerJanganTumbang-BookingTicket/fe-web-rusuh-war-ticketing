@@ -9,6 +9,13 @@ describe("toSiteChrome", () => {
     expect(nav.items.some((item) => item.active)).toBe(false);
   });
 
+  it("Tiket saya hanya ada di menu saat masuk; tamu tidak melihatnya", () => {
+    const hrefs = (account?: { email: string; nikMasked: string }) =>
+      toSiteChrome({ account }).nav.items.map((item) => item.href);
+    expect(hrefs()).toEqual(["/", "/help"]);
+    expect(hrefs({ email: "budi@example.com", nikMasked: "3171****22" })).toEqual(["/", "/tickets", "/help"]);
+  });
+
   it("customer masuk: avatar dan nama pendek menuju profil", () => {
     const { nav } = toSiteChrome({ account: { email: "budi.santoso@example.com", nikMasked: "3171****22" } });
     expect(nav.account).toEqual({
@@ -38,7 +45,10 @@ describe("toSiteChrome", () => {
   });
 
   it("menandai menu halaman aktif", () => {
-    const { nav } = toSiteChrome({ active: "/tickets" });
+    const { nav } = toSiteChrome({
+      active: "/tickets",
+      account: { email: "budi@example.com", nikMasked: "3171****22" },
+    });
     expect(nav.items.filter((item) => item.active).map((item) => item.href)).toEqual(["/tickets"]);
   });
 });

@@ -579,6 +579,7 @@ export const id = {
   "ticket.title": "Tiket Saya",
   "ticket.subtitle": "Semua tiket yang sudah kamu beli",
   "ticket.empty": "Anda belum membeli tiket dari event manapun, Silahkan beli tiket dari event",
+  "ticket.empty.cta": "Jelajahi event",
   "ticket.error": "Tiket belum bisa dimuat. Coba lagi sebentar lagi.",
   "ticket.eticket.title": "E-Tiket",
   "ticket.error.UNAUTHENTICATED": "Masuk untuk melihat tiketmu.",

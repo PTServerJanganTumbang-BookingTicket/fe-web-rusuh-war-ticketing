@@ -168,6 +168,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "ticket.title": "My Tickets",
   "ticket.subtitle": "All the tickets you've bought",
   "ticket.empty": "You still not buy any Tickets from any event, please buy to fill this page",
+  "ticket.empty.cta": "Explore events",
   "ticket.error": "We couldn't load your tickets. Try again shortly.",
   "ticket.eticket.title": "E-Ticket",
   "ticket.error.UNAUTHENTICATED": "Log in to see your tickets.",

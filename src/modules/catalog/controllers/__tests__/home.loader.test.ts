@@ -21,7 +21,7 @@ describe("loadHomeViewProps", () => {
     expect(props.events).toHaveLength(1);
     expect(props.events[0]?.cta).toEqual({ label: "Beli Tiket →", href: "/events/evt-1/queue" });
     expect(props.errorMessage).toBeUndefined();
-    expect(props.nav.items.map((item) => item.href)).toEqual(["/", "/tickets", "/help"]);
+    expect(props.nav.items.map((item) => item.href)).toEqual(["/", "/help"]);
     expect(props.nav.loginHref).toBe("/login");
     expect(props.hero.headline).toBeTruthy();
   });
