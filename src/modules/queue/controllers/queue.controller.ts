@@ -21,6 +21,7 @@ function errorKey(error: AppError): MessageKey {
   if (error.kind === "network") return "queue.error.network";
   if (error.kind === "api" && error.code === "QUEUE_TOKEN_INVALID") return "queue.error.QUEUE_TOKEN_INVALID";
   if (error.kind === "api" && error.code === "QUEUE_FULL") return "queue.error.QUEUE_FULL";
+  if (error.kind === "api" && error.code === "FULL_BOOKED") return "queue.error.FULL_BOOKED";
   if (error.kind === "api" && error.code === "CAPTCHA_FAILED") return "queue.error.CAPTCHA_FAILED";
   if (error.kind === "api" && error.code === "SALE_NOT_OPEN") return "queue.error.SALE_NOT_OPEN";
   if (error.kind === "api" && error.code === "SALE_CLOSED") return "queue.error.SALE_CLOSED";
@@ -40,6 +41,7 @@ export function useQueueController(eventId: string): QueueViewProps {
     random,
   } = useDependencies<QueueDependencies & CoreDependencies>();
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [fullDismissed, setFullDismissed] = useState(false);
   const queryClient = useQueryClient();
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
@@ -83,9 +85,36 @@ export function useQueueController(eventId: string): QueueViewProps {
       }
     : undefined;
 
+  // Beranda masih menampilkan antrian terbuka (data di-cache), tetapi join ditolak karena penuh: beri tahu lewat
+  // modal dengan jalan keluar, bukan hanya pesan di panel status.
+  const fullError = queue.isError ? toAppError(queue.error) : undefined;
+  const fullKind =
+    fullError?.kind === "api" && (fullError.code === "QUEUE_FULL" || fullError.code === "FULL_BOOKED")
+      ? fullError.code
+      : undefined;
+  const fullDialog: QueueViewProps["dialog"] =
+    fullKind && !fullDismissed
+      ? {
+          tone: "warning",
+          illustration: "box",
+          title: t(`queue.full.${fullKind}.title`),
+          description: t(`queue.full.${fullKind}.description`),
+          primary: {
+            label: t("queue.full.retry"),
+            busy: queue.isFetching,
+            onClick: () => {
+              setFullDismissed(false);
+              void queue.refetch();
+            },
+          },
+          secondary: { label: t("queue.full.home"), href: "/" },
+          onDismiss: () => setFullDismissed(true),
+        }
+      : undefined;
+
   const page = (status: QueueStatusProps) =>
     toQueueViewProps({
-      dialog: leaveDialog,
+      dialog: leaveDialog ?? fullDialog,
       chrome: siteChrome,
       eventName: event.data?.name ?? (data?.eventName || undefined),
       event: event.data,

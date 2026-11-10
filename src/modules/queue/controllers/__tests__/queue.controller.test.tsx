@@ -126,6 +126,36 @@ describe("useQueueController", () => {
     expect(result.current.status.message).toBe("Antrian sedang penuh. Coba lagi beberapa saat lagi.");
   });
 
+  it("antrian penuh saat join: modal dengan coba lagi dan kembali ke beranda", async () => {
+    const { result } = renderHook(() => useQueueController("evt_konser_b"), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.dialog).toBeDefined());
+    expect(result.current.dialog).toMatchObject({
+      title: "Antrian sedang penuh",
+      primary: { label: "Coba lagi" },
+      secondary: { label: "Kembali ke beranda", href: "/" },
+    });
+    act(() => result.current.dialog?.onDismiss());
+    await waitFor(() => expect(result.current.dialog).toBeUndefined());
+    expect(result.current.status.state).toBe("error");
+  });
+
+  it("tiket sedang habis (409 FULL_BOOKED) saat join: modal sendiri, bukan 'penjualan belum dibuka'", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        HttpResponse.json(
+          {
+            meta: { code: 409, message: "Tiket sedang habis", error_code: "FULL_BOOKED" },
+            data: { queue_state: "FULL_BOOKED" },
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.dialog?.title).toBe("Tiket sedang habis"));
+    expect(result.current.status.message).toContain("Tiket sedang habis");
+  });
+
   it("grant kedaluwarsa: antrian berakhir dengan pesan, tanpa pindah halaman", async () => {
     push.mockClear();
     server.use(

@@ -142,6 +142,15 @@ export const id = {
   "queue.error.network": "Koneksi bermasalah. Kami mencoba lagi otomatis.",
   "queue.error.unknown": "Terjadi kesalahan. Muat ulang halaman ini.",
   "queue.error.QUEUE_TOKEN_INVALID": "Sesi antrianmu tidak valid. Masuk antrian lagi dari awal.",
+  "queue.error.FULL_BOOKED": "Tiket sedang habis. Kursi bisa kembali tersedia, coba lagi beberapa saat lagi.",
+  "queue.full.QUEUE_FULL.title": "Antrian sedang penuh",
+  "queue.full.QUEUE_FULL.description":
+    "Antrian untuk event ini sudah mencapai batas. Kamu belum masuk antrian; coba lagi beberapa saat lagi atau kembali ke beranda.",
+  "queue.full.FULL_BOOKED.title": "Tiket sedang habis",
+  "queue.full.FULL_BOOKED.description":
+    "Semua kursi sedang ditahan pembeli lain. Kursi bisa kembali tersedia bila pembayaran tidak selesai, coba lagi beberapa saat lagi.",
+  "queue.full.retry": "Coba lagi",
+  "queue.full.home": "Kembali ke beranda",
   "queue.error.QUEUE_FULL": "Antrian sedang penuh. Coba lagi beberapa saat lagi.",
   "queue.leave.button": "Keluar dari antrian",
   "queue.leave.title": "Keluar dari antrian?",

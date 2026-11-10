@@ -305,6 +305,15 @@ export const en: Partial<Record<MessageKey, string>> = {
   "queue.error.network": "Connection problem. We're retrying automatically.",
   "queue.error.unknown": "Something went wrong. Reload this page.",
   "queue.error.QUEUE_TOKEN_INVALID": "Your queue session is invalid. Join the queue again from the start.",
+  "queue.error.FULL_BOOKED": "Tickets are temporarily sold out. Seats may return, please try again shortly.",
+  "queue.full.QUEUE_FULL.title": "The queue is full",
+  "queue.full.QUEUE_FULL.description":
+    "The queue for this event has reached its limit. You haven't joined; try again shortly or go back to the home page.",
+  "queue.full.FULL_BOOKED.title": "Tickets are temporarily sold out",
+  "queue.full.FULL_BOOKED.description":
+    "All seats are being held by other buyers. Seats may return if a payment isn't completed, so try again shortly.",
+  "queue.full.retry": "Try again",
+  "queue.full.home": "Back to home",
   "queue.error.QUEUE_FULL": "The queue is full right now. Try again in a moment.",
   "queue.leave.button": "Leave the queue",
   "queue.leave.title": "Leave the queue?",

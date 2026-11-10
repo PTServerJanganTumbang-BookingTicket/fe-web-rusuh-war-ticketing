@@ -10,6 +10,7 @@ export type ApiErrorCode =
   | "SLOT_TAKEN_OVER"
   | "PAYMENT_EXPIRED"
   | "QUEUE_FULL"
+  | "FULL_BOOKED"
   | "CAPTCHA_FAILED"
   | "SALE_NOT_OPEN"
   | "SALE_CLOSED"
@@ -39,6 +40,7 @@ const API_ERROR_CODES: readonly string[] = [
   "SLOT_TAKEN_OVER",
   "PAYMENT_EXPIRED",
   "QUEUE_FULL",
+  "FULL_BOOKED",
   "CAPTCHA_FAILED",
   "SALE_NOT_OPEN",
   "SALE_CLOSED",
