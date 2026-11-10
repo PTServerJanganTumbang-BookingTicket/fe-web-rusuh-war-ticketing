@@ -56,6 +56,13 @@ describe("eventSchema display", () => {
     expect(event.display.badgeKey).toBe("home.event.status.SELLING_OUT_FAST");
   });
 
+  it("tombol nonaktif: chip mengikuti alasan nonaktif walau server masih mengirim selling_out_fast", () => {
+    const event = eventSchema.parse(
+      raw({ enabled: false, action: "NONE", label_key: "queue_full", badge_key: "selling_out_fast" }),
+    );
+    expect(event.display.badgeKey).toBe("home.event.badge.queueFull");
+  });
+
   it("membawa kategori dan jadwal buka; kategori kosong jatuh ke bawaan", () => {
     const display = { enabled: true, action: "JOIN_QUEUE", label_key: "join_queue", badge_key: null };
     expect(eventSchema.parse(raw(display))).toMatchObject({

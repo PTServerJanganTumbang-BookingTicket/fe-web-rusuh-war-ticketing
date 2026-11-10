@@ -42,7 +42,8 @@ const displaySchema = z
     action: ACTIONS[display.action],
     labelKey:
       LABEL_KEYS[display.label_key] ?? (display.enabled ? "home.event.cta" : "home.event.unavailable"),
-    badgeKey: BADGE_KEYS[display.badge_key ?? display.label_key],
+    // Tombol nonaktif: chip mengikuti alasannya, bukan "selling out" (kontrak §2.1: badge hanya saat enabled).
+    badgeKey: BADGE_KEYS[(display.enabled ? display.badge_key : null) ?? display.label_key],
   }));
 
 /** Satu event di `GET /events` dan `GET /events/{event_id}` (kontrak §Events). */
