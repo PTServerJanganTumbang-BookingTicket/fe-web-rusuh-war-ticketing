@@ -37,6 +37,18 @@ describe("toETicketViewProps", () => {
     ]);
   });
 
+  it("QR digambar dari qr_value, bukan dari gambar BE yang bisa kosong; kode tiket ikut tampil", () => {
+    const view = toETicketViewProps(eticket, toSiteChrome());
+    expect(view.qr.src.startsWith("data:image/svg+xml")).toBe(true);
+    expect(decodeURIComponent(view.qr.src)).toContain("<svg");
+    expect(view.qr.code).toBe("Kode tiket TKT-001");
+  });
+
+  it("qr_value kosong: memakai gambar qr_code dari BE", () => {
+    const view = toETicketViewProps({ ...eticket, qrValue: "" }, toSiteChrome());
+    expect(view.qr.src).toBe("data:image/png;base64,AAAA");
+  });
+
   it("harga, nama, dan email tampil bila ada, tanpa nomor bangku", () => {
     const view = toETicketViewProps(
       { ...eticket, priceIdr: 1_500_000, holderName: "Rina", holderEmail: "r@x.co" },

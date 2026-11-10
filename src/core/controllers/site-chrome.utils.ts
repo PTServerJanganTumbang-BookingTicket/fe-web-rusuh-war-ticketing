@@ -69,7 +69,8 @@ export function toSiteChrome({
     nav: {
       items: [
         { label: t("home.nav.explore"), href: "/" },
-        { label: t("home.nav.myTickets"), href: "/tickets" },
+        // Tiket saya butuh akun (ADR-0023): tamu tidak melihat menunya.
+        ...(account ? [{ label: t("home.nav.myTickets"), href: "/tickets" }] : []),
         { label: t("home.nav.help"), href: "/help" },
       ].map((item) => (item.href === active ? { ...item, active: true } : item)),
       menu: { label: t("nav.menu"), closeLabel: t("nav.menu.close") },

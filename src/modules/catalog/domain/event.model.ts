@@ -38,6 +38,10 @@ export type Event = {
   /** ISO date string — tanggal pelaksanaan event */
   date: string;
   venue: string;
+  /** Kategori event dari server (mis. "LIVE MUSIC"); dasar filter kategori di Home. */
+  category: string;
+  /** ISO — kapan penjualan dibuka; dipakai label "Buka 10 Nov 09:00" saat belum dibuka. */
+  saleStartsAt?: string;
   imageUrl: string;
   /** Ketersediaan stok (AVAILABLE, SELLING_OUT_FAST, SOLD_OUT) */
   status: EventStatus;

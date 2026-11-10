@@ -18,6 +18,19 @@ afterEach(() => {
 });
 
 describe("useVerifyLoginController", () => {
+  it("berhasil masuk: 5 detik kemudian otomatis diarahkan ke tujuan", async () => {
+    window.history.replaceState(null, "", "/login/verify#token=mt_abc");
+    const { result } = renderHook(() => useVerifyLoginController(), {
+      wrapper: createWrapper(setupTestContainer()),
+    });
+    const screen = result.current;
+    if (screen.kind !== "confirm") throw new Error("bukan layar konfirmasi");
+    act(() => screen.confirm.onClick());
+    await waitFor(() => expect(result.current.kind).toBe("done"));
+    expect(replace).not.toHaveBeenCalled();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-00912/pay"), { timeout: 7000 });
+  }, 10000);
+
   it("token di fragmen baru dipakai saat tombol ditekan, lalu ke tujuan dari redirect_context", async () => {
     let verifyCalls = 0;
     server.events.on("request:start", ({ request }) => {
@@ -38,6 +51,7 @@ describe("useVerifyLoginController", () => {
     if (done.kind !== "done") throw new Error("belum selesai");
     expect(done.primary).toEqual({ label: "Kembali ke booking", href: "/orders/RB-00912/pay" });
     expect(done.secondary?.href).toBe("/");
+    expect(done.redirectNote).toBe("Kamu akan kembali ke booking dalam 5 detik.");
     await waitFor(() =>
       expect(result.current.kind === "done" && result.current.booking?.title).toBe("Konser A — Jakarta"),
     );

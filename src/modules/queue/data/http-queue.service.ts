@@ -57,6 +57,13 @@ export function createHttpQueueService({
       queueJoinSchema,
       {
         headers: { "x-device-id": credentialStore.deviceId() },
+        // `meta.error_code` lebih halus daripada status: 409 bisa SALE_NOT_OPEN, FULL_BOOKED, atau SOLD_OUT (§3.1).
+        serverErrorCodes: {
+          QUEUE_FULL: "QUEUE_FULL",
+          FULL_BOOKED: "FULL_BOOKED",
+          SALE_NOT_OPEN: "SALE_NOT_OPEN",
+          SOLD_OUT: "SALE_CLOSED",
+        },
         errorCodes: {
           400: "CAPTCHA_FAILED",
           403: "CAPTCHA_FAILED",

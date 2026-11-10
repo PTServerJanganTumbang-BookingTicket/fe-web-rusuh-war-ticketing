@@ -35,6 +35,8 @@ export type VerifyScreenProps =
       heading: string;
       message: string;
       booking?: BookingContextCard;
+      /** Hitung mundur pindah otomatis ("dialihkan dalam 5 detik"). */
+      redirectNote?: string;
       primary: LinkProps;
       secondary?: LinkProps;
     };
@@ -106,6 +108,9 @@ function VerifyScreen(screen: VerifyScreenProps) {
             <p className="type-body2 text-muted-foreground">{screen.booking.note}</p>
           </CardContent>
         </Card>
+      ) : null}
+      {screen.redirectNote ? (
+        <p className="type-body2 text-center text-muted-foreground">{screen.redirectNote}</p>
       ) : null}
       <LinkButton link={screen.primary} />
       {screen.secondary ? <LinkButton link={screen.secondary} variant="outline" /> : null}

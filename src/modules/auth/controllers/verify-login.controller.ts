@@ -17,6 +17,8 @@ import { useModal } from "@/core/controllers/modal.hook";
 import { refreshAfterSignIn } from "@/core/controllers/session.cache";
 import { sessionAccountQuery } from "@/core/controllers/session.queries";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
+import { useAutoRedirect } from "@/core/controllers/auto-redirect.hook";
+import { AUTO_REDIRECT_SECONDS } from "../domain/auth.constants";
 import type { VerifyLoginViewProps } from "../views/VerifyLoginView";
 
 const subscribeToHash = (onChange: () => void) => {
@@ -54,6 +56,8 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
     queryFn: () => getEventSummaryUseCase(eventId ?? ""),
     enabled: Boolean(eventId),
   });
+  // Berhasil masuk: setelah jeda singkat pelanggan diarahkan ke tujuannya (beranda, atau booking yang dipulihkan).
+  const redirectIn = useAutoRedirect(verify.data?.redirectPath, AUTO_REDIRECT_SECONDS);
   const chrome = siteChrome;
   const requestNew = { label: t("verify.requestNew"), href: "/login" };
 
@@ -101,6 +105,9 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
             note: t("verify.done.context"),
           }
         : undefined,
+      redirectNote: t(hasBooking ? "verify.done.redirectBooking" : "verify.done.redirectHome", {
+        seconds: redirectIn ?? AUTO_REDIRECT_SECONDS,
+      }),
       primary: hasBooking
         ? { label: t("verify.done.returnToBooking"), href: verify.data.redirectPath }
         : explore,

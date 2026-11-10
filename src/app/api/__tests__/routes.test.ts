@@ -16,6 +16,7 @@ const gateway = {
   verify: vi.fn(() => new Response("verify")),
   session: vi.fn(() => new Response("session")),
   logout: vi.fn(() => new Response("logout")),
+  verifyEmail: vi.fn(() => new Response("verifyEmail")),
   forward: vi.fn(() => new Response("forward")),
 };
 vi.mock("@/di/server-dependencies", () => ({ getServerDependencies: () => ({ accountGateway: gateway }) }));
@@ -78,12 +79,15 @@ describe("route akun yang meneruskan ke gateway", () => {
     const verify = await import("../auth/verify/route");
     const session = await import("../auth/session/route");
     const logout = await import("../auth/logout/route");
+    const verifyEmail = await import("../auth/verify-email/route");
     expect(await (await verify.POST(request)).text()).toBe("verify");
     expect(gateway.verify).toHaveBeenCalledWith(request);
     expect(await (await session.GET(request)).text()).toBe("session");
     expect(gateway.session).toHaveBeenCalledWith(request);
     expect(await (await logout.POST()).text()).toBe("logout");
     expect(gateway.logout).toHaveBeenCalled();
+    expect(await (await verifyEmail.POST(request)).text()).toBe("verifyEmail");
+    expect(gateway.verifyEmail).toHaveBeenCalledWith(request);
   });
 
   it("account/[...path] menyambung segmen path dan meneruskan request", async () => {

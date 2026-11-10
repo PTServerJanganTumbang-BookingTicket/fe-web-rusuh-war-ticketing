@@ -451,6 +451,42 @@ describe("useBookingController", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("waktu booking habis saat formulir terbuka: modal di atas formulir, antre lagi menuju Waiting Room", async () => {
+    push.mockClear();
+    replace.mockClear();
+    // Sesi tersisa 1,2 detik; saat hitungan nol FE bertanya ke server dan dijawab 401. Server yang memutuskan (ADR-0005).
+    let calls = 0;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => {
+        calls += 1;
+        if (calls > 1)
+          return HttpResponse.json(
+            { meta: { code: 401, message: "Grant expired", error_code: "GRANT_TOKEN_INVALID" }, data: {} },
+            { status: 401 },
+          );
+        return HttpResponse.json({
+          meta: { code: 200, message: "Success" },
+          data: {
+            event: { name: "Konser A" },
+            session: {
+              expires_at: new Date(Date.now() + 1200).toISOString(),
+              server_time: new Date().toISOString(),
+            },
+            categories: [{ id: "cat_vip", name: "VIP", description: "", price: 100_000, available: 5 }],
+            rules: { max_tickets_per_order: 3 },
+          },
+        });
+      }),
+    );
+    const { view } = await readyView();
+    await waitFor(() => expect(view().dialog?.title).toBe("Waktu booking habis"), { timeout: 6000 });
+    expect(view().dialog?.secondary).toMatchObject({ href: "/" });
+    expect(replace).not.toHaveBeenCalled();
+    const requeue = view().dialog?.primary;
+    act(() => requeue && "onClick" in requeue && requeue.onClick());
+    expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
+  }, 10000);
+
   it("jaringan gagal tanpa data: layar status error", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => HttpResponse.error()));
     const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: createWrapper() });

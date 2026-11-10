@@ -49,8 +49,8 @@ export function authHandlers(state: MockState, baseUrl: string) {
     }),
 
     // Konfirmasi email pendaftaran (FR-31): tidak menerbitkan sesi. Token "expired" atau kosong ditolak.
-    http.get(`${baseUrl}/auth/verify-email`, ({ request }) => {
-      const token = new URL(request.url).searchParams.get("token");
+    http.get(`${baseUrl}/auth/verify-email`, ({ cookies }) => {
+      const token = cookies.magic_token; // seperti BE yang berjalan; query `token` ikut dikirim sesuai kontrak
       if (!token || token === "expired") return fail(400, "Invalid or expired token", {}, "TOKEN_INVALID");
       return okMeta("Email verified");
     }),

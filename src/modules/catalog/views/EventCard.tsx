@@ -15,7 +15,7 @@ export type EventCardProps = {
   date: string;
   venue: string;
   statusLabel: string;
-  statusTone: "success" | "danger" | "info";
+  statusTone: "success" | "danger" | "info" | "warning";
   cta: { label: string; href?: string };
 };
 
@@ -23,6 +23,7 @@ const badgeVariant: Record<EventCardProps["statusTone"], NonNullable<BadgeProps[
   success: "success",
   danger: "error",
   info: "info",
+  warning: "warning",
 };
 
 export function EventCard({

@@ -48,6 +48,7 @@ function sameOriginAccountHandlers() {
   const api = `${TEST_APP_ORIGIN}/api`;
   return [
     http.post(`${api}/auth/verify`, ({ request }) => withCookies(request, accountGateway.verify)),
+    http.post(`${api}/auth/verify-email`, ({ request }) => withCookies(request, accountGateway.verifyEmail)),
     http.get(`${api}/auth/session`, ({ request }) => withCookies(request, accountGateway.session)),
     http.post(`${api}/auth/logout`, ({ request }) => withCookies(request, () => accountGateway.logout())),
     http.all(`${api}/account/*`, ({ request }) =>

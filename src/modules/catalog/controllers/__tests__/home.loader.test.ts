@@ -7,6 +7,7 @@ const event: Event = {
   name: "Konser A",
   venue: "GBK",
   date: "2026-12-25T12:00:00.000Z",
+  category: "LIVE MUSIC",
   imageUrl: "/images/event-1.jpg",
   status: "AVAILABLE",
   queueState: "OPEN",
@@ -20,7 +21,7 @@ describe("loadHomeViewProps", () => {
     expect(props.events).toHaveLength(1);
     expect(props.events[0]?.cta).toEqual({ label: "Beli Tiket →", href: "/events/evt-1/queue" });
     expect(props.errorMessage).toBeUndefined();
-    expect(props.nav.items.map((item) => item.href)).toEqual(["/", "/tickets", "/help"]);
+    expect(props.nav.items.map((item) => item.href)).toEqual(["/", "/help"]);
     expect(props.nav.loginHref).toBe("/login");
     expect(props.hero.headline).toBeTruthy();
   });

@@ -55,6 +55,11 @@ function CatalogContent() {
         links: legalLinks(),
       }}
       emptyLabel={t("home.empty")}
+      categoryFilter={{
+        label: t("home.filter.label"),
+        all: t("home.filter.all"),
+        empty: t("home.filter.empty"),
+      }}
       errorMessage={getErrorMessage()}
       loading={isLoading && events.length === 0 && !error ? t("common.loading") : undefined}
     />
