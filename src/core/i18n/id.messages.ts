@@ -207,6 +207,8 @@ export const id = {
   "verify.done.event": "{date} · {venue}",
   "verify.done.returnToBooking": "Kembali ke booking",
   "verify.done.explore": "Jelajahi event",
+  "verify.done.redirectHome": "Kamu akan diarahkan ke beranda dalam {seconds} detik.",
+  "verify.done.redirectBooking": "Kamu akan kembali ke booking dalam {seconds} detik.",
   "register.confirm.title": "Konfirmasi datamu",
   "register.confirm.description":
     "Pastikan alamat email dan NIK sudah benar sebelum lanjut. Data ini dipakai untuk memverifikasi akunmu.",
@@ -243,6 +245,7 @@ export const id = {
   "register.verified.note":
     "Verifikasi email tidak membuat sesi login. Konteks booking yang tertunda dipulihkan setelah kamu masuk.",
   "register.verified.login": "Lanjut ke halaman masuk",
+  "register.verified.redirect": "Kamu akan diarahkan ke halaman masuk dalam {seconds} detik.",
   "register.verifying.title": "Memverifikasi emailmu",
   "register.verifying.message": "Sebentar, kami sedang memeriksa link verifikasimu.",
   "register.verifyFailed.title": "Link verifikasi tidak berlaku",

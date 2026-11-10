@@ -12,7 +12,8 @@ import { useCountdown } from "@/core/controllers/countdown.hook";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
-import { RESEND_COOLDOWN_MS } from "../domain/auth.constants";
+import { useAutoRedirect } from "@/core/controllers/auto-redirect.hook";
+import { AUTO_REDIRECT_SECONDS, RESEND_COOLDOWN_MS } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
 import { authKeys } from "./auth.queries";
 import type { RegistrationStatusViewProps } from "../views/RegistrationStatusView";
@@ -106,6 +107,8 @@ export function useEmailVerifiedController(): RegistrationStatusViewProps {
     retry: false,
     staleTime: Infinity,
   });
+  // Email terverifikasi: setelah jeda singkat pelanggan diarahkan ke halaman masuk.
+  const redirectIn = useAutoRedirect(verify.isSuccess ? "/login" : undefined, AUTO_REDIRECT_SECONDS);
 
   // Di server (token belum terbaca) dan selama pemeriksaan berjalan, tampilkan status memverifikasi.
   if (token === undefined || (token && verify.isPending)) {
@@ -124,6 +127,7 @@ export function useEmailVerifiedController(): RegistrationStatusViewProps {
       tone: "success",
       title: t("register.verified.title"),
       message: t("register.verified.message"),
+      detail: t("register.verified.redirect", { seconds: redirectIn ?? AUTO_REDIRECT_SECONDS }),
       link: { label: t("register.verified.login"), href: "/login" },
       footnote: t("register.verified.note"),
     };

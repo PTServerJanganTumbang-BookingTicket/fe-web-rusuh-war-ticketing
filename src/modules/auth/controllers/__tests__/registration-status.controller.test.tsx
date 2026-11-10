@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -8,6 +8,9 @@ import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { createWrapper, setupMockServer, setupTestContainer } from "@/test/support";
 import { authKeys } from "../auth.queries";
 import { useEmailVerifiedController, useVerifyEmailController } from "../registration-status.controller";
+
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace }) }));
 
 const server = setupMockServer();
 
@@ -70,7 +73,16 @@ describe("useEmailVerifiedController", () => {
     expect(result.current.tone).toBe("info");
     await waitFor(() => expect(result.current.tone).toBe("success"));
     expect(result.current.link?.href).toBe("/login");
+    expect(result.current.detail).toBe("Kamu akan diarahkan ke halaman masuk dalam 5 detik.");
   });
+
+  it("5 detik setelah terverifikasi, otomatis diarahkan ke halaman masuk", async () => {
+    visit("?token=abc");
+    const { result } = mountVerified();
+    await waitFor(() => expect(result.current.tone).toBe("success"));
+    expect(replace).not.toHaveBeenCalled();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"), { timeout: 7000 });
+  }, 10000);
 
   it("token di fragmen URL juga dikenali", async () => {
     visit("#token=abc");

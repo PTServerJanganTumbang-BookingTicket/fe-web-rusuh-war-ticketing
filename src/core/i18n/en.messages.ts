@@ -366,6 +366,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "verify.done.context": "Booking context restored. Ticket availability is rechecked when you return.",
   "verify.done.event": "{date} · {venue}",
   "verify.done.returnToBooking": "Back to booking",
+  "verify.done.redirectHome": "You'll be taken to the home page in {seconds} seconds.",
+  "verify.done.redirectBooking": "You'll be taken back to your booking in {seconds} seconds.",
   "verify.done.explore": "Explore events",
   "register.confirm.title": "Confirm your details",
   "register.confirm.description":
@@ -403,6 +405,7 @@ export const en: Partial<Record<MessageKey, string>> = {
     "Your account is ready. Continue to the login page to get a secure login link.",
   "register.verified.note":
     "Email verification doesn't start a login session. Any pending booking context is restored after you log in.",
+  "register.verified.redirect": "You'll be taken to the sign-in page in {seconds} seconds.",
   "register.verified.login": "Continue to login",
   "register.verifying.title": "Verifying your email",
   "register.verifying.message": "One moment while we check your verification link.",
