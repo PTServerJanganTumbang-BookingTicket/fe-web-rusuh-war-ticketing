@@ -35,6 +35,7 @@ import {
   SOLD_OUT_REDIRECT_SECONDS,
   toBookingConfirmDialog,
   toBookingViewProps,
+  toBookingTimeoutDialog,
   toStockUnavailableDialog,
   type NikCheckState,
 } from "./booking.mapper";
@@ -132,8 +133,11 @@ export function useBookingController(eventId: string): BookingScreen {
       const error = toAppError(query.error);
       return error.kind === "api" && error.code === "ACCESS_EXPIRED";
     })();
-  // Keduanya hanya setelah server menjawab ACCESS_EXPIRED (ADR-0005); mode dari konfigurasi.
-  const redirectToQueue = isExpired && appConfig.bookingExpiry === "queue";
+  // Formulir sudah tampil: waktu habis diberitahukan lewat modal di atasnya, bukan layar pengganti. Hanya setelah
+  // server menjawab ACCESS_EXPIRED (ADR-0005).
+  const timedOutWithForm = isExpired && Boolean(session) && remainingMs !== null;
+  // Tanpa formulir (grant ditolak sejak awal): mode dari konfigurasi.
+  const redirectToQueue = isExpired && !timedOutWithForm && appConfig.bookingExpiry === "queue";
   useEffect(() => {
     if (redirectToQueue) router.replace(queuePath);
   }, [redirectToQueue, router, queuePath]);
@@ -150,7 +154,7 @@ export function useBookingController(eventId: string): BookingScreen {
     };
   }
 
-  if (isExpired) {
+  if (isExpired && !timedOutWithForm) {
     return {
       kind: "status",
       view: {
@@ -231,7 +235,10 @@ export function useBookingController(eventId: string): BookingScreen {
 
   let dialog: ActionDialogModel | undefined;
   const open = nikModal.modal;
-  if (open?.kind === "mismatch") {
+  if (timedOutWithForm) {
+    // Menang atas dialog lain: tidak ada yang bisa dilanjutkan setelah waktu habis.
+    dialog = toBookingTimeoutDialog({ onRequeue: () => router.push(queuePath) });
+  } else if (open?.kind === "mismatch") {
     dialog = toNikMismatchDialog({ onEdit: () => editNik(open.slotKey), onDismiss: nikModal.close });
   } else if (open?.kind === "unavailable") {
     dialog = toNikUnavailableDialog({

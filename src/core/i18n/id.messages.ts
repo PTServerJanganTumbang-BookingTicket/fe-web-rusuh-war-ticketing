@@ -439,6 +439,10 @@ export const id = {
   "booking.stock.description": "Ticket yang anda pilih tidak tersedia, silahkan pilih kategori tiket lainnya",
   "booking.stock.another": "Pilih kategori lain",
   "booking.stock.home": "Kembali ke Beranda ({seconds})",
+  "booking.timeout.title": "Waktu booking habis",
+  "booking.timeout.description":
+    "Waktu pemilihan tiketmu sudah habis, jadi pesanan ini tidak bisa dilanjutkan. Antre lagi untuk mencoba dari awal.",
+  "booking.timeout.home": "Kembali ke beranda",
   "booking.expired.title": "Sesi booking berakhir",
   "booking.expired.cta": "Antre lagi",
   "booking.expired.redirecting": "Waktu booking habis. Mengembalikanmu ke ruang tunggu…",

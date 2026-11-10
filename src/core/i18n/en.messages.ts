@@ -155,6 +155,10 @@ export const en: Partial<Record<MessageKey, string>> = {
     "Ticket you’re choosing is not available, please select another ticket category",
   "booking.stock.another": "Choose another category",
   "booking.stock.home": "Back to Home ({seconds})",
+  "booking.timeout.title": "Booking time is up",
+  "booking.timeout.description":
+    "Your ticket selection time has run out, so this order can't continue. Join the queue again to start over.",
+  "booking.timeout.home": "Back to home",
   "booking.expired.title": "Booking session ended",
   "booking.expired.cta": "Queue again",
   "booking.expired.redirecting": "Booking time is up. Taking you back to the waiting room…",

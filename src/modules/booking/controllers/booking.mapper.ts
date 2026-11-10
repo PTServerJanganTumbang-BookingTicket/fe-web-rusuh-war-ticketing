@@ -367,3 +367,20 @@ export function toStockUnavailableDialog({
     onDismiss: allSoldOut ? onGoHome : onPickAnother,
   };
 }
+
+/**
+ * Waktu booking habis, setelah server menjawab ACCESS_EXPIRED (ADR-0005). Formulir tetap terlihat di belakang
+ * dialog; satu-satunya jalan lanjut adalah antre lagi, atau kembali ke Beranda.
+ */
+export function toBookingTimeoutDialog({ onRequeue }: { onRequeue: () => void }): ActionDialogModel {
+  return {
+    tone: "warning",
+    icon: "clock",
+    title: t("booking.timeout.title"),
+    description: t("booking.timeout.description"),
+    primary: { label: t("booking.expired.cta"), onClick: onRequeue },
+    secondary: { label: t("booking.timeout.home"), href: "/" },
+    // Tidak ada booking yang bisa dilanjutkan; menutup dialog sama dengan memilih antre lagi.
+    onDismiss: onRequeue,
+  };
+}
