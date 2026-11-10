@@ -100,7 +100,7 @@ Menambah fitur: skill [`new-module`](.kiro/skills/new-module/SKILL.md), [`new-fe
 - Cakupan dihitung untuk seluruh kode logika di `src` dengan minimum 85%. Yang dikecualikan hanya presentasional dan infrastruktur uji (view, `components/ui`, halaman dan layout, mock, dukungan test). Daftarnya ada di `vitest.config.ts` dan `sonar-project.properties`, dan harus sama.
 - Test ditaruh di folder `__tests__` di sebelah file yang dites ([ADR-0020](docs/adr/0020-test-file-organization.md)). Aturan lengkap: [`.kiro/steering/testing.md`](.kiro/steering/testing.md).
 - CI (`.github/workflows/ci.yml`) menjalankan format, lint, typecheck, test dengan cakupan, analisis SonarCloud, build, dan pemeriksaan Home statis. Job lain membangun dan menguji container image, dan menjalankan e2e Playwright.
-- Pesan commit mengikuti Conventional Commits dengan tag tiket, misalnya `[NO-JIRA][nama] fix(scope): ringkasan`, dicek oleh hook Husky lokal (commitlint), bukan oleh CI.
+- Pesan commit mengikuti Conventional Commits dengan tag tiket, misalnya `[#66][nama] fix(scope): ringkasan`, dicek oleh hook Husky lokal (commitlint), bukan oleh CI.
 
 ## Container
 

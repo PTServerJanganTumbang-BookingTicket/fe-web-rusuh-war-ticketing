@@ -16,7 +16,7 @@ Aturan commit message mengikuti Telkomsel FOSS Technical Guidelines.
 
 | Bagian | Keterangan |
 |--------|------------|
-| `[JIRAID]` | Nomor tiket Jira (e.g. `TITAN-102`), atau `NO-JIRA` jika tidak ada tiket |
+| `[JIRAID]` | Nomor issue GitHub (e.g. `#66`) yang dikerjakan commit ini; ID Jira lama (e.g. `TITAN-102`) tetap valid. `NO-JIRA` tidak dipakai lagi |
 | `[ACTOR]` | Nama developer |
 | `type` | Tipe perubahan |
 | `scope` | Area yang diubah |
@@ -31,7 +31,7 @@ Aturan commit message mengikuti Telkomsel FOSS Technical Guidelines.
 ✓ [TITAN-500][Dodi] fix(auth): resolve critical login issue
 ✓ [SJT-001][Akbar] feat(booking): add ticket selection reducer
 ✓ [SJT-002][Akbar] fix(queue): handle SSE reconnection on network error
-✓ [NO-JIRA][Akbar] chore(deps): update axios to v1.5.0
+✓ [#66][zaki] fix(ticket): draw QR from qr_value
 ```
 
 ## Contoh INVALID

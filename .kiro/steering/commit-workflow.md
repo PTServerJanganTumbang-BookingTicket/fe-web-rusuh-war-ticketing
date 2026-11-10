@@ -19,10 +19,10 @@ Aktifkan prosedur ini ketika user berkata:
 ## Input yang Diperlukan
 
 User HARUS memberikan:
-1. **Jira ID** — Format: `SJT-XXX`, atau `NO-JIRA` jika tidak ada tiket
+1. **Issue** — Format: `#NN` (nomor issue GitHub), atau `SJT-XXX` untuk ID Jira lama
 2. **Actor** — Nama developer (default: AKBAR jika tidak disebutkan)
 
-Jika user tidak memberikan Jira ID, pakai `[NO-JIRA]`. Jangan mengarang nomor tiket.
+Jika user tidak memberikan nomor issue, tanyakan. Jangan mengarang nomor tiket dan jangan memakai `NO-JIRA`.
 
 ## Prosedur Commit
 

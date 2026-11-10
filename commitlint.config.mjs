@@ -12,8 +12,8 @@ const config = {
     parserOpts: {
       // Match: [JIRAID][ACTOR] type(scope): subject
       // Example: [RUSUH-002][Akbar] refactor(ui): move to components/ui
-      // Tanpa tiket Jira: [NO-JIRA][Akbar] chore(deps): update axios to v1.5.0
-      headerPattern: /^\[([A-Z]+-\d+|NO-JIRA)\]\[([^\]]+)\] (\w+)(?:\(([^)]+)\))?: (.+)$/,
+      // Tiket = nomor issue GitHub: [#66][zaki] fix(ticket): draw QR from qr_value. ID Jira lama tetap dikenali.
+      headerPattern: /^\[([A-Z]+-\d+|#\d+)\]\[([^\]]+)\] (\w+)(?:\(([^)]+)\))?: (.+)$/,
       headerCorrespondence: ["ticket", "actor", "type", "scope", "subject"],
     },
   },
@@ -39,13 +39,10 @@ const config = {
         // Validasi format JIRA ticket
         "jira-ticket-format": ({ ticket }) => {
           if (!ticket) {
-            return [
-              false,
-              "JIRA ticket ID diperlukan dalam format [JIRAID], atau [NO-JIRA] jika tidak ada tiket",
-            ];
+            return [false, "Nomor issue diperlukan dalam format [#123] (atau [PROJECT-123] untuk ID Jira)"];
           }
-          const valid = /^([A-Z]+-\d+|NO-JIRA)$/.test(ticket);
-          return [valid, "JIRA ticket harus dalam format PROJECT-123 atau NO-JIRA"];
+          const valid = /^([A-Z]+-\d+|#\d+)$/.test(ticket);
+          return [valid, "Tiket harus berupa nomor issue #123 atau PROJECT-123"];
         },
         // Validasi actor required
         "actor-required": ({ actor }) => {
