@@ -36,27 +36,27 @@ async function readyView({ signedIn = false }: { signedIn?: boolean } = {}) {
 }
 
 /**
- * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar alias. Kontrak saat ini hanya
- * membawa `nik_masked`, jadi mock bawaan tidak menyertakannya dan test pemilihan alias menambahkannya di sini.
+ * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar NIK tersimpan. Kontrak
+ * hanya membawa `nik_masked`; mock bawaan sudah menyertakan `nik`, dan di sini daftarnya dibuat eksplisit.
  */
-const savedNiksWithFullNik = http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
-  HttpResponse.json({
-    meta: { code: 200, message: "Success" },
-    data: {
-      max_entries: 5,
-      saved_niks: [
-        {
-          id: "snk_1",
+const savedNiksOf = (...niks: string[]) =>
+  http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
+    HttpResponse.json({
+      meta: { code: 200, message: "Success" },
+      data: {
+        max_entries: 5,
+        saved_niks: niks.map((nik, index) => ({
+          id: `snk_${index + 1}`,
+          nik,
+          nik_masked: `${nik.slice(0, 4)}********xx${nik.slice(-2)}`,
           label: "Budi",
-          nik: "3171000000000033",
-          nik_masked: "3171********xx33",
           verified_at: "2026-10-20T08:11:00Z",
           status: "VERIFIED",
-        },
-      ],
-    },
-  }),
-);
+        })),
+      },
+    }),
+  );
+const savedNiksWithFullNik = savedNiksOf("3171000000000033");
 
 describe("useBookingController", () => {
   const add = (view: () => BookingViewProps, id: string) =>
@@ -239,6 +239,44 @@ describe("useBookingController", () => {
     expect(view().holders?.items[0]?.nik).toMatchObject({ value: "", readOnly: false });
     expect(view().holders?.items[0]?.holder?.value).toBe("");
   });
+
+  it("Alias ditolak Dukcapil: Ubah data mengembalikan slot ke isian manual yang kosong", async () => {
+    server.use(savedNiksOf("3171000000000099"));
+    const { view } = await readyView({ signedIn: true });
+    add(view, "cat_vip");
+    await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+    act(() => view().holders?.items[0]?.holder?.onChange("snk_1"));
+    await waitFor(() => expect(view().dialog?.title).toBe("Periksa NIK-mu"));
+    expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171********xx99", readOnly: true });
+
+    const edit = view().dialog?.primary;
+    act(() => edit && "onClick" in edit && edit.onClick());
+    expect(view().holders?.items[0]?.holder?.value).toBe("");
+    expect(view().holders?.items[0]?.nik).toMatchObject({ value: "", readOnly: false, focusKey: 1 });
+  });
+
+  it.each([
+    [409, "NIK sudah dipakai atau stok berubah. Periksa lagi pilihanmu."],
+    [400, "Pesanan ditolak. Periksa lagi NIK dan email."],
+    [401, "Waktu booking habis. Kamu perlu kembali ke ruang tunggu."],
+  ])(
+    "submit ditolak server (%i): pesan galat sesuai alasan, tanpa pindah halaman",
+    async (status, message) => {
+      push.mockClear();
+      server.use(
+        http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
+          HttpResponse.json({ meta: { code: status, message: "x" } }, { status }),
+        ),
+      );
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      act(() => view().buyer.email.onChange("rina@example.com"));
+      act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+      act(() => view().submit.onSubmit());
+      await waitFor(() => expect(view().error).toBe(message));
+      expect(push).not.toHaveBeenCalled();
+    },
+  );
 
   it("submit tanpa respons: dialog koneksi bermasalah, coba lagi mengirim ulang isian yang sama", async () => {
     push.mockClear();

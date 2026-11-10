@@ -113,6 +113,8 @@ describe("queueService", () => {
     expect(await container.cradle.queueService.getState(OPEN_EVENT_ID)).toEqual({
       status: "waiting",
       eventName: "Konser A",
+      fullBooked: false,
+      stale: false,
       position: 832,
       joinedPosition: 1248,
       // 832 posisi x 60 / 318 per menit (laju dari /queue/serving).
@@ -148,6 +150,20 @@ describe("queueService", () => {
       kind: "api",
       code: "QUEUE_FULL",
       status: 503,
+    });
+  });
+
+  it("join saat sale sudah ditutup (410) menjadi SALE_CLOSED", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        HttpResponse.json({ meta: { code: 410, message: "Tiket sudah habis" } }, { status: 410 }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toEqual({
+      kind: "api",
+      code: "SALE_CLOSED",
+      status: 410,
     });
   });
 
@@ -467,25 +483,77 @@ describe("sessionService", () => {
 });
 
 describe("queueUpdatesService", () => {
-  it("now_serving dari stream dihitung jadi posisi, `grant` mengambil token dari /queue/me", async () => {
+  async function watching() {
     const fakes = setupFakeEventSources();
     const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
     const { queueUpdatesService, queueService } = container.cradle;
     await queueService.getState(OPEN_EVENT_ID);
-    const next = vi.fn();
-    queueUpdatesService.watch(OPEN_EVENT_ID, { next, connected: vi.fn(), disconnected: vi.fn() });
+    const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
+    const stop = queueUpdatesService.watch(OPEN_EVENT_ID, observer);
     const source = fakes.find("/queue/stream")!;
+    return { source, observer, stop, queueService };
+  }
+  const tick = (nowServing: number, state = "OPEN") => ({
+    nowServing,
+    state,
+    ratePerMin: 318,
+    serverTime: "2026-10-24T13:10:00.000Z",
+  });
+
+  it("nowServing dari stream dihitung jadi posisi", async () => {
+    const { source, observer } = await watching();
     expect(source.url).toBe(`${MOCK_API_BASE_URL}/events/${OPEN_EVENT_ID}/queue/stream`);
-
-    source.emit("message", { nowServing: 32_648 });
-    expect(next).toHaveBeenLastCalledWith(expect.objectContaining({ status: "waiting", position: 100 }));
-
-    // Dua poll lagi sampai giliran; `grant` memicu panggilan /queue/me yang memajukan antrian.
-    await queueService.getState(OPEN_EVENT_ID);
-    source.emit("grant", {});
-    await vi.waitFor(() =>
-      expect(next).toHaveBeenLastCalledWith(expect.objectContaining({ status: "admitted" })),
+    source.emit("message", tick(32_648));
+    expect(observer.next).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "waiting", position: 100, fullBooked: false, stale: false }),
     );
+  });
+
+  it("nowServing >= ticket_no mengambil token dari /queue/me tanpa event grant", async () => {
+    const { source, observer, queueService } = await watching();
+    // Dua poll lagi sampai giliran; /queue/me memajukan antrian di mock.
+    await queueService.getState(OPEN_EVENT_ID);
+    source.emit("message", tick(33_000));
+    await vi.waitFor(() =>
+      expect(observer.next).toHaveBeenLastCalledWith(expect.objectContaining({ status: "admitted" })),
+    );
+  });
+
+  it("status FULL_BOOKED menandai stok habis dan OPEN memulihkannya, stream tetap terbuka", async () => {
+    const { source, observer } = await watching();
+    source.emit("message", tick(32_548));
+    source.emit("status", {
+      state: "FULL_BOOKED",
+      fullBookedAt: "2026-10-24T13:40:12.000Z",
+      serverTime: "x",
+    });
+    expect(observer.next).toHaveBeenLastCalledWith(
+      expect.objectContaining({ fullBooked: true, position: 200 }),
+    );
+    source.emit("status", { state: "OPEN", serverTime: "x" });
+    expect(observer.next).toHaveBeenLastCalledWith(expect.objectContaining({ fullBooked: false }));
+    expect(source.closed).toBe(false);
+  });
+
+  it("stale meredupkan data tanpa menutup stream, pulih pada pesan berikutnya", async () => {
+    const { source, observer } = await watching();
+    source.emit("message", tick(32_548));
+    source.emit("stale", {
+      stale: true,
+      state: "OPEN",
+      message: "Data antrian belum diperbarui",
+      serverTime: "x",
+    });
+    expect(observer.next).toHaveBeenLastCalledWith(expect.objectContaining({ stale: true, position: 200 }));
+    expect(source.closed).toBe(false);
+    source.emit("stale", { stale: false, state: "OPEN", serverTime: "x" });
+    expect(observer.next).toHaveBeenLastCalledWith(expect.objectContaining({ stale: false }));
+  });
+
+  it("reconnect dilaporkan sebagai putus supaya controller memakai polling", async () => {
+    const { source, observer } = await watching();
+    source.emit("reconnect", { state: "OPEN", message: "Server sedang diperbarui", serverTime: "x" });
+    expect(observer.disconnected).toHaveBeenCalled();
   });
 
   it("sold-out mengakhiri antrian", () => {
@@ -493,8 +561,16 @@ describe("queueUpdatesService", () => {
     const { queueUpdatesService } = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) }).cradle;
     const next = vi.fn();
     queueUpdatesService.watch(OPEN_EVENT_ID, { next, connected: vi.fn(), disconnected: vi.fn() });
-    fakes.find("/queue/stream")!.emit("sold-out", { message: "Penjualan sudah ditutup" });
+    fakes
+      .find("/queue/stream")!
+      .emit("sold-out", { state: "CLOSED", message: "Tiket sudah habis", serverTime: "x" });
     expect(next).toHaveBeenCalledWith({ status: "ended", eventName: "", reason: "closed" });
+  });
+
+  it("payload yang tidak sesuai kontrak diabaikan", async () => {
+    const { source, observer } = await watching();
+    source.emit("message", { nowServing: "bukan angka" });
+    expect(observer.next).not.toHaveBeenCalled();
   });
 });
 

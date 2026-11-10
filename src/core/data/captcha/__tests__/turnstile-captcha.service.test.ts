@@ -65,4 +65,54 @@ describe("createTurnstileCaptchaService", () => {
     expect(remove).toHaveBeenCalledWith("widget-1");
     expect(document.body.children).toHaveLength(0);
   });
+
+  it("timeout-callback dari widget menjadi CAPTCHA_FAILED", async () => {
+    fakeTurnstile((options) => options["timeout-callback"]());
+    await expect(
+      createTurnstileCaptchaService({ appConfig: config(false) }).solve(turnstileConfig),
+    ).rejects.toMatchObject({ error: { code: "CAPTCHA_FAILED" } });
+  });
+
+  it("widget yang tidak menjawab dalam 15 detik gagal sebagai CAPTCHA_FAILED", async () => {
+    vi.useFakeTimers();
+    try {
+      fakeTurnstile(() => undefined);
+      const result = createTurnstileCaptchaService({ appConfig: config(false) }).solve(turnstileConfig);
+      const assertion = expect(result).rejects.toMatchObject({ error: { code: "CAPTCHA_FAILED" } });
+      await vi.advanceTimersByTimeAsync(15_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe("memuat skrip Turnstile", () => {
+    const scriptTag = () => document.head.querySelector<HTMLScriptElement>("script[src*=turnstile]");
+
+    it("gagal memuat (jaringan) menjadi CAPTCHA_FAILED dan boleh dicoba lagi", async () => {
+      const service = createTurnstileCaptchaService({ appConfig: config(false) });
+      const first = service.solve(turnstileConfig);
+      scriptTag()!.onerror?.(new Event("error"));
+      await expect(first).rejects.toMatchObject({ error: { code: "CAPTCHA_FAILED" } });
+      scriptTag()!.remove();
+
+      // Panggilan berikutnya memuat ulang skrip, bukan memakai kegagalan yang tersimpan.
+      fakeTurnstile((options) => options.callback("token-2"));
+      expect(await service.solve(turnstileConfig)).toBe("token-2");
+    });
+
+    it("skrip termuat tetapi API turnstile tidak ada: CAPTCHA_FAILED", async () => {
+      const first = createTurnstileCaptchaService({ appConfig: config(false) }).solve(turnstileConfig);
+      scriptTag()!.onload?.(new Event("load"));
+      await expect(first).rejects.toMatchObject({ error: { code: "CAPTCHA_FAILED" } });
+      scriptTag()!.remove();
+    });
+
+    it("skrip termuat dan API tersedia: widget dipasang", async () => {
+      const first = createTurnstileCaptchaService({ appConfig: config(false) }).solve(turnstileConfig);
+      fakeTurnstile((options) => options.callback("token-3"));
+      scriptTag()!.onload?.(new Event("load"));
+      expect(await first).toBe("token-3");
+    });
+  });
 });

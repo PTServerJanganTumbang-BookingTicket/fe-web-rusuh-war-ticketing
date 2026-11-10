@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEmail, isNikFormat, validateSavedNikInput } from "../account.rules";
+import { isEmail, isNikFormat, savedNikLabelOf, validateSavedNikInput } from "../account.rules";
 import { SAVED_NIK_LABEL_MAX_LENGTH } from "../auth.constants";
 
 describe("isNikFormat", () => {
@@ -41,12 +41,15 @@ describe("isEmail", () => {
 });
 
 describe("validateSavedNikInput", () => {
-  it("membuat alias: nama alias dan NIK 16 digit wajib", () => {
+  it("NIK 16 digit wajib, nama alias boleh kosong", () => {
     expect(validateSavedNikInput({ label: "Budi", nik: "3171000000000033" })).toBeNull();
-    expect(validateSavedNikInput({ label: "  ", nik: "" })).toEqual({
-      label: "required",
-      nik: "format",
-    });
+    expect(validateSavedNikInput({ label: "  ", nik: "3171000000000033" })).toBeNull();
+    expect(validateSavedNikInput({ label: "  ", nik: "" })).toEqual({ nik: "format" });
+  });
+
+  it("alias kosong diberi nama dari 4 digit terakhir NIK", () => {
+    expect(savedNikLabelOf(" ", "3171000000000033")).toBe("NIK ••0033");
+    expect(savedNikLabelOf(" Budi ", "3171000000000033")).toBe("Budi");
   });
 
   it("nama alias dibatasi panjangnya", () => {

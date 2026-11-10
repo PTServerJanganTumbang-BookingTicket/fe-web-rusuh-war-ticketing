@@ -118,8 +118,11 @@ test.describe("Responsif: halaman publik", () => {
     await page.goto("/");
     await expect(page.getByRole("banner")).toBeVisible();
     const footer = page.getByRole("contentinfo");
-    await footer.scrollIntoViewIfNeeded();
-    await expect(footer).toBeInViewport();
+    // Gambar yang memuat belakangan menggeser layout; ulangi scroll sampai footer benar-benar terlihat.
+    await expect(async () => {
+      await footer.scrollIntoViewIfNeeded();
+      await expect(footer).toBeInViewport();
+    }).toPass();
   });
 
   test("teks tidak terpotong: zoom 200% (setara viewport setengah) tetap tanpa overflow", async ({

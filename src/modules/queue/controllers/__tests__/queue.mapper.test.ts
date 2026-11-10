@@ -5,6 +5,8 @@ import { toEventCard, toQueueViewProps, toWaitingStatus } from "../queue.mapper"
 const waiting = {
   status: "waiting",
   eventName: "Konser A",
+  fullBooked: false,
+  stale: false,
   position: 1248,
   joinedPosition: 1248,
   etaSeconds: 240,
@@ -37,6 +39,19 @@ describe("toWaitingStatus", () => {
   it("progress naik saat posisi maju", () => {
     expect(toWaitingStatus(waiting).progress?.percent).toBe(0);
     expect(toWaitingStatus({ ...waiting, position: 416 }).progress?.percent).toBe(66);
+  });
+
+  it("FULL_BOOKED menyembunyikan estimasi dan menampilkan pemberitahuan", () => {
+    const status = toWaitingStatus({ ...waiting, fullBooked: true });
+    expect(status.eta).toBeUndefined();
+    expect(status.notice).toContain("Tiket sedang habis");
+  });
+
+  it("data basi meredupkan posisi dan mengganti catatan jadi Memperbarui", () => {
+    const status = toWaitingStatus({ ...waiting, stale: true });
+    expect(status.stale).toBe(true);
+    expect(status.updatedNote).toBe("Memperbarui…");
+    expect(status.position?.value).toBe("#1.248");
   });
 
   it("estimasi minimal 1 menit", () => {

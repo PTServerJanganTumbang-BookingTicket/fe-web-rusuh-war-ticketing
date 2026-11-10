@@ -49,12 +49,22 @@ export type HolderSourceProps = {
 
 export type TicketHolderProps = {
   id: string;
-  title: string;
-  priceLabel: string;
+  /** Hanya ada pada tiket pertama tiap kategori: kategori yang sama dikelompokkan, bukan diulang per tiket. */
+  heading?: { title: string; priceLabel: string };
   nik: TextFieldProps;
   /** Pilihan alias; hanya ada untuk customer yang masuk dan punya alias. */
   holder?: HolderSourceProps;
 };
+
+/** Tiket berurutan sekategori jadi satu kelompok; kelompok baru dimulai di tiket yang punya `heading`. */
+function groupHolders(items: readonly TicketHolderProps[]): TicketHolderProps[][] {
+  const groups: TicketHolderProps[][] = [];
+  for (const item of items) {
+    if (item.heading || groups.length === 0) groups.push([item]);
+    else groups[groups.length - 1]!.push(item);
+  }
+  return groups;
+}
 
 export type BookingViewProps = Omit<SiteShellProps, "children"> & {
   header: PageHeaderProps;
@@ -236,27 +246,40 @@ export function BookingView(props: BookingViewProps) {
             {holders ? (
               <SectionCard title={holders.title}>
                 <p className="type-body2 -mt-2 text-muted-foreground">{holders.hint}</p>
-                <ol className="flex flex-col gap-3">
-                  {holders.items.map((holder) => (
-                    <li key={holder.id} className="flex flex-col gap-4 rounded-xl border border-border p-4">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="type-body1-bold">{holder.title}</p>
-                        <p className="type-body2 text-muted-foreground tabular-nums">{holder.priceLabel}</p>
-                      </div>
-                      {holder.holder ? (
-                        <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
+                <div className="flex flex-col gap-5">
+                  {groupHolders(holders.items).map((group) => (
+                    <section key={group[0]!.id} className="flex flex-col gap-3">
+                      {group[0]!.heading ? (
+                        <div className="flex items-baseline justify-between gap-3">
+                          <h3 className="type-body1-bold">{group[0]!.heading.title}</h3>
+                          <p className="type-body2 text-muted-foreground tabular-nums">
+                            {group[0]!.heading.priceLabel}
+                          </p>
+                        </div>
                       ) : null}
-                      <div>
-                        <TextInput
-                          id={`nik-${holder.id}`}
-                          field={holder.nik}
-                          inputMode="numeric"
-                          autoComplete="off"
-                        />
-                      </div>
-                    </li>
+                      <ol className="flex flex-col gap-3">
+                        {group.map((holder) => (
+                          <li
+                            key={holder.id}
+                            className="flex flex-col gap-4 rounded-xl border border-border p-4"
+                          >
+                            {holder.holder ? (
+                              <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
+                            ) : null}
+                            <div>
+                              <TextInput
+                                id={`nik-${holder.id}`}
+                                field={holder.nik}
+                                inputMode="numeric"
+                                autoComplete="off"
+                              />
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
                   ))}
-                </ol>
+                </div>
                 <p className="type-body2 text-muted-foreground">{holders.footnote}</p>
               </SectionCard>
             ) : null}

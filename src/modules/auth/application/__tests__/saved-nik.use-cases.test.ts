@@ -42,9 +42,9 @@ describe("createAddSavedNikUseCase", () => {
     expect(calls.added).toEqual([]);
   });
 
-  it("nama alias kosong ditolak tanpa memanggil server", async () => {
+  it("nama alias kosong diganti nama dari 4 digit terakhir NIK (kontrak mewajibkan label)", async () => {
     const { savedNikService, calls } = fakeSavedNikService();
-    await rejection(createAddSavedNikUseCase({ savedNikService })({ nik: "3171000000000033", label: " " }));
-    expect(calls.added).toEqual([]);
+    await createAddSavedNikUseCase({ savedNikService })({ nik: "3171000000000033", label: " " });
+    expect(calls.added).toEqual([{ nik: "3171000000000033", label: "NIK ••0033" }]);
   });
 });

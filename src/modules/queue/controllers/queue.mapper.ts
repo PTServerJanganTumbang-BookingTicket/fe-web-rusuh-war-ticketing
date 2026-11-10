@@ -19,12 +19,17 @@ export function toWaitingStatus(state: Extract<QueueState, { status: "waiting" }
       value: t("queue.position.value", { position: number.format(state.position) }),
       suffix: t("queue.position.suffix"),
     },
-    eta: {
-      label: t("queue.eta.label"),
-      value: t("queue.eta.value", { minutes: Math.max(1, Math.ceil(state.etaSeconds / 60)) }),
-    },
+    // Stok sedang habis: estimasi tidak bermakna sampai kursi kembali.
+    eta: state.fullBooked
+      ? undefined
+      : {
+          label: t("queue.eta.label"),
+          value: t("queue.eta.value", { minutes: Math.max(1, Math.ceil(state.etaSeconds / 60)) }),
+        },
+    notice: state.fullBooked ? t("queue.fullBooked") : undefined,
+    stale: state.stale,
     progress: { percent, label: t("queue.progress.label", { percent }) },
-    updatedNote: t("queue.updated"),
+    updatedNote: state.stale ? t("queue.stale") : t("queue.updated"),
     note: t("queue.note"),
   };
 }

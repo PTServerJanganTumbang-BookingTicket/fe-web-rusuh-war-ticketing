@@ -23,6 +23,7 @@ function errorKey(error: AppError): MessageKey {
   if (error.kind === "api" && error.code === "QUEUE_FULL") return "queue.error.QUEUE_FULL";
   if (error.kind === "api" && error.code === "CAPTCHA_FAILED") return "queue.error.CAPTCHA_FAILED";
   if (error.kind === "api" && error.code === "SALE_NOT_OPEN") return "queue.error.SALE_NOT_OPEN";
+  if (error.kind === "api" && error.code === "SALE_CLOSED") return "queue.error.SALE_CLOSED";
   if (error.kind === "api" && error.code === "RATE_LIMITED") return "queue.error.RATE_LIMITED";
   return "queue.error.unknown";
 }

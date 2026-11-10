@@ -77,9 +77,15 @@ describe("toBookingViewProps", () => {
   it("satu slot identitas per tiket, dengan nomor bangku otomatis", () => {
     const holders = build().holders?.items ?? [];
     expect(holders.map((holder) => holder.nik.label)).toEqual(["NIK tiket 1", "NIK tiket 2"]);
-    expect(holders[0]).toMatchObject({ title: "VIP × 1" });
+    expect(holders[0]?.heading).toEqual({ title: "VIP × 2", priceLabel: expect.stringContaining("/ tiket") });
     expect(holders[0]).not.toHaveProperty("seat");
     expect(build({ selection: {} }).holders).toBeUndefined();
+  });
+
+  it("tiket sekategori dikelompokkan: satu judul 'Festival × 2', bukan 'Festival × 1' berulang", () => {
+    const holders = build({ selection: { vip: 1, festival: 2 } }).holders?.items ?? [];
+    expect(holders.map((holder) => holder.heading?.title)).toEqual(["VIP × 1", "Festival × 2", undefined]);
+    expect(holders.map((holder) => holder.nik.label)).toEqual(["NIK tiket 1", "NIK tiket 2", "NIK tiket 3"]);
   });
 
   it("batas 3 tiket per pesanan menutup semua tombol tambah; stok habis tidak bisa ditambah", () => {
