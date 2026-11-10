@@ -410,6 +410,12 @@ export const id = {
   "booking.category.remove": "Kurangi tiket {name}",
   "booking.total": "Total ({count} tiket)",
   "booking.submit": "Lanjut ke Pembayaran",
+  "booking.confirm.title": "Periksa pesananmu",
+  "booking.confirm.description":
+    "Pastikan tiket dan email sudah benar. Setelah lanjut, waktu pembayaran mulai berjalan.",
+  "booking.confirm.event": "Acara",
+  "booking.confirm.email": "Email",
+  "booking.confirm.back": "Periksa lagi",
   "booking.expired.title": "Sesi booking berakhir",
   "booking.expired.cta": "Antre lagi",
   "booking.expired.redirecting": "Waktu booking habis. Mengembalikanmu ke ruang tunggu…",

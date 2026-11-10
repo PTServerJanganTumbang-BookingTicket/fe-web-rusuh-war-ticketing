@@ -144,6 +144,12 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.category.remove": "Remove {name} ticket",
   "booking.total": "Total ({count} tickets)",
   "booking.submit": "Continue to payment",
+  "booking.confirm.title": "Review your order",
+  "booking.confirm.description":
+    "Make sure the tickets and email are correct. Once you continue, the payment timer starts.",
+  "booking.confirm.event": "Event",
+  "booking.confirm.email": "Email",
+  "booking.confirm.back": "Review again",
   "booking.expired.title": "Booking session ended",
   "booking.expired.cta": "Queue again",
   "booking.expired.redirecting": "Booking time is up. Taking you back to the waiting room…",

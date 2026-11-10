@@ -30,7 +30,12 @@ import { TERMS_VERSION } from "../domain/booking.constants";
 import { selectionReducer } from "../domain/selection.reducer";
 import { isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
 import { bookingEventQuery, bookingSessionQuery, holderAliasesQuery } from "./booking.queries";
-import { isBookingFormValid, toBookingViewProps, type NikCheckState } from "./booking.mapper";
+import {
+  isBookingFormValid,
+  toBookingConfirmDialog,
+  toBookingViewProps,
+  type NikCheckState,
+} from "./booking.mapper";
 import type { BookingViewProps } from "../views/BookingView";
 
 export type BookingScreen =
@@ -52,7 +57,9 @@ export function useBookingController(eventId: string): BookingScreen {
   // Dukcapil tidak menjawab atau menolak NIK satu tiket: modal menyebut tiket mana lewat `slotKey`.
   // Satu modal per layar: NIK satu tiket, atau submit gagal tanpa respons yang dikenali (bisa dicoba lagi).
   const nikModal = useModal<
-    { kind: NikDialogKind; slotKey: string } | { kind: "submitFailed"; input: SubmitBookingInput }
+    | { kind: NikDialogKind; slotKey: string }
+    | { kind: "submitFailed"; input: SubmitBookingInput }
+    | { kind: "confirm"; input: SubmitBookingInput }
   >();
   /** Fokus kembali ke field NIK setelah "Ubah data"; `n` berubah tiap permintaan supaya fokus terulang. */
   const [focusNik, setFocusNik] = useState<{ slotKey: string; n: number } | null>(null);
@@ -87,6 +94,7 @@ export function useBookingController(eventId: string): BookingScreen {
     // Stok, NIK ditolak, atau grant habis tetap di layar; koneksi dan galat server jadi dialog dengan coba lagi.
     onError: (failure, input) => {
       if (isUnexpectedError(toAppError(failure))) nikModal.open({ kind: "submitFailed", input });
+      else nikModal.close();
     },
   });
 
@@ -209,6 +217,16 @@ export function useBookingController(eventId: string): BookingScreen {
       onDismiss: nikModal.close,
       retrying: checks[open.slotKey]?.state === "checking",
     });
+  } else if (open?.kind === "confirm" && session) {
+    dialog = toBookingConfirmDialog({
+      session,
+      event: event.data,
+      selection,
+      contactEmail: open.input.contactEmail,
+      submitting: submit.isPending,
+      onConfirm: () => submit.mutate(open.input),
+      onDismiss: nikModal.close,
+    });
   } else if (open?.kind === "submitFailed" && submit.error) {
     dialog = toRequestFailedDialog(toAppError(submit.error), {
       onRetry: () => submit.mutate(open.input),
@@ -270,11 +288,15 @@ export function useBookingController(eventId: string): BookingScreen {
           )
         )
           return;
-        submit.mutate({
-          eventId,
-          contactEmail,
-          termsVersion: TERMS_VERSION,
-          tickets: slots.map((slot) => ({ categoryId: slot.categoryId, nik: niks[slot.key] ?? "" })),
+        // Ringkasan dikonfirmasi dulu; booking baru dibuat setelah customer memilih lanjut.
+        nikModal.open({
+          kind: "confirm",
+          input: {
+            eventId,
+            contactEmail,
+            termsVersion: TERMS_VERSION,
+            tickets: slots.map((slot) => ({ categoryId: slot.categoryId, nik: niks[slot.key] ?? "" })),
+          },
         });
       },
     }),

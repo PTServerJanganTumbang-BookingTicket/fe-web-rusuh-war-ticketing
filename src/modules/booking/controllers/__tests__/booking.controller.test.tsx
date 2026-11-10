@@ -39,6 +39,14 @@ async function readyView({ signedIn = false }: { signedIn?: boolean } = {}) {
  * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar NIK tersimpan. Kontrak
  * hanya membawa `nik_masked`; mock bawaan sudah menyertakan `nik`, dan di sini daftarnya dibuat eksplisit.
  */
+/** Submit membuka ringkasan pesanan; booking baru dibuat setelah customer memilih lanjut. */
+async function submitAndConfirm(view: () => BookingViewProps) {
+  act(() => view().submit.onSubmit());
+  await waitFor(() => expect(view().dialog?.title).toBe("Periksa pesananmu"));
+  const confirm = view().dialog?.primary;
+  act(() => confirm && "onClick" in confirm && confirm.onClick());
+}
+
 const savedNiksOf = (...niks: string[]) =>
   http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
     HttpResponse.json({
@@ -170,8 +178,35 @@ describe("useBookingController", () => {
     act(() => view().buyer.email.onChange("rina@example.com"));
     act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
     act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
-    act(() => view().submit.onSubmit());
+    await submitAndConfirm(view);
     await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/orders\/RB-\d+\/pay$/)));
+  });
+
+  it("submit lengkap membuka ringkasan pesanan dulu; Periksa lagi menutupnya tanpa membuat booking", async () => {
+    push.mockClear();
+    let created = false;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, () => {
+        created = true;
+        return HttpResponse.json({ meta: { code: 201, message: "Created" }, data: { booking_id: "RB-X" } });
+      }),
+    );
+    const { view } = await readyView();
+    add(view, "cat_vip");
+    act(() => view().buyer.email.onChange(" rina@example.com "));
+    act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+    act(() => view().submit.onSubmit());
+    await waitFor(() => expect(view().dialog?.title).toBe("Periksa pesananmu"));
+    const details = view().dialog?.details ?? [];
+    expect(details.map((detail) => detail.label)).toEqual(["Acara", "Email", "VIP × 1", "Total bayar"]);
+    expect(details.find((detail) => detail.label === "Email")?.value).toBe("rina@example.com");
+    expect(created).toBe(false);
+
+    const back = view().dialog?.secondary;
+    act(() => back && "onClick" in back && back.onClick());
+    expect(view().dialog).toBeUndefined();
+    expect(created).toBe(false);
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("tamu tidak melihat pilihan alias; NIK diisi manual", async () => {
@@ -221,7 +256,7 @@ describe("useBookingController", () => {
 
     act(() => second()?.nik.onChange("3171000000005678"));
     act(() => view().buyer.email.onChange("rina@example.com"));
-    act(() => view().submit.onSubmit());
+    await submitAndConfirm(view);
     await waitFor(() => expect(push).toHaveBeenCalledWith("/orders/RB-ALIAS/pay"));
     expect(tickets).toEqual([
       { category_id: "cat_vip", nik: "3171000000000033", holder_email: "rina@example.com" },
@@ -272,7 +307,7 @@ describe("useBookingController", () => {
       add(view, "cat_vip");
       act(() => view().buyer.email.onChange("rina@example.com"));
       act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
-      act(() => view().submit.onSubmit());
+      await submitAndConfirm(view);
       await waitFor(() => expect(view().error).toBe(message));
       expect(push).not.toHaveBeenCalled();
     },
@@ -295,7 +330,7 @@ describe("useBookingController", () => {
     add(view, "cat_vip");
     act(() => view().buyer.email.onChange("rina@example.com"));
     act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
-    act(() => view().submit.onSubmit());
+    await submitAndConfirm(view);
     await waitFor(() => expect(view().dialog?.title).toBe("Tidak ada jaringan"));
     expect(view().error).toBeUndefined();
     const retry = view().dialog?.primary;
