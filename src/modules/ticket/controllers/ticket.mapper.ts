@@ -3,6 +3,7 @@ import type { TicketCardProps } from "../views/TicketCard";
 import type { ETicketViewProps } from "../views/ETicketView";
 import type { SiteChrome } from "@/core/controllers/site-chrome.utils";
 import { intlLocale } from "@/core/i18n/locale.utils";
+import { toQrImageSrc } from "./qr-code.utils";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 
 const statusTone: Record<TicketStatus, { key: MessageKey; tone: TicketCardProps["statusTone"] }> = {
@@ -97,9 +98,10 @@ export function toETicketViewProps(eticket: ETicket, chrome: SiteChrome): ETicke
     statusTone: tone,
     qr: {
       title: t("ticket.detail.qr.title"),
-      src: eticket.qrCode,
+      src: toQrImageSrc(eticket.qrValue, eticket.qrCode),
       alt: t("ticket.detail.qr.alt"),
       hint: t("ticket.detail.qr.hint"),
+      code: t("ticket.detail.qr.code", { id: eticket.id }),
     },
     detailsTitle: t("ticket.detail.title"),
     details,

@@ -37,7 +37,7 @@ describe("useTicketDetailController", () => {
     await waitFor(() => expect(result.current.kind).toBe("ready"));
     if (result.current.kind !== "ready") throw new Error("belum siap");
     expect(result.current.view.eventName).toBe("Konser A");
-    expect(result.current.view.qr.src).toBe(eticket.qr_code);
+    expect(result.current.view.qr.src).toMatch(/^data:image\/svg\+xml/);
   });
 
   it("tamu tanpa token email diajak masuk", async () => {

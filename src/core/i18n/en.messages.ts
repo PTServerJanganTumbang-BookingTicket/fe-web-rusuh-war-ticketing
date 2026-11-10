@@ -186,6 +186,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "ticket.detail.qr.title": "Venue entry QR",
   "ticket.detail.dateTime": "{date}, {time} WIB",
   "ticket.detail.qr.alt": "QR code for venue entry",
+  "ticket.detail.qr.code": "Ticket code {id}",
   "ticket.detail.qr.hint": "Show this QR code and the holder's ID at the venue entrance.",
   "ticket.detail.title": "Ticket details",
   "ticket.detail.category": "Category",

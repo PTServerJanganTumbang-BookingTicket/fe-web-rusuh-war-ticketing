@@ -25,7 +25,7 @@ export type ETicketViewProps = Omit<SiteShellProps, "children"> & {
   imageUrl: string;
   statusLabel: string;
   statusTone: "success" | "info" | "warning" | "danger";
-  qr: { title: string; src: string; alt: string; hint: string };
+  qr: { title: string; src: string; alt: string; hint: string; code: string };
   detailsTitle: string;
   details: Row[];
   holderTitle: string;
@@ -154,6 +154,7 @@ export function ETicketView({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={qr.src} alt={qr.alt} width={220} height={220} className="size-[220px]" />
               </div>
+              <p className="type-body1-bold">{qr.code}</p>
               <p className="type-body2 text-muted-foreground">{qr.hint}</p>
             </CardContent>
           </Card>

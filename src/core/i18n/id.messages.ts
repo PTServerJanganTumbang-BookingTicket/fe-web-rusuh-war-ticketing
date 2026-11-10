@@ -606,6 +606,7 @@ export const id = {
   "ticket.detail.qr.title": "QR masuk venue",
   "ticket.detail.dateTime": "{date}, {time} WIB",
   "ticket.detail.qr.alt": "QR code untuk masuk venue",
+  "ticket.detail.qr.code": "Kode tiket {id}",
   "ticket.detail.qr.hint": "Tunjukkan QR code ini dan identitas pemegang di pintu masuk venue.",
   "ticket.detail.title": "Detail tiket",
   "ticket.detail.category": "Kategori",
