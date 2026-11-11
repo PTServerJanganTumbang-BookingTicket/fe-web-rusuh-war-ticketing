@@ -910,6 +910,412 @@ payment/views/
     └── GoPayInstructionView.tsx          ← QR url (desktop) | deeplink (mobile)
 ```
 
+#### Payment Page State Machine (Requirement 14)
+
+Payment Page menggunakan finite state machine dengan 7 state yang terdefinisi. State machine ini mengatur seluruh transisi UI dan interaksi customer.
+
+```typescript
+// payment/domain/payment-page-state.model.ts
+export type PaymentPageState =
+  | 'LOADING'    // Pertama kali masuk halaman
+  | 'MEMILIH'    // Menunggu Customer pilih metode
+  | 'CHARGING'   // Sedang membuat transaksi ke gateway
+  | 'INSTRUKSI'  // VA/QR sudah terbit
+  | 'SUKSES'     // Pembayaran dikonfirmasi
+  | 'GAGAL'      // Gateway menolak (deny/cancel/failure)
+  | 'EXPIRED';   // TTL + grace habis
+
+export type PaymentPageContext = {
+  state: PaymentPageState;
+  selectedMethod: PaymentMethod | null;
+  instruction: PaymentInstruction | null;
+  error: AppError | null;
+  canRetry: boolean;
+  clockOffset: number;  // Server-client clock difference
+  deadline: string;     // ISO timestamp for countdown
+};
+```
+
+**State Transition Diagram:**
+
+```
+LOADING → MEMILIH → CHARGING → INSTRUKSI → SUKSES/GAGAL/EXPIRED
+                        ↑            ↓
+                        └── GAGAL ───┘ (jika can_retry && TTL > 0)
+```
+
+**State Transitions:**
+
+| From | To | Trigger |
+|------|----|---------|
+| `LOADING` | `MEMILIH` | GET /payments/{id}/methods success |
+| `MEMILIH` | `CHARGING` | Customer click "Bayar Sekarang" |
+| `CHARGING` | `INSTRUKSI` | POST /payments/{id} success |
+| `CHARGING` | `GAGAL` | POST /payments/{id} error (can_retry: true) |
+| `CHARGING` | `EXPIRED` | POST /payments/{id} error (PAYMENT_WINDOW_CLOSED) |
+| `INSTRUKSI` | `SUKSES` | Polling returns status: PAID |
+| `INSTRUKSI` | `GAGAL` | Polling returns status: FAILED |
+| `INSTRUKSI` | `EXPIRED` | Polling returns status: EXPIRED OR countdown reaches 0:00 + server confirms |
+| `GAGAL` | `MEMILIH` | Customer clicks "Coba Lagi" (if can_retry && TTL > 0) |
+
+#### Payment Page Controller
+
+```typescript
+// payment/controllers/payment-page.controller.ts
+export function usePaymentPageController(bookingId: string) {
+  const { 
+    getAvailableMethodsUseCase, 
+    initiatePaymentUseCase,
+    retryPaymentUseCase,
+    watchOrderUseCase,
+    clock 
+  } = useDependencies<PaymentDependencies>();
+  
+  const [state, setState] = useState<PaymentPageState>('LOADING');
+  const [context, setContext] = useState<PaymentPageContext>(initialContext);
+  
+  // Clock offset calculation (BR-24, BR-25)
+  const [clockOffset, setClockOffset] = useState(0);
+  
+  // Countdown calculation - MUST use deadline-based, not decrement (BR-24)
+  const remaining = useMemo(() => {
+    if (!context.deadline) return null;
+    const now = clock.now() + clockOffset;
+    return Math.max(0, new Date(context.deadline).getTime() - now);
+  }, [context.deadline, clockOffset, clock]);
+  
+  // Polling for payment status (2s interval per Req 14.12)
+  const { data: statusData } = useQuery({
+    queryKey: paymentKeys.status(bookingId),
+    queryFn: () => watchOrderUseCase(bookingId),
+    refetchInterval: state === 'INSTRUKSI' ? 2000 : false,
+    enabled: state === 'INSTRUKSI',
+  });
+  
+  // Handle countdown reaching 0:00 (BR-25)
+  useEffect(() => {
+    if (remaining === 0 && state === 'INSTRUKSI') {
+      // MUST confirm with server before transitioning to EXPIRED
+      confirmExpiry();
+    }
+  }, [remaining, state]);
+  
+  // ... state transition handlers
+  
+  return {
+    state,
+    context,
+    remaining,
+    selectMethod,
+    submitPayment,
+    retryPayment,
+    changeMethod,
+  };
+}
+```
+
+#### Clock Synchronization (BR-24, BR-25)
+
+```typescript
+// payment/domain/clock-sync.rules.ts
+/**
+ * Calculate clock offset between server and client.
+ * Formula: clockOffset = Date.parse(server_time) - Date.now()
+ * 
+ * Ref: Req 14.8 — Clock offset dihitung sekali saat halaman dimuat
+ */
+export function calculateClockOffset(serverTime: string, clientNow: number): number {
+  return Date.parse(serverTime) - clientNow;
+}
+
+/**
+ * Calculate remaining time using deadline-based approach.
+ * MUST NOT decrement a counter (tab background causes drift).
+ * 
+ * Formula: remaining = deadline - (Date.now() + clockOffset)
+ * 
+ * Ref: Req 14.9 — Countdown dihitung dari deadline, bukan dikurangi
+ */
+export function calculateRemaining(
+  deadline: string,
+  clientNow: number,
+  clockOffset: number
+): number {
+  const deadlineMs = Date.parse(deadline);
+  const adjustedNow = clientNow + clockOffset;
+  return Math.max(0, deadlineMs - adjustedNow);
+}
+```
+
+#### Polling Strategy
+
+```typescript
+// payment/controllers/payment-polling.hook.ts
+const POLL_INTERVAL_MS = 2000;  // Req 14.12
+const MAX_NETWORK_RETRIES = 3;  // Req 14.13
+const RETRY_DELAY_MS = 1000;    // Req 14.13
+
+export function usePaymentPolling(
+  bookingId: string,
+  enabled: boolean,
+  onStatusChange: (status: PaymentStatusResult) => void
+) {
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  
+  const query = useQuery({
+    queryKey: paymentKeys.status(bookingId),
+    queryFn: async () => {
+      try {
+        const result = await getPaymentStatus(bookingId);
+        setConsecutiveFailures(0);
+        return result;
+      } catch (error) {
+        setConsecutiveFailures(prev => prev + 1);
+        throw error;
+      }
+    },
+    refetchInterval: enabled ? POLL_INTERVAL_MS : false,
+    retry: MAX_NETWORK_RETRIES,
+    retryDelay: RETRY_DELAY_MS,
+    // Req 14.13: MUST NOT stop polling on network error
+    refetchOnError: true,
+  });
+  
+  // Req 14.14: Immediate poll on tab visibility change
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && enabled) {
+        query.refetch();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [enabled, query]);
+  
+  // Show toast after 3 consecutive failures (Req 14.13)
+  const isDisconnected = consecutiveFailures >= MAX_NETWORK_RETRIES;
+  
+  return { ...query, isDisconnected };
+}
+```
+
+#### Error Handling (Requirement 14.18-14.20)
+
+```typescript
+// payment/domain/payment-error.mapper.ts
+export const PAYMENT_ERROR_I18N_MAP: Record<string, { id: string; en: string }> = {
+  PAYMENT_GATEWAY_UNAVAILABLE: {
+    id: 'Sistem Pembayaran Sedang Sibuk. Mohon tunggu beberapa saat dan coba lagi.',
+    en: 'Payment System Busy. Please wait a moment and try again.',
+  },
+  BOOKING_STATUS_INVALID: {
+    id: 'Booking Tidak Valid. Status booking Anda telah berubah.',
+    en: 'Invalid Booking. Your booking status has changed.',
+  },
+  PAYMENT_WINDOW_CLOSED: {
+    id: 'Waktu Pembayaran Habis. Maaf, waktu untuk menyelesaikan pembayaran telah berakhir.',
+    en: 'Payment Time Expired. Sorry, the payment window has closed.',
+  },
+  MAX_ATTEMPTS_EXCEEDED: {
+    id: 'Batas Percobaan Tercapai. Anda telah mencapai batas maksimal percobaan pembayaran.',
+    en: 'Maximum Attempts Reached. You have reached the maximum number of payment attempts.',
+  },
+  PAYMENT_ALREADY_SETTLED: {
+    id: 'Pembayaran Sudah Diterima. Pembayaran Anda sedang diproses.',
+    en: 'Payment Received. Your payment is being processed.',
+  },
+};
+
+// Req 14.20: BOOKING_STATUS_INVALID near countdown 0 → treat as expired
+export function mapPaymentError(
+  error: AppError,
+  remainingMs: number
+): { state: PaymentPageState; message: string } {
+  if (error.kind === 'api') {
+    // Near expiry + BOOKING_STATUS_INVALID → expired, not generic error
+    if (error.code === 'BOOKING_STATUS_INVALID' && remainingMs < 5000) {
+      return { state: 'EXPIRED', message: PAYMENT_ERROR_I18N_MAP.PAYMENT_WINDOW_CLOSED.id };
+    }
+    
+    const mapping = PAYMENT_ERROR_I18N_MAP[error.code];
+    if (mapping) {
+      return { state: 'GAGAL', message: mapping.id };
+    }
+  }
+  
+  return { state: 'GAGAL', message: 'Terjadi kesalahan. Silakan coba lagi.' };
+}
+```
+
+#### Accessibility (Requirement 14.26-14.29)
+
+```typescript
+// payment/views/PaymentCountdown.tsx
+export function PaymentCountdown({ remaining }: { remaining: number }) {
+  const formattedTime = formatCountdown(remaining);
+  const announceRef = useRef<HTMLDivElement>(null);
+  
+  // Req 14.26: Announce significant changes to screen reader
+  useEffect(() => {
+    if (remaining === 60000) {
+      announce('Tersisa 1 menit untuk menyelesaikan pembayaran');
+    } else if (remaining === 30000) {
+      announce('Tersisa 30 detik untuk menyelesaikan pembayaran');
+    } else if (remaining === 0) {
+      announce('Waktu pembayaran telah habis');
+    }
+  }, [remaining]);
+  
+  return (
+    <>
+      {/* Req 14.26: role="timer" with aria-live="polite" */}
+      <div role="timer" aria-live="polite" aria-atomic="true">
+        {formattedTime}
+      </div>
+      {/* Live region for announcements */}
+      <div ref={announceRef} role="status" aria-live="assertive" className="sr-only" />
+    </>
+  );
+}
+
+// payment/views/PaymentButton.tsx
+export function PaymentButton({ 
+  isLoading, 
+  disabled, 
+  onClick 
+}: PaymentButtonProps) {
+  return (
+    <Button
+      onClick={onClick}
+      disabled={disabled || isLoading}
+      // Req 14.29: aria-busy and aria-describedby
+      aria-busy={isLoading}
+      aria-describedby={isLoading ? 'payment-loading-message' : undefined}
+    >
+      {isLoading ? <Spinner /> : 'Bayar Sekarang'}
+      {isLoading && (
+        <span id="payment-loading-message" className="sr-only">
+          Mohon tunggu, pembayaran sedang diproses
+        </span>
+      )}
+    </Button>
+  );
+}
+```
+
+#### Focus Management (Requirement 14.28)
+
+```typescript
+// payment/controllers/payment-focus.hook.ts
+export function usePaymentFocusManagement(state: PaymentPageState) {
+  const methodSelectRef = useRef<HTMLButtonElement>(null);
+  const vaNumberRef = useRef<HTMLDivElement>(null);
+  const successButtonRef = useRef<HTMLButtonElement>(null);
+  const retryButtonRef = useRef<HTMLButtonElement>(null);
+  const homeButtonRef = useRef<HTMLButtonElement>(null);
+  
+  useEffect(() => {
+    // Req 14.28: Manage focus sesuai transisi state
+    switch (state) {
+      case 'MEMILIH':
+        methodSelectRef.current?.focus();
+        break;
+      case 'INSTRUKSI':
+        vaNumberRef.current?.focus();
+        break;
+      case 'SUKSES':
+        successButtonRef.current?.focus();
+        break;
+      case 'GAGAL':
+        retryButtonRef.current?.focus();
+        break;
+      case 'EXPIRED':
+        homeButtonRef.current?.focus();
+        break;
+    }
+  }, [state]);
+  
+  return {
+    methodSelectRef,
+    vaNumberRef,
+    successButtonRef,
+    retryButtonRef,
+    homeButtonRef,
+  };
+}
+```
+
+#### Edge Cases (Requirement 14.21-14.25)
+
+```typescript
+// payment/controllers/payment-edge-cases.hook.ts
+
+// Req 14.21: Prevent double-click
+export function useSubmitGuard() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const guardedSubmit = useCallback(async (submitFn: () => Promise<void>) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await submitFn();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting]);
+  
+  return { isSubmitting, guardedSubmit };
+}
+
+// Req 14.22, 14.23: Back navigation and tab close warning
+export function usePaymentExitWarning(state: PaymentPageState) {
+  useEffect(() => {
+    if (state !== 'INSTRUKSI') return;
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [state]);
+}
+
+// Req 14.24: Offline detection
+export function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  
+  return isOnline;
+}
+
+// Req 14.25: Token expiry redirect
+export function useTokenExpiryHandler(bookingId: string) {
+  const router = useRouter();
+  
+  const handleTokenExpiry = useCallback(() => {
+    // Save redirect context
+    sessionStorage.setItem('paymentRedirect', `/payments/${bookingId}`);
+    router.push('/login');
+  }, [bookingId, router]);
+  
+  return handleTokenExpiry;
+}
+```
+
 ---
 
 ### Core Module
@@ -1564,6 +1970,42 @@ type UIState = {
 *For any* event with SOLD_OUT status, the status SHALL remain temporary (allowing returns from expired bookings) for SOLD_OUT_FINAL_TIMEOUT_SECONDS (930 seconds), after which it becomes final.
 
 **Validates: Requirements BR-20**
+
+### Property 18: Payment Page State Machine Completeness (Requirement 14)
+
+*For any* Payment Page session, the UI state SHALL be exactly one of: `LOADING`, `MEMILIH`, `CHARGING`, `INSTRUKSI`, `SUKSES`, `GAGAL`, or `EXPIRED`. No other states exist, and transitions only occur via defined triggers.
+
+**Validates: Requirements 14.1-14.7, BR-23**
+
+### Property 19: Countdown Deadline-Based Calculation (Requirement 14)
+
+*For any* countdown display, the remaining time SHALL be calculated as `max(0, deadline - (Date.now() + clockOffset))` on every tick, NOT by decrementing a counter variable.
+
+**Validates: Requirements 14.8-14.11, BR-24**
+
+### Property 20: Server Confirmation Before Expired Transition (Requirement 14)
+
+*For any* countdown reaching 0:00, the UI SHALL NOT immediately transition to `EXPIRED` state. It SHALL first confirm with server via `GET /payments/{id}/status` because local clock may differ by 1-2 seconds and grace period may still save the transaction.
+
+**Validates: Requirements 14.10, BR-25**
+
+### Property 21: Polling Continuity on Network Error (Requirement 14)
+
+*For any* network error during payment status polling, the system SHALL retry up to 3 times with 1-second delay, then continue polling while showing a "disconnected" toast. Polling SHALL NOT stop due to network errors.
+
+**Validates: Requirements 14.12-14.14, BR-26**
+
+### Property 22: Payment Error Code to I18n Mapping (Requirement 14)
+
+*For any* API error code returned during payment flow, the UI SHALL display a user-friendly localized message. The mapping SHALL include at minimum: `PAYMENT_GATEWAY_UNAVAILABLE`, `BOOKING_STATUS_INVALID`, `PAYMENT_WINDOW_CLOSED`, `MAX_ATTEMPTS_EXCEEDED`, `PAYMENT_ALREADY_SETTLED`.
+
+**Validates: Requirements 14.18-14.20**
+
+### Property 23: Accessibility Focus Management (Requirement 14)
+
+*For any* state transition in Payment Page, keyboard focus SHALL move to the appropriate element: method selection on `MEMILIH`, VA number/QR on `INSTRUKSI`, success button on `SUKSES`, retry button on `GAGAL`, home button on `EXPIRED`.
+
+**Validates: Requirements 14.26-14.29**
 
 ---
 
