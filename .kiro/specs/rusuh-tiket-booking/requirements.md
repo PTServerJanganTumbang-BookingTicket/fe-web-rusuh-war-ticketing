@@ -72,6 +72,7 @@ Setiap Customer melewati 4 tahap berurutan:
 | 4 | Pemilihan Tiket, NIK Attendee & Identitas Pemesan | 🔴 Kritis | Customer |
 | 5 | Timer Booking (Server-Authoritative) | 🔴 Kritis | Customer, Operator |
 | 6 | Proses Pembayaran | 🔴 Kritis | Customer, Finance |
+| 14 | **Frontend Payment Page Behavior** | 🔴 Kritis | Developer Frontend |
 | 7 | Notifikasi Email per Attendee | 🟠 Tinggi | Customer |
 | 8 | Konsistensi & Keamanan Stok | 🔴 Kritis | Operator, Tim Teknis |
 | 9 | Skalabilitas & Ketahanan Sistem | 🔴 Kritis | Operator, Tim Teknis |
@@ -127,6 +128,9 @@ Setiap Customer melewati 4 tahap berurutan:
 | **CAPTCHA_Tak_Terlihat** | Verifikasi berbasis skor tanpa teka-teki; token diambil sebelum sale buka. |
 | **Display_Block**        | Jawaban siap-render dari server (`enabled`, `action`, `label_key`, `badge_key`); frontend tidak menghitung presedensi. |
 | **CAS**                  | *Compare-And-Swap* — mengubah nilai hanya bila ia **masih** sama dengan yang dibaca, dalam satu operasi atomik; pihak yang kalah balapan mendapat 0 baris dan berhenti sebelum efek sampingnya, sehingga dua proses bersamaan tetap aman tanpa lock. |
+| **Payment_Page_State**   | Salah satu dari 7 state frontend di halaman pembayaran: `LOADING`, `MEMILIH`, `CHARGING`, `INSTRUKSI`, `SUKSES`, `GAGAL`, `EXPIRED`. State machine ini mengatur transisi UI dan interaksi Customer. |
+| **Clock_Offset**         | Selisih waktu antara jam server dan jam lokal browser, dihitung sekali saat halaman dimuat dengan formula `clockOffset = Date.parse(server_time) - Date.now()`. Digunakan untuk sinkronisasi countdown. |
+| **Polling_Status**       | Mekanisme frontend untuk mendeteksi perubahan status pembayaran dengan memanggil `GET /payments/{booking_id}/status` setiap 2 detik selama Customer berada di state `INSTRUKSI`. |
 
 ---
 
@@ -366,6 +370,123 @@ Setiap Customer melewati 4 tahap berurutan:
 
 ---
 
+### Requirement 14: 📱 Frontend Payment Page Behavior
+
+**User Story:** Sebagai developer frontend, saya ingin spesifikasi yang jelas tentang state management, error handling, dan edge cases pada halaman pembayaran, sehingga implementasi konsisten dan memberikan pengalaman pengguna yang baik di berbagai kondisi.
+
+> **💡 Apa ini?** Spesifikasi detail tentang bagaimana frontend harus berperilaku di halaman pembayaran, termasuk state machine, countdown synchronization, polling strategy, error handling, dan edge cases. Requirement ini melengkapi Requirement 6 yang berfokus pada alur bisnis backend.
+>
+> **Referensi**: `documentations/frontend/payment-page-spec.md` berisi detail implementasi teknis lengkap termasuk contoh kode.
+
+#### State Machine
+
+Halaman pembayaran memiliki 7 state yang harus dikelola frontend:
+
+| State | Kondisi | Tampilan |
+|-------|---------|----------|
+| `LOADING` | Pertama kali masuk halaman | Skeleton UI, countdown placeholder |
+| `MEMILIH` | Menunggu Customer pilih metode | Daftar metode aktif, tombol "Bayar Sekarang" disabled sampai pilih |
+| `CHARGING` | Sedang membuat transaksi ke gateway | Loading overlay, tombol disabled |
+| `INSTRUKSI` | VA/QR sudah terbit | Nomor VA atau QR code, countdown, polling berjalan |
+| `SUKSES` | Pembayaran dikonfirmasi | Pesan sukses, tombol ke halaman tiket |
+| `GAGAL` | Gateway menolak (deny/cancel/failure) | Pesan error, tombol coba lagi (jika TTL > 0) |
+| `EXPIRED` | TTL + grace habis | Pesan kedaluwarsa, tombol ke halaman utama |
+
+```
+LOADING → MEMILIH → CHARGING → INSTRUKSI → SUKSES/GAGAL/EXPIRED
+                        ↑            ↓
+                        └── GAGAL ───┘ (jika can_retry && TTL > 0)
+```
+
+#### Acceptance Criteria
+
+##### State Management
+
+1. WHEN Customer masuk ke Payment_Page, THE Frontend SHALL menampilkan state `LOADING` dengan skeleton UI sementara memanggil `GET /payments/{booking_id}/methods` untuk mengambil daftar metode pembayaran; THE Frontend SHALL menyimpan `server_time` dari response untuk menghitung clock offset; THE Frontend SHALL transisi ke state `MEMILIH` setelah data berhasil diambil.
+
+2. WHILE Customer berada di state `MEMILIH`, THE Frontend SHALL menampilkan daftar metode pembayaran dengan tombol "Bayar Sekarang" dalam keadaan disabled sampai Customer memilih salah satu metode; countdown TTL_Pembayaran HARUS sudah berjalan di state ini.
+
+3. WHEN Customer menekan tombol "Bayar Sekarang", THE Frontend SHALL transisi ke state `CHARGING` dengan menampilkan loading overlay dan menonaktifkan semua interaksi; THE Frontend SHALL memanggil `POST /payments/{booking_id}` dengan metode yang dipilih.
+
+4. WHEN response dari `POST /payments/{booking_id}` berhasil, THE Frontend SHALL transisi ke state `INSTRUKSI` dan menampilkan: (a) nomor VA dan nama bank untuk metode `bank_transfer`, atau (b) QR code dan deep link untuk metode `gopay`; THE Frontend SHALL memulai polling status setiap 2 detik.
+
+5. WHEN polling status mengembalikan `status: PAID`, THE Frontend SHALL menghentikan polling dan transisi ke state `SUKSES`; THE Frontend SHALL menampilkan pesan sukses dan tombol menuju halaman tiket.
+
+6. WHEN polling status mengembalikan `status: FAILED`, THE Frontend SHALL menghentikan polling dan transisi ke state `GAGAL`; IF `can_retry: true` DAN TTL > 0, THE Frontend SHALL menampilkan tombol "Coba Lagi" yang mengarahkan kembali ke state `MEMILIH` TANPA memanggil `/retry` (karena `payment_attempts` sudah dinaikkan oleh backend saat status menjadi FAILED).
+
+7. WHEN polling status mengembalikan `status: EXPIRED` atau countdown mencapai 0:00 dan konfirmasi ke server mengembalikan `EXPIRED`, THE Frontend SHALL menghentikan polling dan transisi ke state `EXPIRED`; THE Frontend SHALL menampilkan pesan kedaluwarsa dan tombol kembali ke halaman utama.
+
+##### Countdown & Clock Synchronization
+
+8. THE Frontend SHALL menghitung clock offset satu kali saat halaman dimuat dengan formula: `clockOffset = Date.parse(server_time) - Date.now()`; seluruh perhitungan waktu HARUS menggunakan `Date.now() + clockOffset` sebagai waktu terkini.
+
+9. THE Frontend SHALL merender countdown dengan menghitung `remaining = deadline - (Date.now() + clockOffset)` setiap detik; THE Frontend SHALL NOT menghitung countdown dengan mengurangi variabel karena tab di background dibatasi browser menjadi ~1x/menit yang menyebabkan drift.
+
+10. WHEN countdown mencapai 0:00, THE Frontend SHALL membekukan tampilan countdown di "00:00" dan menampilkan overlay "Memverifikasi..." sambil memanggil `GET /payments/{booking_id}/status` untuk konfirmasi status sebenarnya; THE Frontend SHALL NOT langsung transisi ke state `EXPIRED` berdasarkan countdown saja karena jam lokal bisa berbeda 1-2 detik dari server.
+
+11. THE Frontend SHALL NOT me-reset countdown TTL_Pembayaran saat Customer mengganti metode pembayaran; TTL tetap dihitung dari `held_at` booking awal sesuai BR-05.
+
+##### Polling Strategy
+
+12. WHILE Customer berada di state `INSTRUKSI`, THE Frontend SHALL melakukan polling ke `GET /payments/{booking_id}/status` setiap **2 detik** untuk mendeteksi perubahan status pembayaran.
+
+13. IF polling gagal karena network error, THE Frontend SHALL melakukan retry hingga 3 kali dengan delay 1 detik antar retry; IF gagal lebih dari 3 kali berturut-turut, THE Frontend SHALL menampilkan toast "Koneksi terputus" namun tetap melanjutkan polling; THE Frontend SHALL NOT menghentikan polling karena network error sementara.
+
+14. WHEN tab kembali aktif dari background (visibilitychange → visible), THE Frontend SHALL segera melakukan polling status tanpa menunggu interval berikutnya; THE Frontend juga SHALL segera memperbarui tampilan countdown.
+
+##### Ganti Metode Pembayaran
+
+15. WHEN Customer berada di state `INSTRUKSI` dan ingin mengganti metode pembayaran, THE Frontend SHALL menampilkan dialog konfirmasi dengan pesan "Nomor VA / QR code yang sudah terbit akan dibatalkan dan tidak dapat digunakan. Ganti metode pembayaran?"; dialog ini WAJIB karena Customer mungkin sudah di ATM dengan nomor VA diketik.
+
+16. WHILE dialog konfirmasi terbuka, polling status HARUS tetap berjalan; IF status menjadi `PAID` saat dialog terbuka, THE Frontend SHALL menutup dialog otomatis dan transisi ke state `SUKSES`.
+
+17. IF Customer mengonfirmasi ganti metode, THE Frontend SHALL memanggil `POST /payments/{booking_id}/retry` untuk membatalkan transaksi lama; IF response `409 PAYMENT_ALREADY_SETTLED`, THE Frontend SHALL mengabaikan dan membiarkan polling menangkap status PAID; IF response sukses, THE Frontend SHALL transisi ke state `MEMILIH`.
+
+##### Error Handling
+
+18. THE Frontend SHALL memetakan setiap `error_code` dari API ke pesan UI yang user-friendly dalam bahasa yang dipilih Customer; mapping HARUS mencakup minimal:
+
+| Error Code | UI Copy (ID) | UI Copy (EN) |
+|------------|--------------|--------------|
+| `PAYMENT_GATEWAY_UNAVAILABLE` | Sistem Pembayaran Sedang Sibuk. Mohon tunggu beberapa saat dan coba lagi. | Payment System Busy. Please wait a moment and try again. |
+| `BOOKING_STATUS_INVALID` | Booking Tidak Valid. Status booking Anda telah berubah. | Invalid Booking. Your booking status has changed. |
+| `PAYMENT_WINDOW_CLOSED` | Waktu Pembayaran Habis. Maaf, waktu untuk menyelesaikan pembayaran telah berakhir. | Payment Time Expired. Sorry, the payment window has closed. |
+| `MAX_ATTEMPTS_EXCEEDED` | Batas Percobaan Tercapai. Anda telah mencapai batas maksimal percobaan pembayaran. | Maximum Attempts Reached. You have reached the maximum number of payment attempts. |
+| `PAYMENT_ALREADY_SETTLED` | Pembayaran Sudah Diterima. Pembayaran Anda sedang diproses. | Payment Received. Your payment is being processed. |
+
+19. WHEN error `PAYMENT_GATEWAY_UNAVAILABLE` (503) terjadi saat charge, THE Frontend SHALL menampilkan pesan error dan mengaktifkan tombol retry setelah 5 detik; booking tetap `HELD` dan Customer dapat mencoba lagi selama TTL > 0.
+
+20. WHEN error `BOOKING_STATUS_INVALID` (409) terjadi saat charge pada countdown mendekati 0, THE Frontend SHALL memperlakukan ini sebagai "waktu habis" dan transisi ke state `EXPIRED`, bukan menampilkan error generik.
+
+##### Edge Cases
+
+21. THE Frontend SHALL mencegah double-click pada tombol "Bayar Sekarang" dengan: (a) menonaktifkan tombol segera setelah klik pertama, (b) menampilkan loading state pada tombol, (c) menggunakan flag `isSubmitting` untuk memblokir eksekusi ganda.
+
+22. WHEN Customer menekan tombol back atau swipe back saat di state `INSTRUKSI`, THE Frontend SHALL menampilkan dialog konfirmasi dengan pesan bahwa pembayaran belum selesai dan nomor VA/QR akan tetap berlaku selama waktu belum habis; IF Customer mengonfirmasi keluar, THE Frontend BOLEH meninggalkan halaman tanpa membatalkan booking (server-side TTL sebagai fallback).
+
+23. WHEN Customer menutup tab atau browser saat di state `INSTRUKSI`, THE Frontend SHALL menampilkan peringatan beforeunload; Hold stok tetap aktif sampai TTL_Pembayaran habis sebagai server-side fallback — perilaku ini sama dengan Req 6 AC18.
+
+24. WHEN Customer offline (navigator.onLine === false), THE Frontend SHALL menampilkan banner "Tidak ada koneksi internet. Pembayaran akan dilanjutkan saat online."; countdown HARUS tetap berjalan; polling akan gagal namun akan otomatis berhasil kembali saat online.
+
+25. WHEN Customer menerima error `401 TOKEN_EXPIRED` atau `401 TOKEN_INVALID` saat polling atau charge, THE Frontend SHALL menyimpan context redirect (`/payments/{booking_id}`) dan mengarahkan Customer ke halaman login; setelah login berhasil, Customer diarahkan kembali ke halaman pembayaran.
+
+##### Accessibility
+
+26. THE Frontend SHALL mengimplementasikan countdown dengan `role="timer"` dan `aria-live="polite"`; THE Frontend SHALL mengumumkan perubahan signifikan (tersisa 1 menit, tersisa 30 detik, waktu habis) ke screen reader menggunakan live region.
+
+27. THE Frontend SHALL mengimplementasikan status changes (SUKSES, GAGAL, EXPIRED) dengan `role="status"` dan `aria-live="assertive"` sehingga screen reader mengumumkan perubahan status.
+
+28. THE Frontend SHALL mengelola focus sesuai transisi state:
+   - `LOADING` → `MEMILIH`: focus ke pilihan metode pertama
+   - `CHARGING` → `INSTRUKSI`: focus ke nomor VA / QR code
+   - → `SUKSES`: focus ke tombol "Lihat Tiket"
+   - → `GAGAL`: focus ke tombol "Coba Lagi" (jika ada) atau pesan error
+   - → `EXPIRED`: focus ke tombol "Kembali ke Beranda"
+
+29. THE Frontend SHALL memastikan tombol "Bayar Sekarang" memiliki `aria-busy="true"` saat dalam state `CHARGING` dan `aria-describedby` yang mengarah ke pesan "Mohon tunggu, pembayaran sedang diproses".
+
+---
+
 ### Requirement 7: 📧 Notifikasi Email per Attendee
 
 **User Story:** Sebagai Customer, saya ingin menerima konfirmasi atau pemberitahuan melalui email setelah transaksi selesai atau gagal, sehingga saya memiliki bukti transaksi dan mengetahui hasil pembelian tiket saya.
@@ -530,6 +651,10 @@ Setiap Customer melewati 4 tahap berurutan:
 | BR-20 | **Sold out bersifat sementara**: kursi dari booking yang kedaluwarsa dijual kembali pada posisi antrian yang sama. Final setelah **930 detik** tanpa kemungkinan kursi kembali; setelah itu stream SSE ditutup dengan `410 Gone`. |
 | BR-21 | ❌ **DIHAPUS (ADR-006 §4.3)**: ~~Pause admission saat circuit breaker OPEN~~. Sekarang breaker OPEN → panggilan ke dependensi gagal cepat (fail closed) dengan error yang dapat di-retry; antrian **tetap maju**, tidak ada pause admission. |
 | BR-22 | ❌ **DIHAPUS (ADR-006 §4.3)**: ~~Pause TTL Grace (+60 detik saat pause dimulai)~~. Sekarang tenggat tidak pernah digeser. |
+| BR-23 | **Frontend Payment Page State Machine**: Halaman pembayaran memiliki 7 state (`LOADING`, `MEMILIH`, `CHARGING`, `INSTRUKSI`, `SUKSES`, `GAGAL`, `EXPIRED`) dengan transisi yang terdefinisi. Frontend TIDAK BOLEH membuat state transisi di luar yang terdefinisi di Requirement 6a. |
+| BR-24 | **Countdown dihitung dari deadline, bukan dikurangi**: Frontend HARUS menghitung `remaining = deadline - (Date.now() + clockOffset)` setiap tick, BUKAN mengurangi variabel counter. Ini mencegah drift saat tab di background. |
+| BR-25 | **Konfirmasi server saat countdown 0:00**: Frontend TIDAK BOLEH langsung transisi ke state `EXPIRED` saat countdown mencapai 0:00. HARUS konfirmasi ke server dulu karena jam lokal bisa berbeda 1-2 detik dan grace period 30 detik masih bisa menyelamatkan. |
+| BR-26 | **Polling tidak berhenti karena network error**: Frontend HARUS tetap melanjutkan polling meskipun terjadi network error sementara. Retry 3x dengan delay 1 detik, lalu lanjut polling. Tampilkan toast "Koneksi terputus" setelah 3 kali gagal berturut-turut. |
 
 ---
 

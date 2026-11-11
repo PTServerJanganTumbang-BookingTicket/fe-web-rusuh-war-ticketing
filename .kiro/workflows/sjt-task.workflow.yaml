@@ -2,33 +2,35 @@ name: SJT Task Execution
 description: Workflow granular per-task dari tasks.md
 
 inputs:
-  task_number:
-    description: "Task number dari tasks.md (e.g., 11, 12, 24)"
-    required: true
-  ticket_id:
-    description: "Ticket ID untuk commit (e.g., SJT-016)"
-    required: true
-  actor:
-    description: "Actor name in Capital Case (Akbar/Muzaki)"
-    required: true
+  task_number: "Task number dari tasks.md (e.g., 11, 12, 24)"
+  ticket_id: "Ticket ID untuk commit (e.g., SJT-016)"
+  actor: "Actor name in Capital Case (Akbar/Muzaki)"
 
 steps:
-  - id: prepare
+  - type: step
+    id: prepare
     name: "Preparation Phase"
+    agent: sjt-coder
     prompt: "Baca Task {{task_number}} dari tasks.md, identifikasi dependencies dan files yang terlibat."
 
-  - id: implement
+  - type: step
+    id: implement
     name: "Implementation Phase"
+    agent: sjt-coder
     dependsOn: [prepare]
     prompt: "Implementasi Task {{task_number}} sesuai Clean Architecture: domain-application-data-controller-view."
 
-  - id: verify
+  - type: step
+    id: verify
     name: "Verification Phase"
+    agent: sjt-coder
     dependsOn: [implement]
     prompt: "Run npm run lint && npm run typecheck && npm run test --run untuk Task {{task_number}}. Catat hasil test count."
 
-  - id: update_tasks
+  - type: step
+    id: update_tasks
     name: "Update Tasks.md"
+    agent: sjt-coder
     dependsOn: [verify]
     prompt: |
       Update tasks.md untuk mark Task {{task_number}} sebagai completed:
@@ -36,13 +38,17 @@ steps:
       2. Ubah semua subtask `- [ ] {{task_number}}.X` menjadi `- [x] {{task_number}}.X`
       3. Stage perubahan tasks.md
 
-  - id: commit
+  - type: step
+    id: commit
     name: "Commit Phase"
+    agent: sjt-coder
     dependsOn: [update_tasks]
     prompt: "Commit dengan format [{{ticket_id}}][{{actor}}] type(scope): subject. Include tasks.md update dalam commit."
 
-  - id: update_pr_body
+  - type: step
+    id: update_pr_body
     name: "Update PR Body"
+    agent: sjt-coder
     dependsOn: [commit]
     prompt: |
       Jika sudah ada PR untuk branch ini, update PR body dengan template dari pr-body-template.md:
