@@ -7,12 +7,15 @@ import { useOfflineDialog } from "@/core/controllers/offline-dialog.hook";
 import { ActionDialog } from "@/components/ui/layout/ActionDialog";
 import { readAppConfig } from "./app-config.reader";
 import { createAppContainer } from "./container";
+import { shouldRetryQuery } from "@/core/controllers/query-retry.utils";
 
 function createQueryClient(mocking: boolean) {
   // Mode mock: tahan query sampai worker MSW siap, tanpa menahan render children (validasi instant Next
   // membutuhkan children ter-render di server).
   if (mocking && typeof window !== "undefined") onlineManager.setOnline(false);
-  return new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
+  return new QueryClient({
+    defaultOptions: { queries: { refetchOnWindowFocus: false, retry: shouldRetryQuery } },
+  });
 }
 
 /** Dialog "tanpa jaringan" untuk semua halaman yang memasang AppProviders. */

@@ -36,8 +36,15 @@ describe("eventsQueryOptions", () => {
     const listEventsUseCase = vi.fn(() => Promise.resolve([event]));
     const options = eventsQueryOptions({ listEventsUseCase, random: { next: () => 0 } });
     expect(options.queryKey).toEqual(["catalog", "events"]);
-    const interval = (options.refetchInterval as () => number)();
+    const poll = options.refetchInterval as (query: { state: { status: string } }) => number | false;
+    const interval = poll({ state: { status: "success" } }) as number;
     expect(interval).toBeGreaterThanOrEqual(4000);
     expect(interval).toBeLessThanOrEqual(6000);
+  });
+
+  it("berhenti polling setelah query berstatus error (retry habis)", () => {
+    const options = eventsQueryOptions({ listEventsUseCase: vi.fn(), random: { next: () => 0 } });
+    const poll = options.refetchInterval as (query: { state: { status: string } }) => number | false;
+    expect(poll({ state: { status: "error" } })).toBe(false);
   });
 });

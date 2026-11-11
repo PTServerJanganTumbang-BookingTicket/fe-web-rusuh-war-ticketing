@@ -1,4 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
+import { pollingStopped } from "@/core/controllers/query-retry.utils";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
 import type { ListEventsUseCase } from "../application/list-events.use-case";
@@ -18,7 +19,8 @@ export function eventsQueryOptions(deps: { listEventsUseCase: ListEventsUseCase;
     queryKey: catalogKeys.events(),
     queryFn: () => deps.listEventsUseCase(),
     // Req 1.4: refresh dalam 5 detik; jitter ±20% untuk mencegah sinkronisasi polling
-    refetchInterval: () => withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
+    refetchInterval: (query) =>
+      pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
     // Data stale setelah 1 detik untuk memicu refetch saat focus
     staleTime: 1_000,
   });
