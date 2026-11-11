@@ -10,8 +10,8 @@ import { queueStreamSchemas, waitingState, type QueueStreamMessage } from "./que
 const GRANT_RETRY_MS = 1_000;
 
 /**
- * `GET /events/{event_id}/queue/stream` (kontrak §3.2, v2.12). Pesan tanpa nama membawa `nowServing` dan `state`;
- * posisi dihitung dari tiket hasil join. Tidak ada event `grant`: saat `nowServing >= ticket_no`, state diambil
+ * `GET /events/{event_id}/queue/stream` (kontrak §3.2, v2.12). Pesan tanpa nama membawa `nowServing`, `state`, dan
+ * `ratePerMin`; posisi dihitung dari tiket hasil join dan laju terbaru disimpan di tiket untuk estimasi (§3.5). Tidak ada event `grant`: saat `nowServing >= ticket_no`, state diambil
  * dari `GET /queue/me`. `stale` hanya meredupkan data (tidak menutup atau menyambung ulang stream), dan
  * `sold-out` menutup stream.
  */
@@ -61,10 +61,18 @@ export function createSseQueueUpdatesService({
         observer.next(waitingState(ticket, nowServing, { fullBooked, stale }));
       };
 
+      /** Laju terbaru disimpan di tiket, jadi polling cadangan memakai laju yang sama saat stream putus. */
+      const keepRate = (ratePerMin: number | undefined) => {
+        const ticket = queueTicketCache.get(eventId);
+        if (!ticket || ratePerMin === undefined || ratePerMin === ticket.ratePerMin) return;
+        queueTicketCache.set(eventId, { ...ticket, ratePerMin: Math.max(ratePerMin, 0) });
+      };
+
       const next = (message: QueueStreamMessage) => {
         switch (message.type) {
           case "serving":
             nowServing = message.nowServing;
+            keepRate(message.ratePerMin);
             fullBooked = message.saleState === "FULL_BOOKED";
             stale = false;
             publish();

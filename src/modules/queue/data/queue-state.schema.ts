@@ -6,7 +6,7 @@ import type { QueueState } from "../domain/queue-state.model";
 /**
  * `data` dari `POST /events/{event_id}/queue/join`. Ada tiga bentuk: antrian baru, join ulang (`rejoined`, tanpa
  * `event`), dan antrian kosong yang langsung diberi giliran (`granted`, tanpa nomor). Kontrak tidak membawa estimasi
- * tunggu: ETA dihitung dari `rate_per_min` di `/queue/serving`.
+ * tunggu: estimasi dihitung dari laju antrian (`ratePerMin` di stream, `rate_per_min` di `/queue/serving`).
  */
 export const queueJoinSchema = z
   .object({
@@ -20,8 +20,8 @@ export type QueueJoin = z.infer<typeof queueJoinSchema>;
 /** Tiket antrian customer di satu event, dipakai bersama service HTTP dan SSE. */
 export type QueueTicket = QueueJoin & {
   eventName: string;
-  /** Detik per posisi, dari laju antrian server; 0 bila laju belum diketahui. */
-  secondsPerPosition: number;
+  /** Laju antrian terakhir yang diketahui (nomor per menit); 0 bila belum diketahui. */
+  ratePerMin: number;
 };
 
 /** `data` dari `GET /events/{event_id}/queue/serving`; hanya laju yang dipakai FE. */
@@ -66,7 +66,8 @@ const saleStateSchema = z.enum(["SCHEDULED", "OPEN", "FULL_BOOKED", "CLOSED"]);
  * `GET /queue/me`. Teks `message` dari server tidak dipakai untuk bercabang, hanya `stale`, `state`, dan nama event.
  */
 export type QueueStreamMessage =
-  | { type: "serving"; nowServing: number; saleState: QueueSaleState }
+  /** `ratePerMin` kosong berarti pesan tidak membawa laju: laju terakhir tetap dipakai. */
+  | { type: "serving"; nowServing: number; saleState: QueueSaleState; ratePerMin?: number }
   | { type: "status"; saleState: QueueSaleState }
   | { type: "stale"; stale: boolean; saleState: QueueSaleState }
   | { type: "closed" }
@@ -74,22 +75,21 @@ export type QueueStreamMessage =
 
 export const queueStreamSchemas = {
   message: z
-    .object({ nowServing: z.number(), state: saleStateSchema })
+    .object({ nowServing: z.number(), state: saleStateSchema, ratePerMin: z.number().optional() })
     .transform((event): QueueStreamMessage => ({
       type: "serving",
       nowServing: event.nowServing,
       saleState: event.state,
+      ratePerMin: event.ratePerMin,
     })),
   status: z
     .object({ state: saleStateSchema })
     .transform((event): QueueStreamMessage => ({ type: "status", saleState: event.state })),
-  stale: z
-    .object({ stale: z.boolean(), state: saleStateSchema })
-    .transform((event): QueueStreamMessage => ({
-      type: "stale",
-      stale: event.stale,
-      saleState: event.state,
-    })),
+  stale: z.object({ stale: z.boolean(), state: saleStateSchema }).transform((event): QueueStreamMessage => ({
+    type: "stale",
+    stale: event.stale,
+    saleState: event.state,
+  })),
   "sold-out": z.unknown().transform((): QueueStreamMessage => ({ type: "closed" })),
   reconnect: z.unknown().transform((): QueueStreamMessage => ({ type: "reconnect" })),
 };
@@ -108,7 +108,7 @@ export function waitingState(
     stale: live.stale ?? false,
     position,
     joinedPosition: ticket.joinedPosition,
-    etaSeconds: Math.round(position * ticket.secondsPerPosition),
+    ratePerMin: ticket.ratePerMin,
     retryAfterMs: QUEUE_POLL_FALLBACK_MS,
   };
 }

@@ -107,6 +107,9 @@ export function createMockState(config: ScenarioConfig) {
     return entry;
   }
 
+  /** Antrian yang tidak bergerak (skenario `queue-stuck`) melaporkan laju 0, seperti sebelum booking pertama diproses. */
+  const isQueueMoving = () => config.servingStep > 0;
+
   /** Memajukan now_serving satu langkah (poll atau tick SSE). */
   function advanceServing(eventId: string): number {
     const next = servingOf(eventId) + config.servingStep;
@@ -206,6 +209,7 @@ export function createMockState(config: ScenarioConfig) {
     nextId,
     findEvent,
     servingOf,
+    isQueueMoving,
     joinQueue,
     advanceServing,
     grantIfDue,

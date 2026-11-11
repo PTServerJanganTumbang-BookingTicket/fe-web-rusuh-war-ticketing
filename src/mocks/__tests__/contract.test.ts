@@ -483,6 +483,13 @@ describe("Skenario TTL", () => {
   describe("queue-stuck", () => {
     useServer("queue-stuck");
 
+    it("laju antrian 0 selama antrian belum bergerak", async () => {
+      const serving = (await (await api("/events/evt_konser_a/queue/serving")).json()) as {
+        data: { rate_per_min: number };
+      };
+      expect(serving.data.rate_per_min).toBe(0);
+    });
+
     it("posisi tidak bergerak", async () => {
       const queue = await joinQueue();
       const poll = async () =>

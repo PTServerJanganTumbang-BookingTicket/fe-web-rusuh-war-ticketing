@@ -9,7 +9,7 @@ const waiting = {
   stale: false,
   position: 1248,
   joinedPosition: 1248,
-  etaSeconds: 240,
+  ratePerMin: 318,
   retryAfterMs: 2000,
 } as const;
 
@@ -55,7 +55,25 @@ describe("toWaitingStatus", () => {
   });
 
   it("estimasi minimal 1 menit", () => {
-    expect(toWaitingStatus({ ...waiting, position: 10, etaSeconds: 2 }).eta?.value).toBe("± 1 menit");
+    expect(toWaitingStatus({ ...waiting, position: 10 }).eta?.value).toBe("± 1 menit");
+  });
+
+  it("laju 0 (belum ada booking diproses): menghitung estimasi, bukan angka", () => {
+    expect(toWaitingStatus({ ...waiting, ratePerMin: 0 }).eta).toEqual({
+      label: "Estimasi waktu tunggu",
+      value: "Menghitung estimasi antrean…",
+    });
+  });
+
+  it("estimasi panjang ditulis dalam jam dengan koma desimal, lalu lebih dari 3 jam", () => {
+    const at = (position: number) => toWaitingStatus({ ...waiting, position, ratePerMin: 1 }).eta?.value;
+    expect(at(60)).toBe("± 1 jam");
+    expect(at(90)).toBe("± 1,5 jam");
+    expect(at(181)).toBe("Lebih dari 3 jam");
+  });
+
+  it("posisi 0 saat masih menunggu: giliran sebentar lagi", () => {
+    expect(toWaitingStatus({ ...waiting, position: 0 }).eta?.value).toBe("Giliran Anda sebentar lagi");
   });
 });
 

@@ -32,22 +32,32 @@ export function createHttpQueueService({
   queueTicketCache: QueueTicketCache;
   captcha: CaptchaProtocol;
 }): QueueProtocol {
-  /** Laju antrian untuk ETA; gagal mengambilnya hanya berarti ETA belum bisa dihitung. */
-  async function secondsPerPosition(eventId: string): Promise<number> {
+  /** Laju antrian untuk estimasi; gagal mengambilnya hanya berarti estimasi belum bisa dihitung. */
+  async function ratePerMin(eventId: string): Promise<number> {
     try {
-      const { rate_per_min: rate } = await httpClient.get(
-        `${queuePath(eventId)}/serving`,
-        queueServingSchema,
-      );
-      return rate > 0 ? 60 / rate : 0;
+      const serving = await httpClient.get(`${queuePath(eventId)}/serving`, queueServingSchema);
+      return Math.max(serving.rate_per_min, 0);
     } catch {
       return 0;
     }
   }
 
+  /**
+   * Laju 0 adalah keadaan awal antrian (belum ada booking yang diproses). Selama itu laju diambil lagi tiap snapshot,
+   * supaya polling cadangan tidak terpaku di "menghitung" saat stream tidak tersambung.
+   */
+  async function withKnownRate(eventId: string, ticket: QueueTicket): Promise<QueueTicket> {
+    if (ticket.ratePerMin > 0) return ticket;
+    const rate = await ratePerMin(eventId);
+    if (rate <= 0) return ticket;
+    const updated = { ...ticket, ratePerMin: rate };
+    queueTicketCache.set(eventId, updated);
+    return updated;
+  }
+
   async function ticketFor(eventId: string): Promise<QueueTicket> {
     const cached = queueTicketCache.get(eventId);
-    if (cached) return cached;
+    if (cached) return withKnownRate(eventId, cached);
     // Token CAPTCHA diambil lebih dulu: join menolak tanpa token (400), dan nomor antrian dibagikan saat join.
     const event = await httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueJoinEventSchema);
     const captchaToken = await captcha.solve(event.captcha);
@@ -77,7 +87,7 @@ export function createHttpQueueService({
     const ticket: QueueTicket = {
       ...join,
       eventName: event.name,
-      secondsPerPosition: await secondsPerPosition(eventId),
+      ratePerMin: await ratePerMin(eventId),
     };
     queueTicketCache.set(eventId, ticket);
     return ticket;

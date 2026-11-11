@@ -121,7 +121,7 @@ export function eventHandlers(state: MockState, baseUrl: string) {
                     data: {
                       nowServing: serving,
                       state: saleState(event),
-                      ratePerMin: RATE_PER_MIN,
+                      ratePerMin: state.isQueueMoving() ? RATE_PER_MIN : 0,
                       serverTime: new Date().toISOString(),
                     },
                   });
@@ -253,7 +253,7 @@ export function eventHandlers(state: MockState, baseUrl: string) {
       if (!state.findEvent(eventId)) return fail(404, "Event not found");
       return ok({
         now_serving: state.servingOf(eventId),
-        rate_per_min: RATE_PER_MIN,
+        rate_per_min: state.isQueueMoving() ? RATE_PER_MIN : 0,
         state: saleState(state.findEvent(eventId)!),
         poll_tiers: POLL_TIERS,
         paused: false,
