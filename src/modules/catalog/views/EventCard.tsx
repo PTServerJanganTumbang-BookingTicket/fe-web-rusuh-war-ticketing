@@ -73,7 +73,7 @@ export function EventCard({
           {available ? (
             <Link href={cta.href!} className={cn(buttonVariants({ size: "lg" }), "w-full")}>
               {cta.label}
-              <ArrowRightIcon aria-hidden="true" className="size-3.5 -rotate-45" />
+              <ArrowRightIcon aria-hidden="true" className="size-5" />
             </Link>
           ) : (
             <Button disabled className="w-full" size="lg" variant="outline" aria-disabled="true">

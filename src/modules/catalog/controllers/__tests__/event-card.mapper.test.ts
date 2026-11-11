@@ -32,7 +32,7 @@ describe("toEventCardProps", () => {
     expect(props.venue).toBe("GBK");
     expect(props.statusLabel).toBe("AVAILABLE");
     expect(props.statusTone).toBe("success");
-    expect(props.cta).toEqual({ label: "Beli Tiket →", href: "/events/evt-1/queue" });
+    expect(props.cta).toEqual({ label: "Beli Tiket", href: "/events/evt-1/queue" });
   });
 
   it("event AVAILABLE dengan action book (DIRECT): tombol menuju booking langsung", () => {
@@ -42,7 +42,7 @@ describe("toEventCardProps", () => {
       display: { enabled: true, action: "book", labelKey: "home.event.cta" },
     };
     const props = toEventCardProps(directEvent);
-    expect(props.cta).toEqual({ label: "Beli Tiket →", href: "/events/evt-1/book" });
+    expect(props.cta).toEqual({ label: "Beli Tiket", href: "/events/evt-1/book" });
   });
 
   it("event SOLD_OUT: tombol nonaktif tanpa href", () => {

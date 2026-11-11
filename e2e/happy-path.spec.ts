@@ -7,7 +7,10 @@ test.describe("Alur utama", () => {
 
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Event Mendatang" })).toBeVisible();
-    await page.getByRole("link", { name: "Masuk Antrian →" }).first().click();
+    await page
+      .getByRole("link", { name: /Masuk Antrian/ })
+      .first()
+      .click();
 
     await expect(page.getByText(/^#[\d.]+$/)).toBeVisible();
     await passQueue(page);
