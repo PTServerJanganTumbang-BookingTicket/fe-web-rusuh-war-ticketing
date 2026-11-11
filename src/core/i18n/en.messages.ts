@@ -252,6 +252,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "home.hero.eyebrow": "RUSUH TIKET",
   "home.hero.headline": "Stage energy. Stories you take home.",
   "home.hero.subtext": "We don't just sell tickets, we take you to moments you'll never forget.",
+  "home.hero.cta": "Browse events",
   "home.list.label": "Event List",
   "home.list.title": "Upcoming Events",
   "home.list.subtitle": "Find the exciting experiences waiting for you",

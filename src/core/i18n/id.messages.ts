@@ -77,6 +77,7 @@ export const id = {
   "home.hero.eyebrow": "RUSUH TIKET",
   "home.hero.headline": "Energi panggung. Cerita yang kamu bawa pulang.",
   "home.hero.subtext": "Kami bukan sekadar jual tiket, tapi mengantar kamu ke momen yang tak tergantikan.",
+  "home.hero.cta": "Lihat event",
   // Event List Section
   "home.list.label": "Daftar Event",
   "home.list.title": "Event Mendatang",

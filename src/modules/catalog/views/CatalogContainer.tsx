@@ -42,6 +42,7 @@ function CatalogContent() {
         eyebrow: t("home.hero.eyebrow"),
         headline: t("home.hero.headline"),
         subtext: t("home.hero.subtext"),
+        cta: t("home.hero.cta"),
       }}
       eventList={{
         title: t("home.list.title"),

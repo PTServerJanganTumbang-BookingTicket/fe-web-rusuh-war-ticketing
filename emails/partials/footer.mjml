@@ -1,9 +1,16 @@
-<mj-section background-color="#f6f3f3" padding="24px">
+<mj-section padding="0 40px 8px">
   <mj-column>
-    <mj-text mj-class="muted" align="center" padding="0">
-      Email ini dikirim otomatis, mohon tidak membalas.<br />
+    <mj-divider padding="8px 0 24px" />
+    <mj-text mj-class="muted" padding="0 0 8px">Sampai jumpa di depan panggung.</mj-text>
+    <mj-text mj-class="muted" padding="0 0 8px">
       Butuh bantuan? Hubungi
       <a href="mailto:{{supportEmail}}" style="color: #0050ae">{{supportEmail}}</a>
     </mj-text>
+    <mj-text mj-class="muted" font-size="12px" padding="0 0 32px">
+      Email ini dikirim otomatis, mohon tidak membalas. © Rusuh Booking Tiket
+    </mj-text>
   </mj-column>
+</mj-section>
+<mj-section background-color="transparent" padding="0 0 24px">
+  <mj-column />
 </mj-section>

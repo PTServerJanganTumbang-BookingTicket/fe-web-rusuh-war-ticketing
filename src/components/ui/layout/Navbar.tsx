@@ -121,19 +121,25 @@ export function Navbar({ items, loginHref, loginLabel, account, language, menu }
   );
 }
 
-/** Logo merek yang menuju Home. Dipakai navbar dan header sederhana halaman memuat. */
+/** Logo merek yang menuju Home. Dipakai navbar dan header sederhana halaman memuat. Batang logo bergerak saat di-hover (globals.css). */
 export function BrandLink() {
   return (
-    <Link href="/" className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white">
-          <rect x="3" y="6" width="4" height="12" rx="1" fill="currentColor" />
-          <rect x="10" y="3" width="4" height="18" rx="1" fill="currentColor" />
-          <rect x="17" y="8" width="4" height="8" rx="1" fill="currentColor" />
+    <Link href="/" className="brand-link group flex items-center gap-2">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110 group-focus-visible:-rotate-6 group-focus-visible:scale-110 motion-reduce:transition-none motion-reduce:group-hover:transform-none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
+          <rect className="brand-bar" x="2.2" y="9" width="1.8" height="6" rx="0.9" fill="currentColor" />
+          <rect className="brand-bar" x="5.2" y="6" width="1.8" height="12" rx="0.9" fill="currentColor" />
+          <rect className="brand-bar" x="8.2" y="8" width="1.8" height="8" rx="0.9" fill="currentColor" />
+          <rect className="brand-bar" x="11.2" y="4" width="1.8" height="16" rx="0.9" fill="currentColor" />
+          <rect className="brand-bar" x="14.2" y="7" width="1.8" height="10" rx="0.9" fill="currentColor" />
+          <rect className="brand-bar" x="17.2" y="5" width="1.8" height="14" rx="0.9" fill="currentColor" />
+          <rect className="brand-bar" x="20.2" y="9.5" width="1.8" height="5" rx="0.9" fill="currentColor" />
         </svg>
       </div>
       <div className="flex flex-col">
-        <span className="text-xl font-bold text-foreground">rusuh.</span>
+        <span className="text-xl font-bold text-foreground transition-colors group-hover:text-primary">
+          rusuh.
+        </span>
         <span className="text-[10px] text-muted-foreground">BOOKING TIKET</span>
       </div>
     </Link>

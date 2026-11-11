@@ -7,23 +7,32 @@
   </mj-head>
   <mj-body>
     <mj-include path="./partials/header.mjml" />
-    <mj-section>
+    <mj-section padding="0 40px">
       <mj-column>
-        <mj-text mj-class="heading">Verifikasi email kamu</mj-text>
+        <mj-image src="{{appUrl}}/images/email/illustration-verify-register.png" alt="" width="180px" align="center" padding="0 0 24px" />
+        <mj-text mj-class="heading">Satu klik. Akun terverifikasi.</mj-text>
+        <mj-text>Halo {{customerName}},</mj-text>
         <mj-text>
-          Halo {{customerName}}, tekan tombol di bawah untuk menyelesaikan pendaftaran. Email yang terverifikasi membuka
-          riwayat pesananmu.
+          Terima kasih sudah mendaftar di Rusuh. Verifikasi email kamu untuk menyelesaikan pendaftaran dan siap
+          memesan momen live berikutnya. Email yang terverifikasi juga membuka riwayat pesananmu.
         </mj-text>
         <mj-button href="{{verificationUrl}}">Verifikasi email</mj-button>
-        <mj-text mj-class="muted">Link berlaku selama 15 menit dan hanya bisa dipakai sekali. Jika sudah kedaluwarsa, minta link login
+        <mj-text mj-class="muted">Link hanya bisa dipakai sekali dan berlaku selama 15 menit. Jika sudah kedaluwarsa, minta link login
           dari halaman login. Masuk lewat link itu juga memverifikasi emailmu.
         </mj-text>
-        <mj-text mj-class="muted">
-          Tombol tidak berfungsi? Salin link ini ke browser:<br />
+      </mj-column>
+    </mj-section>
+    <mj-section padding="0 40px 24px">
+      <mj-column mj-class="note">
+        <mj-text padding="0 0 8px" font-size="14px">Tombol tidak berfungsi? Salin link ini ke browser:</mj-text>
+        <mj-text padding="0" font-size="14px">
           <a href="{{verificationUrl}}" style="color: #0050ae; word-break: break-all">{{verificationUrl}}</a>
         </mj-text>
-        <mj-divider />
-        <mj-text mj-class="muted">Tidak merasa mendaftar? Abaikan email ini, akun tidak akan aktif.</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="0 40px">
+      <mj-column>
+        <mj-text mj-class="muted">Tidak merasa mendaftar? Abaikan email ini, akun tidak akan aktif. Jangan bagikan link ini ke siapa pun.</mj-text>
       </mj-column>
     </mj-section>
     <mj-include path="./partials/footer.mjml" />

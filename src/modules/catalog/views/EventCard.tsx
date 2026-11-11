@@ -41,7 +41,7 @@ export function EventCard({
 
   return (
     <article className="group">
-      <Card className="gap-0 overflow-hidden rounded-xl py-0 transition-shadow hover:shadow-lg">
+      <Card className="gap-0 overflow-hidden rounded-xl py-0 transition-[box-shadow,translate] duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0">
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
             src={imageUrl || "/images/concert-placeholder.webp"}
@@ -49,7 +49,7 @@ export function EventCard({
             unoptimized={imageUrl.startsWith("http")}
             alt={name}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
           <Badge

@@ -40,8 +40,15 @@ export function EventGrid({ events, filterLabel, allLabel, emptyCategoryLabel }:
         <EmptyState illustration="events" title={emptyCategoryLabel} />
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((event) => (
-            <EventCard key={event.id} {...event} />
+          {visible.map((event, index) => (
+            <div
+              key={event.id}
+              className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-backwards motion-reduce:animate-none"
+              // Jeda bertingkat dibatasi supaya daftar panjang tidak terasa lambat.
+              style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+            >
+              <EventCard {...event} />
+            </div>
           ))}
         </div>
       )}
