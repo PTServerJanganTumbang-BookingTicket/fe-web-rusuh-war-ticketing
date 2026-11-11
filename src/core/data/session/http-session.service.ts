@@ -32,5 +32,16 @@ export function createHttpSessionService({
       }
       if (!response.ok) throw new AppFailure({ kind: "unknown", status: response.status });
     },
+
+    async end(): Promise<void> {
+      credentialStore.clearGrantToken();
+      let response: Response;
+      try {
+        response = await fetchFn(`${appConfig.appBaseUrl}/api/session/end`, { method: "POST" });
+      } catch {
+        throw new AppFailure({ kind: "network" });
+      }
+      if (!response.ok) throw new AppFailure({ kind: "unknown", status: response.status });
+    },
   };
 }

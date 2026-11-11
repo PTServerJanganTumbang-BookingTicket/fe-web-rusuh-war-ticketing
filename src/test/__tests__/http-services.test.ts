@@ -598,6 +598,32 @@ describe("sessionService", () => {
     server.use(http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => HttpResponse.error()));
     expect(await failureOf(sessionService.start("tok"))).toEqual({ kind: "network" });
   });
+
+  it("end membuang grant di klien dan meminta route menghapus cookie", async () => {
+    let called = false;
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => {
+        called = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { sessionService, credentialStore } = setupTestContainer().cradle;
+    credentialStore.saveGrantToken("tok");
+    await sessionService.end();
+    expect(called).toBe(true);
+    expect(credentialStore.grantToken()).toBeNull();
+  });
+
+  it("end: gagal dari route menjadi unknown, gagal jaringan menjadi network", async () => {
+    const { sessionService } = setupTestContainer().cradle;
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => new HttpResponse(null, { status: 500 })),
+    );
+    expect(await failureOf(sessionService.end())).toEqual({ kind: "unknown", status: 500 });
+
+    server.use(http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => HttpResponse.error()));
+    expect(await failureOf(sessionService.end())).toEqual({ kind: "network" });
+  });
 });
 
 describe("queueUpdatesService", () => {

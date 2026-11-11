@@ -6,7 +6,10 @@ import {
 
 // API Next (`cookies`, `connection`) hanya hidup di dalam request Next, jadi di test diganti fake tipis.
 const setCookie = vi.fn();
-vi.mock("next/headers", () => ({ cookies: () => Promise.resolve({ set: setCookie }) }));
+const deleteCookie = vi.fn();
+vi.mock("next/headers", () => ({
+  cookies: () => Promise.resolve({ set: setCookie, delete: deleteCookie }),
+}));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
   connection: () => Promise.resolve(),
@@ -62,6 +65,15 @@ describe("POST /api/session/start", () => {
       new Request("http://localhost:3000/api/session/start", { method: "POST", body: "x" }),
     );
     expect(response.status).toBe(400);
+  });
+});
+
+describe("POST /api/session/end", () => {
+  it("menghapus cookie access token dan membalas 204", async () => {
+    const { POST } = await import("../session/end/route");
+    const response = await POST();
+    expect(response.status).toBe(204);
+    expect(deleteCookie).toHaveBeenCalledWith(ACCESS_TOKEN_COOKIE);
   });
 });
 

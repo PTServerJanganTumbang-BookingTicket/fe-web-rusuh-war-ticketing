@@ -27,7 +27,23 @@ describe("proxy", () => {
     expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/");
   });
 
-  it("matcher hanya halaman booking dan pembayaran", () => {
-    expect(config.matcher).toEqual(["/events/:eventId/book", "/orders/:orderId/pay"]);
+  it("dengan cookie, Waiting Room diarahkan kembali ke /book event itu", () => {
+    const response = proxy(request("/events/evt_1/queue", true));
+    expect(response.status).toBe(307);
+    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/events/evt_1/book");
+  });
+
+  it("tanpa cookie, Waiting Room diteruskan", () => {
+    const response = proxy(request("/events/evt_1/queue", false));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("matcher hanya halaman booking, Waiting Room, dan pembayaran", () => {
+    expect(config.matcher).toEqual([
+      "/events/:eventId/book",
+      "/events/:eventId/queue",
+      "/orders/:orderId/pay",
+    ]);
   });
 });

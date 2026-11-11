@@ -9,6 +9,7 @@ import {
   OPEN_EVENT_ID,
   setupMockServer,
   setupTestContainer,
+  TEST_APP_ORIGIN,
   testConfig,
 } from "@/test/support";
 import { useBookingController } from "../booking.controller";
@@ -19,6 +20,18 @@ const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
 
 const server = setupMockServer();
+
+/** Route same-origin yang menghapus cookie grant; dipanggil sebelum customer antre lagi. */
+function endSessionRoute() {
+  const ended = vi.fn();
+  server.use(
+    http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => {
+      ended();
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return ended;
+}
 
 /** Detail Ticket hanya bisa dibuka dengan grant dari antrian (X-Grant-Token). */
 async function readyView({ signedIn = false }: { signedIn?: boolean } = {}) {
@@ -428,16 +441,29 @@ describe("useBookingController", () => {
     expect(attempts).toBe(2);
   });
 
-  it("grant ditolak (401): kembali ke Waiting Room (mode default)", async () => {
+  it("grant ditolak (401): cookie grant dilepas dulu, lalu kembali ke Waiting Room (mode default)", async () => {
     replace.mockClear();
+    const ended = endSessionRoute();
     const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`));
+    expect(ended).toHaveBeenCalledTimes(1);
     expect(result.current.kind).toBe("status");
+  });
+
+  it("grant ditolak tetapi cookie gagal dilepas: tidak pindah (proxy memantulkan), layar kedaluwarsa dengan tombol", async () => {
+    replace.mockClear();
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => new HttpResponse(null, { status: 500 })),
+    );
+    const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.kind === "status" && result.current.view.action).toBeTruthy());
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("mode screen: layar sesi berakhir dengan tombol antre lagi, tanpa redirect otomatis", async () => {
     replace.mockClear();
     push.mockClear();
+    const ended = endSessionRoute();
     const container = setupTestContainer({}, { ...testConfig, bookingExpiry: "screen" });
     const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), {
       wrapper: createWrapper(container),
@@ -446,14 +472,16 @@ describe("useBookingController", () => {
     // Waktu habis memakai nada peringatan, di dalam kerangka situs (navbar), bukan kartu merah.
     expect(result.current.kind === "status" && result.current.view.tone).toBe("warning");
     expect(result.current.kind === "status" && result.current.view.nav?.loginHref).toBe("/login");
+    expect(ended).not.toHaveBeenCalled();
     act(() => result.current.kind === "status" && result.current.view.action?.onClick());
-    expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
-    expect(replace).not.toHaveBeenCalled();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`));
+    expect(ended).toHaveBeenCalledTimes(1);
   });
 
   it("waktu booking habis saat formulir terbuka: modal di atas formulir, antre lagi menuju Waiting Room", async () => {
     push.mockClear();
     replace.mockClear();
+    endSessionRoute();
     // Sesi tersisa 1,2 detik; saat hitungan nol FE bertanya ke server dan dijawab 401. Server yang memutuskan (ADR-0005).
     let calls = 0;
     server.use(
@@ -484,7 +512,7 @@ describe("useBookingController", () => {
     expect(replace).not.toHaveBeenCalled();
     const requeue = view().dialog?.primary;
     act(() => requeue && "onClick" in requeue && requeue.onClick());
-    expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`));
   }, 10000);
 
   it("jaringan gagal tanpa data: layar status error", async () => {

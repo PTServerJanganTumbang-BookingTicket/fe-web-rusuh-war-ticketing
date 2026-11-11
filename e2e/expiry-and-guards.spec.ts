@@ -37,6 +37,16 @@ test.describe("Kedaluwarsa dan gerbang akses", () => {
     await expect(page).toHaveURL("/");
   });
 
+  test("setelah lolos antrian, membuka Waiting Room lagi diarahkan ke booking (ADR-0007)", async ({
+    page,
+  }) => {
+    await installFakeClock(page);
+    await passQueue(page);
+
+    await page.goto(`/events/${EVENT_ID}/queue`);
+    await expect(page).toHaveURL(new RegExp(`/events/${EVENT_ID}/book$`));
+  });
+
   test("token tidak pernah ada di URL dan cookie bersifat httpOnly (ADR-0008)", async ({ page, context }) => {
     await installFakeClock(page);
     await passQueue(page);

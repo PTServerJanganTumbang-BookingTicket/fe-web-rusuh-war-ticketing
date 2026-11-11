@@ -65,6 +65,10 @@ export function createWebStorageCredentialStoreService(): CredentialStoreProtoco
       grantToken = token;
       write(session, GRANT_TOKEN_KEY, token);
     },
+    clearGrantToken() {
+      grantToken = null;
+      remove(session, GRANT_TOKEN_KEY);
+    },
     queueToken: (eventId) => queueTokens.get(eventId) ?? read(session, queueTokenKey(eventId)),
     saveQueueToken(eventId, token) {
       queueTokens.set(eventId, token);
