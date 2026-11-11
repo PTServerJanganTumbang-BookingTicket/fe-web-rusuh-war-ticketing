@@ -1,5 +1,5 @@
 // Service HTTP di `data/` diuji terhadap MSW, di-resolve dari container yang sama dengan produksi.
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { asValue } from "awilix";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
@@ -11,6 +11,7 @@ import {
   setupMockServer,
   setupTestContainer,
   TEST_APP_ORIGIN,
+  testConfig,
 } from "../support";
 
 const server = setupMockServer();
@@ -231,6 +232,79 @@ describe("queueService", () => {
       status: "admitted",
       accessToken: "gt_abc123",
     });
+  });
+
+  describe("tanpa cookie (apiCredentials omit, backend lintas origin)", () => {
+    const headerMode = () => setupTestContainer({}, { ...testConfig, apiCredentials: "omit" }).cradle;
+    const seen = () => {
+      const requests: { path: string; token: string | null; device: string | null }[] = [];
+      server.events.on("request:start", ({ request }) => {
+        requests.push({
+          path: new URL(request.url).pathname,
+          token: request.headers.get("x-queue-token"),
+          device: request.headers.get("x-device-id"),
+        });
+      });
+      return requests;
+    };
+    afterEach(() => {
+      server.events.removeAllListeners();
+      // Token antrian disimpan per tab; jangan bocor ke test berikutnya.
+      globalThis.sessionStorage?.clear();
+    });
+
+    it("token dari respons join disimpan lalu dikirim sebagai X-Queue-Token bersama X-Device-Id ke /queue/me", async () => {
+      const requests = seen();
+      const { queueService, credentialStore } = headerMode();
+      expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting" });
+
+      const token = credentialStore.queueToken(OPEN_EVENT_ID);
+      expect(token).toMatch(/^qt_/);
+      const me = requests.find((request) => request.path.endsWith("/queue/me"))!;
+      expect(me).toMatchObject({ token, device: credentialStore.deviceId() });
+      expect(requests.find((request) => request.path.endsWith("/queue/join"))!.token).toBeNull();
+    });
+
+    it("token yang tersimpan ikut saat join ulang, jadi kembali ke tempat yang sama", async () => {
+      const first = headerMode();
+      const before = await first.queueService.getState(OPEN_EVENT_ID);
+      const token = first.credentialStore.queueToken(OPEN_EVENT_ID)!;
+
+      // Halaman dimuat ulang: tiket di memori hilang, token masih ada di penyimpanan tab.
+      const requests = seen();
+      const again = headerMode();
+      again.credentialStore.saveQueueToken(OPEN_EVENT_ID, token);
+      const after = await again.queueService.getState(OPEN_EVENT_ID);
+      expect(requests.find((request) => request.path.endsWith("/queue/join"))!.token).toBe(token);
+      expect(after).toMatchObject({ status: "waiting", joinedPosition: expect.any(Number) });
+      expect(before.status).toBe("waiting");
+    });
+
+    it("401 dari /queue/me membuang token dan tiket; keluar dari antrian juga", async () => {
+      const { queueService, credentialStore } = headerMode();
+      await queueService.getState(OPEN_EVENT_ID);
+      server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({}, 401, "x")));
+      expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toMatchObject({
+        code: "QUEUE_TOKEN_INVALID",
+      });
+      expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
+
+      credentialStore.saveQueueToken(OPEN_EVENT_ID, "qt_lama");
+      queueService.leave(OPEN_EVENT_ID);
+      expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
+    });
+  });
+
+  it("mode cookie (bawaan): token antrian tidak disimpan dan tidak dikirim lewat header", async () => {
+    let token: string | null = "unset";
+    server.events.on("request:start", ({ request }) => {
+      if (request.url.endsWith("/queue/me")) token = request.headers.get("x-queue-token");
+    });
+    const { queueService, credentialStore } = setupTestContainer().cradle;
+    await queueService.getState(OPEN_EVENT_ID);
+    server.events.removeAllListeners();
+    expect(token).toBeNull();
+    expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
   });
 
   it("laju antrian tidak tersedia: join tetap berhasil dengan laju 0", async () => {

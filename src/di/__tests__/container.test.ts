@@ -6,6 +6,7 @@ import { createAppContainer, type AppRegistry } from "../container";
 const config = {
   apiBaseUrl: "https://api.test",
   appBaseUrl: "",
+  apiCredentials: "include",
   mocking: false,
   bookingExpiry: "queue",
   secureCookies: false,

@@ -15,6 +15,60 @@ const raw = (display: Record<string, unknown>, extra: Record<string, unknown> = 
   ...extra,
 });
 
+/** Bentuk yang dikirim backend sekarang: tanpa `status`, `display` hanya `enabled`. */
+const live = (queueState: string, enabled: boolean) => {
+  return { ...raw({ enabled }, { queue_state: queueState }), status: undefined };
+};
+
+describe("eventSchema dari queue_state saja", () => {
+  it.each([
+    ["SCHEDULED", false, "disabled", "home.event.notOpen", "home.event.badge.notOpen", "AVAILABLE"],
+    ["OPEN", true, "queue", "home.event.cta.queue", undefined, "AVAILABLE"],
+    ["QUEUE_FULL", false, "disabled", "home.event.queueFull", "home.event.badge.queueFull", "AVAILABLE"],
+    [
+      "FULL_BOOKED",
+      false,
+      "disabled",
+      "home.event.soldOutMayReturn",
+      "home.event.badge.fullBooked",
+      "SOLD_OUT",
+    ],
+    ["CLOSED", false, "disabled", "home.event.soldOut", "home.event.status.SOLD_OUT", "SOLD_OUT"],
+  ])("%s", (queueState, enabled, action, labelKey, badgeKey, status) => {
+    const event = eventSchema.parse(live(queueState, enabled));
+    expect(event.queueState).toBe(queueState);
+    expect(event.status).toBe(status);
+    expect(event.display).toEqual({ enabled, action, labelKey, badgeKey });
+  });
+
+  it("server mematikan tombol event yang OPEN: tidak tersedia, tanpa alasan dan tanpa tautan", () => {
+    expect(eventSchema.parse(live("OPEN", false)).display).toEqual({
+      enabled: false,
+      action: "queue",
+      labelKey: "home.event.unavailable",
+      badgeKey: undefined,
+    });
+  });
+
+  it("server mengaktifkan tombol untuk status yang tidak bisa dibeli: tetap nonaktif", () => {
+    expect(eventSchema.parse(live("CLOSED", true)).display).toMatchObject({
+      enabled: false,
+      action: "disabled",
+    });
+  });
+
+  it("nama lama kontrak v2.12 disamakan ke nama baru", () => {
+    const state = (queueState: string) => eventSchema.parse(live(queueState, true)).queueState;
+    expect(state("NOT_OPEN")).toBe("SCHEDULED");
+    expect(state("DIRECT")).toBe("OPEN");
+    expect(state("FULL")).toBe("QUEUE_FULL");
+  });
+
+  it("queue_state di luar daftar ditolak", () => {
+    expect(eventSchema.safeParse(live("PAUSED", true)).success).toBe(false);
+  });
+});
+
 describe("eventSchema display", () => {
   it.each([
     ["join_queue", "queue", "home.event.cta.queue", undefined],

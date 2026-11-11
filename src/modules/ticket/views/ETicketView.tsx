@@ -91,6 +91,8 @@ export function ETicketView({
             <div className="relative aspect-[21/9] overflow-hidden">
               <Image
                 src={imageUrl}
+                // Gambar dari host backend tidak lewat pengoptimal Next (host-nya tidak terdaftar di next.config).
+                unoptimized={imageUrl.startsWith("http")}
                 alt=""
                 fill
                 className="object-cover"

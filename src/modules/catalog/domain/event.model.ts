@@ -5,13 +5,14 @@
 export type EventStatus = "AVAILABLE" | "SELLING_OUT_FAST" | "SOLD_OUT";
 
 /**
- * Queue state — izin masuk antrian (Req 1.7).
- * - NOT_OPEN: penjualan belum dibuka
- * - DIRECT: masuk langsung tanpa antrian
- * - OPEN: antrian aktif
- * - FULL: antrian penuh (Req 1.8)
+ * Queue state — status event dari sisi antrian (Req 1.7), sama dengan state antrian di stream.
+ * - SCHEDULED: penjualan belum dibuka
+ * - OPEN: antrian menerima pendatang
+ * - QUEUE_FULL: antrian penuh (Req 1.8)
+ * - FULL_BOOKED: semua kursi sedang ditahan; reversibel
+ * - CLOSED: penjualan selesai
  */
-export type QueueState = "NOT_OPEN" | "DIRECT" | "OPEN" | "FULL";
+export type QueueState = "SCHEDULED" | "OPEN" | "QUEUE_FULL" | "FULL_BOOKED" | "CLOSED";
 
 /**
  * Display block — respons siap-render dari server (Req 1.7).
@@ -43,10 +44,10 @@ export type Event = {
   /** ISO — kapan penjualan dibuka; dipakai label "Buka 10 Nov 09:00" saat belum dibuka. */
   saleStartsAt?: string;
   imageUrl: string;
-  /** Ketersediaan stok (AVAILABLE, SELLING_OUT_FAST, SOLD_OUT) */
+  /** Ketersediaan stok (AVAILABLE, SELLING_OUT_FAST, SOLD_OUT); diturunkan dari `queueState` bila server tidak mengirimnya. */
   status: EventStatus;
-  /** Izin masuk antrian (NOT_OPEN, DIRECT, OPEN, FULL) */
+  /** Status antrian event (SCHEDULED, OPEN, QUEUE_FULL, FULL_BOOKED, CLOSED) */
   queueState: QueueState;
-  /** Blok display siap-render dari server */
+  /** Tombol dan chip kartu: dari blok `display` server, dilengkapi dari `queueState` bila server hanya mengirim `enabled`. */
   display: DisplayBlock;
 };

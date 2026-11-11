@@ -1,4 +1,6 @@
 import type { HttpClient } from "@/core/data/http/http.client";
+import type { AppConfig } from "@/core/domain/app-config.model";
+import { toAppError } from "@/core/domain/app-error";
 import type { CaptchaProtocol } from "@/core/domain/captcha.protocol";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { QueueProtocol } from "../domain/queue.protocol";
@@ -19,19 +21,36 @@ const queuePath = (eventId: string) => `/events/${encodeURIComponent(eventId)}/q
 
 /**
  * Snapshot antrian: join sekali per event (server menyetel cookie `queue_token`), lalu `GET /queue/me`.
- * Tamu wajib mengirim `X-Device-Id` saat join supaya grant-nya bisa diikat ke perangkat (kontrak).
+ * Tamu wajib mengirim `X-Device-Id` di join dan `/queue/me` supaya tempat dan grant-nya terikat ke perangkat (kontrak).
+ * Bila cookie tidak bisa dipakai (`apiCredentials = "omit"`), token dari respons join disimpan dan dikirim sebagai
+ * `X-Queue-Token`, jalur yang sama dengan klien mobile.
  */
 export function createHttpQueueService({
+  appConfig,
   httpClient,
   credentialStore,
   queueTicketCache,
   captcha,
 }: {
+  appConfig: AppConfig;
   httpClient: HttpClient;
   credentialStore: CredentialStoreProtocol;
   queueTicketCache: QueueTicketCache;
   captcha: CaptchaProtocol;
 }): QueueProtocol {
+  const tokenInHeader = appConfig.apiCredentials === "omit";
+
+  function queueHeaders(eventId: string): Record<string, string> {
+    const token = tokenInHeader ? credentialStore.queueToken(eventId) : null;
+    return { "x-device-id": credentialStore.deviceId(), ...(token ? { "x-queue-token": token } : {}) };
+  }
+
+  /** Token antrian yang ditolak server tidak dikirim lagi; join berikutnya mendapat tempat baru (kontrak §3.1, v2.9). */
+  function forget(eventId: string) {
+    queueTicketCache.delete(eventId);
+    credentialStore.clearQueueToken(eventId);
+  }
+
   /** Laju antrian untuk estimasi; gagal mengambilnya hanya berarti estimasi belum bisa dihitung. */
   async function ratePerMin(eventId: string): Promise<number> {
     try {
@@ -66,7 +85,7 @@ export function createHttpQueueService({
       { captcha_token: captchaToken },
       queueJoinSchema,
       {
-        headers: { "x-device-id": credentialStore.deviceId() },
+        headers: queueHeaders(eventId),
         // `meta.error_code` lebih halus daripada status: 409 bisa SALE_NOT_OPEN, FULL_BOOKED, atau SOLD_OUT (§3.1).
         serverErrorCodes: {
           QUEUE_FULL: "QUEUE_FULL",
@@ -84,6 +103,7 @@ export function createHttpQueueService({
         },
       },
     );
+    if (tokenInHeader && join.queueToken) credentialStore.saveQueueToken(eventId, join.queueToken);
     const ticket: QueueTicket = {
       ...join,
       eventName: event.name,
@@ -96,14 +116,21 @@ export function createHttpQueueService({
   return {
     async getState(eventId: string): Promise<QueueState> {
       const ticket = await ticketFor(eventId);
-      const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
-        errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
-      });
-      return toQueueState(ticket, me);
+      try {
+        const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
+          headers: queueHeaders(eventId),
+          errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
+        });
+        return toQueueState(ticket, me);
+      } catch (error) {
+        const failure = toAppError(error);
+        if (failure.kind === "api" && failure.code === "QUEUE_TOKEN_INVALID") forget(eventId);
+        throw error;
+      }
     },
 
     leave(eventId: string): void {
-      queueTicketCache.delete(eventId);
+      forget(eventId);
     },
 
     getEvent(eventId: string): Promise<QueueEvent> {

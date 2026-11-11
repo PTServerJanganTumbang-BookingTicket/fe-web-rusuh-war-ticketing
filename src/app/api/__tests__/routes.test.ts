@@ -18,6 +18,7 @@ const gateway = {
   logout: vi.fn(() => new Response("logout")),
   verifyEmail: vi.fn(() => new Response("verifyEmail")),
   forward: vi.fn(() => new Response("forward")),
+  forwardAuth: vi.fn(() => new Response("forwardAuth")),
 };
 vi.mock("@/di/server-dependencies", () => ({ getServerDependencies: () => ({ accountGateway: gateway }) }));
 
@@ -88,6 +89,19 @@ describe("route akun yang meneruskan ke gateway", () => {
     expect(gateway.logout).toHaveBeenCalled();
     expect(await (await verifyEmail.POST(request)).text()).toBe("verifyEmail");
     expect(gateway.verifyEmail).toHaveBeenCalledWith(request);
+  });
+
+  it("auth/magic-link, magic-link/resend, dan register meneruskan ke endpoint auth yang sama namanya", async () => {
+    const request = new Request("http://localhost:3000/api/auth/x", { method: "POST", body: "{}" });
+    const routes = [
+      ["magic-link", await import("../auth/magic-link/route")],
+      ["magic-link/resend", await import("../auth/magic-link/resend/route")],
+      ["register", await import("../auth/register/route")],
+    ] as const;
+    for (const [path, route] of routes) {
+      expect(await (await route.POST(request)).text()).toBe("forwardAuth");
+      expect(gateway.forwardAuth).toHaveBeenLastCalledWith(request, path);
+    }
   });
 
   it("account/[...path] menyambung segmen path dan meneruskan request", async () => {

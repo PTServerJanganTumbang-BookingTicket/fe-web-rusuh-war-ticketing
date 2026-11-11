@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
-import { createWrapper, setupMockServer } from "@/test/support";
+import { createWrapper, setupMockServer, TEST_APP_ORIGIN } from "@/test/support";
 import { useLoginController } from "../login.controller";
 
 let search = "";
@@ -128,7 +128,8 @@ describe("useLoginController", () => {
   it("tanpa koneksi: dialog koneksi bermasalah, coba lagi mengirim ulang permintaan", async () => {
     let attempts = 0;
     server.use(
-      http.post(`${MOCK_API_BASE_URL}/auth/magic-link`, () => {
+      // Permintaan browser berhenti di route same-origin; itu yang putus saat tanpa jaringan.
+      http.post(`${TEST_APP_ORIGIN}/api/auth/magic-link`, () => {
         attempts += 1;
         if (attempts === 1) return HttpResponse.error();
         return HttpResponse.json({ meta: { code: 200, message: "sent" } });

@@ -140,6 +140,41 @@ describe("accountGateway.verifyEmail", () => {
   });
 });
 
+describe("accountGateway.forwardAuth", () => {
+  const post = (path: string, body: unknown) =>
+    api(`/auth/${path}`, { method: "POST", body: JSON.stringify(body) });
+
+  it("meneruskan body ke endpoint auth BE tanpa header Origin dan mengembalikan jawabannya apa adanya", async () => {
+    let received: { body: unknown; origin: string | null } | undefined;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/auth/magic-link`, async ({ request }) => {
+        received = { body: await request.json(), origin: request.headers.get("origin") };
+        return HttpResponse.json(
+          { meta: { code: 429, message: "wait" }, data: { retry_after: 60 } },
+          { status: 429 },
+        );
+      }),
+    );
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.forwardAuth(post("magic-link", { email: "a@b.co" }), "magic-link");
+    expect(received).toEqual({ body: { email: "a@b.co" }, origin: null });
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ data: { retry_after: 60 } });
+  });
+
+  it("path di luar daftar izin atau bukan POST dijawab 404 tanpa menyentuh BE", async () => {
+    const { accountGateway } = setupTestContainer().cradle;
+    expect((await accountGateway.forwardAuth(post("refresh", {}), "refresh")).status).toBe(404);
+    expect((await accountGateway.forwardAuth(api("/auth/register"), "register")).status).toBe(404);
+  });
+
+  it("BE tidak terjangkau dijawab 502", async () => {
+    server.use(http.post(`${MOCK_API_BASE_URL}/auth/register`, () => HttpResponse.error()));
+    const { accountGateway } = setupTestContainer().cradle;
+    expect((await accountGateway.forwardAuth(post("register", {}), "register")).status).toBe(502);
+  });
+});
+
 describe("accountGateway.session dan logout", () => {
   it("tamu mendapat account null; sesi mengembalikan profil dari cookie", async () => {
     const { accountGateway, session } = await signIn();

@@ -12,7 +12,7 @@ const envelopeSchema = z.object({
 export type FetchFn = typeof fetch;
 
 async function request<T>(
-  fetchFn: FetchFn,
+  { fetchFn, credentials }: { fetchFn: FetchFn; credentials: RequestCredentials },
   url: string,
   schema: z.ZodType<T>,
   init: RequestInit,
@@ -20,10 +20,10 @@ async function request<T>(
 ): Promise<T> {
   let response: Response;
   try {
-    // `include`: cookie `queue_token` milik host API harus ikut (kontrak, QueueTokenCookie).
+    // `include`: cookie `queue_token` milik host API harus ikut (kontrak, QueueTokenCookie). `omit`: lihat AppConfig.
     response = await fetchFn(url, {
       ...init,
-      credentials: "include",
+      credentials,
       headers: { ...init.headers, ...options.headers },
     });
   } catch {
@@ -58,12 +58,13 @@ export function createFetchHttpClient({
   appConfig: AppConfig;
   fetchFn: FetchFn;
 }): HttpClient {
+  const transport = { fetchFn, credentials: appConfig.apiCredentials };
   return {
     get: (path, schema, options) =>
-      request(fetchFn, `${appConfig.apiBaseUrl}${path}`, schema, { method: "GET" }, options),
+      request(transport, `${appConfig.apiBaseUrl}${path}`, schema, { method: "GET" }, options),
     post: (path, body, schema, options) =>
       request(
-        fetchFn,
+        transport,
         `${appConfig.apiBaseUrl}${path}`,
         schema,
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
@@ -71,14 +72,14 @@ export function createFetchHttpClient({
       ),
     patch: (path, body, schema, options) =>
       request(
-        fetchFn,
+        transport,
         `${appConfig.apiBaseUrl}${path}`,
         schema,
         { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
         options,
       ),
     delete: async (path, options) => {
-      await request(fetchFn, `${appConfig.apiBaseUrl}${path}`, z.unknown(), { method: "DELETE" }, options);
+      await request(transport, `${appConfig.apiBaseUrl}${path}`, z.unknown(), { method: "DELETE" }, options);
     },
   };
 }

@@ -12,10 +12,24 @@ export const queueJoinSchema = z
   .object({
     ticket_no: z.number().optional(),
     position: z.number().optional(),
+    queue_token: z.string().nullish(),
+    sse_url: z.string().nullish(),
   })
-  .transform((join) => ({ ticketNo: join.ticket_no ?? 0, joinedPosition: join.position ?? 0 }));
+  .transform((join): QueueJoin => ({
+    ticketNo: join.ticket_no ?? 0,
+    joinedPosition: join.position ?? 0,
+    queueToken: join.queue_token ?? undefined,
+    streamUrl: join.sse_url ?? undefined,
+  }));
 
-export type QueueJoin = z.infer<typeof queueJoinSchema>;
+export type QueueJoin = {
+  ticketNo: number;
+  joinedPosition: number;
+  /** Token ruang tunggu; hanya dipakai bila cookie tidak bisa dipakai (header `X-Queue-Token`). */
+  queueToken?: string;
+  /** URL stream dari server (absolut: stream ada di host lain). Kosong berarti path bawaan di host API. */
+  streamUrl?: string;
+};
 
 /** Tiket antrian customer di satu event, dipakai bersama service HTTP dan SSE. */
 export type QueueTicket = QueueJoin & {
