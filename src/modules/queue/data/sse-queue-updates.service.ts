@@ -101,7 +101,7 @@ export function createSseQueueUpdatesService({
       };
 
       const close = eventStreamClient.open(
-        `/events/${encodeURIComponent(eventId)}/queue/stream`,
+        queueTicketCache.get(eventId)?.streamUrl ?? `/events/${encodeURIComponent(eventId)}/queue/stream`,
         queueStreamSchemas,
         {
           next,

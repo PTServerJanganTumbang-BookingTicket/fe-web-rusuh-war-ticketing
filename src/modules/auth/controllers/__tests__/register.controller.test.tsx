@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
-import { createWrapper, setupMockServer } from "@/test/support";
+import { createWrapper, setupMockServer, TEST_APP_ORIGIN } from "@/test/support";
 import { useRegisterController } from "../register.controller";
 
 const push = vi.fn();
@@ -153,7 +153,7 @@ describe("useRegisterController", () => {
   });
 
   it("tanpa koneksi: dialog koneksi bermasalah", async () => {
-    server.use(http.post(`${MOCK_API_BASE_URL}/auth/register`, () => HttpResponse.error()));
+    server.use(http.post(`${TEST_APP_ORIGIN}/api/auth/register`, () => HttpResponse.error()));
     const { form, fill, result } = mount();
     fill({ email: "alex@example.com", nik: "3171000000000044", consent: true });
     act(() => form().submit.onSubmit());

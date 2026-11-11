@@ -56,7 +56,11 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     localePreference: asFunction(createWebStorageLocalePreferenceService).singleton(),
     httpClient: asFunction(createFetchHttpClient).singleton(),
     bffHttpClient: asFunction(({ appConfig: config, fetchFn }: { appConfig: AppConfig; fetchFn: FetchFn }) =>
-      createFetchHttpClient({ appConfig: { ...config, apiBaseUrl: `${config.appBaseUrl}/api` }, fetchFn }),
+      createFetchHttpClient({
+        // Same-origin: cookie akun harus selalu ikut, apa pun mode host API.
+        appConfig: { ...config, apiBaseUrl: `${config.appBaseUrl}/api`, apiCredentials: "include" },
+        fetchFn,
+      }),
     ).singleton(),
     // Hanya dipakai route `app/api/auth` dan `app/api/account` di server.
     accountGateway: asFunction(createAccountGatewayService).singleton(),

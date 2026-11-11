@@ -5,8 +5,9 @@ import type { Account, EventSummary, LoginResult, RegisterInput } from "../domai
 import { eventSummarySchema, loginResultSchema, sessionSchema } from "./account.schema";
 
 /**
- * Endpoint anonim (minta link, kirim ulang, register) dipanggil langsung ke BE. Verifikasi, sesi, dan keluar
- * lewat route same-origin, karena token akun hanya boleh hidup di cookie httpOnly (ADR-0023).
+ * Semua endpoint auth lewat route same-origin. Verifikasi, sesi, dan keluar karena token akun hanya boleh hidup di
+ * cookie httpOnly (ADR-0023); minta link, kirim ulang, dan register karena BE menolak permintaan itu dari browser
+ * di origin lain (403 "cross-origin request rejected").
  */
 export function createHttpAuthService({
   httpClient,
@@ -19,21 +20,25 @@ export function createHttpAuthService({
 
   return {
     async requestMagicLink(email: string): Promise<void> {
-      await httpClient.post("/auth/magic-link", { email }, z.unknown(), { errorCodes: rateLimited });
+      await bffHttpClient.post("/auth/magic-link", { email }, z.unknown(), { errorCodes: rateLimited });
     },
 
     async resendMagicLink(email: string): Promise<void> {
-      await httpClient.post("/auth/magic-link/resend", { email }, z.unknown(), { errorCodes: rateLimited });
+      await bffHttpClient.post("/auth/magic-link/resend", { email }, z.unknown(), {
+        errorCodes: rateLimited,
+      });
     },
 
     // Kontrak belum punya endpoint kirim ulang verifikasi pendaftaran; sementara memakai kirim ulang link
     // (`/auth/magic-link/resend`) sampai disepakati BE (ADR-0023, usulan perubahan kontrak).
     async resendVerification(email: string): Promise<void> {
-      await httpClient.post("/auth/magic-link/resend", { email }, z.unknown(), { errorCodes: rateLimited });
+      await bffHttpClient.post("/auth/magic-link/resend", { email }, z.unknown(), {
+        errorCodes: rateLimited,
+      });
     },
 
     async register(input: RegisterInput): Promise<void> {
-      await httpClient.post(
+      await bffHttpClient.post(
         "/auth/register",
         {
           email: input.email,

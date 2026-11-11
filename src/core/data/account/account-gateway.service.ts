@@ -21,6 +21,11 @@ export type AccountGateway = {
   verify(request: Request): Promise<Response>;
   /** `POST /api/auth/verify-email` `{ token }` → `GET /auth/verify-email` di BE (token lewat cookie). Tanpa sesi. */
   verifyEmail(request: Request): Promise<Response>;
+  /**
+   * `POST /api/auth/<path>` → endpoint auth anonim di BE (minta link, kirim ulang, register). BE menolak permintaan
+   * ini bila datang langsung dari browser di origin lain (403), jadi server ini yang meneruskannya.
+   */
+  forwardAuth(request: Request, path: string): Promise<Response>;
   /** `GET /api/auth/session` → akun dari cookie, atau `null` untuk tamu. */
   session(request: Request): Response;
   /** `POST /api/auth/logout` → menghapus cookie akun. Kontrak belum punya endpoint logout (ADR-0023 usulan 3). */
@@ -63,6 +68,9 @@ const ACCOUNT_ROUTES: { pattern: RegExp; methods: string[]; target: (match: RegE
       target: (match) => `/tickets/${match[1]}/eticket`,
     },
   ];
+
+/** Endpoint auth anonim yang boleh diteruskan; semuanya `POST` dengan body JSON. */
+const ANONYMOUS_AUTH_ROUTES = new Set(["magic-link", "magic-link/resend", "register"]);
 
 /**
  * Tujuan setelah login dari `redirect_context` (BR-09). Hanya tipe yang dikenal yang dipakai, dan path dibangun
@@ -173,6 +181,17 @@ export function createAccountGatewayService({
       // Keduanya dikirim supaya cocok dengan kontrak sekarang dan implementasi sekarang.
       const response = await callBackend(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
         headers: { cookie: `magic_token=${encodeURIComponent(token)}` },
+      });
+      if (!response) return envelope(502, "Backend unavailable");
+      return passThrough(response);
+    },
+
+    async forwardAuth(request, path) {
+      if (request.method !== "POST" || !ANONYMOUS_AUTH_ROUTES.has(path)) return envelope(404, "Not found");
+      const response = await callBackend(`/auth/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: await request.text(),
       });
       if (!response) return envelope(502, "Backend unavailable");
       return passThrough(response);

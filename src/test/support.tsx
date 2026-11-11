@@ -16,6 +16,7 @@ export const TEST_APP_ORIGIN = "http://localhost:3000";
 export const testConfig: AppConfig = {
   apiBaseUrl: MOCK_API_BASE_URL,
   appBaseUrl: TEST_APP_ORIGIN,
+  apiCredentials: "include",
   // Kontrol simulasi pembayaran hanya ada di mode mock; test controller berjalan di mode itu.
   mocking: true,
   bookingExpiry: "queue",
@@ -47,6 +48,11 @@ function sameOriginAccountHandlers() {
   };
   const api = `${TEST_APP_ORIGIN}/api`;
   return [
+    ...["magic-link", "magic-link/resend", "register"].map((path) =>
+      http.post(`${api}/auth/${path}`, ({ request }) =>
+        withCookies(request, (forwarded) => accountGateway.forwardAuth(forwarded, path)),
+      ),
+    ),
     http.post(`${api}/auth/verify`, ({ request }) => withCookies(request, accountGateway.verify)),
     http.post(`${api}/auth/verify-email`, ({ request }) => withCookies(request, accountGateway.verifyEmail)),
     http.get(`${api}/auth/session`, ({ request }) => withCookies(request, accountGateway.session)),

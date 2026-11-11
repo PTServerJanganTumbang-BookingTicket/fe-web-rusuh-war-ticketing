@@ -48,6 +48,8 @@ export function TicketCard({
         <div className="relative aspect-[4/3] overflow-hidden">
           <Image
             src={imageUrl || "/images/concert-placeholder.webp"}
+            // Gambar dari host backend tidak lewat pengoptimal Next (host-nya tidak terdaftar di next.config).
+            unoptimized={imageUrl.startsWith("http")}
             alt={eventName}
             fill
             className="object-cover"

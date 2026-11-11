@@ -9,5 +9,6 @@ export type StreamSchemas<T> = Record<string, z.ZodType<T>>;
 
 /** Abstraksi stream Server-Sent Events untuk service di `data/`. Payload selalu diparse dengan schema zod. */
 export interface EventStreamClient {
+  /** `path` relatif terhadap host API, atau URL absolut bila stream berada di host lain. */
   open<T>(path: string, schemas: StreamSchemas<T>, observer: Observer<T>): Unsubscribe;
 }

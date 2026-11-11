@@ -2,8 +2,9 @@ import type { CredentialStoreProtocol } from "@/core/domain/credential-store.pro
 
 const DEVICE_ID_KEY = "rusuh.device_id";
 const GRANT_TOKEN_KEY = "rusuh.grant_token";
+const queueTokenKey = (eventId: string) => `rusuh.queue_token.${eventId}`;
 
-type StorageLike = Pick<Storage, "getItem" | "setItem">;
+type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 /** Storage bisa tidak ada (server, test) atau melempar (mode privat); nilai tetap disimpan di memori. */
 function storageOf(name: "localStorage" | "sessionStorage"): StorageLike | undefined {
@@ -30,16 +31,26 @@ function write(storage: StorageLike | undefined, key: string, value: string) {
   }
 }
 
+function remove(storage: StorageLike | undefined, key: string) {
+  try {
+    storage?.removeItem(key);
+  } catch {
+    // Salinan di memori sudah dibuang.
+  }
+}
+
 /**
  * Device ID di localStorage (bertahan antar tab), grant token di sessionStorage (per tab, hilang saat tab ditutup).
  * Grant juga disimpan ke cookie httpOnly lewat `/api/session/start` untuk gerbang `proxy.ts`, tetapi cookie itu
- * tidak terbaca JavaScript, jadi header `X-Grant-Token` diisi dari sini.
+ * tidak terbaca JavaScript, jadi header `X-Grant-Token` diisi dari sini. Token antrian (hanya bila cookie tidak bisa
+ * dipakai) juga per tab di sessionStorage, supaya muat ulang halaman kembali ke tempat yang sama di antrian.
  */
 export function createWebStorageCredentialStoreService(): CredentialStoreProtocol {
   const local = storageOf("localStorage");
   const session = storageOf("sessionStorage");
   let deviceId = read(local, DEVICE_ID_KEY);
   let grantToken = read(session, GRANT_TOKEN_KEY);
+  const queueTokens = new Map<string, string>();
 
   return {
     deviceId() {
@@ -53,6 +64,15 @@ export function createWebStorageCredentialStoreService(): CredentialStoreProtoco
     saveGrantToken(token) {
       grantToken = token;
       write(session, GRANT_TOKEN_KEY, token);
+    },
+    queueToken: (eventId) => queueTokens.get(eventId) ?? read(session, queueTokenKey(eventId)),
+    saveQueueToken(eventId, token) {
+      queueTokens.set(eventId, token);
+      write(session, queueTokenKey(eventId), token);
+    },
+    clearQueueToken(eventId) {
+      queueTokens.delete(eventId);
+      remove(session, queueTokenKey(eventId));
     },
   };
 }

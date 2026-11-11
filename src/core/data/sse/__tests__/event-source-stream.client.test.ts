@@ -6,6 +6,7 @@ import { createEventSourceStreamClient } from "../event-source-stream.client";
 const appConfig = {
   apiBaseUrl: "https://api.test",
   appBaseUrl: "",
+  apiCredentials: "include",
   mocking: false,
   bookingExpiry: "queue",
   secureCookies: false,
@@ -29,6 +30,27 @@ describe("createEventSourceStreamClient", () => {
     const { source } = setup();
     expect(source.url).toBe("https://api.test/things/1/stream");
     expect(source.init).toEqual({ withCredentials: true });
+  });
+
+  it("URL absolut (sse_url di host stream) dipakai apa adanya", () => {
+    const fakes = setupFakeEventSources();
+    const client = createEventSourceStreamClient({ appConfig, eventSourceFactory: fakes.factory });
+    client.open(
+      "https://events.test/things/1/stream",
+      {},
+      { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() },
+    );
+    expect(fakes.sources[0]!.url).toBe("https://events.test/things/1/stream");
+  });
+
+  it("mode tanpa cookie membuka stream tanpa withCredentials", () => {
+    const fakes = setupFakeEventSources();
+    const client = createEventSourceStreamClient({
+      appConfig: { ...appConfig, apiCredentials: "omit" },
+      eventSourceFactory: fakes.factory,
+    });
+    client.open("/things/1/stream", {}, { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() });
+    expect(fakes.sources[0]!.init).toEqual({ withCredentials: false });
   });
 
   it("melaporkan status koneksi", () => {

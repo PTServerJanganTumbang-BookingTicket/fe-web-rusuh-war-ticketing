@@ -6,7 +6,7 @@ import { toEventCardProps } from "../event-card.mapper";
  * Test fixture: Event dengan status AVAILABLE dan queueState OPEN.
  * Sesuai API v2.1 dan event.model.ts:
  * - EventStatus: "AVAILABLE" | "SELLING_OUT_FAST" | "SOLD_OUT"
- * - QueueState: "NOT_OPEN" | "DIRECT" | "OPEN" | "FULL"
+ * - QueueState: "SCHEDULED" | "OPEN" | "QUEUE_FULL" | "FULL_BOOKED" | "CLOSED"
  * - display.action menentukan routing: "queue" | "book" | "disabled"
  */
 const baseEvent: Event = {
@@ -38,7 +38,7 @@ describe("toEventCardProps", () => {
   it("event AVAILABLE dengan action book (DIRECT): tombol menuju booking langsung", () => {
     const directEvent: Event = {
       ...baseEvent,
-      queueState: "DIRECT",
+      queueState: "OPEN",
       display: { enabled: true, action: "book", labelKey: "home.event.cta" },
     };
     const props = toEventCardProps(directEvent);
@@ -49,7 +49,7 @@ describe("toEventCardProps", () => {
     const soldOutEvent: Event = {
       ...baseEvent,
       status: "SOLD_OUT",
-      queueState: "FULL",
+      queueState: "QUEUE_FULL",
       display: { enabled: false, action: "disabled", labelKey: "home.event.unavailable" },
     };
     const props = toEventCardProps(soldOutEvent);
@@ -72,7 +72,7 @@ describe("toEventCardProps", () => {
     const notOpenEvent: Event = {
       ...baseEvent,
       status: "AVAILABLE",
-      queueState: "NOT_OPEN",
+      queueState: "SCHEDULED",
       display: { enabled: false, action: "disabled", labelKey: "home.event.notOpen" },
     };
     const props = toEventCardProps(notOpenEvent);
@@ -84,7 +84,7 @@ describe("toEventCardProps", () => {
     const queueFullEvent: Event = {
       ...baseEvent,
       status: "AVAILABLE",
-      queueState: "FULL",
+      queueState: "QUEUE_FULL",
       display: {
         enabled: false,
         action: "disabled",
@@ -128,7 +128,7 @@ describe("toEventCardProps: kondisi tombol dan chip (kontrak §2.1)", () => {
   it("belum dibuka: tombol 'Buka <waktu absolut>' dan chip BELUM DIBUKA bernada info", () => {
     const props = toEventCardProps({
       ...baseEvent,
-      queueState: "NOT_OPEN",
+      queueState: "SCHEDULED",
       saleStartsAt: "2026-11-10T02:00:00Z",
       display: disabled("home.event.notOpen", "home.event.badge.notOpen"),
     });
@@ -145,7 +145,7 @@ describe("toEventCardProps: kondisi tombol dan chip (kontrak §2.1)", () => {
   it("antrian penuh: chip ANTRIAN PENUH bernada peringatan walau stok masih ada", () => {
     const props = toEventCardProps({
       ...baseEvent,
-      queueState: "FULL",
+      queueState: "QUEUE_FULL",
       display: disabled("home.event.queueFull", "home.event.badge.queueFull"),
     });
     expect(props.statusLabel).toBe("ANTRIAN PENUH");
