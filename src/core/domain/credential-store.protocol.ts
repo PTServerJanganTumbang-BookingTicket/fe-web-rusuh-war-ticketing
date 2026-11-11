@@ -7,6 +7,7 @@ export interface CredentialStoreProtocol {
   deviceId(): string;
   grantToken(): string | null;
   saveGrantToken(token: string): void;
+  clearGrantToken(): void;
   /**
    * Token ruang tunggu (`qt_…`) per event, untuk header `X-Queue-Token`. Hanya dipakai bila cookie `queue_token`
    * tidak bisa dipakai (`AppConfig.apiCredentials = "omit"`).

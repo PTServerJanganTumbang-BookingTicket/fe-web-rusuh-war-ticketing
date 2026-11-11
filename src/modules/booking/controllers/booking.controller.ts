@@ -76,6 +76,7 @@ export function useBookingController(eventId: string): BookingScreen {
     listHolderAliasesUseCase,
     random,
     appConfig,
+    endSessionUseCase,
   } = useDependencies<BookingDependencies & CoreDependencies>();
   const query = useQuery(bookingSessionQuery({ getBookingSessionUseCase, random }, eventId));
   // Detail event hanya pelengkap kartu samping; gagal memuatnya tidak menghentikan pemesanan.
@@ -136,11 +137,19 @@ export function useBookingController(eventId: string): BookingScreen {
   // Formulir sudah tampil: waktu habis diberitahukan lewat modal di atasnya, bukan layar pengganti. Hanya setelah
   // server menjawab ACCESS_EXPIRED (ADR-0005).
   const timedOutWithForm = isExpired && Boolean(session) && remainingMs !== null;
-  // Tanpa formulir (grant ditolak sejak awal): mode dari konfigurasi.
-  const redirectToQueue = isExpired && !timedOutWithForm && appConfig.bookingExpiry === "queue";
+  // Grant yang habis dilepas dulu (cookie dihapus): selama cookie ada, `proxy.ts` memantulkan Waiting Room ke /book.
+  const requeue = useMutation({
+    mutationFn: endSessionUseCase,
+    onSuccess: () => router.replace(queuePath),
+  });
+  const { mutate: requeueNow } = requeue;
+  // Tanpa formulir (grant ditolak sejak awal): mode dari konfigurasi. Bila melepas grant gagal, jangan mengulang
+  // otomatis (cookie masih ada, jadi tidak akan sampai); layar kedaluwarsa dengan tombol yang menggantikannya.
+  const redirectToQueue =
+    isExpired && !timedOutWithForm && appConfig.bookingExpiry === "queue" && !requeue.isError;
   useEffect(() => {
-    if (redirectToQueue) router.replace(queuePath);
-  }, [redirectToQueue, router, queuePath]);
+    if (redirectToQueue) requeueNow();
+  }, [redirectToQueue, requeueNow]);
 
   if (redirectToQueue) {
     return {
@@ -163,7 +172,7 @@ export function useBookingController(eventId: string): BookingScreen {
         message: t("booking.error.ACCESS_EXPIRED"),
         // Waktu habis bukan galat customer: nada peringatan seperti dialog "Sesi berakhir".
         tone: "warning",
-        action: { label: t("booking.expired.cta"), onClick: () => router.push(queuePath) },
+        action: { label: t("booking.expired.cta"), onClick: () => requeueNow() },
       },
     };
   }
@@ -237,7 +246,7 @@ export function useBookingController(eventId: string): BookingScreen {
   const open = nikModal.modal;
   if (timedOutWithForm) {
     // Menang atas dialog lain: tidak ada yang bisa dilanjutkan setelah waktu habis.
-    dialog = toBookingTimeoutDialog({ onRequeue: () => router.push(queuePath) });
+    dialog = toBookingTimeoutDialog({ onRequeue: () => requeueNow() });
   } else if (open?.kind === "mismatch") {
     dialog = toNikMismatchDialog({ onEdit: () => editNik(open.slotKey), onDismiss: nikModal.close });
   } else if (open?.kind === "unavailable") {

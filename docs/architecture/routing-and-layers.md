@@ -14,6 +14,7 @@ Status: **mengikuti kode per 2026-10-28** (setelah restrukturisasi ADR-0013–00
 | `/m/orders/[orderId]/pay` | `src/app/(embed)/m/orders/[orderId]/pay/` | Dinamis | Belum (lihat §5) | `PaymentContainer` yang sama, layout embed |
 | `/orders/[orderId]/ticket` | `src/app/orders/[orderId]/ticket/page.tsx` | Dinamis | Tidak | `TicketContainer` (placeholder) |
 | `POST /api/session/start` | `src/app/api/session/start/route.ts` | Route handler | Tidak | Menyimpan access token antrian ke cookie |
+| `POST /api/session/end` | `src/app/api/session/end/route.ts` | Route handler | Tidak | Menghapus cookie access token (grant habis) |
 | `POST /api/session/exchange` | belum ada | | | Penukaran one-time code WebView, menunggu BE (ADR-0008) |
 
 Route group `(public)`, `(auth)`, `(embed)` hanya pengelompokan folder, tidak masuk URL. `(embed)` memberi layout tanpa navbar dan footer untuk WebView.
@@ -107,13 +108,17 @@ Aturan tambahan: `domain` dan `application` tanpa framework, `zod`, `awilix`, `f
 
 ## 5. Gerbang akses: `proxy.ts`
 
-`src/proxy.ts` menggantikan `middleware.ts` di Next 16. Matcher: `/events/:eventId/book` dan `/orders/:orderId/pay`.
+`src/proxy.ts` menggantikan `middleware.ts` di Next 16. Matcher: `/events/:eventId/book`, `/events/:eventId/queue`, dan `/orders/:orderId/pay`. Arahnya satu: tanpa grant customer tidak masuk booking, dengan grant customer tidak kembali ke Waiting Room.
 
 | Kondisi | Hasil |
 |---|---|
-| Cookie `access_token` ada | Lanjut |
+| Cookie `access_token` ada, path `/book` atau `/pay` | Lanjut |
+| Cookie ada, path `/events/{id}/queue` | Redirect ke `/events/{id}/book` |
+| Tidak ada, path `/events/{id}/queue` | Lanjut |
 | Tidak ada, path `/events/{id}/book` | Redirect ke `/events/{id}/queue` |
 | Tidak ada, path `/orders/{id}/pay` | Redirect ke `/` |
+
+Grant yang habis di halaman booking harus dilepas dulu (`POST /api/session/end`, lihat bagian 6) sebelum controller pindah ke Waiting Room; kalau tidak, cookie yang masih ada memantulkan customer kembali ke `/book`.
 
 Batasan saat ini, yang sengaja dicatat jujur:
 
@@ -135,6 +140,8 @@ Batasan saat ini, yang sengaja dicatat jujur:
 | `maxAge` | 600 detik |
 
 Token tidak pernah muncul di URL. E2E memverifikasi: URL tidak mengandung `token`, cookie `httpOnly`, dan `document.cookie` tidak berisi `access_token` ([`expiry-and-guards.spec.ts`](../../e2e/expiry-and-guards.spec.ts)). Body kosong atau tanpa token mengembalikan `400 QUEUE_TOKEN_INVALID`. Nama cookie dan umurnya ada di `src/core/data/session/access-token.constants.ts` (dipakai route handler dan `proxy.ts`). Sisi klien: use case `StartSessionUseCase` → `SessionProtocol` → `HttpSessionService`.
+
+`POST /api/session/end` (tanpa body) menghapus cookie `access_token` dan membalas `204`. Sisi klien: `EndSessionUseCase` → `SessionProtocol.end()`, yang juga membuang grant di `sessionStorage`. Dipanggil controller booking saat server menjawab `ACCESS_EXPIRED` (redirect otomatis, tombol antre lagi, dan modal waktu habis). Bila gagal, controller tidak berpindah dan menampilkan layar kedaluwarsa dengan tombol coba lagi.
 
 ## 7. Cara menambah route baru
 

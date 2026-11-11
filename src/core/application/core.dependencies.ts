@@ -3,6 +3,7 @@ import type { ClockProtocol } from "@/core/domain/clock.protocol";
 import type { LocalePreferenceProtocol } from "@/core/domain/locale-preference.protocol";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import type { StartSessionUseCase } from "./start-session.use-case";
+import type { EndSessionUseCase } from "./end-session.use-case";
 import type { GetSessionAccountUseCase } from "./get-session-account.use-case";
 
 /** Irisan container yang boleh dipakai controller lintas modul (ISP: hanya yang dibutuhkan). */
@@ -13,5 +14,6 @@ export type CoreDependencies = {
   /** Bahasa pilihan customer di perangkat ini (i18n). */
   localePreference: LocalePreferenceProtocol;
   startSessionUseCase: StartSessionUseCase;
+  endSessionUseCase: EndSessionUseCase;
   getSessionAccountUseCase: GetSessionAccountUseCase;
 };

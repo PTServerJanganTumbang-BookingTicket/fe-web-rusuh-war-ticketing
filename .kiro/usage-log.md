@@ -522,3 +522,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Merapikan landing page, menganimasikan logo saat di-hover, memperbaiki animasi, dan menyediakan halaman untuk melihat template email.
 - **Output**: (1) Logo (`BrandLink`): tiga batang bergerak bertahap saat hover/fokus, tile logo miring sedikit; mati bila `prefers-reduced-motion`. (2) Hero: lapisan gradien, eyebrow berbentuk pil, tombol "Lihat event" yang menggulir ke daftar, masuk bertahap. Kartu event masuk bertahap (jeda dibatasi 8 langkah) dan terangkat saat hover; animasi memakai `fill-mode-backwards` dan `motion-reduce`. (3) `/dev/emails` menampilkan keempat template MJML dalam iframe dengan data contoh (`emails/preview.mjs`), dan `/dev/emails/[name]` memberi HTML utuh. Keduanya 404 di build produksi (`NODE_ENV`).
 - **Review manusia**: Logo pratinjau email adalah SVG (`public/images/logo-rusuh.svg`) dan QR contoh palsu; `logoUrl` produksi tetap harus PNG. Pratinjau memakai tampilan browser, bukan klien email sungguhan (Gmail/Outlook belum dicek). Tulisan di `src/app/dev` mengandung `process.env.NODE_ENV` di luar `app-config.reader.ts`; lint lolos, tetapi perlu disetujui.
+
+## 2026-11-11 — Gerbang satu arah booking ↔ Waiting Room
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Customer yang sudah punya grant tidak boleh kembali ke Waiting Room; diarahkan ke booking lagi.
+- **Output**: `proxy.ts` meredirect `/events/{id}/queue` ke `/book` bila cookie `access_token` ada. Route `POST /api/session/end`, `SessionProtocol.end()`, `EndSessionUseCase`, dan `CredentialStore.clearGrantToken()` melepas grant. Controller booking memanggilnya sebelum antre lagi saat `ACCESS_EXPIRED` (tanpa itu cookie memantulkan customer ke `/book` dalam lingkaran). Bila pelepasan gagal, controller tidak berpindah. Test proxy, route, service, use case, dan controller booking; dokumen `routing-and-layers.md` diperbarui.
+- **Review manusia**: Menunggu review. Test unit (521) dan tsc lulus; E2E (`e2e/expiry-and-guards.spec.ts`) dan alur di browser belum dijalankan. Cookie hanya diperiksa keberadaannya, jadi cookie basi masih memantulkan `/queue` ke `/book` sampai API menolak dan controller melepasnya. Alur lain yang menuju `/queue` dengan grant aktif (kartu event di Beranda, tautan dari akun) kini langsung masuk `/book`.
