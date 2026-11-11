@@ -45,9 +45,7 @@ export function HomeView(props: HomeViewProps) {
             <h2 className="type-h3 text-foreground">{eventList.title}</h2>
             <p className="type-body1 text-muted-foreground">{eventList.subtitle}</p>
           </div>
-          {errorMessage && (
-            <div className="rounded-lg bg-signal-bg-error p-4 text-signal-error">{errorMessage}</div>
-          )}
+          {errorMessage && <EmptyState illustration="events" title={errorMessage} />}
           {loading ? (
             <div role="status" aria-live="polite" aria-busy="true">
               <span className="sr-only">{loading}</span>
