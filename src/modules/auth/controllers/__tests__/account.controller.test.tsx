@@ -43,7 +43,7 @@ describe("useAccountController", () => {
       { label: "Email", value: "you@example.com" },
       { label: "NIK terdaftar", value: "3171********xx22" },
     ]);
-    expect(ready().profile).toMatchObject({ name: "you@example.com", initials: "YE" });
+    expect(ready().profile).toMatchObject({ name: "you@example.com", initials: "Y" });
     expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi"]);
     expect(ready().saved.count).toBe("1/5");
     expect(ready().saved.items[0]?.initials).toBe("B");

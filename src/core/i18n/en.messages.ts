@@ -7,6 +7,13 @@ import type { MessageKey } from "./id.messages";
  */
 export const en: Partial<Record<MessageKey, string>> = {
   "common.loading": "Loading…",
+  "error.notFound.title": "Page not found",
+  "error.notFound.description": "The page you are looking for does not exist or has moved.",
+  "error.notFound.home": "Back to home",
+  "error.boundary.title": "Something went wrong",
+  "error.boundary.description": "Something did not work as expected. Try reloading this page.",
+  "error.boundary.retry": "Try again",
+  "error.boundary.home": "Back to home",
   // Navbar dan footer
   "nav.account": "My profile ({email})",
   "nav.menu": "Menu",

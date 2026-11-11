@@ -4,12 +4,13 @@ import { cn } from "cn";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../empty";
 
 /** Ilustrasi Signal DS (spreadsheet "Icon & Asset reference for SJT") di `public/images/illustrations/`. */
-export type EmptyIllustration = "events" | "tickets" | "box";
+export type EmptyIllustration = "events" | "tickets" | "box" | "error";
 
 const ILLUSTRATIONS: Record<EmptyIllustration, string> = {
   events: "/images/illustrations/empty-events.webp",
   tickets: "/images/illustrations/empty-tickets.webp",
   box: "/images/illustrations/empty-box.webp",
+  error: "/images/illustrations/error.webp",
 };
 
 /** Keadaan kosong dengan ilustrasi Signal DS. */

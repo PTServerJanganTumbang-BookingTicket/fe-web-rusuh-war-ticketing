@@ -1,5 +1,12 @@
 export const id = {
   "common.loading": "Memuat…",
+  "error.notFound.title": "Halaman tidak ditemukan",
+  "error.notFound.description": "Halaman yang kamu cari tidak ada atau sudah dipindahkan.",
+  "error.notFound.home": "Kembali ke beranda",
+  "error.boundary.title": "Terjadi kesalahan",
+  "error.boundary.description": "Ada yang tidak berjalan semestinya. Coba muat ulang halaman ini.",
+  "error.boundary.retry": "Coba lagi",
+  "error.boundary.home": "Kembali ke beranda",
   "common.placeholder": "Layar ini belum dibangun.",
   "home.title": "Rusuh Booking Tiket",
   "dialog.editInformation": "Ubah data",

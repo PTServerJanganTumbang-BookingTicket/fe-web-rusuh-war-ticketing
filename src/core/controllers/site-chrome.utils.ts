@@ -79,7 +79,7 @@ export function toSiteChrome({
       account: account
         ? {
             label: shortName(account.email),
-            initials: initialsOf(account.email),
+            initials: initialsOf(shortName(account.email)),
             href: "/account",
             ariaLabel: t("nav.account", { email: account.email }),
           }
