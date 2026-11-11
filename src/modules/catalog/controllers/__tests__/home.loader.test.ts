@@ -19,7 +19,7 @@ describe("loadHomeViewProps", () => {
     const listEventsUseCase = vi.fn(() => Promise.resolve([event]));
     const props = await loadHomeViewProps({ listEventsUseCase } as never);
     expect(props.events).toHaveLength(1);
-    expect(props.events[0]?.cta).toEqual({ label: "Beli Tiket →", href: "/events/evt-1/queue" });
+    expect(props.events[0]?.cta).toEqual({ label: "Beli Tiket", href: "/events/evt-1/queue" });
     expect(props.errorMessage).toBeUndefined();
     expect(props.nav.items.map((item) => item.href)).toEqual(["/", "/help"]);
     expect(props.nav.loginHref).toBe("/login");

@@ -74,7 +74,7 @@ export const id = {
   "help.shortcuts.title": "Cari tiketmu?",
   "help.shortcuts.body": "Lihat e-tiket yang sudah dibeli, atau cari event lain.",
   // Hero Section
-  "home.hero.eyebrow": "LOREM IPSUM",
+  "home.hero.eyebrow": "RUSUH TIKET",
   "home.hero.headline": "Energi panggung. Cerita yang kamu bawa pulang.",
   "home.hero.subtext": "Kami bukan sekadar jual tiket, tapi mengantar kamu ke momen yang tak tergantikan.",
   // Event List Section
@@ -83,9 +83,9 @@ export const id = {
   "home.list.subtitle": "Temukan pengalaman seru yang menunggumu",
   // Event Card
   "home.empty": "Tidak ada event aktif didalam halaman ini",
-  "home.event.cta": "Beli Tiket →",
-  "home.event.cta.queue": "Masuk Antrian →",
-  "home.event.cta.book": "Beli Tiket →",
+  "home.event.cta": "Beli Tiket",
+  "home.event.cta.queue": "Masuk Antrian",
+  "home.event.cta.book": "Beli Tiket",
   "home.event.unavailable": "Tidak Tersedia",
   "home.event.queueFull": "Antrian Penuh",
   "home.event.notOpen": "Belum Dibuka",
@@ -584,6 +584,12 @@ export const id = {
   "payment.error.BOOKING_EXPIRED": "Waktu booking sudah habis.",
   "payment.error.PAYMENT_WINDOW_CLOSED": "Waktu pembayaran kurang dari 1 menit. Tidak bisa ganti metode.",
   "payment.error.PAYMENT_ALREADY_PAID": "Pembayaran sudah berhasil sebelumnya.",
+  "payment.error.PAYMENT_GATEWAY_UNAVAILABLE":
+    "Sistem pembayaran sedang sibuk. Mohon tunggu beberapa saat dan coba lagi.",
+  "payment.error.BOOKING_STATUS_INVALID": "Booking tidak valid. Status booking Anda telah berubah.",
+  "payment.error.MAX_ATTEMPTS_EXCEEDED":
+    "Batas percobaan tercapai. Anda telah mencapai batas maksimal percobaan pembayaran.",
+  "payment.error.PAYMENT_ALREADY_SETTLED": "Pembayaran sudah diterima. Pembayaran Anda sedang diproses.",
   // Grace period (Req BR-06: 30 detik)
   "payment.grace.title": "Sedang memverifikasi…",
   "payment.grace.message": "Transaksi masih dalam proses verifikasi. Mohon tunggu sebentar.",
