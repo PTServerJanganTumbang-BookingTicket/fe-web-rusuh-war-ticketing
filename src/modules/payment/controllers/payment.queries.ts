@@ -4,6 +4,7 @@
  * Menangani fetching dan polling status order.
  */
 
+import { pollingStopped } from "@/core/controllers/query-retry.utils";
 import { queryOptions } from "@tanstack/react-query";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
@@ -56,7 +57,7 @@ export const orderQuery = (deps: OrderQueryDependencies, orderId: string, live: 
       const orderData = query.state.data;
 
       // Tidak polling jika live mode atau order belum ada
-      if (live || orderData == null) {
+      if (live || orderData == null || pollingStopped(query)) {
         return false;
       }
 

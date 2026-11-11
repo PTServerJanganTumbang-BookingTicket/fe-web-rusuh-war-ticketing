@@ -8,8 +8,8 @@ const POLL_AFTER_MS = 5_000;
 const QUEUE_TICK_MS = 2_000;
 const MAX_STREAM_TICKS = 15;
 
-/** Kunci uji Cloudflare Turnstile (selalu lolos). Mode mock tidak memuat skrip Turnstile. */
-const CAPTCHA = { provider: "turnstile", site_key: "1x00000000000000000000BB" };
+/** Site key widget Turnstile (invisible). Mode mock tidak memuat skrip Turnstile. */
+const CAPTCHA = { provider: "turnstile", site_key: "0x4AAAAAAF5VeTSGKus3HqaG" };
 /** Token yang ditolak mock dengan 403 CAPTCHA_FAILED, untuk menguji jalur gagal. */
 export const FAILING_CAPTCHA_TOKEN = "captcha-fail";
 

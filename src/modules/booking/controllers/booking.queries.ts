@@ -1,3 +1,4 @@
+import { pollingStopped } from "@/core/controllers/query-retry.utils";
 import { queryOptions } from "@tanstack/react-query";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
@@ -29,7 +30,8 @@ export function bookingSessionQuery(
   return queryOptions({
     queryKey: bookingKeys.session(eventId),
     queryFn: () => deps.getBookingSessionUseCase(eventId),
-    refetchInterval: () => withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next()),
+    refetchInterval: (query) =>
+      pollingStopped(query) ? false : withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next()),
   });
 }
 

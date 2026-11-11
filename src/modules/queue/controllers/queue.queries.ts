@@ -1,3 +1,4 @@
+import { pollingStopped } from "@/core/controllers/query-retry.utils";
 import { queryOptions } from "@tanstack/react-query";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
@@ -32,7 +33,7 @@ export function queuePositionQuery(
     queryFn: () => deps.getQueueStateUseCase(eventId),
     refetchInterval: (query) => {
       const state = query.state.data;
-      return !live && state?.status === "waiting"
+      return !live && !pollingStopped(query) && state?.status === "waiting"
         ? withJitter(state.retryAfterMs, deps.random.next())
         : false;
     },
