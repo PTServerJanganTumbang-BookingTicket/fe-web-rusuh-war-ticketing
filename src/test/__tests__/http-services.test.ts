@@ -119,8 +119,8 @@ describe("queueService", () => {
       stale: false,
       position: 832,
       joinedPosition: 1248,
-      // 832 posisi x 60 / 318 per menit (laju dari /queue/serving).
-      etaSeconds: 157,
+      // Laju dari /queue/serving.
+      ratePerMin: 318,
       retryAfterMs: 5000,
     });
     server.events.removeAllListeners();
@@ -233,10 +233,28 @@ describe("queueService", () => {
     });
   });
 
-  it("laju antrian tidak tersedia: join tetap berhasil, ETA 0", async () => {
+  it("laju antrian tidak tersedia: join tetap berhasil dengan laju 0", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 503, "down")));
     const { queueService } = setupTestContainer().cradle;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", etaSeconds: 0 });
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", ratePerMin: 0 });
+  });
+
+  it("laju 0 saat join (belum ada booking diproses) diambil lagi pada snapshot berikutnya sampai ada", async () => {
+    let rate = 0;
+    let servingCalls = 0;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => {
+        servingCalls += 1;
+        return envelope({ rate_per_min: rate });
+      }),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", ratePerMin: 0 });
+
+    rate = 200;
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", ratePerMin: 200 });
+    await queueService.getState(OPEN_EVENT_ID);
+    expect(servingCalls).toBe(2);
   });
 
   it("401 dari /queue/me menjadi QUEUE_TOKEN_INVALID", async () => {

@@ -9,7 +9,8 @@ export type QueueState =
       position: number;
       /** Posisi saat customer masuk antrian, untuk progress bar. */
       joinedPosition: number;
-      etaSeconds: number;
+      /** Nomor antrian yang dilewati per menit; 0 selama laju belum diketahui. Dasar estimasi tunggu (kontrak §3.5). */
+      ratePerMin: number;
       retryAfterMs: number;
     }
   /** `accessToken` adalah grant slot (`X-Grant-Token`) dari `GET /queue/me`, bukan token akun. */

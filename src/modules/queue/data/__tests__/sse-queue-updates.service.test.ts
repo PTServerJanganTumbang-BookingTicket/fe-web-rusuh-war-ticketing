@@ -8,7 +8,7 @@ import { queueStreamSchemas, type QueueStreamMessage } from "../queue-state.sche
 import { createSseQueueUpdatesService } from "../sse-queue-updates.service";
 
 const EVENT = "evt_1";
-const ticket = { ticketNo: 100, joinedPosition: 100, eventName: "Konser A", secondsPerPosition: 0.2 };
+const ticket = { ticketNo: 100, joinedPosition: 100, eventName: "Konser A", ratePerMin: 0 };
 
 const waiting = (position: number): QueueState => ({
   status: "waiting",
@@ -17,7 +17,7 @@ const waiting = (position: number): QueueState => ({
   stale: false,
   position,
   joinedPosition: 100,
-  etaSeconds: 0,
+  ratePerMin: 0,
   retryAfterMs: 5000,
 });
 const admitted: QueueState = {
@@ -47,7 +47,7 @@ function setup(getState: QueueProtocol["getState"], withTicket = true) {
   const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
   const stop = service.watch(EVENT, observer);
   const tick = (nowServing: number) => push!.next({ type: "serving", nowServing, saleState: "OPEN" });
-  return { observer, stop, tick, push: () => push!, closeStream };
+  return { observer, stop, tick, push: () => push!, closeStream, cache };
 }
 
 describe("createSseQueueUpdatesService", () => {
@@ -66,6 +66,23 @@ describe("createSseQueueUpdatesService", () => {
     const { observer, tick } = setup(vi.fn(), false);
     tick(50);
     expect(observer.next).not.toHaveBeenCalled();
+  });
+
+  it("laju dari stream menggantikan laju 0 saat join dan tersimpan di tiket untuk polling cadangan", () => {
+    const { observer, push, cache } = setup(vi.fn());
+    push().next({ type: "serving", nowServing: 50, saleState: "OPEN", ratePerMin: 0 });
+    expect(observer.next).toHaveBeenLastCalledWith({ ...waiting(50), ratePerMin: 0 });
+
+    push().next({ type: "serving", nowServing: 60, saleState: "OPEN", ratePerMin: 318 });
+    expect(observer.next).toHaveBeenLastCalledWith({ ...waiting(40), ratePerMin: 318 });
+    expect(cache.get(EVENT)?.ratePerMin).toBe(318);
+  });
+
+  it("pesan tanpa laju mempertahankan laju terakhir", () => {
+    const { observer, push, tick } = setup(vi.fn());
+    push().next({ type: "serving", nowServing: 50, saleState: "OPEN", ratePerMin: 200 });
+    tick(60);
+    expect(observer.next).toHaveBeenLastCalledWith({ ...waiting(40), ratePerMin: 200 });
   });
 
   it("giliran tiba tetapi grant belum terbaca (QUEUED posisi 0): ulang /queue/me tiap 1 detik sampai admitted", async () => {
@@ -135,6 +152,12 @@ describe("createSseQueueUpdatesService", () => {
   it("skema stream menolak state di luar kontrak dan nowServing non-angka", () => {
     expect(queueStreamSchemas.message.safeParse({ nowServing: 1, state: "PAUSED" }).success).toBe(false);
     expect(queueStreamSchemas.message.safeParse({ nowServing: "1", state: "OPEN" }).success).toBe(false);
+    expect(queueStreamSchemas.message.parse({ nowServing: 1, state: "OPEN", ratePerMin: 318 })).toEqual({
+      type: "serving",
+      nowServing: 1,
+      saleState: "OPEN",
+      ratePerMin: 318,
+    });
     expect(queueStreamSchemas.status.safeParse({ state: "FULL_BOOKED" }).success).toBe(true);
     expect(queueStreamSchemas.stale.safeParse({ stale: true, state: "OPEN" }).success).toBe(true);
     expect(queueStreamSchemas.reconnect.safeParse({ state: "OPEN" }).success).toBe(true);

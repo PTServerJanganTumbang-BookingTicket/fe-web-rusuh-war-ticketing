@@ -1,12 +1,29 @@
 import { t } from "@/core/i18n/t.utils";
 import type { SiteChrome } from "@/core/controllers/site-chrome.utils";
 import { queueProgressPercent } from "../domain/queue-progress.rules";
+import { queueWaitEstimate, type QueueWaitEstimate } from "../domain/queue-wait.rules";
 import type { QueueEvent } from "../domain/queue-event.model";
 import type { QueueState } from "../domain/queue-state.model";
 import type { QueueEventCardProps, QueueStatusProps, QueueViewProps } from "../views/QueueView";
 
 const number = new Intl.NumberFormat("id-ID");
 const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+
+/** Teks estimasi tunggu (kontrak §3.5). Jam memakai koma desimal, mis. "± 1,5 jam". */
+function waitText(estimate: QueueWaitEstimate): string {
+  switch (estimate.kind) {
+    case "soon":
+      return t("queue.eta.soon");
+    case "calculating":
+      return t("queue.eta.calculating");
+    case "minutes":
+      return t("queue.eta.value", { minutes: estimate.minutes });
+    case "hours":
+      return t("queue.eta.hours", { hours: number.format(estimate.hours) });
+    case "long":
+      return t("queue.eta.long", { hours: number.format(estimate.hours) });
+  }
+}
 
 /** Panel status saat menunggu (desain Waiting Room). State lain dibangun controller. */
 export function toWaitingStatus(state: Extract<QueueState, { status: "waiting" }>): QueueStatusProps {
@@ -24,7 +41,7 @@ export function toWaitingStatus(state: Extract<QueueState, { status: "waiting" }
       ? undefined
       : {
           label: t("queue.eta.label"),
-          value: t("queue.eta.value", { minutes: Math.max(1, Math.ceil(state.etaSeconds / 60)) }),
+          value: waitText(queueWaitEstimate(state.position, state.ratePerMin)),
         },
     notice: state.fullBooked ? t("queue.fullBooked") : undefined,
     stale: state.stale,
