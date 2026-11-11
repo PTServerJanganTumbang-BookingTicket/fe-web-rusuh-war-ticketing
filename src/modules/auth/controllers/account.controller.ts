@@ -42,6 +42,7 @@ const savedNikErrors = {
 function initialsOf(name: string): string {
   const words = name
     .trim()
+    .split("@")[0]!
     .split(/[\s@._-]+/)
     .filter(Boolean);
   return words

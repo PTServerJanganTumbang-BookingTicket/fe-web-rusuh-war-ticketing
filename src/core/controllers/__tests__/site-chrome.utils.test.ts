@@ -16,6 +16,11 @@ describe("toSiteChrome", () => {
     expect(hrefs({ email: "budi@example.com", nikMasked: "3171****22" })).toEqual(["/", "/tickets", "/help"]);
   });
 
+  it("avatar memakai nama sebelum @, bukan domain email", () => {
+    const { nav } = toSiteChrome({ account: { email: "you@example.com", nikMasked: "3171****22" } });
+    expect(nav.account?.initials).toBe("Y");
+  });
+
   it("customer masuk: avatar dan nama pendek menuju profil", () => {
     const { nav } = toSiteChrome({ account: { email: "budi.santoso@example.com", nikMasked: "3171****22" } });
     expect(nav.account).toEqual({
