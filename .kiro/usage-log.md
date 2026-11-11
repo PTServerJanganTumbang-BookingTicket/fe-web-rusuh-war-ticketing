@@ -495,3 +495,12 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: QR e-tiket kosong dan tidak jelas asalnya; header commit memakai nomor issue GitHub.
 - **Output**: Gambar `qr_code` dari BE (di mock PNG 1×1) tidak ditampilkan lagi; QR digambar di FE dari `qr_value` (`qrcode-generator`) dengan kode tiket di bawahnya, `qr_code` hanya cadangan. commitlint menerima `[#66][nama]` dan tidak lagi `NO-JIRA`; 7 commit branch ini ditulis ulang dengan nomor issue (pemetaan perkiraan).
 - **Review manusia**: Isi `qr_value` memuat NIK lengkap dan sekarang tertanam di QR yang tampil di layar (sama dengan yang dipindai di gerbang); perlu dipastikan dengan BE. Pemetaan commit ke issue (#28, #30, #59, #60, #65, #66, #68) belum dikonfirmasi.
+
+## 2026-11-11 — Estimasi waktu tunggu antrian mengikuti kontrak §3.5
+
+- **Tool**: Claude Code (Claude Fable 5.2)
+- **Oleh**: zaki
+- **Tujuan**: Estimasi di Waiting Room belum mengikuti rumus kontrak dan menampilkan "± 1 menit" saat laju antrian masih 0.
+- **Input**: `docs/api/api-contracts.md` v2.12.0 §3.5 (salinan lokal; repo `documentations` menjawab 404 untuk akun `gh` yang aktif), kode modul `queue`.
+- **Output**: (1) `queue-wait.rules.ts`: rumus §3.5 dengan pembulatan ke atas bertingkat (5, 10, 30 menit), jam untuk 60–180 menit, dan "Lebih dari 3 jam". (2) `ratePerMin <= 0` menampilkan "Menghitung estimasi antrean…"; posisi 0 menampilkan "Giliran Anda sebentar lagi". (3) `ratePerMin` kini dibaca dari tiap pesan stream dan disimpan di tiket; sebelumnya laju hanya diambil sekali saat join. Selama laju 0, snapshot `/queue/me` mengambil ulang `/queue/serving`. (4) State `waiting` membawa `ratePerMin` menggantikan `etaSeconds`. (5) Mock skenario `queue-stuck` melaporkan laju 0.
+- **Review manusia**: Teks memakai karakter elipsis (…) seperti teks lain, bukan tiga titik. Diperiksa di browser hanya untuk laju 0 (mock `?scenario=queue-stuck`); tampilan jam dan "lebih dari 3 jam" hanya lewat tes. Belum dicoba dengan BE asli karena `/queue/*` di gateway uji masih 404. Enum `queue_state` baru (`SCHEDULED`, `QUEUE_FULL`, `FULL_BOOKED`, `CLOSED`) belum dikerjakan: menunggu spesifikasi Apidog terbaru.
