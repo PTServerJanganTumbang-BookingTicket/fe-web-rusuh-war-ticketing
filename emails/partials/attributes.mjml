@@ -1,23 +1,24 @@
 <!-- Klien email tidak mendukung variabel CSS, jadi nilai token Signal DS (src/components/ui/signal.css) ditulis langsung. -->
 <mj-attributes>
   <mj-all font-family="Poppins, Helvetica, Arial, sans-serif" />
-  <mj-body background-color="#f6f3f3" width="600px" />
-  <mj-section background-color="#ffffff" padding="0 24px" />
+  <mj-body background-color="#eff1f4" width="600px" />
+  <mj-section background-color="#ffffff" padding="0 40px" />
   <mj-column padding="0" />
-  <mj-text color="#001a41" font-size="16px" line-height="24px" padding="0 0 16px" />
+  <mj-text color="#001a41" font-size="16px" line-height="26px" padding="0 0 20px" />
   <mj-button
-    background-color="#ed0226"
-    border-radius="12px"
+    background-color="#ff0025"
+    border-radius="999px"
     color="#ffffff"
     font-size="16px"
     font-weight="600"
-    inner-padding="14px 24px"
-    padding="8px 0 24px"
+    inner-padding="18px 24px"
+    padding="4px 0 20px"
     width="100%"
   />
   <mj-divider border-color="#e4e7ec" border-width="1px" padding="8px 0 24px" />
-  <mj-class name="heading" font-size="24px" font-weight="700" line-height="32px" />
-  <mj-class name="muted" color="#4e5784" font-size="14px" line-height="20px" />
+  <mj-class name="heading" font-size="34px" font-weight="700" line-height="42px" padding="0 0 20px" />
+  <mj-class name="muted" color="#4e5784" font-size="14px" line-height="22px" />
   <mj-class name="label" color="#4e5784" font-size="12px" line-height="16px" padding="0 0 2px" />
   <mj-class name="value" font-size="14px" font-weight="600" line-height="20px" padding="0 0 12px" />
+  <mj-class name="note" background-color="#f5f8fa" border="1px solid #e4e7ec" border-radius="12px" padding="20px" />
 </mj-attributes>

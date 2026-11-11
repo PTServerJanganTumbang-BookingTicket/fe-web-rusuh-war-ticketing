@@ -6,6 +6,11 @@
   </mj-head>
   <mj-body>
     <mj-include path="./partials/header.mjml" />
+    <mj-section padding="0 40px">
+      <mj-column>
+        <mj-image src="{{appUrl}}/images/email/illustration-login-link.png" alt="" width="180px" align="center" padding="0 0 24px" />
+      </mj-column>
+    </mj-section>
     <mj-section>
       <mj-column>
         <mj-text mj-class="heading">Masuk ke akun kamu</mj-text>

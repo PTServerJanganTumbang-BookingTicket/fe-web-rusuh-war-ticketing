@@ -12,7 +12,7 @@ Hasilnya ada di `emails/dist/*.html` (tidak di-commit). Isi `<title>` tiap templ
 
 Format Mustache: `{{nama}}`, dan `{{#tickets}}...{{/tickets}}` untuk blok berulang. Semua template juga memakai `{{supportEmail}}`, `{{logoUrl}}`, dan `{{appUrl}}` (header).
 
-`logoUrl` adalah URL logo PNG yang bisa diakses publik (lebar 2x dari 160px, yaitu 320px, supaya tajam di layar retina). Klien email memblokir gambar `data:` dan SVG, jadi berkasnya perlu di-host di CDN atau di `public/` aplikasi ini. `appUrl` adalah origin aplikasi web.
+`logoUrl` adalah URL logo PNG yang bisa diakses publik (lebar 2x dari 160px, yaitu 320px, supaya tajam di layar retina). Klien email memblokir gambar `data:` dan SVG, jadi berkasnya perlu di-host di CDN atau di `public/` aplikasi ini. `appUrl` adalah origin aplikasi web (produksi: `https://www.rush-my-ticket.my.id`, tanpa garis miring di akhir). Gambar email dimuat dari `{{appUrl}}/images/email/` (folder `public/images/email`), jadi baru tampil setelah aplikasi di-deploy.
 
 | Template | Kegunaan | Sumber | Placeholder |
 |---|---|---|---|

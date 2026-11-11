@@ -47,3 +47,41 @@
   --signal-radius-lg: 0.75rem;
   --signal-radius-full: 9999px;
 }
+
+/* ── Logo merek: batang audio bergerak saat tautan di-hover atau difokus ── */
+.brand-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+@keyframes brand-bar-bounce {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.4);
+  }
+}
+
+.brand-link:hover .brand-bar,
+.brand-link:focus-visible .brand-bar {
+  animation: brand-bar-bounce 640ms ease-in-out infinite;
+}
+
+.brand-link:hover .brand-bar:nth-child(2n),
+.brand-link:focus-visible .brand-bar:nth-child(2n) {
+  animation-delay: 160ms;
+}
+
+.brand-link:hover .brand-bar:nth-child(3n),
+.brand-link:focus-visible .brand-bar:nth-child(3n) {
+  animation-delay: 320ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-link:hover .brand-bar,
+  .brand-link:focus-visible .brand-bar {
+    animation: none;
+  }
+}

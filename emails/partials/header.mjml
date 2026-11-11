@@ -1,4 +1,7 @@
-<mj-section background-color="#001a41" padding="20px 24px">
+<mj-section padding="24px 0 0" background-color="transparent">
+  <mj-column />
+</mj-section>
+<mj-section border-top="4px solid #ff0025" border-radius="16px 16px 0 0" padding="36px 40px 24px">
   <mj-column>
     <!-- logoUrl: URL gambar PNG yang bisa diakses publik (klien email memblokir data: URI dan SVG). -->
     <mj-image

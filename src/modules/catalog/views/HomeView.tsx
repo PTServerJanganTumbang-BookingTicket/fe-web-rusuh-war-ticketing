@@ -6,12 +6,15 @@ import { HeroSection } from "./HeroSection";
 import type { EventCardProps } from "./EventCard";
 import { EventGrid } from "./EventGrid";
 
+const EVENT_LIST_ID = "event-list";
+
 export type HomeViewProps = {
   nav: NavbarProps;
   hero: {
     eyebrow: string;
     headline: string;
     subtext: string;
+    cta?: string;
     backgroundImage?: string;
   };
   eventList: {
@@ -39,8 +42,8 @@ export function HomeView(props: HomeViewProps) {
     <div className="flex min-h-screen flex-col bg-signal-disable">
       <Navbar {...nav} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <HeroSection {...hero} />
-        <section className="mt-10">
+        <HeroSection {...hero} ctaHref={`#${EVENT_LIST_ID}`} />
+        <section id={EVENT_LIST_ID} className="mt-10 scroll-mt-24">
           <div className="mb-6">
             <h2 className="type-h3 text-foreground">{eventList.title}</h2>
             <p className="type-body1 text-muted-foreground">{eventList.subtitle}</p>
