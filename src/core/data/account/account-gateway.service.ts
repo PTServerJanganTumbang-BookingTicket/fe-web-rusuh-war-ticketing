@@ -216,7 +216,10 @@ export function createAccountGatewayService({
       };
       if (!token) return redirect("/login/verify");
       const result = await redeem(token);
-      if (!result.ok) return redirect("/login/verify");
+      // Token ditolak BE (4xx: sudah dipakai atau kedaluwarsa) berbeda dari BE yang tidak menjawab; halaman tujuan
+      // memberi pesan yang sesuai, bukan "link tidak lengkap".
+      if (!result.ok)
+        return redirect(`/login/verify?error=${result.response.status < 500 ? "invalid" : "unavailable"}`);
       const next = result.redirectPath === "/" ? "" : `&next=${encodeURIComponent(result.redirectPath)}`;
       return redirect(`/login/verify?signedIn=1${next}`, result.cookies);
     },

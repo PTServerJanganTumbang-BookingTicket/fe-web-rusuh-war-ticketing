@@ -414,6 +414,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "verify.failed.heading": "This link can't be used",
   "verify.error.LOGIN_LINK_INVALID":
     "The login link is invalid or has already been used. Request a new link.",
+  "verify.error.unavailable":
+    "We could not check this link right now. Try again in a moment, or request a new one.",
   "verify.requestNew": "Request a new link",
   "verify.done.heading": "You're logged in",
   "verify.done.message": "Your secure link worked. Continue to the page you requested.",

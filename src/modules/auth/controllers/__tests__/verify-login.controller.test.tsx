@@ -157,6 +157,20 @@ describe("useVerifyLoginController", () => {
       expect(replace).not.toHaveBeenCalledWith("//evil.com");
     }, 10000);
 
+    it('link ditolak server (?error=invalid): pesan tidak berlaku, bukan "tidak lengkap"', async () => {
+      const { result } = await arrive("?error=invalid", false);
+      await waitFor(() => expect(result.current.kind).toBe("failed"));
+      if (result.current.kind !== "failed") throw new Error("bukan layar gagal");
+      expect(result.current.message).toBe("Link login tidak berlaku atau sudah dipakai. Minta link baru.");
+    });
+
+    it("server tidak menjawab (?error=unavailable): pesan coba lagi", async () => {
+      const { result } = await arrive("?error=unavailable", false);
+      await waitFor(() => expect(result.current.kind).toBe("failed"));
+      if (result.current.kind !== "failed") throw new Error("bukan layar gagal");
+      expect(result.current.message).toContain("belum bisa memeriksa link");
+    });
+
     it("tanpa sesi (URL diketik sendiri): layar gagal, tanpa redirect", async () => {
       const { result } = await arrive("?signedIn=1", false);
       await waitFor(() => expect(result.current.kind).toBe("failed"));
