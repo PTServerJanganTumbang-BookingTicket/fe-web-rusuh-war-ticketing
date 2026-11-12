@@ -485,16 +485,17 @@ describe("useBookingController", () => {
      * Sesi tersisa 1,2 detik; saat hitungan nol FE bertanya ke server dan dijawab 401. Server yang memutuskan
      * (ADR-0005). Jam palsu berjalan mengikuti waktu nyata supaya hitung mundur 5 detik bisa dimajukan.
      */
-    async function expireWithForm() {
+    async function expireWithForm(answer: "expired" | "still_ok" = "expired") {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       replace.mockClear();
       push.mockClear();
       const ended = endSessionRoute();
       let calls = 0;
+      const expiresAt = new Date(Date.now() + 1200).toISOString();
       server.use(
         http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => {
           calls += 1;
-          if (calls > 1)
+          if (calls > 1 && answer === "expired")
             return HttpResponse.json(
               { meta: { code: 401, message: "Grant expired", error_code: "GRANT_TOKEN_INVALID" }, data: {} },
               { status: 401 },
@@ -504,7 +505,7 @@ describe("useBookingController", () => {
             data: {
               event: { name: "Konser A" },
               session: {
-                expires_at: new Date(Date.now() + 1200).toISOString(),
+                expires_at: expiresAt,
                 server_time: new Date().toISOString(),
               },
               categories: [{ id: "cat_vip", name: "VIP", description: "", price: 100_000, available: 5 }],
@@ -542,6 +543,13 @@ describe("useBookingController", () => {
       expect(replace).toHaveBeenCalledWith("/");
       expect(replace).not.toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
       expect(ended).toHaveBeenCalledTimes(1);
+    }, 15000);
+
+    it("server tetap menjawab 200 dengan waktu yang sama: modal tetap muncul saat hitungan nol", async () => {
+      const { view } = await expireWithForm("still_ok");
+      expect(view().dialog?.primary).toMatchObject({ label: "Kembali ke beranda" });
+      await tick(5000);
+      expect(replace).toHaveBeenCalledWith("/");
     }, 15000);
 
     it("tombol Kembali ke beranda dan menutup modal langsung ke Beranda, tanpa menunggu hitung mundur", async () => {
