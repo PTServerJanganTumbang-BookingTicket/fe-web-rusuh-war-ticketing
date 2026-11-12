@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toAppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t } from "@/core/i18n/t.utils";
+import type { MessageKey } from "@/core/i18n/id.messages";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { authErrorKey } from "./auth-error.mapper";
 import { toLoginLinkFailedDialog } from "./auth-dialogs.mapper";
@@ -44,6 +45,12 @@ const noSearchOnServer = () => undefined;
 
 const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
+/** Alasan gagal dari `GET /auth/login` (`?error=`) ke kunci pesan. */
+const ARRIVAL_ERROR_MESSAGES: Record<string, MessageKey> = {
+  invalid: "verify.error.LOGIN_LINK_INVALID",
+  unavailable: "verify.error.unavailable",
+};
+
 export function useVerifyLoginController(): VerifyLoginViewProps {
   const siteChrome = useSiteChrome();
   const queryClient = useQueryClient();
@@ -57,6 +64,7 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
   const search = useSyncExternalStore(subscribeToLocation, readSearch, noSearchOnServer);
   const params = search === undefined ? undefined : new URLSearchParams(search);
   const signedInArrival = params?.get("signedIn") === "1";
+  const arrivalError = params?.get("error") ?? null;
   const arrivalTarget = safeRedirectPath(params?.get("next") ?? null);
   const verify = useMutation({
     mutationFn: (value: string) => verifyLoginUseCase(value),
@@ -124,7 +132,7 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
   if (token === null || verify.isError) {
     const message = verify.isError
       ? t(authErrorKey(toAppError(verify.error), { LOGIN_LINK_INVALID: "verify.error.LOGIN_LINK_INVALID" }))
-      : t("verify.missing");
+      : t(ARRIVAL_ERROR_MESSAGES[arrivalError ?? ""] ?? "verify.missing");
     const dialog =
       linkModal.modal && !session.isPending
         ? toLoginLinkFailedDialog({ onDismiss: linkModal.close })
