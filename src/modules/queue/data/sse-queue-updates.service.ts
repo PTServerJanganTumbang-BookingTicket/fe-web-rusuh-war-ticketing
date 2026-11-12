@@ -1,3 +1,5 @@
+import type { AppConfig } from "@/core/domain/app-config.model";
+import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { Observer, Unsubscribe } from "@/core/domain/live-updates.protocol";
 import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
 import type { QueueProtocol } from "../domain/queue.protocol";
@@ -19,11 +21,24 @@ export function createSseQueueUpdatesService({
   eventStreamClient,
   queueService,
   queueTicketCache,
+  credentialStore,
+  appConfig,
 }: {
+  appConfig: AppConfig;
+  credentialStore: CredentialStoreProtocol;
   eventStreamClient: EventStreamClient;
   queueService: QueueProtocol;
   queueTicketCache: QueueTicketCache;
 }): QueueUpdatesProtocol {
+  /** Tanpa cookie, token antrian dikirim sebagai header (jalur klien mobile, kontrak §3.2). */
+  function streamOptions(eventId: string) {
+    if (appConfig.apiCredentials !== "omit") return undefined;
+    const token = credentialStore.queueToken(eventId);
+    return token
+      ? { headers: { "x-queue-token": token, "x-device-id": credentialStore.deviceId() } }
+      : undefined;
+  }
+
   return {
     watch(eventId: string, observer: Observer<QueueState>): Unsubscribe {
       let nowServing: number | undefined;
@@ -108,6 +123,7 @@ export function createSseQueueUpdatesService({
           connected: () => observer.connected(),
           disconnected: () => observer.disconnected(),
         },
+        streamOptions(eventId),
       );
       return () => {
         stopped = true;

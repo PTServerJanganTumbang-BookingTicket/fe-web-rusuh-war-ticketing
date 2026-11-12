@@ -83,9 +83,7 @@ describe("useAccountController", () => {
     const { ready } = await mountSignedIn();
     act(() => ready().add?.nik.onChange("3171000000000044"));
     act(() => ready().add?.submit.onSubmit());
-    await waitFor(() =>
-      expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi", "NIK ••0044"]),
-    );
+    await waitFor(() => expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi", "NIK 0044"]));
   });
 
   it("isian alias tidak valid ditolak di form tanpa request", async () => {

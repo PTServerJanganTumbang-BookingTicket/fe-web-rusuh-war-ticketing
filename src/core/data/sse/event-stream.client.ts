@@ -7,8 +7,16 @@ import type { Observer, Unsubscribe } from "@/core/domain/live-updates.protocol"
  */
 export type StreamSchemas<T> = Record<string, z.ZodType<T>>;
 
+/** `headers` untuk kredensial yang tidak bisa lewat cookie; `EventSource` tidak bisa menyetelnya, jadi klien beralih ke `fetch`. */
+export type StreamOptions = { headers?: Record<string, string> };
+
 /** Abstraksi stream Server-Sent Events untuk service di `data/`. Payload selalu diparse dengan schema zod. */
 export interface EventStreamClient {
   /** `path` relatif terhadap host API, atau URL absolut bila stream berada di host lain. */
-  open<T>(path: string, schemas: StreamSchemas<T>, observer: Observer<T>): Unsubscribe;
+  open<T>(
+    path: string,
+    schemas: StreamSchemas<T>,
+    observer: Observer<T>,
+    options?: StreamOptions,
+  ): Unsubscribe;
 }

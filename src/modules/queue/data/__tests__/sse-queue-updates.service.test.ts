@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
+import type { EventStreamClient, StreamOptions } from "@/core/data/sse/event-stream.client";
+import type { AppConfig } from "@/core/domain/app-config.model";
+import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { Observer } from "@/core/domain/live-updates.protocol";
 import type { QueueProtocol } from "../../domain/queue.protocol";
 import type { QueueState } from "../../domain/queue-state.model";
@@ -27,11 +29,17 @@ const admitted: QueueState = {
   expiresAt: "x",
 };
 
-function setup(getOwnState: QueueProtocol["getOwnState"], withTicket = true) {
+function setup(
+  getOwnState: QueueProtocol["getOwnState"],
+  withTicket = true,
+  apiCredentials: "omit" | "include" = "include",
+) {
   let push: Observer<QueueStreamMessage> | undefined;
+  let options: StreamOptions | undefined;
   const closeStream = vi.fn();
   const client: EventStreamClient = {
-    open: (_path, _schemas, observer) => {
+    open: (_path, _schemas, observer, streamOptions) => {
+      options = streamOptions;
       push = observer as Observer<QueueStreamMessage>;
       return closeStream;
     },
@@ -51,16 +59,28 @@ function setup(getOwnState: QueueProtocol["getOwnState"], withTicket = true) {
     eventStreamClient: client,
     queueService,
     queueTicketCache: cache,
+    appConfig: { apiCredentials } as AppConfig,
+    credentialStore: {
+      deviceId: () => "dev_1",
+      queueToken: () => "qt_1",
+    } as unknown as CredentialStoreProtocol,
   });
   const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
   const stop = service.watch(EVENT, observer);
   const tick = (nowServing: number) => push!.next({ type: "serving", nowServing, saleState: "OPEN" });
-  return { observer, stop, tick, push: () => push!, closeStream, cache, getState };
+  return { observer, stop, tick, push: () => push!, closeStream, cache, getState, options: () => options };
 }
 
 describe("createSseQueueUpdatesService", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  it("mode cookie membuka stream tanpa header; mode omit mengirim X-Queue-Token dan X-Device-Id", () => {
+    expect(setup(vi.fn()).options()).toBeUndefined();
+    expect(setup(vi.fn(), true, "omit").options()).toEqual({
+      headers: { "x-queue-token": "qt_1", "x-device-id": "dev_1" },
+    });
+  });
 
   it("meneruskan connected dan disconnected dari stream", () => {
     const { observer, push } = setup(vi.fn());

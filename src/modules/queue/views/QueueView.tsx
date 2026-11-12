@@ -27,6 +27,8 @@ export type QueueStatusProps = {
   notice?: string;
   note?: string;
   action?: { label: string; onClick: () => void; disabled?: boolean };
+  /** Ambil ulang posisi; hanya saat pembaruan otomatis berhenti (stream dan polling gagal). */
+  refresh?: { label: string; onClick: () => void; disabled?: boolean };
   /** Keluar dari antrian; hanya saat menunggu. Membuka dialog konfirmasi. */
   leave?: { label: string; onClick: () => void };
 };
@@ -109,6 +111,7 @@ function StatusCard({
   notice,
   note,
   action,
+  refresh,
   leave,
 }: QueueStatusProps) {
   return (
@@ -160,6 +163,17 @@ function StatusCard({
                 <InfoIcon />
                 <AlertDescription className="type-body1 text-foreground">{notice}</AlertDescription>
               </Alert>
+            ) : null}
+            {refresh ? (
+              <Button
+                variant="outline"
+                size="lg"
+                className="self-center"
+                onClick={refresh.onClick}
+                disabled={refresh.disabled}
+              >
+                {refresh.label}
+              </Button>
             ) : null}
             {eta ? (
               <div className="flex items-center gap-4 rounded-xl border border-border px-5 py-4">

@@ -159,8 +159,23 @@ export function useQueueController(eventId: string): QueueViewProps {
   }
 
   if (data?.status === "waiting") {
+    const waiting = toWaitingStatus(data);
+    // Stream tidak tersambung dan polling cadangan gagal: angka di layar tidak lagi diperbarui. Beri tahu dan
+    // sediakan tombol ambil ulang, daripada tampak "diperbarui otomatis" tanpa batas.
+    const stalled = !live && queue.isError;
     return page({
-      ...toWaitingStatus(data),
+      ...waiting,
+      ...(stalled
+        ? {
+            notice: t("queue.stalled"),
+            updatedNote: t("queue.stalled.note"),
+            refresh: {
+              label: t("queue.stalled.retry"),
+              onClick: () => void queue.refetch(),
+              disabled: queue.isFetching,
+            },
+          }
+        : {}),
       leave: { label: t("queue.leave.button"), onClick: () => setConfirmingLeave(true) },
     });
   }
