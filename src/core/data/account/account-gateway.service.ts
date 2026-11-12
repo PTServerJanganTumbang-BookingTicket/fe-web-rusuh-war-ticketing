@@ -19,6 +19,12 @@ import {
 export type AccountGateway = {
   /** `POST /api/auth/verify` `{ token }` → `GET /auth/verify` di BE, lalu menyetel cookie akun. */
   verify(request: Request): Promise<Response>;
+  /**
+   * `GET /auth/login?token=` (link di email) → menukar token lewat cookie `magic_token` ke `GET /auth/verify` di BE,
+   * menyetel cookie akun, lalu mengalihkan (303) ke tujuan: beranda, atau booking yang dipulihkan. Gagal: ke
+   * `/login/verify`, yang menjelaskan link tidak berlaku.
+   */
+  verifyLink(request: Request): Promise<Response>;
   /** `POST /api/auth/verify-email` `{ token }` → `GET /auth/verify-email` di BE (token lewat cookie). Tanpa sesi. */
   verifyEmail(request: Request): Promise<Response>;
   /**
@@ -139,37 +145,73 @@ export function createAccountGatewayService({
     return parsed.success ? parsed.data.data : null;
   }
 
+  type Redeemed =
+    | {
+        ok: true;
+        redirectPath: string;
+        booking: { event_id?: string; booking_id?: string } | null;
+        account: { email: string; nik_masked: string };
+        cookies: string[];
+      }
+    | { ok: false; response: Response };
+
+  /** Menukar token magic link dengan sesi akun. Kontrak membaca `magic_token` dari cookie (ADR-0023 usulan 1). */
+  async function redeem(token: string): Promise<Redeemed> {
+    const response = await callBackend("/auth/verify", {
+      headers: { cookie: `magic_token=${encodeURIComponent(token)}` },
+    });
+    if (!response) return { ok: false, response: envelope(502, "Backend unavailable") };
+    if (!response.ok) return { ok: false, response: await passThrough(response) };
+
+    const parsed = verifySchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) return { ok: false, response: envelope(502, "Unexpected verify response") };
+    const { user, redirect_context: context } = parsed.data.data;
+    const account = { email: user.email, nik_masked: user.nik };
+    const booking =
+      context?.type === "booking" ? { event_id: context.event_id, booking_id: context.booking_id } : null;
+    return {
+      ok: true,
+      redirectPath: redirectPathFor(context),
+      booking,
+      account,
+      cookies: [
+        ...tokenCookies(parsed.data.data),
+        serializeCookie(ACCOUNT_PROFILE_COOKIE, JSON.stringify(account), {
+          maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
+          secure,
+        }),
+      ],
+    };
+  }
+
   return {
     async verify(request) {
       const body: unknown = await request.json().catch(() => undefined);
       const token = typeof body === "object" && body !== null && "token" in body ? body.token : undefined;
       if (typeof token !== "string" || token === "") return envelope(400, "token is required");
 
-      // Kontrak membaca `magic_token` dari cookie (ADR-0023 usulan 1); server ini yang menyetelnya ke BE.
-      const response = await callBackend("/auth/verify", {
-        headers: { cookie: `magic_token=${encodeURIComponent(token)}` },
-      });
-      if (!response) return envelope(502, "Backend unavailable");
-      if (!response.ok) return passThrough(response);
+      const result = await redeem(token);
+      if (!result.ok) return result.response;
+      const { redirectPath, booking, account, cookies } = result;
+      return envelope(200, "Login successful", { redirect_path: redirectPath, booking, account }, cookies);
+    },
 
-      const parsed = verifySchema.safeParse(await response.json().catch(() => undefined));
-      if (!parsed.success) return envelope(502, "Unexpected verify response");
-      const { user, redirect_context: context } = parsed.data.data;
-      const account = { email: user.email, nik_masked: user.nik };
-      const booking =
-        context?.type === "booking" ? { event_id: context.event_id, booking_id: context.booking_id } : null;
-      return envelope(
-        200,
-        "Login successful",
-        { redirect_path: redirectPathFor(context), booking, account },
-        [
-          ...tokenCookies(parsed.data.data),
-          serializeCookie(ACCOUNT_PROFILE_COOKIE, JSON.stringify(account), {
-            maxAge: REFRESH_TOKEN_MAX_AGE_SECONDS,
-            secure,
-          }),
-        ],
-      );
+    async verifyLink(request) {
+      const url = new URL(request.url);
+      const token = url.searchParams.get("token");
+      const redirect = (path: string, cookies: string[] = []) => {
+        const headers = new Headers({
+          location: new URL(path, url).toString(),
+          // Jangan di-cache dan jangan bocor lewat Referer ke halaman berikutnya.
+          "cache-control": "no-store",
+          "referrer-policy": "no-referrer",
+        });
+        for (const cookie of cookies) headers.append("set-cookie", cookie);
+        return new Response(null, { status: 303, headers });
+      };
+      if (!token) return redirect("/login/verify");
+      const result = await redeem(token);
+      return result.ok ? redirect(result.redirectPath, result.cookies) : redirect("/login/verify");
     },
 
     async verifyEmail(request) {

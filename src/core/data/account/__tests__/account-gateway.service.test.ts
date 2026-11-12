@@ -96,6 +96,70 @@ describe("accountGateway.verify", () => {
   });
 });
 
+describe("accountGateway.verifyLink", () => {
+  const link = (search: string) => new Request(`${TEST_APP_ORIGIN}/auth/login${search}`);
+
+  it("menukar token lewat cookie magic_token, menyetel cookie akun, dan langsung mengalihkan", async () => {
+    let received: string | null = null;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/auth/verify`, ({ request }) => {
+        received = request.headers.get("cookie");
+        return HttpResponse.json({
+          meta: { code: 200, message: "Login successful" },
+          data: {
+            access_token: "at_1",
+            refresh_token: "rt_1",
+            expires_in: 22740,
+            user: { id: "usr_1", email: "you@example.com", nik: "3171********xx22" },
+          },
+        });
+      }),
+    );
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link("?token=a%20b"));
+    expect(received).toBe("magic_token=a%20b");
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/`);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    const cookies = cookiesOf(response);
+    expect(Object.keys(cookies).sort()).toEqual(["account_profile", "account_refresh", "account_token"]);
+    expect(cookies.account_token?.cookie).toContain("HttpOnly");
+  });
+
+  it("memulihkan booking aktif lewat redirect_context", async () => {
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link("?token=mt_1"));
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/orders/RB-00912/pay`);
+  });
+
+  it("token ditolak BE: tanpa cookie, ke /login/verify", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/auth/verify`, () =>
+        HttpResponse.json({ meta: { code: 401, message: "Invalid" }, data: {} }, { status: 401 }),
+      ),
+    );
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link("?token=expired"));
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify`);
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("tanpa token: ke /login/verify tanpa memanggil BE", async () => {
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link(""));
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify`);
+  });
+
+  it("BE tidak terjangkau: ke /login/verify", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/auth/verify`, () => HttpResponse.error()));
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link("?token=x"));
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify`);
+  });
+});
+
 describe("accountGateway.verifyEmail", () => {
   it("mengirim token sebagai cookie magic_token dan query token, tanpa menyetel cookie akun", async () => {
     let seen: { cookie: string | null; query: string | null } | undefined;
