@@ -530,3 +530,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Customer yang sudah punya grant tidak boleh kembali ke Waiting Room; diarahkan ke booking lagi.
 - **Output**: `proxy.ts` meredirect `/events/{id}/queue` ke `/book` bila cookie `access_token` ada. Route `POST /api/session/end`, `SessionProtocol.end()`, `EndSessionUseCase`, dan `CredentialStore.clearGrantToken()` melepas grant. Controller booking memanggilnya sebelum antre lagi saat `ACCESS_EXPIRED` (tanpa itu cookie memantulkan customer ke `/book` dalam lingkaran). Bila pelepasan gagal, controller tidak berpindah. Test proxy, route, service, use case, dan controller booking; dokumen `routing-and-layers.md` diperbarui.
 - **Review manusia**: Menunggu review. Test unit (521) dan tsc lulus; E2E (`e2e/expiry-and-guards.spec.ts`) dan alur di browser belum dijalankan. Cookie hanya diperiksa keberadaannya, jadi cookie basi masih memantulkan `/queue` ke `/book` sampai API menolak dan controller melepasnya. Alur lain yang menuju `/queue` dengan grant aktif (kartu event di Beranda, tautan dari akun) kini langsung masuk `/book`.
+
+## 2026-11-12 — Batas 15 event di Home dan halaman semua event
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Home menampilkan maksimal 15 event terbaru dengan tombol lihat semua; halaman semua event dengan filter kategori dan cari di FE.
+- **Output**: (1) `HOME_EVENT_LIMIT = 15` dan `event.rules.ts` (`sortByLatest`, `latestEvents`). (2) Tombol "Lihat semua event" di `HomeView`. (3) Route `/events` (`AllEventsContainer`, `AllEventsView`); `EventGrid` mendapat kotak cari opsional (nama, lokasi, kategori) yang bisa digabung dengan filter kategori. (4) Teks id/en dan test.
+- **Review manusia**: Kontrak tidak punya `created_at`, jadi "terbaru" = `sale_starts_at` terbaru, jatuh ke tanggal event. Diperiksa di browser dengan mock (5 event); batas 15 hanya lewat unit test. Menu navbar "Jelajahi event" masih mengarah ke `/`.

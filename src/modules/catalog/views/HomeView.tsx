@@ -2,6 +2,8 @@ import { Navbar, type NavbarProps } from "@/components/ui/layout/Navbar";
 import { Footer } from "@/components/ui/layout/Footer";
 import { EmptyState } from "@/components/ui/layout/EmptyState";
 import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
+import { buttonVariants } from "@/components/ui/button";
+import Link from "next/link";
 import { HeroSection } from "./HeroSection";
 import type { EventCardProps } from "./EventCard";
 import { EventGrid } from "./EventGrid";
@@ -31,13 +33,16 @@ export type HomeViewProps = {
   emptyLabel?: string;
   /** Teks filter kategori; tanpa ini daftar tampil tanpa filter. */
   categoryFilter?: { label: string; all: string; empty: string };
+  /** Tombol ke halaman semua event; tampil bila ada event. */
+  viewAll?: { label: string; href: string };
   errorMessage?: string;
   /** Teks status memuat untuk pembaca layar; selama ada, kartu event tampil sebagai kerangka. */
   loading?: string;
 };
 
 export function HomeView(props: HomeViewProps) {
-  const { nav, hero, eventList, events, footer, emptyLabel, categoryFilter, errorMessage, loading } = props;
+  const { nav, hero, eventList, events, footer, emptyLabel, categoryFilter, viewAll, errorMessage, loading } =
+    props;
   return (
     <div className="flex min-h-screen flex-col bg-signal-disable">
       <Navbar {...nav} />
@@ -65,6 +70,13 @@ export function HomeView(props: HomeViewProps) {
               allLabel={categoryFilter?.all ?? ""}
               emptyCategoryLabel={categoryFilter?.empty ?? ""}
             />
+          )}
+          {viewAll && events.length > 0 && (
+            <div className="mt-8 flex justify-center">
+              <Link href={viewAll.href} className={buttonVariants({ size: "lg", variant: "outline" })}>
+                {viewAll.label}
+              </Link>
+            </div>
           )}
         </section>
       </main>

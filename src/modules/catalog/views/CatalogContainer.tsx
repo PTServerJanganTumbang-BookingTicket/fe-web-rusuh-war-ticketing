@@ -8,6 +8,8 @@ import { t } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useHomeController } from "../controllers/home.controller";
 import { toEventCardProps } from "../controllers/event-card.mapper";
+import { HOME_EVENT_LIMIT } from "../domain/catalog.constants";
+import { latestEvents } from "../domain/event.rules";
 import { HomeView } from "./HomeView";
 
 export function CatalogContainer() {
@@ -28,7 +30,7 @@ export function CatalogContainer() {
 function CatalogContent() {
   const { events, isLoading, error } = useHomeController();
   const { nav } = useSiteChrome({ active: "/" });
-  const eventCards = events.map(toEventCardProps);
+  const eventCards = latestEvents(events, HOME_EVENT_LIMIT).map(toEventCardProps);
 
   const getErrorMessage = (): string | undefined => {
     if (error) return t("home.error");
@@ -61,6 +63,7 @@ function CatalogContent() {
         all: t("home.filter.all"),
         empty: t("home.filter.empty"),
       }}
+      viewAll={{ label: t("home.viewAll"), href: "/events" }}
       errorMessage={getErrorMessage()}
       loading={isLoading && events.length === 0 && !error ? t("common.loading") : undefined}
     />
