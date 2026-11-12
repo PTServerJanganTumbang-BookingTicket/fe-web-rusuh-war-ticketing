@@ -283,6 +283,44 @@ describe("useQueueController", () => {
     });
   });
 
+  describe("pembaruan berhenti (stream tidak tersambung dan /queue/serving gagal)", () => {
+    const servingGone = () =>
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+        HttpResponse.json({ meta: { code: 404, message: "Not Found" }, data: {} }, { status: 404 }),
+      );
+
+    it("menampilkan pemberitahuan dan tombol ambil ulang; berhasil mengambil ulang menghapusnya", async () => {
+      server.use(servingGone());
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+      expect(result.current.status.refresh).toBeUndefined();
+
+      // Polling cadangan pertama gagal dengan galat kontrak: query berstatus error dan polling berhenti.
+      await waitFor(() => expect(result.current.status.refresh).toBeDefined(), { timeout: 9_000 });
+      expect(result.current.status.notice).toContain("belum bisa memperbarui");
+      expect(result.current.status.updatedNote).toBe("Pembaruan otomatis terhenti");
+      expect(result.current.status.position?.value).toBe("#1.248");
+
+      server.resetHandlers();
+      act(() => result.current.status.refresh?.onClick());
+      await waitFor(() => expect(result.current.status.refresh).toBeUndefined());
+      expect(result.current.status.notice).toBeUndefined();
+    }, 20_000);
+
+    it("stream tersambung: tidak ada pemberitahuan walau polling tidak dipakai", async () => {
+      const fakes = setupFakeEventSources();
+      const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+      const stream = fakes.find(`/events/${OPEN_EVENT_ID}/queue/stream`)!;
+      act(() => stream.emit("open"));
+      expect(result.current.status.refresh).toBeUndefined();
+      expect(result.current.status.notice).toBeUndefined();
+    });
+  });
+
   describe("SSE (kontrak v2.12)", () => {
     const tick = (nowServing: number, state = "OPEN") => ({
       nowServing,

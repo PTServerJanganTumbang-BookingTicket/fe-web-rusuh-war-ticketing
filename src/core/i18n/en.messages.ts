@@ -78,6 +78,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "account.saved.add.title": "Add alias",
   "account.saved.label.label": "Alias (optional)",
   "account.saved.label.placeholder": "e.g. Budi (brother)",
+  "account.saved.label.invalidChars": "Alias can only contain letters, numbers and spaces.",
   "account.saved.label.tooLong": "Alias can be at most {max} characters.",
   "account.saved.nik.label": "NIK",
   "account.saved.submit": "Save alias",
@@ -315,6 +316,10 @@ export const en: Partial<Record<MessageKey, string>> = {
     "Tickets are sold out for now. Seats can return from cancelled bookings, so stay on this page.",
   "queue.stale": "Updating…",
   "queue.updated": "Queue updates automatically",
+  "queue.stalled":
+    "We can't refresh your queue position right now. The number above may be out of date. Your place is kept, so don't close this page.",
+  "queue.stalled.note": "Automatic updates have stopped",
+  "queue.stalled.retry": "Refresh now",
   "queue.event.name": "{name} — {city}",
   "queue.event.tag": "{category} · {city}",
   "queue.tips.title": "While you wait",

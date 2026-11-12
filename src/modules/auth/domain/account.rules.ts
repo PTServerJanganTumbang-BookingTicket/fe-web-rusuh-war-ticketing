@@ -17,8 +17,11 @@ export function isNikFormat(value: string): boolean {
   return /^\d{16}$/.test(value);
 }
 
+/** Huruf dan angka saja; spasi antar kata diizinkan (asumsi: nama orang berspasi, perlu konfirmasi produk). */
+const LABEL_PATTERN = /^[A-Za-z0-9 ]*$/;
+
 export type SavedNikInputError = {
-  label?: "too_long";
+  label?: "too_long" | "invalid_chars";
   nik?: "format";
 };
 
@@ -28,7 +31,7 @@ export type SavedNikInputError = {
  */
 export function savedNikLabelOf(label: string, nik: string): string {
   const trimmed = label.trim();
-  return trimmed === "" ? `NIK ••${nik.slice(-4)}` : trimmed;
+  return trimmed === "" ? `NIK ${nik.slice(-4)}` : trimmed;
 }
 
 /**
@@ -37,7 +40,9 @@ export function savedNikLabelOf(label: string, nik: string): string {
  */
 export function validateSavedNikInput(input: SavedNikInput): SavedNikInputError | null {
   const errors: SavedNikInputError = {};
-  if (input.label.trim().length > SAVED_NIK_LABEL_MAX_LENGTH) errors.label = "too_long";
+  const label = input.label.trim();
+  if (!LABEL_PATTERN.test(label)) errors.label = "invalid_chars";
+  else if (label.length > SAVED_NIK_LABEL_MAX_LENGTH) errors.label = "too_long";
   if (!isNikFormat(input.nik)) errors.nik = "format";
   return errors.label || errors.nik ? errors : null;
 }

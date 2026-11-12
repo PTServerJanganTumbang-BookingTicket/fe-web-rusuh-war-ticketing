@@ -140,6 +140,10 @@ export const id = {
     "Tiket sedang habis. Kursi dapat kembali dari booking yang dibatalkan, jadi tetap di halaman ini.",
   "queue.stale": "Memperbarui…",
   "queue.updated": "Antrean diperbarui secara otomatis",
+  "queue.stalled":
+    "Kami belum bisa memperbarui posisi antreanmu. Angka di atas mungkin sudah tertinggal. Antreanmu tetap aman, jadi jangan tutup halaman ini.",
+  "queue.stalled.note": "Pembaruan otomatis terhenti",
+  "queue.stalled.retry": "Perbarui sekarang",
   "queue.event.name": "{name} — {city}",
   "queue.event.tag": "{category} · {city}",
   "queue.tips.title": "Sambil menunggu",
@@ -386,6 +390,7 @@ export const id = {
   "account.saved.add.title": "Tambah alias",
   "account.saved.label.label": "Nama alias (opsional)",
   "account.saved.label.placeholder": "Contoh: Budi (adik)",
+  "account.saved.label.invalidChars": "Nama alias hanya boleh huruf, angka, dan spasi.",
   "account.saved.label.tooLong": "Nama alias maksimal {max} karakter.",
   "account.saved.nik.label": "NIK",
   "account.saved.submit": "Simpan alias",

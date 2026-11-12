@@ -54,7 +54,7 @@ describe("validateSavedNikInput", () => {
   });
 
   it("alias kosong diberi nama dari 4 digit terakhir NIK", () => {
-    expect(savedNikLabelOf(" ", "3171000000000033")).toBe("NIK ••0033");
+    expect(savedNikLabelOf(" ", "3171000000000033")).toBe("NIK 0033");
     expect(savedNikLabelOf(" Budi ", "3171000000000033")).toBe("Budi");
   });
 
@@ -64,6 +64,13 @@ describe("validateSavedNikInput", () => {
       label: "too_long",
     });
     expect(validateSavedNikInput({ label: label.slice(1), nik: "3171000000000033" })).toBeNull();
+  });
+
+  it("nama alias hanya huruf, angka, dan spasi", () => {
+    for (const label of ["Budi Santoso", "Budi2"])
+      expect(validateSavedNikInput({ label, nik: "3171000000000033" })).toBeNull();
+    for (const label of ["Budi-1", "Budi_", "Bu@di", "Budi•"])
+      expect(validateSavedNikInput({ label, nik: "3171000000000033" })).toEqual({ label: "invalid_chars" });
   });
 
   it("NIK yang diisi harus 16 digit angka", () => {

@@ -45,6 +45,6 @@ describe("createAddSavedNikUseCase", () => {
   it("nama alias kosong diganti nama dari 4 digit terakhir NIK (kontrak mewajibkan label)", async () => {
     const { savedNikService, calls } = fakeSavedNikService();
     await createAddSavedNikUseCase({ savedNikService })({ nik: "3171000000000033", label: " " });
-    expect(calls.added).toEqual([{ nik: "3171000000000033", label: "NIK ••0033" }]);
+    expect(calls.added).toEqual([{ nik: "3171000000000033", label: "NIK 0033" }]);
   });
 });

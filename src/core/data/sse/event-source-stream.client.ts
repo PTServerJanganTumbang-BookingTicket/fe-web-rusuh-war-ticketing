@@ -1,6 +1,7 @@
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { Observer, Unsubscribe } from "@/core/domain/live-updates.protocol";
-import type { EventStreamClient, StreamSchemas } from "./event-stream.client";
+import type { EventStreamClient, StreamOptions, StreamSchemas } from "./event-stream.client";
+import { openFetchEventStream } from "./fetch-event-stream";
 
 /** Bagian EventSource yang dipakai. Memudahkan fake di test (Node tidak punya EventSource bawaan). */
 export type EventSourceLike = {
@@ -32,8 +33,15 @@ export function createEventSourceStreamClient({
   eventSourceFactory: EventSourceFactory;
 }): EventStreamClient {
   return {
-    open<T>(path: string, schemas: StreamSchemas<T>, observer: Observer<T>): Unsubscribe {
+    open<T>(
+      path: string,
+      schemas: StreamSchemas<T>,
+      observer: Observer<T>,
+      options?: StreamOptions,
+    ): Unsubscribe {
       const url = /^https?:\/\//.test(path) ? path : `${appConfig.apiBaseUrl}${path}`;
+      if (options?.headers && Object.keys(options.headers).length > 0)
+        return openFetchEventStream(url, options.headers, schemas, observer);
       const source = eventSourceFactory(url, { withCredentials: appConfig.apiCredentials === "include" });
       source.addEventListener("open", () => observer.connected());
       // Browser mencoba menyambung ulang sendiri; selama itu controller kembali ke polling.
