@@ -34,4 +34,20 @@ describe("EventGrid", () => {
     render(<EventGrid events={[card("a", "LIVE MUSIC")]} {...labels} />);
     expect(screen.queryByRole("group", { name: "Filter kategori" })).toBeNull();
   });
+
+  it("cari menyaring menurut nama, lokasi, atau kategori dan bisa digabung dengan kategori", () => {
+    const search = { label: "Cari event", placeholder: "Cari", empty: "Tidak cocok" };
+    render(
+      <EventGrid events={[card("a", "LIVE MUSIC"), card("b", "FESTIVAL")]} {...labels} search={search} />,
+    );
+    fireEvent.change(screen.getByRole("searchbox", { name: "Cari event" }), { target: { value: "event b" } });
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "LIVE MUSIC" }));
+    expect(screen.getByText("Tidak cocok")).toBeTruthy();
+  });
+
+  it("tanpa prop search tidak ada kotak cari", () => {
+    render(<EventGrid events={[card("a", "LIVE MUSIC")]} {...labels} />);
+    expect(screen.queryByRole("searchbox")).toBeNull();
+  });
 });

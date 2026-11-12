@@ -14,3 +14,6 @@ export const DEFAULT_CATEGORY = "EVENT";
 
 /** Nilai tab "Semua" pada filter kategori Home. */
 export const ALL_CATEGORIES = "all";
+
+/** Jumlah maksimal event di Home; sisanya ada di halaman semua event. */
+export const HOME_EVENT_LIMIT = 15;
