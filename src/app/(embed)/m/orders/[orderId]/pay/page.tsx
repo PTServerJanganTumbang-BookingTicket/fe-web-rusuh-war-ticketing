@@ -4,12 +4,27 @@
  *
  * Halaman pembayaran untuk mobile webview embed.
  * Note: Route param `orderId` merepresentasikan `bookingId` dalam API contract.
+ *
+ * @requirements 14.30, 14.38
+ * @see ADR-007 - Mobile WebView Payment Handoff
  */
 
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PaymentContainer } from "@/modules/payment/views/PaymentContainer";
 import { ScreenLoading } from "@/components/ui/layout/PageSkeleton";
 import { t } from "@/core/i18n/t.utils";
+
+/**
+ * Metadata untuk embedded payment page.
+ * Referrer-Policy: no-referrer untuk keamanan WebView (ADR-007).
+ */
+export const metadata: Metadata = {
+  title: "Pembayaran",
+  other: {
+    "Referrer-Policy": "no-referrer",
+  },
+};
 
 export default function PaymentPage({ params }: PageProps<"/m/orders/[orderId]/pay">) {
   return (
