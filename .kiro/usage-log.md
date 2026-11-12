@@ -538,3 +538,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Home menampilkan maksimal 15 event terbaru dengan tombol lihat semua; halaman semua event dengan filter kategori dan cari di FE.
 - **Output**: (1) `HOME_EVENT_LIMIT = 15` dan `event.rules.ts` (`sortByLatest`, `latestEvents`). (2) Tombol "Lihat semua event" di `HomeView`. (3) Route `/events` (`AllEventsContainer`, `AllEventsView`); `EventGrid` mendapat kotak cari opsional (nama, lokasi, kategori) yang bisa digabung dengan filter kategori. (4) Teks id/en dan test.
 - **Review manusia**: Kontrak tidak punya `created_at`, jadi "terbaru" = `sale_starts_at` terbaru, jatuh ke tanggal event. Diperiksa di browser dengan mock (5 event); batas 15 hanya lewat unit test. Menu navbar "Jelajahi event" masih mengarah ke `/`.
+
+## 2026-11-12 — Redirect link login email `/auth/login?token=`
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Link login di email backend (`/auth/login?token=...`) menjawab 404 di FE.
+- **Output**: Route `GET /auth/login` mengalihkan (303) ke `/login/verify#token=...`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`. Test route.
+- **Review manusia**: Token sekali melewati server FE sebagai query sebelum dipindah ke fragmen, kompromi dari ADR-0023. Perbaikan bersih: backend memakai `/login/verify#token=...`. Belum diuji dengan token email asli.
