@@ -13,6 +13,8 @@ import type { RetryPaymentUseCase } from "./retry-payment.use-case";
 import type { WatchOrderUseCase } from "./watch-order.use-case";
 import type { GetPaymentEventUseCase } from "./get-payment-event.use-case";
 import type { SimulatePaymentUseCase } from "./simulate-payment.use-case";
+import type { HandleWebViewHandoffUseCase } from "./handle-webview-handoff.use-case";
+import type { WebViewBridgeProtocol } from "../domain/webview-handoff.protocol";
 
 /**
  * Aggregated type untuk semua dependencies payment module.
@@ -39,4 +41,10 @@ export type PaymentDependencies = {
 
   /** Use case untuk simulasi pembayaran (mock mode only) */
   readonly simulatePaymentUseCase: SimulatePaymentUseCase;
+
+  /** Use case untuk handle WebView handoff exchange (ADR-007) */
+  readonly handleWebViewHandoffUseCase: HandleWebViewHandoffUseCase;
+
+  /** Service untuk komunikasi WebView ↔ mobile app (ADR-007) */
+  readonly webViewBridgeService: WebViewBridgeProtocol;
 };

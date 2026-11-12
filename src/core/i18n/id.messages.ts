@@ -609,6 +609,15 @@ export const id = {
   "payment.error.MAX_ATTEMPTS_EXCEEDED":
     "Batas percobaan tercapai. Anda telah mencapai batas maksimal percobaan pembayaran.",
   "payment.error.PAYMENT_ALREADY_SETTLED": "Pembayaran sudah diterima. Pembayaran Anda sedang diproses.",
+  // WebView error codes (ADR-007, Requirement 14.18)
+  // Note: User di WebView tidak akan melihat error message karena app akan menangani via postMessage.
+  // Error messages ini untuk fallback/logging.
+  "payment.error.HANDOFF_CODE_INVALID":
+    "Kode akses tidak valid atau sudah kedaluwarsa. Kembali ke aplikasi dan coba lagi.",
+  "payment.error.PAYMENT_SESSION_INVALID":
+    "Sesi pembayaran berakhir. Halaman perlu dimuat ulang dari aplikasi.",
+  "payment.error.GRANT_TOKEN_INVALID": "Sesi booking berakhir. Silakan booking ulang dari aplikasi.",
+  "payment.error.VALIDATION_ERROR": "Permintaan tidak valid. Silakan coba lagi.",
   // Grace period (Req BR-06: 30 detik)
   "payment.grace.title": "Sedang memverifikasi…",
   "payment.grace.message": "Transaksi masih dalam proses verifikasi. Mohon tunggu sebentar.",

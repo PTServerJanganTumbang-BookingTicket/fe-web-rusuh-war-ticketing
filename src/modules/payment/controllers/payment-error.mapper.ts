@@ -4,6 +4,15 @@
  *
  * Requirements: 14.18-14.20
  * Memetakan setiap error_code dari API ke pesan UI yang user-friendly.
+ *
+ * WebView error codes (ADR-007):
+ * - HANDOFF_CODE_INVALID → App handles via HANDOFF_EXPIRED postMessage
+ * - PAYMENT_SESSION_INVALID → App handles via HANDOFF_EXPIRED postMessage
+ * - GRANT_TOKEN_INVALID → App handles via PAYMENT_EXPIRED postMessage
+ * - VALIDATION_ERROR → Generic validation error
+ *
+ * Note: User di WebView tidak akan melihat error message karena app akan
+ * menangani via postMessage. Error messages ini untuk fallback/logging.
  */
 import type { MessageKey } from "@/core/i18n/t.utils";
 /* ========================================================================== */
@@ -12,6 +21,13 @@ import type { MessageKey } from "@/core/i18n/t.utils";
 /**
  * Error codes dari API payment.
  * Requirement 14.18: Mapping error_code ke pesan UI.
+ *
+ * WebView error codes (ADR-007):
+ * | Error                    | WebView Message    |
+ * |--------------------------|--------------------|
+ * | HANDOFF_CODE_INVALID     | → HANDOFF_EXPIRED  |
+ * | PAYMENT_SESSION_INVALID  | → HANDOFF_EXPIRED  |
+ * | GRANT_TOKEN_INVALID      | → PAYMENT_EXPIRED  |
  */
 export type PaymentErrorCode =
   | "PAYMENT_GATEWAY_UNAVAILABLE"
@@ -20,7 +36,12 @@ export type PaymentErrorCode =
   | "MAX_ATTEMPTS_EXCEEDED"
   | "PAYMENT_ALREADY_SETTLED"
   | "NETWORK_ERROR"
-  | "UNKNOWN_ERROR";
+  | "UNKNOWN_ERROR"
+  // WebView error codes (ADR-007, Requirement 14.18)
+  | "HANDOFF_CODE_INVALID"
+  | "PAYMENT_SESSION_INVALID"
+  | "GRANT_TOKEN_INVALID"
+  | "VALIDATION_ERROR";
 /* ========================================================================== */
 /*                            Error Mapping                                   */
 /* ========================================================================== */
@@ -35,6 +56,14 @@ export type PaymentErrorCode =
  * | PAYMENT_WINDOW_CLOSED         | Waktu Pembayaran Habis. Maaf, waktu untuk menyelesaikan pembayaran telah berakhir.|
  * | MAX_ATTEMPTS_EXCEEDED         | Batas Percobaan Tercapai. Anda telah mencapai batas maksimal percobaan pembayaran.|
  * | PAYMENT_ALREADY_SETTLED       | Pembayaran Sudah Diterima. Pembayaran Anda sedang diproses.                      |
+ *
+ * WebView error codes (ADR-007):
+ * | Error Code                    | UI Copy (ID) — fallback/logging only                                              |
+ * |-------------------------------|-----------------------------------------------------------------------------------|
+ * | HANDOFF_CODE_INVALID          | Kode akses tidak valid atau sudah kedaluwarsa. Kembali ke aplikasi dan coba lagi.|
+ * | PAYMENT_SESSION_INVALID       | Sesi pembayaran berakhir. Halaman perlu dimuat ulang dari aplikasi.              |
+ * | GRANT_TOKEN_INVALID           | Sesi booking berakhir. Silakan booking ulang dari aplikasi.                      |
+ * | VALIDATION_ERROR              | Permintaan tidak valid. Silakan coba lagi.                                       |
  */
 const ERROR_CODE_TO_MESSAGE_KEY: Record<PaymentErrorCode, MessageKey> = {
   PAYMENT_GATEWAY_UNAVAILABLE: "payment.error.PAYMENT_GATEWAY_UNAVAILABLE",
@@ -44,6 +73,11 @@ const ERROR_CODE_TO_MESSAGE_KEY: Record<PaymentErrorCode, MessageKey> = {
   PAYMENT_ALREADY_SETTLED: "payment.error.PAYMENT_ALREADY_SETTLED",
   NETWORK_ERROR: "payment.error.network",
   UNKNOWN_ERROR: "payment.error.unknown",
+  // WebView error codes (ADR-007, Requirement 14.18)
+  HANDOFF_CODE_INVALID: "payment.error.HANDOFF_CODE_INVALID",
+  PAYMENT_SESSION_INVALID: "payment.error.PAYMENT_SESSION_INVALID",
+  GRANT_TOKEN_INVALID: "payment.error.GRANT_TOKEN_INVALID",
+  VALIDATION_ERROR: "payment.error.VALIDATION_ERROR",
 };
 /**
  * Mendapatkan i18n message key dari error code.
@@ -72,6 +106,11 @@ export function parsePaymentErrorCode(code: string | undefined | null): PaymentE
     "MAX_ATTEMPTS_EXCEEDED",
     "PAYMENT_ALREADY_SETTLED",
     "NETWORK_ERROR",
+    // WebView error codes (ADR-007, Requirement 14.18)
+    "HANDOFF_CODE_INVALID",
+    "PAYMENT_SESSION_INVALID",
+    "GRANT_TOKEN_INVALID",
+    "VALIDATION_ERROR",
   ];
   if (validCodes.includes(code as PaymentErrorCode)) {
     return code as PaymentErrorCode;
@@ -193,6 +232,40 @@ export function getErrorRecoveryInfo(errorCode: PaymentErrorCode): ErrorRecovery
       };
     case "NETWORK_ERROR":
       // Masalah koneksi, bisa retry
+      return {
+        canRetry: true,
+        retryDelayMs: 0,
+        shouldRedirectHome: false,
+        isTerminal: false,
+      };
+    // WebView error codes (ADR-007, Requirement 14.18)
+    // Note: App menangani via postMessage; ini untuk fallback/logging
+    case "HANDOFF_CODE_INVALID":
+      // Handoff code expired atau invalid → app handles via HANDOFF_EXPIRED
+      return {
+        canRetry: false,
+        retryDelayMs: 0,
+        shouldRedirectHome: false, // App akan handle redirect
+        isTerminal: true,
+      };
+    case "PAYMENT_SESSION_INVALID":
+      // Payment session expired → app handles via HANDOFF_EXPIRED
+      return {
+        canRetry: false,
+        retryDelayMs: 0,
+        shouldRedirectHome: false, // App akan handle redirect
+        isTerminal: true,
+      };
+    case "GRANT_TOKEN_INVALID":
+      // Grant token expired → app handles via PAYMENT_EXPIRED
+      return {
+        canRetry: false,
+        retryDelayMs: 0,
+        shouldRedirectHome: false, // App akan handle redirect
+        isTerminal: true,
+      };
+    case "VALIDATION_ERROR":
+      // Generic validation error, bisa retry
       return {
         canRetry: true,
         retryDelayMs: 0,

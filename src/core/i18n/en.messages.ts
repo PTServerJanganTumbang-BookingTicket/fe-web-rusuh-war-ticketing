@@ -629,6 +629,14 @@ export const en: Partial<Record<MessageKey, string>> = {
   "payment.error.MAX_ATTEMPTS_EXCEEDED":
     "Retry limit reached. You have reached the maximum number of payment attempts.",
   "payment.error.PAYMENT_ALREADY_SETTLED": "Payment already received. Your payment is being processed.",
+  // WebView error codes (ADR-007, Requirement 14.18)
+  // Note: User in WebView won't see error message as app handles via postMessage.
+  // Error messages are for fallback/logging.
+  "payment.error.HANDOFF_CODE_INVALID": "Access code is invalid or expired. Return to the app and try again.",
+  "payment.error.PAYMENT_SESSION_INVALID":
+    "Payment session has ended. The page needs to be reloaded from the app.",
+  "payment.error.GRANT_TOKEN_INVALID": "Booking session has ended. Please rebook from the app.",
+  "payment.error.VALIDATION_ERROR": "Invalid request. Please try again.",
   "payment.grace.title": "Verifying…",
   "payment.grace.message": "The transaction is still being verified. Please wait a moment.",
   "payment.grace.note": "Don't close this page during verification.",
