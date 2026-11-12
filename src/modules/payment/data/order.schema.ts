@@ -73,18 +73,29 @@ const transformInstructionsToDomain = (instructions: ApiInstructions): PaymentIn
 /*                      Booking Schema (GET /bookings/{id})                   */
 /* ========================================================================== */
 
-/** Schema untuk TTL pembayaran */
+/**
+ * Schema untuk TTL pembayaran.
+ *
+ * Note: ttl_seconds dihapus dari API v2.15. Jika tidak ada, dihitung dari expires_at - server_time.
+ */
 const paymentTtlSchema = z
   .object({
     expires_at: z.string(),
-    ttl_seconds: z.number(),
+    ttl_seconds: z.number().optional(),
     server_time: z.string(),
   })
-  .transform((ttl): PaymentTtl => ({
-    expiresAt: ttl.expires_at,
-    ttlSeconds: ttl.ttl_seconds,
-    serverTime: ttl.server_time,
-  }));
+  .transform((ttl): PaymentTtl => {
+    // Calculate ttlSeconds from expires_at and server_time if not provided (API v2.15+)
+    const calculatedTtl = Math.max(
+      0,
+      Math.floor((Date.parse(ttl.expires_at) - Date.parse(ttl.server_time)) / 1000),
+    );
+    return {
+      expiresAt: ttl.expires_at,
+      ttlSeconds: ttl.ttl_seconds ?? calculatedTtl,
+      serverTime: ttl.server_time,
+    };
+  });
 
 /**
  * Schema untuk response booking.
@@ -241,10 +252,11 @@ export const availableMethodsSchema = z
 export const paymentStatusResultSchema = z
   .discriminatedUnion("status", [
     // PENDING - masih menunggu pembayaran
+    // Note: ttl_seconds dihapus dari API v2.15
     z.object({
       status: z.literal("PENDING"),
       server_time: z.string(),
-      ttl_seconds: z.number(),
+      ttl_seconds: z.number().optional(),
     }),
 
     // PAID - pembayaran berhasil
@@ -276,7 +288,7 @@ export const paymentStatusResultSchema = z
         return {
           status: "PENDING",
           serverTime: result.server_time,
-          ttlSeconds: result.ttl_seconds,
+          ttlSeconds: result.ttl_seconds ?? 0,
         };
 
       case "PAID":

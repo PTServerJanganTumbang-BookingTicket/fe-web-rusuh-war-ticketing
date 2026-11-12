@@ -4,12 +4,14 @@
  * @file payment.controller.ts
  * @description Payment Controller - mengelola state dan logic halaman pembayaran.
  *
- * Requirements: FR-20–25, BR-05–06
+ * Requirements: FR-20–25, BR-05–06, 14.32, 14.33, 14.34, 14.35, 14.37, 14.38
  * ADR-0005 (timer), ADR-0006 (Midtrans via BE), ADR-0016 (status lewat polling)
+ * ADR-007 (WebView handoff dari aplikasi mobile)
  * Desain: "Satu langkah menuju panggung." (langkah 2 dari 3)
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
@@ -24,6 +26,8 @@ import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { PaymentDependencies } from "../application/payment.dependencies";
 import type { BankCode, Order, PaymentMethod } from "../domain/order.model";
+import type { WebViewContext } from "../domain/webview-handoff.model";
+import { isReactNativeWebView, extractHandoffCodeFromFragment } from "../domain/webview-handoff.rules";
 import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentViewProps } from "./payment.mapper";
 import type { PaymentViewProps } from "../views/PaymentView";
@@ -34,8 +38,18 @@ import type { PaymentViewProps } from "../views/PaymentView";
 
 /** Screen state untuk payment page */
 export type PaymentScreen =
-  | { readonly kind: "payment"; readonly view: PaymentViewProps }
+  | { readonly kind: "payment"; readonly view: PaymentViewPropsWithWebView }
   | { readonly kind: "status"; readonly view: StatusViewProps };
+
+/** Extended payment view props with WebView context */
+export type PaymentViewPropsWithWebView = PaymentViewProps & {
+  /** WebView context untuk deteksi dan komunikasi dengan mobile app */
+  readonly webViewContext: WebViewContext;
+  /** Handler untuk GoPay deeplink (berbeda behavior di WebView vs desktop) */
+  readonly onGoPayDeeplink: (url: string) => void;
+  /** Handler untuk 401 PAYMENT_SESSION_INVALID pada API call */
+  readonly onPaymentSessionInvalid: () => void;
+};
 
 /** Mutation input untuk pembayaran */
 type PayMutationInput = {
@@ -76,6 +90,7 @@ const getErrorMessageKey = (error: AppError): MessageKey => {
  */
 export const usePaymentController = (orderId: string): PaymentScreen => {
   const siteChrome = useSiteChrome();
+  const router = useRouter();
   const queryClient = useQueryClient();
   // Galat tanpa respons atau respons asing saat membayar jadi modal "coba lagi"; pilihan metode tetap tersimpan.
   const payModal = useModal<{ kind: "payFailed"; input: PayMutationInput }>();
@@ -88,6 +103,8 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     startPaymentUseCase,
     retryPaymentUseCase,
     simulatePaymentUseCase,
+    handleWebViewHandoffUseCase,
+    webViewBridgeService,
     random,
     appConfig,
   } = useDependencies<PaymentDependencies & CoreDependencies>();
@@ -124,6 +141,127 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   const [selectedBank, setSelectedBank] = useState<BankCode | null>(null);
   const [isBankMissing, setIsBankMissing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  /* ======================================================================== */
+  /*                           WebView Context State                          */
+  /* ======================================================================== */
+
+  /**
+   * WebView context state untuk deteksi dan komunikasi dengan mobile app.
+   *
+   * ADR-007 §6: Session hanya di memori halaman (bukan localStorage, cookie, atau URL).
+   * ADR-007 §7: Tanpa window.ReactNativeWebView → tampilkan "Buka dari aplikasi".
+   */
+  const [webViewContext, setWebViewContext] = useState<WebViewContext>(() => {
+    // Lazy initialization: deteksi WebView saat render pertama (client-side only)
+    // Ini aman karena nilai ini tidak berubah selama lifecycle halaman
+    if (typeof window === "undefined") {
+      return { isEmbedded: false, hasHandoffCode: false, paymentSession: null };
+    }
+    return {
+      isEmbedded: isReactNativeWebView(),
+      hasHandoffCode: !!extractHandoffCodeFromFragment(),
+      paymentSession: null,
+    };
+  });
+
+  /* ======================================================================== */
+  /*                     WebView Initialization & Handlers                    */
+  /* ======================================================================== */
+
+  /**
+   * Handle handoff exchange - menukar handoff code dengan payment session.
+   *
+   * ADR-007 §5.7: POST /payments/handoff/exchange
+   * - Handoff code sekali pakai, berlaku 60 detik
+   * - Payment session disimpan di memori (BR-27)
+   */
+  const handleWebViewHandoff = useCallback(async () => {
+    const result = await handleWebViewHandoffUseCase(orderId);
+
+    if (result.success) {
+      // Store payment session in memory only (BR-27)
+      setWebViewContext((prev) => ({
+        ...prev,
+        paymentSession: result.paymentSession,
+      }));
+    } else {
+      // Handle errors based on type
+      // ADR-007 §8: Notify app untuk minta kode baru atau tutup WebView
+      if (result.errorCode === "HANDOFF_CODE_INVALID") {
+        webViewBridgeService.notifyHandoffExpired(orderId);
+      } else if (result.errorCode === "GRANT_EXPIRED") {
+        // Grant sudah expired, pembayaran tidak bisa dilanjutkan
+        webViewBridgeService.notifyPaymentExpired(orderId);
+      } else {
+        // Default: minta handoff ulang
+        webViewBridgeService.notifyHandoffExpired(orderId);
+      }
+    }
+  }, [orderId, handleWebViewHandoffUseCase, webViewBridgeService]);
+
+  /**
+   * Handle 401 PAYMENT_SESSION_INVALID pada API call apapun.
+   *
+   * ADR-007 §8: Notify app untuk minta kode baru.
+   * Session invalid berarti halaman dimuat ulang atau session sudah expired.
+   */
+  const handlePaymentSessionInvalid = useCallback(() => {
+    webViewBridgeService.notifyHandoffExpired(orderId);
+  }, [orderId, webViewBridgeService]);
+
+  /**
+   * Handle GoPay deeplink - behavior berbeda di WebView vs desktop.
+   *
+   * ADR-007 §8: Di WebView, kirim OPEN_EXTERNAL ke app karena WebView
+   * dikunci ke satu domain (PAYMENT_WEB_URL). External links seperti
+   * gojek.link harus dibuka via Linking.openURL di aplikasi mobile.
+   *
+   * @param url - URL deeplink GoPay (e.g., gojek.link/...)
+   */
+  const handleGoPayDeeplink = useCallback(
+    (url: string) => {
+      if (webViewContext.isEmbedded) {
+        // WebView: kirim ke app untuk buka via Linking.openURL
+        webViewBridgeService.requestOpenExternal(orderId, url);
+      } else {
+        // Desktop: navigasi normal
+        window.location.href = url;
+      }
+    },
+    [orderId, webViewContext.isEmbedded, webViewBridgeService],
+  );
+
+  /**
+   * Trigger handoff exchange saat mount jika di WebView dengan code.
+   *
+   * ADR-007 §7: Deteksi sudah dilakukan di lazy init useState.
+   * Effect ini hanya untuk trigger async handoff exchange.
+   */
+  useEffect(() => {
+    // Hanya trigger jika di WebView dengan handoff code
+    if (webViewContext.isEmbedded && webViewContext.hasHandoffCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Async handoff: setState terjadi setelah await, bukan sinkron di effect body
+      void handleWebViewHandoff();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Hanya run sekali saat mount, deteksi sudah di lazy init
+  }, []);
+
+  /**
+   * Notify app on payment status changes (WebView only).
+   *
+   * ADR-007 §8: Pesan hanyalah sinyal. Aplikasi akan konfirmasi
+   * via GET /bookings/{booking_id} sebelum mengambil tindakan.
+   */
+  useEffect(() => {
+    if (!webViewContext.isEmbedded) return;
+
+    if (orderData?.status === "PAID") {
+      webViewBridgeService.notifyPaymentDone(orderId);
+    } else if (orderData?.status === "EXPIRED") {
+      webViewBridgeService.notifyPaymentExpired(orderId);
+    }
+  }, [orderData?.status, webViewContext.isEmbedded, orderId, webViewBridgeService]);
 
   /* ======================================================================== */
   /*                                Mutations                                 */
@@ -190,6 +328,20 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
 
   // Hook untuk refresh saat TTL hampir habis
   useAskServerAtExpiry(expiresAt, remainingTimeMs, orderQueryResult.refetch);
+
+  // Redirect ke Home saat TTL expired (hanya untuk non-WebView)
+  // WebView case sudah di-handle via notifyPaymentExpired di effect status changes
+  useEffect(() => {
+    // Hanya redirect jika:
+    // 1. Bukan WebView (WebView kirim pesan ke app, tidak redirect)
+    // 2. Order masih aktif (expiresAt ada)
+    // 3. Countdown sudah mencapai 0
+    if (webViewContext.isEmbedded) return;
+    if (expiresAt == null) return;
+    if (remainingTimeMs == null || remainingTimeMs > 0) return;
+
+    router.replace("/");
+  }, [webViewContext.isEmbedded, expiresAt, remainingTimeMs, router]);
 
   /* ======================================================================== */
   /*                           Loading & Error States                         */
@@ -315,6 +467,10 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
         mock: mockControls,
       }),
       dialog,
+      // WebView context dan handlers (ADR-007)
+      webViewContext,
+      onGoPayDeeplink: handleGoPayDeeplink,
+      onPaymentSessionInvalid: handlePaymentSessionInvalid,
     },
   };
 };
