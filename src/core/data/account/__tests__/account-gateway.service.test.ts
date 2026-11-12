@@ -168,7 +168,7 @@ describe("accountGateway.verifyLink", () => {
     });
   });
 
-  it("token ditolak BE: tanpa cookie, ke /login/verify", async () => {
+  it("token ditolak BE: tanpa cookie, ke /login/verify?error=invalid", async () => {
     server.use(
       http.get(`${MOCK_API_BASE_URL}/auth/verify`, () =>
         HttpResponse.json({ meta: { code: 401, message: "Invalid" }, data: {} }, { status: 401 }),
@@ -177,7 +177,7 @@ describe("accountGateway.verifyLink", () => {
     const { accountGateway } = setupTestContainer().cradle;
     const response = await accountGateway.verifyLink(link("?token=expired"));
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify`);
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify?error=invalid`);
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 
@@ -187,11 +187,11 @@ describe("accountGateway.verifyLink", () => {
     expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify`);
   });
 
-  it("BE tidak terjangkau: ke /login/verify", async () => {
+  it("BE tidak terjangkau: ke /login/verify?error=unavailable", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/auth/verify`, () => HttpResponse.error()));
     const { accountGateway } = setupTestContainer().cradle;
     const response = await accountGateway.verifyLink(link("?token=x"));
-    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify`);
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify?error=unavailable`);
   });
 });
 

@@ -241,6 +241,8 @@ export const id = {
   "verify.missing": "Link login tidak lengkap. Minta link baru dari halaman masuk.",
   "verify.failed.heading": "Link tidak bisa dipakai",
   "verify.error.LOGIN_LINK_INVALID": "Link login tidak berlaku atau sudah dipakai. Minta link baru.",
+  "verify.error.unavailable":
+    "Kami belum bisa memeriksa link ini. Coba buka lagi sebentar lagi, atau minta link baru.",
   "verify.requestNew": "Minta link baru",
   "verify.done.heading": "Kamu sudah masuk",
   "verify.done.message": "Link amanmu berhasil. Lanjutkan ke halaman yang kamu minta.",
