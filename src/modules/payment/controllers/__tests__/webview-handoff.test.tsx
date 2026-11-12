@@ -72,7 +72,7 @@ function makeAwaitingPayment(order: Order): Order {
     instruction: {
       type: "gopay",
       qrUrl: "https://midtrans.com/qr/abc123",
-      deeplink: "gojek://gopay/merchanttransfer?tref=abc123",
+      deeplinkUrl: "gojek://gopay/merchanttransfer?tref=abc123",
     },
   };
 }

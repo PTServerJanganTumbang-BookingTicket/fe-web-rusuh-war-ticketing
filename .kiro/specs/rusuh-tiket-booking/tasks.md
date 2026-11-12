@@ -14,13 +14,17 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 ├── 2 (queue domain) ──► 3 (queue app/data) ──► 4 (queue controller) ──► 5 (checkpoint)
 ├── 6 (booking domain) ──► 7 (booking app) ──► 8 (booking data) ──► 9 (booking controller) ──► 10 (checkpoint)
 ├── 11 (payment domain) ──► 12 (payment app) ──► 13 (payment data) ──► 14 (payment controller) ──► 15 (checkpoint) ──► 16 (payment state machine)
+│                                                                                                                           │
+│                                                                                                           40 (webview) ◄──┘
+│                                                                                                               │
+│                                                                                                         41-43 (embed routes, MSW)
 ├── 17 (auth domain/app) ──► 18 (auth data/controller)
 └── 19 (ticket module)
 25 (catalog) ── no dependencies, can run parallel
 20 (routes) ◄── 4, 9, 14, 18, 19
-21 (i18n) ◄── 4, 9, 14, 16, 18, 19
-22 (MSW) ◄── 3, 8, 13, 18, 19
-23 (full checkpoint) ◄── 16, 18, 20, 21, 22
+21 (i18n) ◄── 4, 9, 14, 16, 18, 19, 40
+22 (MSW) ◄── 3, 8, 13, 18, 19, 43
+23 (full checkpoint) ◄── 16, 18, 20, 21, 22, 40-43
 24 (E2E) ◄── 23
 26 (email) ── no dependencies
 ```
@@ -76,6 +80,11 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
       "wave": 10,
       "description": "E2E tests",
       "tasks": [24]
+    },
+    {
+      "wave": 11,
+      "description": "WebView Payment Integration (ADR-007)",
+      "tasks": [40, 41, 42, 43]
     }
   ]
 }
@@ -85,14 +94,18 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 1 (core domain)
 ├── 2 (queue domain) ──► 3 (queue app/data) ──► 4 (queue controller) ──► 5 (checkpoint)
 ├── 6 (booking domain) ──► 7 (booking app) ──► 8 (booking data) ──► 9 (booking controller) ──► 10 (checkpoint)
-├── 11 (payment domain) ──► 12 (payment app) ──► 13 (payment data) ──► 14 (payment controller) ──► 15 (checkpoint)
+├── 11 (payment domain) ──► 12 (payment app) ──► 13 (payment data) ──► 14 (payment controller) ──► 15 (checkpoint) ──► 16 (payment state machine)
+│                                                                                                                           │
+│                                                                                                           40 (webview) ◄──┘
+│                                                                                                               │
+│                                                                                                         41-43 (embed routes, MSW)
 ├── 17 (auth domain/app) ──► 18 (auth data/controller)
 └── 19 (ticket module)
 25 (catalog) ── no dependencies, can run parallel
 20 (routes) ◄── 4, 9, 14, 18, 19
-21 (i18n) ◄── 4, 9, 14, 18, 19
-22 (MSW) ◄── 3, 8, 13, 18, 19
-23 (full checkpoint) ◄── 15, 18, 20, 21, 22
+21 (i18n) ◄── 4, 9, 14, 16, 18, 19, 40
+22 (MSW) ◄── 3, 8, 13, 18, 19, 43
+23 (full checkpoint) ◄── 16, 18, 20, 21, 22, 40-43
 24 (E2E) ◄── 23
 26 (email) ── no dependencies
 ```
@@ -285,9 +298,9 @@ Urutan task mengikuti Clean Architecture: domain → application → data → co
 ## Owner Summary
 | Owner | Tasks | Modules |
 |-------|-------|---------|
-| **Akbar** | 11-16, 19, 20.6-20.7, 21.3, 24.3, 25 | Payment, Payment State Machine (Req 14), Ticket, Catalog/Home |
+| **Akbar** | 11-16, 19, 20.6-20.7, 21.3, 24.3, 25, 40-42 | Payment, Payment State Machine (Req 14), WebView Integration (ADR-007), Ticket, Catalog/Home |
 | **Muzaki** | 1-10, 17-18, 20.1-20.5, 21.1-21.2, 21.4, 24.1-24.2, 26 | Core, Queue, Booking, Auth, Email |
-| **Shared** | 22, 23 | MSW handlers, Final checkpoint |
+| **Shared** | 22, 23, 42.2, 43 | MSW handlers, WebView error codes, Final checkpoint |
 ## Notes
 - Task ALIGN = update existing; NEW = create from scratch
 - Timer/countdown berbasis server-authoritative `expiresAt` + offset (ADR-0005)
@@ -389,16 +402,110 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
 - [x] 39. Shared UI Components [NEW] `@owner:shared`
   - [x] 39.1 Buat reusable ticket card components
   - [x] 39.2 Buat account-related UI components
+
 ---
+
+## WebView Payment Integration (ADR-007)
+
+> **Reference**: `design.md` WebView Payment Integration section, ADR-007, Requirements 14.30-14.38, BR-27 s/d BR-32
+
+Task untuk implementasi serah-terima pembayaran dari aplikasi mobile ke WebView. Memungkinkan satu Payment Page digunakan untuk web desktop maupun WebView mobile.
+
+- [x] 40. WebView Payment Integration [NEW] `@owner:akbar`
+  - [x] 40.1 Buat `src/modules/payment/domain/webview-handoff.model.ts` `@owner:akbar`
+    - HandoffCode, PaymentSession, HandoffResult, ExchangeResult types
+    - WebViewMessage union type (PAYMENT_DONE, PAYMENT_EXPIRED, HANDOFF_EXPIRED, OPEN_EXTERNAL, CLOSE)
+    - WebViewContext type
+    - _Requirements: 14.30, 14.33, BR-27_
+  - [x] 40.2 Buat `src/modules/payment/domain/webview-handoff.protocol.ts` `@owner:akbar`
+    - WebViewHandoffProtocol interface (requestHandoff, exchangeHandoffCode)
+    - _Requirements: 14.31, 14.32, BR-28_
+  - [x] 40.3 Buat `src/modules/payment/domain/webview-handoff.rules.ts` `@owner:akbar`
+    - HANDOFF_CODE_REGEX, PAYMENT_SESSION_REGEX constants
+    - isValidHandoffCode, isValidPaymentSession functions
+    - extractHandoffCodeFromFragment, removeCodeFromUrl functions
+    - isReactNativeWebView, postMessageToApp functions
+    - _Requirements: 14.32, BR-27, BR-29, BR-30, BR-31_
+  - [x] 40.4 Buat `src/modules/payment/application/handle-webview-handoff.use-case.ts` `@owner:akbar`
+    - HandleWebViewHandoffUseCase type dan factory
+    - WebViewHandoffResult type
+    - _Requirements: 14.32, 14.35_
+  - [x] 40.5 Buat `src/modules/payment/data/webview-handoff.service.ts` `@owner:akbar`
+    - createWebViewHandoffService factory
+    - POST /payments/{id}/handoff endpoint
+    - POST /payments/handoff/exchange endpoint
+    - _Requirements: 14.31, 14.32_
+  - [x] 40.6 Buat `src/modules/payment/data/webview-bridge.service.ts` `@owner:akbar`
+    - WebViewBridgeService interface
+    - createWebViewBridgeService factory
+    - notifyPaymentDone, notifyPaymentExpired, notifyHandoffExpired, requestOpenExternal, notifyClose
+    - _Requirements: 14.33, BR-32_
+  - [x] 40.7 Update `src/modules/payment/controllers/payment-page.controller.ts` dengan WebView context `@owner:akbar`
+    - webViewContext state
+    - handleWebViewHandoff function
+    - handlePaymentSessionInvalid function
+    - handleGoPayDeeplink function untuk WebView
+    - useEffect untuk notify app on payment status changes
+    - _Requirements: 14.32, 14.33, 14.34, 14.35, 14.37, 14.38_
+  - [x] 40.8 Update `src/modules/payment/views/renderers/GoPayInstructionView.tsx` untuk WebView `@owner:akbar`
+    - Panggil requestOpenExternal jika isEmbedded=true
+    - _Requirements: 14.34_
+  - [x] 40.9 Update `src/modules/payment/payment.module.ts` dengan WebView dependencies `@owner:akbar`
+    - Register webViewHandoffService dan webViewBridgeService di DI container
+    - Register handleWebViewHandoffUseCase
+  - [x] 40.10 Tulis property tests untuk webview-handoff.rules.ts `@owner:akbar`
+    - **Property 24: Handoff Code Format Validation** — isValidHandoffCode accepts hc_{64 hex} only
+    - **Property 25: Payment Session Memory-Only Storage** — verifikasi tidak pakai localStorage
+    - **Property 26: WebView Context Detection** — isReactNativeWebView checks window.ReactNativeWebView
+    - **Property 27: Single Credential Per Request** — X-Payment-Session XOR X-Grant-Token
+    - _Requirements: BR-27, BR-29, BR-30_
+  - [x] 40.11 Tulis integration tests payment WebView flow `@owner:akbar`
+    - Test handoff exchange sukses
+    - Test handoff code expired
+    - Test page reload → HANDOFF_EXPIRED message
+    - Test postMessage communication
+    - **Property 28: WebView Message Reliability** — app always confirms via GET /bookings
+    - _Requirements: 14.32, 14.33, 14.35, BR-32_
+
+- [x] 41. Buat embedded payment route [NEW] `@owner:akbar`
+  - [x] 41.1 Buat `src/app/(embed)/m/orders/[bookingId]/pay/page.tsx` `@owner:akbar`
+    - Route untuk WebView dengan `isEmbedded=true` dari layout
+    - _Requirements: 14.30, 14.38_
+  - [x] 41.2 Buat `src/app/(embed)/layout.tsx` `@owner:akbar`
+    - Set isEmbedded context untuk semua embedded routes
+    - TIDAK pakai navigator.userAgent untuk deteksi
+    - _Requirements: 14.38_
+
+- [ ] 42. Update payment error handling untuk WebView errors [ALIGN] `@owner:akbar`
+  - [x] 42.1 Update `src/modules/payment/domain/payment-error.mapper.ts` dengan WebView error codes `@owner:akbar`
+    - HANDOFF_CODE_INVALID → "Kode Akses Tidak Valid..."
+    - PAYMENT_SESSION_INVALID → "Sesi Pembayaran Berakhir..."
+    - GRANT_TOKEN_INVALID → "Sesi Booking Berakhir..."
+    - VALIDATION_ERROR → "Permintaan Tidak Valid..."
+    - _Requirements: 14.18_
+  - [ ] 42.2 Update `src/core/domain/app-error.ts` dengan WebView error codes `@owner:shared`
+    - Tambah HANDOFF_CODE_INVALID, PAYMENT_SESSION_INVALID, GRANT_TOKEN_INVALID, VALIDATION_ERROR ke ApiErrorCode
+    - _Requirements: 14.18_
+
+- [ ] 43. MSW handlers untuk WebView endpoints [NEW] `@owner:shared`
+  - [ ] 43.1 Buat handlers untuk `POST /payments/{id}/handoff` `@owner:shared`
+  - [ ] 43.2 Buat handlers untuk `POST /payments/handoff/exchange` `@owner:shared`
+  - [ ] 43.3 Update existing payment handlers untuk accept X-Payment-Session `@owner:shared`
+
+---
+
 ## Final Summary
+
 ### Per Owner Statistics
 | Owner | Done | Remaining | Total | Progress |
 |-------|------|-----------|-------|----------|
 | **Muzaki** | 72 | 11 | 83 | 87% |
-| **Akbar** | 34 | 11 | 45 | 76% |
-| **Shared** | 4 | 1 | 5 | 80% |
-| **TOTAL** | **110** | **23** | **133** | **83%** |
+| **Akbar** | 34 | 27 | 61 | 56% |
+| **Shared** | 4 | 4 | 8 | 50% |
+| **TOTAL** | **110** | **42** | **152** | **72%** |
+
 ### Remaining Tasks by Owner
+
 **Muzaki (11 remaining):**
 - Task 1 (Core Domain): 1.1, 1.2, 1.3
 - Task 3 (Queue App): 3.1
@@ -409,7 +516,15 @@ Task-task ini HARUS diselesaikan sebelum implementasi modul terkait untuk memast
 - Task 28 (Queue Alignment): 28.1-28.4
 - Task 29 (Booking Alignment): 29.2-29.4
 - Task 32 (Auth Alignment): 32.3
-**Akbar (11 remaining — NEW: Requirement 14 Payment State Machine):**
-- Task 16 (Payment State Machine - Requirement 14): 16.1-16.11
-**Shared (1 remaining):**
+
+**Akbar (27 remaining — includes NEW WebView Payment Integration):**
+- Task 16 (Payment State Machine - Requirement 14): 16.1-16.11 _(if not done)_
+- Task 40 (WebView Payment Integration - ADR-007): 40.1-40.11
+- Task 41 (Embedded Payment Route): 41.1-41.2
+- Task 42 (WebView Error Handling): 42.1
+
+**Shared (4 remaining):**
 - Task 23 (Full Application Checkpoint)
+- Task 42 (WebView Error Codes): 42.2
+- Task 43 (MSW WebView Handlers): 43.1-43.3
+

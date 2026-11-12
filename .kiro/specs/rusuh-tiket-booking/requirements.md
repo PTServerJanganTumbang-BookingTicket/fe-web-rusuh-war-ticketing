@@ -453,6 +453,10 @@ LOADING → MEMILIH → CHARGING → INSTRUKSI → SUKSES/GAGAL/EXPIRED
 | `PAYMENT_WINDOW_CLOSED` | Waktu Pembayaran Habis. Maaf, waktu untuk menyelesaikan pembayaran telah berakhir. | Payment Time Expired. Sorry, the payment window has closed. |
 | `MAX_ATTEMPTS_EXCEEDED` | Batas Percobaan Tercapai. Anda telah mencapai batas maksimal percobaan pembayaran. | Maximum Attempts Reached. You have reached the maximum number of payment attempts. |
 | `PAYMENT_ALREADY_SETTLED` | Pembayaran Sudah Diterima. Pembayaran Anda sedang diproses. | Payment Received. Your payment is being processed. |
+| `HANDOFF_CODE_INVALID` | Kode Akses Tidak Valid. Silakan buka kembali halaman pembayaran dari aplikasi. | Invalid Access Code. Please reopen the payment page from the app. |
+| `PAYMENT_SESSION_INVALID` | Sesi Pembayaran Berakhir. Silakan buka kembali halaman pembayaran dari aplikasi. | Payment Session Expired. Please reopen the payment page from the app. |
+| `GRANT_TOKEN_INVALID` | Sesi Booking Berakhir. Waktu pembelian Anda telah habis. | Booking Session Expired. Your purchase time has ended. |
+| `VALIDATION_ERROR` | Permintaan Tidak Valid. Terjadi kesalahan pada permintaan Anda. | Invalid Request. There was an error with your request. |
 
 19. WHEN error `PAYMENT_GATEWAY_UNAVAILABLE` (503) terjadi saat charge, THE Frontend SHALL menampilkan pesan error dan mengaktifkan tombol retry setelah 5 detik; booking tetap `HELD` dan Customer dapat mencoba lagi selama TTL > 0.
 
@@ -484,6 +488,56 @@ LOADING → MEMILIH → CHARGING → INSTRUKSI → SUKSES/GAGAL/EXPIRED
    - → `EXPIRED`: focus ke tombol "Kembali ke Beranda"
 
 29. THE Frontend SHALL memastikan tombol "Bayar Sekarang" memiliki `aria-busy="true"` saat dalam state `CHARGING` dan `aria-describedby` yang mengarah ke pesan "Mohon tunggu, pembayaran sedang diproses".
+
+##### WebView Payment Integration (Mobile)
+
+> **Referensi ADR:** ADR-007 Mobile WebView Payment Handoff
+
+30. THE Payment_Page SHALL dapat diakses melalui WebView dari aplikasi mobile dengan URL format `https://{domain}/m/orders/{booking_id}/pay#code={handoff_code}`; kredensial pembayaran (grant token, Bearer token) TIDAK BOLEH ditempatkan di query string atau path URL — hanya Handoff_Code yang ditempatkan di `#fragment` yang tidak dikirim ke server.
+
+31. WHEN aplikasi mobile ingin membuka Payment_Page di WebView, THE System SHALL menyediakan endpoint `POST /payments/{booking_id}/handoff` yang:
+    (a) Memvalidasi grant token dan kepemilikan booking,
+    (b) Memvalidasi status booking masih dapat dibayar (`AWAITING_PAYMENT`),
+    (c) Menerbitkan `handoff_code` yang bersifat sekali pakai, berlaku 60 detik, dan terikat ke satu `booking_id`,
+    (d) Menerapkan rate limit maksimal 10 kode per grant per menit untuk mencegah penyalahgunaan;
+    IF Customer adalah guest, request harus menyertakan `X-Grant-Token` + `X-Device-Id`;
+    IF Customer adalah logged-in user, request harus menyertakan `X-Grant-Token` + `Authorization: Bearer`.
+
+32. WHEN Payment_Page di WebView menerima `handoff_code` dari URL fragment, THE Frontend SHALL:
+    (a) Membaca `#code` dari URL dan segera menghapusnya menggunakan `history.replaceState` untuk mencegah kebocoran di riwayat browser,
+    (b) Memanggil endpoint `POST /payments/handoff/exchange` dengan `{ booking_id, handoff_code }` untuk menukar kode menjadi `payment_session`,
+    (c) Menyimpan `payment_session` di memori JavaScript (bukan localStorage/cookie) untuk digunakan di header `X-Payment-Session` pada request selanjutnya;
+    IF `handoff_code` sudah pernah digunakan, sudah kedaluwarsa (> 60 detik), atau tidak cocok dengan `booking_id`, THE System SHALL menolak dengan error `401 HANDOFF_CODE_INVALID` dan Frontend mengirim pesan `HANDOFF_EXPIRED` ke aplikasi.
+
+33. THE Payment_Page di WebView SHALL berkomunikasi dengan aplikasi mobile melalui `window.ReactNativeWebView.postMessage(JSON.stringify({ type, booking_id, url? }))` dengan tipe pesan:
+
+| Type | Kapan Dikirim | Aksi Aplikasi |
+|------|---------------|---------------|
+| `PAYMENT_DONE` | Polling status mengembalikan `PAID` | Tutup WebView, panggil `GET /bookings/{id}`, tampilkan tiket |
+| `PAYMENT_EXPIRED` | Status = `EXPIRED` atau exchange menjawab `GRANT_TOKEN_INVALID` | Tutup WebView, tampilkan layar kedaluwarsa setelah konfirmasi `GET /bookings/{id}` |
+| `HANDOFF_EXPIRED` | Exchange gagal, halaman dimuat ulang tanpa session, atau `401 PAYMENT_SESSION_INVALID` | Minta handoff_code baru via endpoint handoff, muat ulang WebView |
+| `OPEN_EXTERNAL` | Customer memilih GoPay (deep link) | `Linking.openURL(url)` hanya untuk host yang diizinkan |
+| `CLOSE` | Customer menekan tombol "kembali" | Tutup WebView; booking tetap menunggu sampai TTL habis |
+
+Aplikasi TIDAK BOLEH mempercayai pesan sebagai sumber kebenaran — selalu konfirmasi status via `GET /bookings/{booking_id}`.
+
+34. WHEN Customer memilih pembayaran GoPay di WebView mobile, THE Frontend SHALL mengirim pesan `OPEN_EXTERNAL` dengan `deeplink_url` ke aplikasi; aplikasi membuka deep link tersebut dengan `Linking.openURL`; Customer kembali ke aplikasi melalui **App Link** (Android) atau **Universal Link** (iOS) — bukan skema kustom `rusuh://` yang dapat diklaim aplikasi lain; setelah kembali, aplikasi melakukan re-fetch status pembayaran.
+
+35. WHEN Payment_Page dimuat ulang di WebView (refresh atau navigasi), THE payment_session yang tersimpan di memori JavaScript AKAN HILANG; THE Frontend SHALL mendeteksi kondisi ini (tidak ada session, tidak ada `#code`) dan mengirim pesan `HANDOFF_EXPIRED` ke aplikasi; aplikasi kemudian memanggil ulang endpoint `POST /payments/{booking_id}/handoff` dan memuat ulang WebView dengan kode baru; alur ini memastikan Customer tidak kehilangan booking meskipun WebView di-refresh.
+
+36. THE WebView di aplikasi mobile SHALL menerapkan pembatasan keamanan:
+    (a) `originWhitelist` dikunci ke domain Payment_Page saja (`https://{domain}`),
+    (b) Request ke domain lain HARUS ditolak via `onShouldStartLoadWithRequest` atau dibuka di browser eksternal,
+    (c) `allowFileAccess={false}` untuk mencegah akses file sistem,
+    (d) Tidak mengaktifkan bridge native tambahan yang tidak diperlukan,
+    (e) Mengabaikan pesan `postMessage` yang berasal dari origin selain domain Payment_Page.
+
+37. THE Payment_API SHALL mendukung dua mode autentikasi untuk seluruh endpoint pembayaran (§5):
+    (a) **Direct mode** (web desktop): request menyertakan `X-Grant-Token` + (`X-Device-Id` untuk guest ATAU `Authorization: Bearer` untuk login),
+    (b) **Session mode** (WebView): request menyertakan `X-Payment-Session` saja;
+    WHEN menggunakan `X-Payment-Session`, header `X-Device-Id` dan `Authorization` diabaikan karena validasi sudah dilakukan saat handoff; `X-Payment-Session` dan `X-Grant-Token` TIDAK BOLEH dikirim bersamaan — sistem menolak dengan error `400 VALIDATION_ERROR`.
+
+38. WHEN Payment_Page dibuka di browser biasa (bukan WebView) TANPA `#code` dan tanpa `X-Payment-Session`, THE Frontend SHALL menggunakan jalur autentikasi normal dengan `X-Grant-Token` dari session web; deteksi WebView dilakukan dengan memeriksa keberadaan `window.ReactNativeWebView`.
 
 ---
 
@@ -655,6 +709,12 @@ LOADING → MEMILIH → CHARGING → INSTRUKSI → SUKSES/GAGAL/EXPIRED
 | BR-24 | **Countdown dihitung dari deadline, bukan dikurangi**: Frontend HARUS menghitung `remaining = deadline - (Date.now() + clockOffset)` setiap tick, BUKAN mengurangi variabel counter. Ini mencegah drift saat tab di background. |
 | BR-25 | **Konfirmasi server saat countdown 0:00**: Frontend TIDAK BOLEH langsung transisi ke state `EXPIRED` saat countdown mencapai 0:00. HARUS konfirmasi ke server dulu karena jam lokal bisa berbeda 1-2 detik dan grace period 30 detik masih bisa menyelamatkan. |
 | BR-26 | **Polling tidak berhenti karena network error**: Frontend HARUS tetap melanjutkan polling meskipun terjadi network error sementara. Retry 3x dengan delay 1 detik, lalu lanjut polling. Tampilkan toast "Koneksi terputus" setelah 3 kali gagal berturut-turut. |
+| BR-27 | **Payment Session hanya di memori JavaScript**: `payment_session` yang diperoleh dari exchange Handoff_Code HARUS disimpan di memori JavaScript saja (bukan `localStorage`, `sessionStorage`, atau cookie). Muat ulang halaman = session hilang = kirim pesan `HANDOFF_EXPIRED` ke aplikasi untuk meminta kode baru. Request dari halaman embed menggunakan `credentials: "omit"`. |
+| BR-28 | **Rate limit Handoff Code**: Endpoint `POST /payments/{booking_id}/handoff` menerapkan rate limit maksimal **10 kode per grant per menit** untuk mencegah penyalahgunaan. Ini cukup untuk muat ulang wajar saat Customer mengalami masalah di WebView. |
+| BR-29 | **Tidak ada kredensial di URL**: Kredensial pembayaran (grant token, Bearer token, payment session) TIDAK BOLEH ditempatkan di query string atau path URL karena tercatat di log server, riwayat browser, header `Referer`, dan screenshot. Hanya `Handoff_Code` yang ditempatkan di `#fragment` URL yang tidak dikirim ke server; halaman langsung menghapusnya setelah dibaca. |
+| BR-30 | **Satu kredensial per request WebView**: Request pembayaran di WebView menyertakan `X-Payment-Session` ATAU `X-Grant-Token`, tidak boleh keduanya. Sistem menolak dengan error `400 VALIDATION_ERROR` jika keduanya dikirim bersamaan. Direct mode (web desktop) menggunakan `X-Grant-Token`; Session mode (WebView) menggunakan `X-Payment-Session`. |
+| BR-31 | **WebView dikunci ke domain tertentu**: WebView di aplikasi mobile dikunci ke `https://{domain}` (production: `https://rush-my-ticket.my.id`). Navigasi ke domain lain (mis. `gojek.link`, `gopay://`) dibuka di luar aplikasi dengan `Linking.openURL`; host lain diblokir. Aplikasi mengabaikan pesan `postMessage` yang berasal dari origin selain domain Payment_Page. |
+| BR-32 | **Aplikasi tidak mempercayai pesan WebView**: Pesan dari WebView (`PAYMENT_DONE`, `PAYMENT_EXPIRED`, `HANDOFF_EXPIRED`, `CLOSE`) hanyalah sinyal. Aplikasi SELALU memastikan status sebenarnya via `GET /bookings/{booking_id}` sebelum mengubah tampilan. Yang menentukan lunas tetap webhook dari Payment_Gateway. |
 
 ---
 
