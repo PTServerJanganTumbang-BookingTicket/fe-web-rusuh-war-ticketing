@@ -284,13 +284,15 @@ describe("useQueueController", () => {
   });
 
   describe("pembaruan berhenti (stream tidak tersambung dan /queue/serving gagal)", () => {
-    const servingGone = () =>
-      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+    const gone = (path: string) =>
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/${path}`, () =>
         HttpResponse.json({ meta: { code: 404, message: "Not Found" }, data: {} }, { status: 404 }),
       );
+    // /queue/me ikut gagal: tanpa itu polling jatuh ke /queue/me dan tetap berjalan.
+    const servingGone = () => [gone("serving"), gone("me")];
 
     it("menampilkan pemberitahuan dan tombol ambil ulang; berhasil mengambil ulang menghapusnya", async () => {
-      server.use(servingGone());
+      server.use(...servingGone());
       const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
       await waitFor(() => expect(result.current.status.state).toBe("waiting"));
       expect(result.current.status.refresh).toBeUndefined();
@@ -305,6 +307,13 @@ describe("useQueueController", () => {
       act(() => result.current.status.refresh?.onClick());
       await waitFor(() => expect(result.current.status.refresh).toBeUndefined());
       expect(result.current.status.notice).toBeUndefined();
+    }, 20_000);
+
+    it("/queue/serving 404 tetapi /queue/me jalan: giliran tiba terdeteksi tanpa refresh halaman", async () => {
+      server.use(gone("serving"), grantedMe("gt_poll"));
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.status.state).toBe("admitted"), { timeout: 9_000 });
+      expect(result.current.status.refresh).toBeUndefined();
     }, 20_000);
 
     it("stream tersambung: tidak ada pemberitahuan walau polling tidak dipakai", async () => {
