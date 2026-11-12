@@ -24,6 +24,179 @@ Dokumen ini menjelaskan desain teknis frontend web **Rusuh Booking Tiket**, sebu
 | Payment via BE (Midtrans Core API) | ADR-0006 | FE tidak pernah memanggil Midtrans langsung |
 | TanStack Query untuk server state | ADR-0004 | Cache, retry, polling dengan jitter |
 | Payment instruction renderer | ADR-0022 | Composable renderer registry; `PaymentView` tidak tahu detail tiap metode |
+| Mobile WebView payment handoff | ADR-007 | Handoff code + payment session; kredensial tidak di URL; satu halaman web untuk desktop dan mobile |
+
+---
+
+## User Journey Flow (High-Level)
+
+Diagram berikut menggambarkan perjalanan pengguna dari mengakses Home Page hingga mendapatkan E-Ticket:
+
+```mermaid
+flowchart TD
+    subgraph HOME["🏠 Home Page"]
+        H1[Lihat Daftar Event]
+        H2{Event Available?}
+        H3{Queue State?}
+    end
+
+    subgraph QUEUE["⏳ Waiting Room"]
+        Q1[Join Queue dengan CAPTCHA]
+        Q2[SSE Connection]
+        Q3{Position = 0?}
+        Q4{Slot Available?}
+        Q5[Tunggu Slot - Polling 1s]
+        Q6[Terima Grant Token]
+    end
+
+    subgraph BOOKING["🎟️ Ticket Selection"]
+        B1[Pilih Kategori & Jumlah Tiket]
+        B2[Isi NIK per Attendee]
+        B3[Validasi NIK Real-time]
+        B4{NIK Valid & Unique?}
+        B5[Submit Booking - Atomic Hold]
+        B6{Hold Success?}
+    end
+
+    subgraph PAYMENT["💳 Payment"]
+        P1[Pilih Metode Pembayaran]
+        P2[Initiate Payment]
+        P3[Tampilkan VA/QR]
+        P4[Polling Status - 2s]
+        P5{Status?}
+        P6[Payment Success]
+    end
+
+    subgraph SUCCESS["✅ Success"]
+        S1[E-Ticket Terbit]
+        S2[Email Dikirim ke Pemesan]
+    end
+
+    subgraph ERROR["❌ Error States"]
+        E1[Event Sold Out]
+        E2[Queue Full]
+        E3[TTL Booking Expired]
+        E4[TTL Payment Expired]
+        E5[Payment Failed]
+    end
+
+    %% Home Page Flow
+    H1 --> H2
+    H2 -->|No| E1
+    H2 -->|Yes| H3
+    H3 -->|NOT_OPEN| H1
+    H3 -->|FULL| E2
+    H3 -->|DIRECT| B1
+    H3 -->|OPEN| Q1
+
+    %% Queue Flow
+    Q1 --> Q2
+    Q2 --> Q3
+    Q3 -->|No| Q2
+    Q3 -->|Yes| Q4
+    Q4 -->|No| Q5
+    Q5 --> Q4
+    Q4 -->|Yes| Q6
+    Q6 --> B1
+
+    %% Booking Flow
+    B1 --> B2
+    B2 --> B3
+    B3 --> B4
+    B4 -->|No| B2
+    B4 -->|Yes| B5
+    B5 --> B6
+    B6 -->|No - Stock Insufficient| B1
+    B6 -->|Yes| P1
+
+    %% Payment Flow
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> P5
+    P5 -->|PENDING| P4
+    P5 -->|PAID| P6
+    P5 -->|FAILED| E5
+    P5 -->|EXPIRED| E4
+    P6 --> S1
+    S1 --> S2
+
+    %% Error Recovery
+    E5 -->|can_retry & TTL > 0| P1
+    E3 --> H1
+    E4 --> H1
+
+    %% TTL Timeouts
+    B5 -.->|TTL_Booking 5min| E3
+    P4 -.->|TTL_Payment 10min + Grace 30s| E4
+```
+
+### User Journey State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> Home: Visit site
+    
+    state Home {
+        [*] --> ViewingEvents
+        ViewingEvents --> EventDetail: Click event
+        EventDetail --> ViewingEvents: Back
+    }
+    
+    Home --> WaitingRoom: queue_state = OPEN
+    Home --> TicketSelection: queue_state = DIRECT
+    Home --> Home: queue_state = FULL (toast error)
+    
+    state WaitingRoom {
+        [*] --> Waiting
+        Waiting --> Waiting: position > 0
+        Waiting --> WaitingSlot: position = 0
+        WaitingSlot --> WaitingSlot: freeSlots = 0
+        WaitingSlot --> Granted: freeSlots > 0
+        Waiting --> SoldOutTemp: state = SOLD_OUT (reversible)
+        SoldOutTemp --> Waiting: stock kembali
+        SoldOutTemp --> SoldOutFinal: 930s timeout
+    }
+    
+    WaitingRoom --> TicketSelection: Granted (access_token)
+    WaitingRoom --> Home: Cancel queue
+    WaitingRoom --> Home: SoldOutFinal
+    
+    state TicketSelection {
+        [*] --> Selecting
+        Selecting --> FillingNIK: Add tickets
+        FillingNIK --> ValidatingNIK: on-blur
+        ValidatingNIK --> FillingNIK: error
+        ValidatingNIK --> ReadyToSubmit: valid
+        ReadyToSubmit --> Submitting: Click submit
+        Submitting --> HoldSuccess: all-or-nothing success
+        Submitting --> Selecting: Hold failed
+    }
+    
+    TicketSelection --> Payment: HoldSuccess
+    TicketSelection --> Home: TTL_Booking expired
+    
+    state Payment {
+        [*] --> ChoosingMethod
+        ChoosingMethod --> Charging: Select & confirm
+        Charging --> ShowingInstruction: VA/QR generated
+        ShowingInstruction --> ShowingInstruction: Polling status
+        ShowingInstruction --> ChoosingMethod: Change method
+        ShowingInstruction --> PaymentSuccess: status = PAID
+        ShowingInstruction --> PaymentFailed: status = FAILED
+    }
+    
+    Payment --> ETicket: PaymentSuccess
+    Payment --> Home: TTL_Payment + Grace expired
+    PaymentFailed --> Payment: can_retry & TTL > 0
+    
+    state ETicket {
+        [*] --> TicketReady
+        TicketReady --> EmailSent
+    }
+    
+    ETicket --> [*]
+```
 
 ---
 
@@ -132,6 +305,142 @@ data ─────────────────────────
 ### Module: auth
 
 **Purpose**: Menangani autentikasi pengguna, registrasi akun, validasi NIK, dan consent management.
+
+#### Authentication Flow Diagrams
+
+##### Magic Link Login Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+    participant Email as Email Service
+
+    User->>FE: Click "Login" → masukkan email
+    FE->>BE: POST /auth/magic-link {email}
+    BE->>BE: Generate magic link token (24h TTL)
+    BE->>Email: Send magic link email
+    Email-->>User: Email dengan link verifikasi
+    BE-->>FE: 200 OK {message: "Link terkirim"}
+    FE->>FE: Tampilkan "Cek email Anda"
+
+    Note over User,FE: User membuka email dan klik link
+
+    User->>FE: Click magic link → /auth/verify?token=...
+    FE->>BE: GET /auth/verify (token di query/header)
+    
+    alt Token Valid
+        BE->>BE: Set HttpOnly cookie session
+        BE-->>FE: 200 OK {user, redirectContext?}
+        
+        alt Redirect Context Ada (BR-09)
+            FE->>FE: Redirect ke booking page yang tertunda
+        else Tidak Ada Context
+            FE->>FE: Redirect ke Home
+        end
+    else Token Expired/Invalid
+        BE-->>FE: 401 {error: TOKEN_EXPIRED}
+        FE->>FE: Tampilkan "Link expired, kirim ulang?"
+    end
+```
+
+##### Registration Flow dengan NIK Validation & Consent
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+    participant Dukcapil as Dukcapil API
+
+    User->>FE: Isi form registrasi (email, NIK, nama)
+    FE->>FE: Validate NIK format (16 digit)
+    
+    User->>FE: Centang checkbox consent (wajib, tidak pre-checked)
+    Note right of FE: Consent mencakup:<br/>- Pemrosesan NIK pihak ketiga<br/>- Tujuan validasi identitas<br/>- Referensi UU PDP No. 27/2022
+
+    FE->>BE: POST /auth/register {email, nik, name, consent}
+    
+    BE->>Dukcapil: Validate NIK
+    
+    alt Dukcapil Available
+        Dukcapil-->>BE: NIK Valid + Nama
+        
+        alt NIK Belum Terdaftar
+            BE->>BE: Create account (NIK_PENDING_EMAIL_VERIFICATION)
+            BE->>BE: Store consent_record (immutable)
+            BE-->>FE: 201 Created {user}
+            FE->>FE: Tampilkan "Verifikasi email Anda"
+        else NIK Sudah Terdaftar di Akun Lain
+            BE-->>FE: 409 {error: NIK_ALREADY_REGISTERED}
+            FE->>FE: Tampilkan error
+        end
+        
+    else Dukcapil Unavailable (Timeout/Error)
+        alt Fail-Closed Mode
+            BE-->>FE: 503 {error: DUKCAPIL_UNAVAILABLE}
+            FE->>FE: Tampilkan "Validasi identitas tidak tersedia"
+        else Deferred Validation Mode (Configurable)
+            BE->>BE: Create account (NIK_PENDING_DUKCAPIL_VALIDATION)
+            BE-->>FE: 201 Created {user, nikStatus: PENDING}
+            FE->>FE: Tampilkan "Akun dibuat, validasi NIK dalam proses"
+        end
+    end
+```
+
+##### Saved NIKs Management Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+    participant Dukcapil as Dukcapil API
+
+    Note over User,BE: Prasyarat: User sudah login & consent diberikan
+
+    User->>FE: Buka halaman profil → Daftar NIK Teman
+    FE->>BE: GET /accounts/me/saved-niks
+    BE-->>FE: 200 OK {savedNiks: [...max 5]}
+    FE->>FE: Tampilkan daftar (nikMasked, label)
+
+    User->>FE: Click "Tambah NIK" → isi NIK + label
+    FE->>FE: Validate format (16 digit)
+    FE->>BE: POST /accounts/me/saved-niks {nik, label}
+    
+    BE->>Dukcapil: Validate NIK
+    
+    alt Dukcapil Valid
+        Dukcapil-->>BE: NIK Valid
+        
+        alt NIK Belum Ada di Saved List
+            alt Belum 5 Entri
+                BE->>BE: Store saved NIK (status: VERIFIED)
+                BE-->>FE: 201 Created {savedNik}
+                FE->>FE: Update list
+            else Sudah 5 Entri
+                BE-->>FE: 400 {error: MAX_SAVED_NIKS_REACHED}
+                FE->>FE: Tampilkan "Maksimal 5 NIK"
+            end
+        else NIK Sudah Ada
+            BE-->>FE: 409 {error: NIK_ALREADY_SAVED}
+            FE->>FE: Tampilkan "NIK sudah tersimpan"
+        end
+        
+    else Dukcapil Invalid/Unavailable
+        BE-->>FE: 400/503 {error: NIK_NOT_FOUND | DUKCAPIL_UNAVAILABLE}
+        FE->>FE: Tampilkan error
+    end
+
+    User->>FE: Click "Hapus" pada NIK tertentu
+    FE->>BE: DELETE /accounts/me/saved-niks/{id}
+    BE-->>FE: 204 No Content
+    FE->>FE: Remove dari list
+```
 
 #### Domain Layer
 
@@ -317,6 +626,183 @@ export function useHomeController() {
 ### Module: queue
 
 **Purpose**: Waiting Room dengan antrian virtual berbasis SSE.
+
+#### Queue Module Flow Diagrams
+
+##### Join Queue Flow (dengan CAPTCHA)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant CAPTCHA as CAPTCHA Provider
+    participant BE as Queue Service
+    participant Redis as Redis/DB
+
+    Note over FE,CAPTCHA: Token CAPTCHA di-prefetch 5 menit sebelum sale dibuka
+
+    User->>FE: Click event → queue_state = OPEN
+    FE->>FE: Check prefetched CAPTCHA token
+    
+    alt Token Expired atau Belum Ada
+        FE->>CAPTCHA: Request invisible CAPTCHA token
+        CAPTCHA-->>FE: token (score-based, no puzzle)
+    end
+
+    FE->>BE: POST /events/{id}/queue/join {captchaToken}
+    
+    BE->>CAPTCHA: Validate token
+    
+    alt CAPTCHA Valid
+        CAPTCHA-->>BE: Valid (score OK)
+        BE->>Redis: Atomic increment queue_number
+        Redis-->>BE: ticketNo = 12345
+        BE->>Redis: Store customer queue state
+        BE-->>FE: 201 {ticketNo, nowServing, position, sseUrl, event}
+        FE->>FE: Connect ke SSE, tampilkan Waiting Room
+        
+    else CAPTCHA Invalid
+        BE-->>FE: 400 {error: CAPTCHA_INVALID}
+        FE->>FE: Refresh token dan tampilkan error
+        
+    else CAPTCHA Provider Unavailable (Fail-Open)
+        BE->>BE: Log alarm untuk tim operasional
+        BE->>Redis: Proceed dengan join
+        BE-->>FE: 201 {ticketNo, ...}
+    end
+
+    alt Queue Full (300k capacity)
+        BE-->>FE: 429 {error: QUEUE_FULL}
+        FE->>FE: Tampilkan "Antrian Penuh"
+    end
+
+    alt Sudah Punya Posisi Aktif (Re-join)
+        BE-->>FE: 200 {ticketNo, ..., rejoined: true, state}
+        FE->>FE: Restore posisi, tidak buat baru
+    end
+```
+
+##### SSE Connection dan Event Handling
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend
+    participant SSE as SSE Server
+    participant Redis as Redis Pub/Sub
+    participant BE as Backend
+
+    FE->>SSE: GET /events/{id}/queue/stream (cookie auth)
+    SSE->>SSE: Validate queue_token
+    SSE-->>FE: Connection established
+
+    loop Every 10s atau saat data berubah
+        Redis->>SSE: Publish nowServing update
+        SSE-->>FE: event: (default) {nowServing, state, ratePerMin, paused: false, serverTime}
+        FE->>FE: position = ticketNo - nowServing
+        FE->>FE: eta = (position / ratePerMin) * 60 * 1.2
+        FE->>FE: Update UI countdown
+    end
+
+    loop Every 15s
+        SSE-->>FE: : keepalive (comment, bukan event)
+    end
+
+    Note over FE,SSE: Event: grant (giliran tiba)
+    SSE-->>FE: event: grant {}
+    FE->>BE: GET /events/{id}/queue/me
+    BE-->>FE: {state: GRANTED, grantToken, bookingExpiresAt, serverTime}
+    FE->>FE: Store grantToken, close SSE
+    FE->>FE: Redirect ke /events/{id}/book
+
+    Note over FE,SSE: Event: status (data staleness indicator)
+    SSE-->>FE: event: status {stale: true, reason: "redis_disconnected"}
+    FE->>FE: Tampilkan warning "Data sedang diperbarui..."
+    Note right of FE: JANGAN reconnect di sini<br/>(300k reconnect = cascade failure)
+    SSE-->>FE: event: status {stale: false}
+    FE->>FE: Hapus warning
+
+    Note over FE,SSE: Event: sold-out (final, setelah 930s)
+    SSE-->>FE: event: sold-out {message: "..."}
+    FE->>FE: eventSource.close() WAJIB
+    FE->>FE: Tampilkan "Event Sold Out" → redirect Home
+```
+
+##### Re-entrancy Flow (GET /queue/me)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+
+    Note over User,BE: Skenario: User reload page atau pindah device
+
+    User->>FE: Buka /events/{id}/queue (punya session token)
+    FE->>BE: GET /events/{id}/queue/me
+    
+    alt State: QUEUED
+        BE-->>FE: {state: QUEUED, ticketNo, nowServing}
+        FE->>FE: Connect SSE, tampilkan posisi
+        
+    else State: GRANTED (giliran sudah tiba, belum ke ticket page)
+        BE-->>FE: {state: GRANTED, grantToken, bookingExpiresAt, serverTime}
+        FE->>FE: Tampilkan tombol "Giliran Anda - Masuk Sekarang"
+        User->>FE: Click tombol
+        FE->>FE: Redirect ke /events/{id}/book
+        
+    else State: SELECTING (sudah di ticket page)
+        BE-->>FE: {state: SELECTING, grantToken, bookingId, bookingExpiresAt, serverTime}
+        FE->>FE: Redirect ke /events/{id}/book dengan state
+        
+    else State: AWAITING_PAYMENT
+        BE-->>FE: {state: AWAITING_PAYMENT, grantToken, bookingId, paymentExpiresAt, paymentRef, serverTime}
+        FE->>FE: Redirect ke /orders/{bookingId}/pay
+        
+    else State: CONFIRMED
+        BE-->>FE: {state: CONFIRMED, bookingId}
+        FE->>FE: Redirect ke /tickets
+        
+    else State: EXPIRED atau tidak ada session
+        BE-->>FE: {state: EXPIRED} atau 404
+        FE->>FE: Redirect ke Home, tampilkan "Sesi berakhir"
+    end
+```
+
+##### Waiting Slot Flow (Position = 0, No Slot Available)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend
+    participant SSE as SSE Server
+    participant BE as Backend
+
+    Note over FE,BE: Posisi = 0 tapi freeSlots = 0 (semua kasir penuh)
+
+    SSE-->>FE: nowServing update → position = 0
+    FE->>FE: State: waiting_slot
+    FE->>FE: Tampilkan "Giliran Anda - Menunggu kasir tersedia..."
+
+    loop Polling setiap 1 detik
+        FE->>BE: POST /events/{id}/queue/claim (atau check via /queue/me)
+        
+        alt freeSlots > 0 DAN availableTickets > 0
+            BE->>BE: Issue grantToken
+            BE-->>FE: 200 {grantToken, bookingExpiresAt, serverTime}
+            FE->>FE: Stop polling, close SSE
+            FE->>FE: Redirect ke /events/{id}/book
+        else freeSlots = 0
+            BE-->>FE: 202 {message: "Menunggu slot"}
+            FE->>FE: Continue polling
+        else availableTickets = 0
+            BE-->>FE: 410 {error: TICKETS_UNAVAILABLE}
+            FE->>FE: Tampilkan pilihan: tunggu 15 menit atau keluar
+        end
+    end
+```
 
 #### Domain Layer
 
@@ -510,6 +996,183 @@ export function createGetCustomerQueueStateUseCase({
 ### Module: booking
 
 **Purpose**: Pemilihan tiket, validasi NIK per attendee, dan identitas pemesan.
+
+#### Booking Module Flow Diagrams
+
+##### Ticket Selection dan NIK Validation Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+    participant Dukcapil as Dukcapil API
+
+    User->>FE: Masuk ke /events/{id}/book (grantToken valid)
+    FE->>BE: GET /events/{id}/tickets (X-Grant-Token)
+    BE-->>FE: {event, session{expiresAt, ttlSeconds, serverTime}, categories, rules}
+    FE->>FE: Mulai countdown TTL_Booking (5 menit dari granted_at)
+
+    User->>FE: Pilih kategori tiket (+/- buttons)
+    FE->>FE: Validate: total ≤ 3 (BR-01)
+    FE->>FE: Render N form NIK (N = jumlah tiket)
+
+    loop Untuk setiap field NIK
+        User->>FE: Input NIK (16 digit)
+        FE->>FE: Format validation (on-input)
+        
+        Note over User,FE: on-blur: trigger validation
+
+        alt NIK dari Saved List (logged-in user)
+            FE->>FE: Skip Dukcapil (sudah verified)
+            FE->>BE: Check availability only
+        else NIK Manual Input
+            FE->>BE: POST /nik/validate {nik} (X-Grant-Token)
+            BE->>Dukcapil: Validate NIK
+            
+            alt Dukcapil Valid & NIK Available
+                Dukcapil-->>BE: Valid, name: "BUDI SANTOSO"
+                BE-->>FE: {valid: true, name, source: verified}
+                FE->>FE: Tampilkan nama, mark as valid
+                
+            else NIK Already Used untuk Event Ini
+                BE-->>FE: {valid: true, alreadyUsed: true, reason: NIK_ALREADY_USED}
+                FE->>FE: Tampilkan error "NIK sudah punya tiket"
+                
+            else NIK Invalid
+                BE-->>FE: {valid: false, reason: NIK_NOT_FOUND | NIK_INACTIVE}
+                FE->>FE: Tampilkan error spesifik
+                
+            else Dukcapil Unavailable (Fail-Closed)
+                BE-->>FE: 503 {error: DUKCAPIL_UNAVAILABLE}
+                FE->>FE: Tampilkan "Validasi tidak tersedia"
+                FE->>FE: Disable submit button
+            end
+        end
+    end
+
+    User->>FE: Input email pemesan
+    FE->>FE: Validate email format
+```
+
+##### Submit Booking Flow (Atomic Hold)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Booking Service
+    participant DB as Database
+
+    Note over FE: Prasyarat: Semua NIK valid & unique, email valid
+
+    User->>FE: Click "Lanjut ke Pembayaran"
+    
+    FE->>FE: Final validation (deduplikasi NIK dalam cart)
+    
+    alt Duplicate NIK dalam Cart
+        FE->>FE: Tampilkan error + highlight fields
+        FE--xUser: Block submit
+    end
+
+    FE->>BE: POST /bookings {eventId, tickets[], contactEmail, termsVersion}
+    
+    BE->>BE: Validate grantToken & TTL_Booking
+    
+    alt TTL_Booking Expired
+        BE-->>FE: 410 {error: HOLD_EXPIRED}
+        FE->>FE: Tampilkan "Waktu habis" → redirect Home
+    end
+
+    BE->>DB: BEGIN TRANSACTION (atomic)
+    
+    loop Untuk setiap ticket
+        BE->>DB: Check NIK availability (FOR UPDATE)
+        BE->>DB: Check stock (FOR UPDATE)
+        
+        alt NIK Already Used (race condition guard)
+            DB-->>BE: NIK exists in active booking
+            BE->>DB: ROLLBACK
+            BE-->>FE: 409 {error: NIK_ALREADY_USED, nikMasked: "..."}
+            FE->>FE: Tampilkan error spesifik per tiket
+        end
+        
+        alt Stock Insufficient
+            DB-->>BE: stock = 0
+            BE->>DB: ROLLBACK
+            BE-->>FE: 409 {error: INSUFFICIENT_STOCK, categoryId: "..."}
+            FE->>FE: Tampilkan error, update stock display
+        end
+        
+        BE->>DB: Decrement stock, create ticket record (status: HELD)
+    end
+    
+    BE->>DB: Create booking (status: PENDING_PAYMENT)
+    BE->>DB: COMMIT
+    
+    BE-->>FE: 201 {bookingId, status, event, tickets, summary, paymentTtl, redirectUrl}
+    
+    FE->>FE: Store bookingId, start TTL_Payment (10 menit)
+    FE->>FE: Redirect ke /orders/{bookingId}/pay
+```
+
+##### Stock Refresh Flow (Polling 15s)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend
+    participant BE as Backend
+
+    Note over FE: User di halaman ticket selection
+
+    loop Setiap 15 detik (±20% jitter)
+        FE->>BE: GET /events/{id}/tickets (refetch)
+        BE-->>FE: {categories: [{available: 5}, {available: 0}, ...]}
+        
+        FE->>FE: Update stock display
+        
+        alt Kategori yang dipilih sekarang stock = 0
+            FE->>FE: Disable kategori tersebut
+            FE->>FE: Tampilkan toast "Kategori X habis"
+            FE->>FE: Reset selection untuk kategori itu
+        end
+    end
+```
+
+##### Replace Hold Flow (Ubah Pilihan Tiket)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+
+    Note over User,BE: User sudah punya Hold aktif, ingin ubah pilihan
+
+    User->>FE: Kembali ke ticket selection dari payment page
+    FE->>BE: GET /events/{id}/tickets
+    BE-->>FE: Data kategori + existing hold info
+
+    User->>FE: Ubah pilihan tiket
+    User->>FE: Click "Lanjut ke Pembayaran"
+
+    FE->>BE: POST /bookings {eventId, tickets[]} 
+    Note right of BE: Sama seperti submit baru
+
+    BE->>BE: Detect existing Hold untuk event yang sama
+    BE->>BE: BEGIN TRANSACTION
+    BE->>BE: Release old Hold (return stock)
+    BE->>BE: Create new Hold (decrement stock)
+    BE->>BE: Reset TTL_Payment ke 10 menit penuh
+    BE->>BE: COMMIT
+    
+    BE-->>FE: 201 {bookingId (baru), ...}
+    FE->>FE: Replace old bookingId, restart countdown
+```
 
 #### Domain Layer
 
@@ -742,6 +1405,244 @@ export function createSubmitBookingUseCase({ bookingService }: { bookingService:
 
 **Purpose**: Proses pembayaran dengan VA dan GoPay via Midtrans Core API.
 
+#### Payment Module Flow Diagrams
+
+##### Payment State Machine Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> LOADING: Enter payment page
+
+    LOADING --> MEMILIH: GET /methods success
+    LOADING --> EXPIRED: Booking already expired
+
+    state MEMILIH {
+        [*] --> Idle
+        Idle --> MethodSelected: Select VA/GoPay
+        MethodSelected --> Idle: Deselect
+    }
+
+    MEMILIH --> CHARGING: Click "Bayar Sekarang"
+
+    CHARGING --> INSTRUKSI: POST /payments success
+    CHARGING --> GAGAL: POST /payments error (can_retry)
+    CHARGING --> EXPIRED: POST /payments error (PAYMENT_WINDOW_CLOSED)
+
+    state INSTRUKSI {
+        [*] --> ShowingVA: bank_transfer
+        [*] --> ShowingQR: gopay
+        ShowingVA --> Polling
+        ShowingQR --> Polling
+        Polling --> Polling: status = PENDING (every 2s)
+    }
+
+    INSTRUKSI --> SUKSES: status = PAID
+    INSTRUKSI --> GAGAL: status = FAILED
+    INSTRUKSI --> EXPIRED: countdown = 0 + server confirms
+
+    GAGAL --> MEMILIH: Click "Coba Lagi" (can_retry && TTL > 0)
+    GAGAL --> EXPIRED: TTL = 0
+
+    SUKSES --> [*]: Tampilkan e-ticket link
+    EXPIRED --> [*]: Redirect ke Home
+```
+
+##### Payment Initiation dan Polling Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Payment Service
+    participant Midtrans as Midtrans Gateway
+
+    User->>FE: Masuk ke /orders/{bookingId}/pay
+    FE->>FE: State: LOADING
+    FE->>BE: GET /payments/{bookingId}/methods (X-Grant-Token)
+    
+    alt Booking Valid
+        BE-->>FE: {methods: [{id: bank_transfer, banks: [...]}, {id: gopay}], serverTime}
+        FE->>FE: Calculate clockOffset = serverTime - Date.now()
+        FE->>FE: State: MEMILIH
+        FE->>FE: Start countdown dari deadline (bukan decrement)
+    else Booking Expired/Invalid
+        BE-->>FE: 409 {error: BOOKING_STATUS_INVALID}
+        FE->>FE: State: EXPIRED
+    end
+
+    User->>FE: Pilih metode (bank_transfer + BCA)
+    User->>FE: Click "Bayar Sekarang"
+    
+    FE->>FE: State: CHARGING (disable semua interaksi)
+    FE->>BE: POST /payments/{bookingId} {method: bank_transfer, bank: bca}
+    
+    BE->>Midtrans: Create VA
+    Midtrans-->>BE: VA number generated
+    BE-->>FE: 201 {status: AWAITING_PAYMENT, instruction: {type: bank_transfer, bank: bca, vaNumber: "..."}}
+    
+    FE->>FE: State: INSTRUKSI
+    FE->>FE: Render VA instruction (copy button)
+
+    loop Polling setiap 2 detik
+        FE->>BE: GET /payments/{bookingId}/status
+        
+        alt status: PENDING
+            BE-->>FE: {status: PENDING, serverTime, ttlSeconds}
+            FE->>FE: Continue polling
+            
+        else status: PAID
+            BE-->>FE: {status: PAID, paidAt, redirectUrl}
+            FE->>FE: Stop polling
+            FE->>FE: State: SUKSES
+            
+        else status: FAILED
+            BE-->>FE: {status: FAILED, reason, canRetry, attempt, paymentExpiresAt, serverTime}
+            FE->>FE: Stop polling
+            FE->>FE: State: GAGAL
+            
+        else status: EXPIRED
+            BE-->>FE: {status: EXPIRED, expiredAt}
+            FE->>FE: Stop polling
+            FE->>FE: State: EXPIRED
+        end
+    end
+
+    Note over FE: Tab visibility change
+    FE->>FE: document.visibilityState === 'visible'
+    FE->>BE: Immediate poll (tidak tunggu interval)
+```
+
+##### Retry/Change Payment Method Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Payment Service
+    participant Midtrans as Midtrans Gateway
+
+    Note over User,BE: User di state INSTRUKSI, ingin ganti dari VA ke GoPay
+
+    User->>FE: Click "Ganti Metode Pembayaran"
+    
+    FE->>FE: Show dialog konfirmasi
+    Note right of FE: "Nomor VA yang sudah terbit<br/>akan dibatalkan. Lanjutkan?"
+
+    alt User Cancel Dialog
+        FE->>FE: Close dialog, continue polling
+    else User Confirm
+        FE->>BE: POST /payments/{bookingId}/retry
+        
+        alt Payment Already Settled (race condition)
+            BE-->>FE: 409 {error: PAYMENT_ALREADY_SETTLED}
+            FE->>FE: Ignore, let polling catch PAID status
+        else Retry Success
+            BE->>Midtrans: Cancel pending transaction
+            BE->>BE: Reset booking to HELD
+            BE-->>FE: 200 {status: HELD, attempt, cancelledOrderId, paymentExpiresAt, serverTime}
+            FE->>FE: State: MEMILIH
+            Note right of FE: TTL tidak di-reset,<br/>tetap dari booking awal
+        end
+    end
+
+    User->>FE: Pilih GoPay
+    User->>FE: Click "Bayar Sekarang"
+    FE->>BE: POST /payments/{bookingId} {method: gopay}
+    
+    BE->>Midtrans: Create GoPay payment
+    Midtrans-->>BE: {qrUrl, deeplinkUrl}
+    BE-->>FE: 201 {instruction: {type: gopay, qrUrl, deeplinkUrl}}
+    
+    FE->>FE: State: INSTRUKSI
+    
+    alt Desktop Browser
+        FE->>FE: Render QR code (qrUrl)
+    else Mobile Browser
+        FE->>FE: Render deep link button (deeplinkUrl)
+        User->>FE: Click deep link
+        FE->>FE: Open GoPay app
+    end
+```
+
+##### Payment Failed → Retry Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Customer
+    participant FE as Frontend
+    participant BE as Backend
+
+    Note over FE: Polling returns status: FAILED
+
+    FE->>FE: Stop polling
+    FE->>FE: State: GAGAL
+    
+    alt can_retry = true AND TTL > 0
+        FE->>FE: Tampilkan tombol "Coba Lagi"
+        FE->>FE: Tampilkan error message dari error_code
+        
+        User->>FE: Click "Coba Lagi"
+        FE->>FE: State: MEMILIH
+        Note right of FE: Tidak perlu call /retry<br/>(backend sudah increment attempt)
+        
+    else can_retry = false OR TTL = 0
+        FE->>FE: Tampilkan tombol "Kembali ke Beranda"
+        alt MAX_ATTEMPTS_EXCEEDED
+            FE->>FE: Tampilkan "Batas percobaan tercapai"
+        else TTL = 0
+            FE->>FE: Tampilkan "Waktu pembayaran habis"
+        end
+    end
+```
+
+##### Countdown dan Clock Synchronization
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant FE as Frontend
+    participant BE as Backend
+
+    FE->>BE: GET /payments/{bookingId}/methods
+    BE-->>FE: {..., serverTime: "2024-01-01T10:00:00Z"}
+    
+    FE->>FE: clientNow = Date.now()
+    FE->>FE: clockOffset = Date.parse(serverTime) - clientNow
+    Note right of FE: Contoh: server 10:00:00, client 09:59:58<br/>offset = +2000ms
+
+    Note over FE: Countdown calculation (setiap tick)
+    
+    loop Setiap 1 detik
+        FE->>FE: adjustedNow = Date.now() + clockOffset
+        FE->>FE: remaining = deadline - adjustedNow
+        FE->>FE: remaining = Math.max(0, remaining)
+        FE->>FE: Update display: MM:SS
+    end
+
+    Note over FE: Countdown mencapai 0:00
+
+    FE->>FE: Display: "00:00"
+    FE->>FE: Tampilkan overlay "Memverifikasi..."
+    
+    Note right of FE: WAJIB konfirmasi server<br/>(BR-25: jam lokal bisa beda 1-2 detik)
+
+    FE->>BE: GET /payments/{bookingId}/status
+    
+    alt status: PAID (grace period save)
+        BE-->>FE: {status: PAID}
+        FE->>FE: State: SUKSES
+    else status: EXPIRED (confirmed)
+        BE-->>FE: {status: EXPIRED}
+        FE->>FE: State: EXPIRED
+    else status: PENDING (grace period ongoing)
+        BE-->>FE: {status: PENDING}
+        FE->>FE: Continue polling with "Memverifikasi..." overlay
+    end
+```
+
 #### Domain Layer
 
 ```typescript
@@ -867,7 +1768,7 @@ export type InstructionRendererProps = {
   instruction: PaymentInstruction;
   copied: boolean;         // VA: has number been copied
   onCopy: (text: string) => void;
-  isEmbedded: boolean;     // true when rendered inside WebView (ADR-0008)
+  isEmbedded: boolean;     // true when rendered inside WebView (ADR-007)
 };
 
 export type InstructionRendererRegistry = {
@@ -908,6 +1809,602 @@ payment/views/
     ├── renderer.registry.ts   ← InstructionRendererProps + registry
     ├── BankTransferInstructionView.tsx   ← Card + VA number + copy (Signal DS)
     └── GoPayInstructionView.tsx          ← QR url (desktop) | deeplink (mobile)
+```
+
+#### WebView Payment Integration (ADR-007)
+
+Sesuai ADR-007, halaman pembayaran dapat diakses melalui WebView dari aplikasi mobile. Integrasi ini menggunakan mekanisme Handoff Code untuk serah-terima kredensial secara aman.
+
+##### WebView Payment Flow Diagrams
+
+###### Mobile App → WebView Handoff Flow (Overview)
+
+```mermaid
+flowchart TD
+    subgraph MOBILE["📱 Mobile App (Native)"]
+        M1[Layar Booking Native]
+        M2[POST /bookings sukses]
+        M3[Request Handoff Code]
+        M4[Buka WebView]
+        M5[Handle postMessage]
+        M6[GET /bookings/{id} konfirmasi]
+    end
+
+    subgraph WEBVIEW["🌐 WebView (Payment Page)"]
+        W1[Load /m/orders/{id}/pay#code=...]
+        W2[Baca #code, hapus dari URL]
+        W3[Exchange code → session]
+        W4[Payment flow normal]
+        W5[postMessage ke app]
+    end
+
+    subgraph BACKEND["⚙️ Backend"]
+        B1[POST /payments/{id}/handoff]
+        B2[POST /payments/handoff/exchange]
+        B3[Payment endpoints dengan X-Payment-Session]
+    end
+
+    M1 --> M2
+    M2 --> M3
+    M3 --> B1
+    B1 -->|handoff_code + payment_url| M4
+    M4 --> W1
+    W1 --> W2
+    W2 --> W3
+    W3 --> B2
+    B2 -->|payment_session| W4
+    W4 --> B3
+    W4 -->|Status change| W5
+    W5 --> M5
+    M5 --> M6
+```
+
+###### Handoff Code Exchange Flow (Detail)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as Mobile App
+    participant BE as Backend
+    participant WV as WebView (/m/orders/{id}/pay)
+
+    Note over App,BE: Prasyarat: Booking berhasil, user punya grantToken
+
+    App->>BE: POST /payments/{bookingId}/handoff<br/>(X-Grant-Token + X-Device-Id/Authorization)
+    
+    BE->>BE: Validate grant ownership
+    BE->>BE: Validate booking status = AWAITING_PAYMENT
+    BE->>BE: Rate limit check (max 10/grant/menit)
+    BE->>BE: Generate handoff_code (hc_..., 256 bit, 60s TTL)
+    BE->>BE: Build payment_url dari PAYMENT_WEB_URL config
+    
+    BE-->>App: 201 {handoff_code, payment_url, expires_at}
+    
+    App->>App: Validate: payment_url starts with https://rush-my-ticket.my.id/m/orders/
+    
+    alt URL Valid
+        App->>WV: Open WebView dengan payment_url
+        Note right of WV: URL: /m/orders/{id}/pay#code=hc_...
+        
+        WV->>WV: Check window.ReactNativeWebView exists
+        
+        alt Is WebView
+            WV->>WV: Extract #code dari URL fragment
+            WV->>WV: history.replaceState (hapus #code dari URL)
+            
+            WV->>BE: POST /payments/handoff/exchange<br/>{booking_id, handoff_code}
+            
+            alt Code Valid & Unused
+                BE->>BE: Mark code as used
+                BE->>BE: Generate payment_session (ps_..., 256 bit)
+                BE-->>WV: 200 {payment_session, expires_at}
+                
+                WV->>WV: Store session di JavaScript memory saja
+                Note right of WV: BUKAN localStorage/cookie (BR-27)
+                
+                WV->>WV: Lanjut payment flow normal dengan X-Payment-Session
+                
+            else Code Invalid/Expired/Used
+                BE-->>WV: 401 {error: HANDOFF_CODE_INVALID}
+                WV->>App: postMessage {type: HANDOFF_EXPIRED, booking_id}
+                
+            else Grant Already Expired
+                BE-->>WV: 401 {error: GRANT_TOKEN_INVALID}
+                WV->>App: postMessage {type: PAYMENT_EXPIRED, booking_id}
+            end
+            
+        else Not WebView (browser biasa)
+            WV->>WV: Tampilkan "Buka dari aplikasi"
+        end
+        
+    else URL Invalid
+        App->>App: Tampilkan error, jangan buka WebView
+    end
+```
+
+###### postMessage Communication Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant WV as WebView
+    participant App as Mobile App
+    participant BE as Backend
+
+    Note over WV,App: Komunikasi via window.ReactNativeWebView.postMessage()
+
+    rect rgb(200, 255, 200)
+        Note over WV,App: PAYMENT_DONE - Pembayaran sukses
+        WV->>WV: Polling returns status: PAID
+        WV->>App: postMessage {type: PAYMENT_DONE, booking_id}
+        App->>App: Tutup WebView
+        App->>BE: GET /bookings/{booking_id}
+        BE-->>App: {status: PAID, ...}
+        App->>App: Tampilkan layar tiket
+    end
+
+    rect rgb(255, 200, 200)
+        Note over WV,App: PAYMENT_EXPIRED - Waktu habis
+        WV->>WV: Status: EXPIRED atau countdown habis
+        WV->>App: postMessage {type: PAYMENT_EXPIRED, booking_id}
+        App->>App: Tutup WebView
+        App->>BE: GET /bookings/{booking_id}
+        BE-->>App: {status: EXPIRED}
+        App->>App: Tampilkan layar kedaluwarsa
+    end
+
+    rect rgb(255, 255, 200)
+        Note over WV,App: HANDOFF_EXPIRED - Session hilang
+        WV->>WV: 401 PAYMENT_SESSION_INVALID<br/>atau page reload
+        WV->>App: postMessage {type: HANDOFF_EXPIRED, booking_id}
+        App->>BE: POST /payments/{booking_id}/handoff
+        BE-->>App: New handoff_code + payment_url
+        App->>WV: Reload WebView dengan URL baru
+    end
+
+    rect rgb(200, 200, 255)
+        Note over WV,App: OPEN_EXTERNAL - GoPay deeplink
+        WV->>WV: User pilih GoPay
+        WV->>App: postMessage {type: OPEN_EXTERNAL, booking_id, url: "gojek://..."}
+        App->>App: Linking.openURL(url)
+        Note right of App: WebView tetap terbuka,<br/>polling tetap jalan
+        App->>App: User kembali dari GoPay
+        App->>BE: GET /bookings/{booking_id} (cek status)
+    end
+
+    rect rgb(230, 230, 230)
+        Note over WV,App: CLOSE - User minta tutup
+        WV->>WV: User click tombol "Kembali"
+        WV->>App: postMessage {type: CLOSE, booking_id}
+        App->>App: Tutup WebView
+        App->>BE: GET /bookings/{booking_id}
+        Note right of App: Booking tetap aktif<br/>sampai TTL habis
+    end
+```
+
+###### WebView Security dan Edge Cases
+
+```mermaid
+flowchart TD
+    subgraph SECURITY["🔒 Security Controls"]
+        S1[originWhitelist: rush-my-ticket.my.id only]
+        S2[postMessage: ignore jika origin salah]
+        S3[External links: Linking.openURL]
+        S4[allowFileAccess: false]
+    end
+
+    subgraph EDGE_CASES["⚠️ Edge Cases"]
+        E1[Page Reload]
+        E2[Network Error]
+        E3[401 Session Invalid]
+        E4[Race: PAID saat dialog terbuka]
+    end
+
+    subgraph HANDLING["✅ Handling"]
+        H1[Session hilang → HANDOFF_EXPIRED]
+        H2[Retry with backoff, continue polling]
+        H3[Stop polling, HANDOFF_EXPIRED]
+        H4[Close dialog, transition to SUKSES]
+    end
+
+    E1 --> H1
+    E2 --> H2
+    E3 --> H3
+    E4 --> H4
+
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+```
+
+##### Domain Layer (WebView Handoff)
+
+```typescript
+// payment/domain/webview-handoff.model.ts
+// Ref: ADR-007 — Serah-Terima Pembayaran dari Aplikasi Mobile ke WebView
+
+/** Handoff code format: hc_{64 hex characters} */
+export type HandoffCode = string;
+
+/** Payment session format: ps_{64 hex characters} */
+export type PaymentSession = string;
+
+/** Handoff response dari POST /payments/{booking_id}/handoff */
+export type HandoffResult = {
+  handoffCode: HandoffCode;
+  paymentUrl: string;           // https://{domain}/m/orders/{booking_id}/pay#code={handoff_code}
+  expiresAt: string;            // ISO timestamp, ~60 detik dari sekarang
+};
+
+/** Exchange response dari POST /payments/handoff/exchange */
+export type ExchangeResult = {
+  paymentSession: PaymentSession;
+  expiresAt: string;            // Sama dengan grant expiry
+};
+
+/** Pesan dari WebView ke aplikasi mobile via postMessage */
+export type WebViewMessage =
+  | { type: 'PAYMENT_DONE'; bookingId: string }
+  | { type: 'PAYMENT_EXPIRED'; bookingId: string }
+  | { type: 'HANDOFF_EXPIRED'; bookingId: string }
+  | { type: 'OPEN_EXTERNAL'; bookingId: string; url: string }
+  | { type: 'CLOSE'; bookingId: string };
+
+/** Context untuk mendeteksi apakah halaman diakses via WebView */
+export type WebViewContext = {
+  isEmbedded: boolean;              // true jika window.ReactNativeWebView ada
+  hasHandoffCode: boolean;          // true jika URL fragment mengandung #code=
+  paymentSession: string | null;    // disimpan di memori JS, bukan localStorage
+};
+```
+
+```typescript
+// payment/domain/webview-handoff.protocol.ts
+// Ref: ADR-007 §5.6, §5.7
+
+export interface WebViewHandoffProtocol {
+  /**
+   * Request handoff code untuk membuka Payment Page di WebView.
+   * Dipanggil oleh aplikasi mobile sebelum membuka WebView.
+   * Rate limit: max 10 kode per grant per menit (BR-28).
+   * 
+   * Headers required: X-Grant-Token + (X-Device-Id untuk guest ATAU Authorization untuk login)
+   */
+  requestHandoff(bookingId: string): Promise<HandoffResult>;
+
+  /**
+   * Tukar handoff code menjadi payment session.
+   * Dipanggil oleh halaman web saat pertama kali dimuat di WebView.
+   * Handoff code sekali pakai, berlaku 60 detik, terikat ke booking_id.
+   * 
+   * Errors:
+   * - HANDOFF_CODE_INVALID: code sudah digunakan, expired, atau tidak cocok
+   * - GRANT_TOKEN_INVALID: grant tidak ada lagi (booking sudah berakhir)
+   */
+  exchangeHandoffCode(bookingId: string, handoffCode: HandoffCode): Promise<ExchangeResult>;
+}
+```
+
+```typescript
+// payment/domain/webview-handoff.rules.ts
+// Ref: ADR-007, BR-27, BR-29, BR-30
+
+/** Regex untuk validasi format handoff code: hc_{64 hex} */
+export const HANDOFF_CODE_REGEX = /^hc_[a-f0-9]{64}$/;
+
+/** Regex untuk validasi format payment session: ps_{64 hex} */
+export const PAYMENT_SESSION_REGEX = /^ps_[a-f0-9]{64}$/;
+
+/** TTL handoff code dalam detik */
+export const HANDOFF_CODE_TTL_SECONDS = 60;
+
+/** Rate limit: max kode per grant per menit */
+export const HANDOFF_RATE_LIMIT_PER_MINUTE = 10;
+
+/** Domain yang diizinkan untuk WebView (production) */
+export const ALLOWED_WEBVIEW_DOMAIN = 'rush-my-ticket.my.id';
+
+export function isValidHandoffCode(code: string): boolean {
+  return HANDOFF_CODE_REGEX.test(code);
+}
+
+export function isValidPaymentSession(session: string): boolean {
+  return PAYMENT_SESSION_REGEX.test(session);
+}
+
+/**
+ * Extract handoff code dari URL fragment (#code=hc_...)
+ * Fragment tidak dikirim ke server, jadi aman dari logging.
+ */
+export function extractHandoffCodeFromFragment(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash;
+  const match = hash.match(/code=([^&]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Hapus handoff code dari URL menggunakan history.replaceState.
+ * Mencegah code bocor di browser history.
+ */
+export function removeCodeFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.hash = '';
+  window.history.replaceState(null, '', url.toString());
+}
+
+/**
+ * Deteksi apakah halaman dibuka di WebView React Native.
+ * TIDAK menggunakan navigator.userAgent karena tidak reliable.
+ */
+export function isReactNativeWebView(): boolean {
+  return typeof window !== 'undefined' && 
+         'ReactNativeWebView' in window &&
+         typeof (window as any).ReactNativeWebView?.postMessage === 'function';
+}
+
+/**
+ * Kirim pesan ke aplikasi mobile via postMessage.
+ * Pesan hanyalah sinyal — aplikasi HARUS konfirmasi via GET /bookings/{id}.
+ */
+export function postMessageToApp(message: WebViewMessage): void {
+  if (!isReactNativeWebView()) return;
+  (window as any).ReactNativeWebView.postMessage(JSON.stringify(message));
+}
+```
+
+##### Application Layer (WebView Handoff)
+
+```typescript
+// payment/application/handle-webview-handoff.use-case.ts
+// Ref: ADR-007 — Exchange handoff code dan manage payment session
+
+export type HandleWebViewHandoffUseCase = (bookingId: string) => Promise<WebViewHandoffResult>;
+
+export type WebViewHandoffResult = 
+  | { success: true; paymentSession: string }
+  | { success: false; error: 'NO_CODE' | 'INVALID_CODE' | 'EXCHANGE_FAILED'; errorCode?: ApiErrorCode };
+
+export function createHandleWebViewHandoffUseCase({
+  webViewHandoffService,
+}: {
+  webViewHandoffService: WebViewHandoffProtocol;
+}): HandleWebViewHandoffUseCase {
+  return async (bookingId) => {
+    // 1. Extract code dari URL fragment
+    const handoffCode = extractHandoffCodeFromFragment();
+    
+    if (!handoffCode) {
+      return { success: false, error: 'NO_CODE' };
+    }
+    
+    // 2. Validasi format code
+    if (!isValidHandoffCode(handoffCode)) {
+      return { success: false, error: 'INVALID_CODE' };
+    }
+    
+    // 3. Hapus code dari URL segera (mencegah bocor di history)
+    removeCodeFromUrl();
+    
+    try {
+      // 4. Exchange code untuk payment session
+      const result = await webViewHandoffService.exchangeHandoffCode(bookingId, handoffCode);
+      
+      // 5. Payment session disimpan di memori, BUKAN localStorage (BR-27)
+      return { success: true, paymentSession: result.paymentSession };
+    } catch (error) {
+      const appError = toAppError(error);
+      if (appError.kind === 'api') {
+        return { success: false, error: 'EXCHANGE_FAILED', errorCode: appError.code };
+      }
+      return { success: false, error: 'EXCHANGE_FAILED' };
+    }
+  };
+}
+```
+
+##### Data Layer (WebView Services)
+
+```typescript
+// payment/data/webview-handoff.service.ts
+// Implementasi WebViewHandoffProtocol
+
+export function createWebViewHandoffService({
+  httpClient,
+}: {
+  httpClient: HttpClient;
+}): WebViewHandoffProtocol {
+  return {
+    async requestHandoff(bookingId) {
+      // POST /payments/{booking_id}/handoff
+      // Headers: X-Grant-Token + X-Device-Id atau Authorization
+      return httpClient.post(
+        `/payments/${bookingId}/handoff`,
+        {},
+        handoffResultSchema
+      );
+    },
+    
+    async exchangeHandoffCode(bookingId, handoffCode) {
+      // POST /payments/handoff/exchange
+      // Body: { booking_id, handoff_code }
+      // Response: { payment_session, expires_at }
+      return httpClient.post(
+        '/payments/handoff/exchange',
+        { booking_id: bookingId, handoff_code: handoffCode },
+        exchangeResultSchema
+      );
+    },
+  };
+}
+```
+
+```typescript
+// payment/data/webview-bridge.service.ts
+// Service untuk komunikasi WebView ↔ aplikasi mobile
+
+export interface WebViewBridgeService {
+  /** Kirim notifikasi pembayaran sukses ke aplikasi */
+  notifyPaymentDone(bookingId: string): void;
+  
+  /** Kirim notifikasi pembayaran expired ke aplikasi */
+  notifyPaymentExpired(bookingId: string): void;
+  
+  /** Kirim notifikasi handoff code expired/invalid, minta kode baru */
+  notifyHandoffExpired(bookingId: string): void;
+  
+  /** Kirim request buka URL external (GoPay deeplink) */
+  requestOpenExternal(bookingId: string, url: string): void;
+  
+  /** Kirim notifikasi close WebView */
+  notifyClose(bookingId: string): void;
+}
+
+export function createWebViewBridgeService(): WebViewBridgeService {
+  return {
+    notifyPaymentDone(bookingId) {
+      postMessageToApp({ type: 'PAYMENT_DONE', bookingId });
+    },
+    notifyPaymentExpired(bookingId) {
+      postMessageToApp({ type: 'PAYMENT_EXPIRED', bookingId });
+    },
+    notifyHandoffExpired(bookingId) {
+      postMessageToApp({ type: 'HANDOFF_EXPIRED', bookingId });
+    },
+    requestOpenExternal(bookingId, url) {
+      postMessageToApp({ type: 'OPEN_EXTERNAL', bookingId, url });
+    },
+    notifyClose(bookingId) {
+      postMessageToApp({ type: 'CLOSE', bookingId });
+    },
+  };
+}
+```
+
+##### Controller Extensions (WebView Context)
+
+```typescript
+// payment/controllers/payment-page.controller.ts — WebView extensions
+// Ref: ADR-007
+
+export function usePaymentPageController(bookingId: string) {
+  // ... existing controller code ...
+  
+  // WebView context
+  const [webViewContext, setWebViewContext] = useState<WebViewContext>({
+    isEmbedded: false,
+    hasHandoffCode: false,
+    paymentSession: null,
+  });
+  
+  const { handleWebViewHandoffUseCase, webViewBridgeService } = useDependencies<PaymentDependencies>();
+  
+  // Initialize WebView context on mount
+  useEffect(() => {
+    const isEmbedded = isReactNativeWebView();
+    const hasHandoffCode = !!extractHandoffCodeFromFragment();
+    
+    setWebViewContext(prev => ({ ...prev, isEmbedded, hasHandoffCode }));
+    
+    // If in WebView with code, handle handoff
+    if (isEmbedded && hasHandoffCode) {
+      handleWebViewHandoff();
+    }
+  }, []);
+  
+  async function handleWebViewHandoff() {
+    const result = await handleWebViewHandoffUseCase(bookingId);
+    
+    if (result.success) {
+      // Store payment session in memory only (BR-27)
+      setWebViewContext(prev => ({ ...prev, paymentSession: result.paymentSession }));
+    } else {
+      // Handle errors based on type
+      if (result.errorCode === 'HANDOFF_CODE_INVALID') {
+        webViewBridgeService.notifyHandoffExpired(bookingId);
+      } else if (result.errorCode === 'GRANT_TOKEN_INVALID') {
+        webViewBridgeService.notifyPaymentExpired(bookingId);
+      } else {
+        webViewBridgeService.notifyHandoffExpired(bookingId);
+      }
+    }
+  }
+  
+  // Handle 401 PAYMENT_SESSION_INVALID on any API call
+  function handlePaymentSessionInvalid() {
+    webViewBridgeService.notifyHandoffExpired(bookingId);
+  }
+  
+  // Notify app on payment status changes (WebView only)
+  useEffect(() => {
+    if (!webViewContext.isEmbedded) return;
+    
+    if (state === 'SUKSES') {
+      webViewBridgeService.notifyPaymentDone(bookingId);
+    } else if (state === 'EXPIRED') {
+      webViewBridgeService.notifyPaymentExpired(bookingId);
+    }
+  }, [state, webViewContext.isEmbedded]);
+  
+  // Handle GoPay deeplink in WebView (send to app, not navigate)
+  function handleGoPayDeeplink(url: string) {
+    if (webViewContext.isEmbedded) {
+      webViewBridgeService.requestOpenExternal(bookingId, url);
+    } else {
+      // Desktop: normal navigation
+      window.location.href = url;
+    }
+  }
+  
+  return {
+    // ... existing returns ...
+    webViewContext,
+    handleGoPayDeeplink,
+    handlePaymentSessionInvalid,
+  };
+}
+```
+
+##### File Structure Update
+
+```
+payment/
+├── domain/
+│   ├── order.model.ts
+│   ├── order.protocol.ts
+│   ├── order.rules.ts
+│   ├── payment.constants.ts
+│   ├── payment-page-state.model.ts
+│   ├── payment-error.mapper.ts
+│   ├── clock-sync.rules.ts
+│   ├── webview-handoff.model.ts       ← NEW (ADR-007)
+│   ├── webview-handoff.protocol.ts    ← NEW (ADR-007)
+│   └── webview-handoff.rules.ts       ← NEW (ADR-007)
+├── application/
+│   ├── initiate-payment.use-case.ts
+│   ├── retry-payment.use-case.ts
+│   ├── watch-payment-status.use-case.ts
+│   └── handle-webview-handoff.use-case.ts  ← NEW (ADR-007)
+├── data/
+│   ├── order.service.ts
+│   ├── order.schema.ts
+│   ├── webview-handoff.service.ts     ← NEW (ADR-007)
+│   └── webview-bridge.service.ts      ← NEW (ADR-007)
+├── controllers/
+│   ├── payment-page.controller.ts     ← EXTENDED for WebView
+│   ├── payment-polling.hook.ts
+│   ├── payment-focus.hook.ts
+│   └── payment-edge-cases.hook.ts
+└── views/
+    ├── PaymentView.tsx
+    ├── PaymentResultView.tsx
+    ├── PaymentCountdown.tsx
+    ├── PaymentButton.tsx
+    └── renderers/
+        ├── renderer.registry.ts
+        ├── BankTransferInstructionView.tsx
+        └── GoPayInstructionView.tsx
 ```
 
 #### Payment Page State Machine (Requirement 14)
@@ -1123,6 +2620,23 @@ export const PAYMENT_ERROR_I18N_MAP: Record<string, { id: string; en: string }> 
   PAYMENT_ALREADY_SETTLED: {
     id: 'Pembayaran Sudah Diterima. Pembayaran Anda sedang diproses.',
     en: 'Payment Received. Your payment is being processed.',
+  },
+  // WebView Payment Handoff errors (ADR-007)
+  HANDOFF_CODE_INVALID: {
+    id: 'Kode Akses Tidak Valid. Silakan buka kembali halaman pembayaran dari aplikasi.',
+    en: 'Invalid Access Code. Please reopen the payment page from the app.',
+  },
+  PAYMENT_SESSION_INVALID: {
+    id: 'Sesi Pembayaran Berakhir. Silakan buka kembali halaman pembayaran dari aplikasi.',
+    en: 'Payment Session Expired. Please reopen the payment page from the app.',
+  },
+  GRANT_TOKEN_INVALID: {
+    id: 'Sesi Booking Berakhir. Waktu pembelian Anda telah habis.',
+    en: 'Booking Session Expired. Your purchase time has ended.',
+  },
+  VALIDATION_ERROR: {
+    id: 'Permintaan Tidak Valid. Terjadi kesalahan pada permintaan Anda.',
+    en: 'Invalid Request. There was an error with your request.',
   },
 };
 
@@ -1367,7 +2881,12 @@ export type ApiErrorCode =
   | 'TOO_MANY_REQUESTS'         // Rate limited
   // Access errors
   | 'ACCESS_EXPIRED'            // Access token (queue slot) expired
-  | 'SLOT_TAKEN_OVER';          // Retain for backward compat (maps to TOKEN_INVALID)
+  | 'SLOT_TAKEN_OVER'           // Retain for backward compat (maps to TOKEN_INVALID)
+  // WebView Payment Handoff errors (ADR-007)
+  | 'HANDOFF_CODE_INVALID'      // Handoff code sudah digunakan, expired (>60 detik), atau tidak cocok dengan booking_id
+  | 'PAYMENT_SESSION_INVALID'   // Payment session expired atau grant sudah dihapus
+  | 'GRANT_TOKEN_INVALID'       // Grant tidak ada lagi (booking sudah berakhir)
+  | 'VALIDATION_ERROR';         // X-Payment-Session dan X-Grant-Token dikirim bersamaan
 
 // REMOVED codes (map to above):
 // QUOTA_EXCEEDED → QTY_EXCEEDED
@@ -1721,7 +3240,7 @@ Daftar lengkap ada di [kontrak API](https://github.com/PTServerJanganTumbang-Boo
 | Event | `GET /events` | `GET /events`, `GET /events/{event_id}` |
 | Antrian | `GET /events/{id}/queue` | `POST …/queue/join`, `GET …/queue/me`, `GET …/queue/serving`, `GET …/queue/stream` |
 | Booking | `GET /events/{id}/booking-session` | `GET /events/{event_id}/tickets`, `POST /nik/validate`, `POST /bookings`, `GET /bookings/{booking_id}` |
-| Pembayaran | `GET /orders/{id}`, `POST /orders/{id}/payment`, `GET /orders/{id}/stream` | `GET /payments/{booking_id}/methods`, `POST /payments/{booking_id}`, `POST /payments/{booking_id}/retry`, `GET /payments/{booking_id}/status` |
+| Pembayaran | `GET /orders/{id}`, `POST /orders/{id}/payment`, `GET /orders/{id}/stream` | `GET /payments/{booking_id}/methods`, `POST /payments/{booking_id}`, `POST /payments/{booking_id}/retry`, `GET /payments/{booking_id}/status`, `POST /payments/{booking_id}/handoff`, `POST /payments/handoff/exchange` |
 | E-tiket | Belum ada | `GET /users/me/tickets`, `GET /tickets/{ticket_id}/eticket` |
 | Akun | Belum ada | `/auth/*`, `/accounts/me/saved-niks` |
 
@@ -1749,6 +3268,8 @@ Endpoint di kontrak saat ini:
 | POST | `/payments/{booking_id}` | Initiate payment (bank_transfer or gopay) | AccessToken | payment |
 | POST | `/payments/{booking_id}/retry` | Cancel pending payment → switch method | AccessToken | payment |
 | GET | `/payments/{booking_id}/status` | Poll payment status (3s interval) | AccessToken | payment |
+| POST | `/payments/{booking_id}/handoff` | Request handoff code for WebView (ADR-007) | GrantToken | payment |
+| POST | `/payments/handoff/exchange` | Exchange handoff code → payment session (ADR-007) | - | payment |
 | GET | `/users/me/tickets` | My tickets list | Cookie | ticket |
 | GET | `/tickets/{ticket_id}/eticket` | E-ticket with QR code | Cookie | ticket |
 | GET | `/admin/reconciliation/disputed` | Disputed payments for manual refund | AdminAuth | dashboard |
@@ -2006,6 +3527,36 @@ type UIState = {
 *For any* state transition in Payment Page, keyboard focus SHALL move to the appropriate element: method selection on `MEMILIH`, VA number/QR on `INSTRUKSI`, success button on `SUKSES`, retry button on `GAGAL`, home button on `EXPIRED`.
 
 **Validates: Requirements 14.26-14.29**
+
+### Property 24: Handoff Code Format Validation (ADR-007)
+
+*For any* string received as handoff code from URL fragment, the system SHALL accept it if and only if it matches the pattern `hc_` followed by exactly 64 hexadecimal characters (lowercase).
+
+**Validates: Requirements 14.32, BR-29**
+
+### Property 25: Payment Session Memory-Only Storage (ADR-007)
+
+*For any* payment session obtained via handoff exchange, the system SHALL store it only in JavaScript memory (not localStorage, sessionStorage, or cookie). Upon page reload, the session SHALL be lost and the system SHALL send `HANDOFF_EXPIRED` message to the mobile app.
+
+**Validates: Requirements 14.32, 14.35, BR-27**
+
+### Property 26: WebView Context Detection (ADR-007)
+
+*For any* page load in Payment Page, the system SHALL detect WebView context by checking the existence of `window.ReactNativeWebView` object (not by user agent parsing). If in WebView context with handoff code, the system SHALL execute handoff exchange flow; otherwise, it SHALL use normal grant-based authentication.
+
+**Validates: Requirements 14.30, 14.38, BR-31**
+
+### Property 27: Single Credential Per Request (ADR-007)
+
+*For any* API request to payment endpoints, the system SHALL send either `X-Payment-Session` header OR `X-Grant-Token` header, never both. If both are sent, the server SHALL reject with error `VALIDATION_ERROR`.
+
+**Validates: Requirements 14.37, BR-30**
+
+### Property 28: WebView Message Reliability (ADR-007)
+
+*For any* WebView message sent to the mobile app (`PAYMENT_DONE`, `PAYMENT_EXPIRED`, `HANDOFF_EXPIRED`, `CLOSE`), the message SHALL be treated as a signal only. The mobile app MUST verify the actual status via `GET /bookings/{booking_id}` before updating UI.
+
+**Validates: Requirements 14.33, BR-32**
 
 ---
 
@@ -2353,6 +3904,7 @@ sequenceDiagram
 - [ADR-0023: Login passwordless](../../../docs/adr/0023-passwordless-login-email.md)
 - [Architecture Overview](../../../docs/architecture/overview.md)
 - [ADR-0022: Payment UI — Composable Instruction Renderer](../../../docs/adr/0022-payment-instruction-renderer.md)
+- [ADR-007: Mobile WebView Payment Handoff](../../../../documentations/adr/ADR-007-mobile-webview-payment-handoff.md)
 
 ---
 
@@ -2377,7 +3929,13 @@ export type AuthHeaders = {
   grantToken?: string;        // X-Grant-Token: gt_... — slot booking
   deviceId?: string;          // X-Device-Id — pengikatan device untuk tamu
   queueTokenHeader?: string;  // X-Queue-Token — mobile (no cookie)
+  paymentSession?: string;    // X-Payment-Session: ps_... — WebView payment (ADR-007)
 };
+
+// Authentication modes for payment endpoints (ADR-007, BR-30):
+// 1. Direct mode (web desktop): X-Grant-Token + (X-Device-Id untuk guest ATAU Authorization untuk login)
+// 2. Session mode (WebView): X-Payment-Session saja
+// Keduanya TIDAK BOLEH dikirim bersamaan — server reject dengan VALIDATION_ERROR
 
 // Protocol parameters yang membutuhkan headers:
 export interface BookingProtocol {
@@ -2388,10 +3946,17 @@ export interface BookingProtocol {
 }
 
 export interface OrderProtocol {
+  // Direct mode (web desktop) — uses grantToken + deviceId
   getAvailableMethods(bookingId: string, grantToken: string, deviceId?: string): Promise<AvailableMethod[]>;
   initiatePayment(bookingId: string, method: PaymentMethod, bank?: BankCode, grantToken: string, deviceId?: string): Promise<Order>;
   retryPayment(bookingId: string, grantToken: string, deviceId?: string): Promise<RetryPaymentResult>;
   getPaymentStatus(bookingId: string, grantToken: string, deviceId?: string): Promise<PaymentStatusResult>;
+  
+  // Session mode (WebView) — uses paymentSession only (ADR-007)
+  getAvailableMethodsWithSession(bookingId: string, paymentSession: string): Promise<AvailableMethod[]>;
+  initiatePaymentWithSession(bookingId: string, method: PaymentMethod, bank?: BankCode, paymentSession: string): Promise<Order>;
+  retryPaymentWithSession(bookingId: string, paymentSession: string): Promise<RetryPaymentResult>;
+  getPaymentStatusWithSession(bookingId: string, paymentSession: string): Promise<PaymentStatusResult>;
 }
 ```
 

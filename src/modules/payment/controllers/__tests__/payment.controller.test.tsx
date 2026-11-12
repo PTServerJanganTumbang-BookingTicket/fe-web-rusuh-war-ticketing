@@ -8,6 +8,9 @@ import type { AvailableMethod, Order } from "../../domain/order.model";
 import type { PaymentViewProps } from "../../views/PaymentView";
 import { usePaymentController, type PaymentScreen } from "../payment.controller";
 
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace }) }));
+
 const METHODS: AvailableMethod[] = [
   {
     id: "bank_transfer",
@@ -248,4 +251,69 @@ describe("usePaymentController", () => {
     expect(payment().stage.kind).toBe("result");
     expect(payment().pay).toBeUndefined();
   });
+});
+
+describe("usePaymentController TTL expiry redirect", () => {
+  beforeEach(() => {
+    replace.mockClear();
+  });
+
+  it("tidak redirect jika countdown masih berjalan", async () => {
+    // Order dengan TTL yang masih aktif (10 menit ke depan)
+    const activeOrder = makeOrder({
+      paymentTtl: {
+        expiresAt: new Date(Date.now() + 600_000).toISOString(),
+        ttlSeconds: 600,
+        serverTime: new Date().toISOString(),
+      },
+    });
+    const { payment } = mount(activeOrder);
+    await waitFor(() => expect(payment).not.toThrow());
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("tidak redirect jika order sudah PAID", async () => {
+    const paidOrder = makeOrder({
+      status: "PAID",
+      paymentTtl: {
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+        ttlSeconds: 0,
+        serverTime: new Date(Date.now() - 1000).toISOString(),
+      },
+    });
+    const { payment } = mount(paidOrder);
+    await waitFor(() => expect(payment).not.toThrow());
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("tidak redirect jika order sudah EXPIRED (status dari server)", async () => {
+    const expiredStatusOrder = makeOrder({
+      status: "EXPIRED",
+      paymentTtl: {
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+        ttlSeconds: 0,
+        serverTime: new Date(Date.now() - 1000).toISOString(),
+      },
+    });
+    const { payment } = mount(expiredStatusOrder);
+    await waitFor(() => expect(payment).not.toThrow());
+    expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+it("redirect ke Home saat countdown mencapai 0", async () => {
+  // Order dengan TTL yang sudah expired (expiresAt di masa lalu)
+  // Status tetap PENDING_PAYMENT supaya isOrderActive = true
+  const expiredOrder = makeOrder({
+    status: "PENDING_PAYMENT",
+    paymentTtl: {
+      expiresAt: new Date(Date.now() - 5000).toISOString(), // 5 detik lalu
+      ttlSeconds: 0,
+      serverTime: new Date(Date.now() - 5000).toISOString(),
+    },
+  });
+  const { result } = mount(expiredOrder);
+  // Tunggu sampai data ter-load dan effect redirect berjalan
+  await waitFor(() => expect(result.current.kind).toBe("payment"), { timeout: 3000 });
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 3000 });
 });

@@ -1,11 +1,41 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "40.10 Tulis property tests untuk webview-handoff.rules.ts `@owner:akbar`": {
+      "status": "passed",
+      "lastRunTimestamp": 1794475264660
+    }
+  },
   "executionHistory": {
     "1.1 Buat `src/core/domain/captcha.protocol.ts` dan `captcha.constants.ts` `@owner:muzaki`": [
       {
         "executionId": "8e5277fa-ab42-45f6-8b0f-b63e32a82b3d",
         "chatSessionId": "sess_e3e5bb6a-0128-42a5-9d13-342e0c5d921c",
         "timestamp": 1793621522591
+      },
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349392
+      },
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470361958
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413458
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470436812
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834309
       }
     ],
     "1.2 Buat `src/core/domain/system-state.model.ts`, `system-health.protocol.ts`, `system-health-updates.protocol.ts` `@owner:muzaki`": [
@@ -13,6 +43,21 @@
         "executionId": "8e5277fa-ab42-45f6-8b0f-b63e32a82b3d",
         "chatSessionId": "sess_e3e5bb6a-0128-42a5-9d13-342e0c5d921c",
         "timestamp": 1793621522662
+      },
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349470
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413527
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834393
       }
     ],
     "1.3 Tulis unit tests di `src/core/domain/__tests__/system-state.model.test.ts` `@owner:muzaki`": [
@@ -20,6 +65,21 @@
         "executionId": "8e5277fa-ab42-45f6-8b0f-b63e32a82b3d",
         "chatSessionId": "sess_e3e5bb6a-0128-42a5-9d13-342e0c5d921c",
         "timestamp": 1793621522747
+      },
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349528
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413595
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834509
       }
     ],
     "2.1 Tulis ulang `src/modules/queue/domain/queue-state.model.ts` `@owner:muzaki`": [
@@ -55,6 +115,21 @@
         "executionId": "8e5277fa-ab42-45f6-8b0f-b63e32a82b3d",
         "chatSessionId": "sess_e3e5bb6a-0128-42a5-9d13-342e0c5d921c",
         "timestamp": 1793621522977
+      },
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349589
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413666
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834609
       }
     ],
     "3.2 Rename get-queue-state → get-customer-queue-state.use-case.ts `@owner:muzaki`": [
@@ -132,6 +207,21 @@
         "executionId": "8e5277fa-ab42-45f6-8b0f-b63e32a82b3d",
         "chatSessionId": "sess_e3e5bb6a-0128-42a5-9d13-342e0c5d921c",
         "timestamp": 1793621523499
+      },
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349645
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413744
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834685
       }
     ],
     "6.1 Tulis ulang booking-session.model.ts `@owner:muzaki`": [
@@ -839,6 +929,814 @@
         "executionId": "6a679903-5279-4962-983f-ffc214e659f7",
         "chatSessionId": "sess_567e98f7-0b54-4265-b4f3-19e5a4e7c576",
         "timestamp": 1793771941735
+      }
+    ],
+    "17.5 Buat validate-nik.use-case.ts (auth) `@owner:muzaki`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349707
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413807
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834777
+      }
+    ],
+    "17.6 Tulis property tests nik-validation.rules `@owner:muzaki`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349767
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413870
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834851
+      }
+    ],
+    "21.4 Tulis i18n property tests `@owner:muzaki`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349824
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470413941
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834909
+      }
+    ],
+    "23. Checkpoint — full application `@owner:shared`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349887
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414002
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470834971
+      }
+    ],
+    "26.3 Buat payment-reminder.mjml `@owner:muzaki`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349946
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414057
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835099
+      }
+    ],
+    "28.1 Update `QueueJoinResult` — tambah `event: { id, name }`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470349997
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414107
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835160
+      }
+    ],
+    "28.2 Update `CustomerQueueState` — ganti `accessToken` → `grantToken`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350072
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414163
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835219
+      }
+    ],
+    "28.3 Update `queue.protocol.ts` — methods menerima `grantToken` parameter": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350128
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414219
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835269
+      }
+    ],
+    "28.4 Update `queue.schema.ts` — snake_case mapping untuk API response": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350178
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414266
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835326
+      }
+    ],
+    "29.1 Update `NikValidationResult` — tambah `name`, `status` fields": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350227
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414321
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835386
+      }
+    ],
+    "29.2 Update `BookingResult` — tambah `event`, `tickets[]` dengan `holderName`, `summary`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350287
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414373
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835436
+      }
+    ],
+    "29.3 Update `BookingProtocol` — methods menerima `grantToken`, `deviceId?` parameters": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350351
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414424
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835486
+      }
+    ],
+    "29.4 Update `booking.schema.ts` — snake_case mapping untuk API response": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350412
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414482
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835546
+      }
+    ],
+    "32.3 Update `SavedNik` type — tambah `status: 'VERIFIED'`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350470
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414549
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835610
+      }
+    ],
+    "40.1 Buat `src/modules/payment/domain/webview-handoff.model.ts` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350525
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414607
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835694
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470874444
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794471176915
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472263605
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472276057
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472348919
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472466686
+      }
+    ],
+    "40.2 Buat `src/modules/payment/domain/webview-handoff.protocol.ts` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350571
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414669
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835777
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794471186405
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794471318284
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472268995
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472281043
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472474510
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472593748
+      }
+    ],
+    "40.3 Buat `src/modules/payment/domain/webview-handoff.rules.ts` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350641
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414727
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835853
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794471326552
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472072085
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472286019
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472601227
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794473544322
+      }
+    ],
+    "40.4 Buat `src/modules/payment/application/handle-webview-handoff.use-case.ts` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350706
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414798
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835912
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472292369
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794473551198
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794473722375
+      }
+    ],
+    "40.5 Buat `src/modules/payment/data/webview-handoff.service.ts` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350761
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414848
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470835968
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472293909
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794473729259
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794473841925
+      }
+    ],
+    "40.6 Buat `src/modules/payment/data/webview-bridge.service.ts` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350815
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414906
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836023
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472294223
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794473850641
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474307905
+      }
+    ],
+    "40.7 Update `src/modules/payment/controllers/payment-page.controller.ts` dengan WebView context `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350863
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470414965
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836077
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472295992
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474314482
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474608248
+      }
+    ],
+    "40.8 Update `src/modules/payment/views/renderers/GoPayInstructionView.tsx` untuk WebView `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350918
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415019
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836137
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472297973
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474616649
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474773519
+      }
+    ],
+    "40.9 Update `src/modules/payment/payment.module.ts` dengan WebView dependencies `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470350969
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415072
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836187
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472298128
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474782402
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474882332
+      }
+    ],
+    "40.10 Tulis property tests untuk webview-handoff.rules.ts `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351020
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415123
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836243
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472299995
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794474890230
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794475287541
+      }
+    ],
+    "40.11 Tulis integration tests payment WebView flow `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351070
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415178
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836294
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472300474
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794475295532
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476446058
+      }
+    ],
+    "41.1 Buat `src/app/(embed)/m/orders/[bookingId]/pay/page.tsx` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351119
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415231
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836353
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472306766
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476455420
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476645364
+      }
+    ],
+    "41.2 Buat `src/app/(embed)/layout.tsx` `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351170
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415282
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836410
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472307789
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476650187
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476861113
+      }
+    ],
+    "42.1 Update `src/modules/payment/domain/payment-error.mapper.ts` dengan WebView error codes `@owner:akbar`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351224
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415344
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836470
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794472309988
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476869022
+      },
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794477235463
+      }
+    ],
+    "42.2 Update `src/core/domain/app-error.ts` dengan WebView error codes `@owner:shared`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351287
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415399
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836519
+      }
+    ],
+    "43.1 Buat handlers untuk `POST /payments/{id}/handoff` `@owner:shared`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351348
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415457
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836569
+      }
+    ],
+    "43.2 Buat handlers untuk `POST /payments/handoff/exchange` `@owner:shared`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351403
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415507
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836626
+      }
+    ],
+    "43.3 Update existing payment handlers untuk accept X-Payment-Session `@owner:shared`": [
+      {
+        "executionId": "2e3ed078-58ab-4c92-9e58-a5285c8c573e",
+        "chatSessionId": "sess_484e25ab-bc76-4238-b41c-7fccfa33b30e",
+        "timestamp": 1794470351463
+      },
+      {
+        "executionId": "6fbeb905-e175-413b-897c-2b58536efb36",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470415558
+      },
+      {
+        "executionId": "8b7ef398-1b66-4803-9379-886049d2a191",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794470836679
+      }
+    ],
+    "40. WebView Payment Integration [NEW] `@owner:akbar`": [
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476446127
+      }
+    ],
+    "41. Buat embedded payment route [NEW] `@owner:akbar`": [
+      {
+        "executionId": "c2903890-473a-4832-8a44-fd5bc4ea516b",
+        "chatSessionId": "sess_18bdffdd-834a-444c-b9c0-449445eb2432",
+        "timestamp": 1794476861189
       }
     ]
   }
