@@ -17,9 +17,21 @@ Variabel `NEXT_PUBLIC_*` di-inline saat build, jadi mengubahnya butuh redeploy.
 
 | Variabel | Production | Preview |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | URL backend produksi | URL backend staging |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.rush-my-ticket.my.id` | `https://api.rush-my-ticket.my.id` (belum ada staging terpisah) |
+| `NEXT_PUBLIC_API_CREDENTIALS` | `omit` | `omit` |
 | `NEXT_PUBLIC_API_MOCKING` | kosong | kosong, atau `enabled` untuk preview tanpa backend |
-| `NEXT_PUBLIC_BOOKING_EXPIRY` | `queue` | `queue` |
+| `NEXT_PUBLIC_BOOKING_EXPIRY` | `queue` (bawaan, boleh kosong) | `queue` (bawaan, boleh kosong) |
+
+`NEXT_PUBLIC_API_CREDENTIALS=omit` wajib selama API menjawab `Access-Control-Allow-Origin: *`: nilai itu tidak boleh dipakai bersama cookie, jadi token antrian dikirim lewat header `X-Queue-Token` dan `X-Device-Id`.
+
+## Host backend
+
+| Host | Fungsi | Catatan |
+|---|---|---|
+| `https://api.rush-my-ticket.my.id` | API (gateway) | HTTPS, CORS `*` dengan preflight 204 untuk `X-Queue-Token`, `X-Device-Id`, `X-Grant-Token`, `Authorization` |
+| `https://sse.rush-my-ticket.my.id` | Stream antrian (SSE) | Alamat lengkapnya dikirim backend di `sse_url` pada respons join; FE tidak menuliskannya sendiri |
+
+Syarat server SSE agar jalan di browser (diperiksa 12 Nov 2026, belum terpenuhi): jawab preflight `OPTIONS` dengan 204, `Access-Control-Allow-Origin` dan `Access-Control-Allow-Headers: x-queue-token, x-device-id, cache-control, last-event-id, accept` pada semua respons termasuk 401/410/429, serta header stream `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`. `GET /events/{id}/queue/serving` (polling cadangan) juga belum ada; sementara itu FE memakai `GET /queue/me`.
 
 Secret backend (kunci server Turnstile, kunci payment gateway) tidak disimpan di proyek ini. Site key Turnstile datang dari `GET /events/{id}`.
 
@@ -38,3 +50,4 @@ Daftarkan hostname produksi, hostname preview Vercel yang dipakai untuk uji, dan
 - `/api/health` menjawab 200.
 - Home (`/`) tetap statis (CI memeriksa baris `○ /` pada log build).
 - Join antrian mengirim `captcha_token` dan tidak ditolak 403.
+- `sse_url` dari respons join berupa HTTPS, dan stream tersambung dari halaman `/events/{id}/queue` (tanpa Mixed Content atau CORS di console).
