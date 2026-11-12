@@ -120,7 +120,14 @@ export function createHttpQueueService({
   async function getState(eventId: string): Promise<QueueState> {
     const ticket = queueTicketCache.get(eventId);
     if (!ticket) return join(eventId);
-    const serving = await httpClient.get(`${queuePath(eventId)}/serving`, queueServingSchema);
+    // `/queue/serving` bisa tidak tersedia (404 di gateway) padahal antrian jalan. `/queue/me` (kontrak §3.3) selalu
+    // menjawab posisi atau grant, jadi dipakai sebagai cadangan kedua sebelum polling dianggap gagal.
+    let serving;
+    try {
+      serving = await httpClient.get(`${queuePath(eventId)}/serving`, queueServingSchema);
+    } catch {
+      return getOwnState(eventId);
+    }
     const known = { ...ticket, ratePerMin: Math.max(serving.ratePerMin, 0) };
     queueTicketCache.set(eventId, known);
     if (serving.saleState === "CLOSED")
