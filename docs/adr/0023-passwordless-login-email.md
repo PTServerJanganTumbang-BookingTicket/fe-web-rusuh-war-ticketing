@@ -75,3 +75,9 @@ Bagian ini belum disepakati BE dan perlu dibawa ke repo `documentations`.
 | 2 | Berapa lama magic link berlaku, dan berapa batas kirim ulangnya? `emails/login-link.mjml` memakai `{{expiryMinutes}}` | BE |
 | 3 | Apakah verifikasi email saat registrasi langsung membuat customer masuk? | BE, FE |
 | 4 | Apakah refresh token bisa dipakai untuk WebView, atau WebView tetap hanya lewat one-time code? | BE, M |
+
+## Pembaruan 2026-11-12: link email dari backend ditukar langsung di server
+
+Backend membuat link email `/auth/login?token=...` (query, bukan fragmen) dan `GET /auth/verify` hanya membaca cookie `magic_token`. Route `GET /auth/login` menukar token di server lewat cookie `magic_token`, menyetel cookie akun, lalu mengalihkan (303) ke beranda, atau ke booking yang dipulihkan (BR-09). Tidak ada layar konfirmasi pada jalur ini. Token gagal atau tanpa token menuju `/login/verify`.
+
+**Harga yang diterima:** token sempat lewat sebagai query di server FE dan log akses, dan pemindai email yang membuka link bisa menghanguskan token sebelum customer mengklik (butir 2 di atas). Layar konfirmasi di `/login/verify#token=...` tetap ada untuk link berbentuk fragmen.
