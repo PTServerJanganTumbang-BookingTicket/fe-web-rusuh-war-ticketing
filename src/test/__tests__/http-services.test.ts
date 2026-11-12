@@ -331,11 +331,31 @@ describe("queueService", () => {
       expect(paths).toEqual(["/queue/serving", "/queue/me"]);
     });
 
-    it("gagal memanggil /queue/serving diteruskan sebagai galat, bukan laju 0", async () => {
-      server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 503, "down")));
+    it("/queue/serving dan /queue/me sama-sama gagal diteruskan sebagai galat, bukan laju 0", async () => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 503, "down")),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({}, 503, "down")),
+      );
       const { queueService } = setupTestContainer().cradle;
       await queueService.join(OPEN_EVENT_ID);
       expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toMatchObject({ status: 503 });
+    });
+
+    it("/queue/serving gagal: posisi diambil dari /queue/me, termasuk saat giliran sudah tiba", async () => {
+      server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 404, "nf")));
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+          envelope({
+            state: "GRANTED",
+            grant_token: "gt_1",
+            booking_expires_at: "2026-10-19T10:10:00.000Z",
+            server_time: "2026-10-19T10:05:00.000Z",
+          }),
+        ),
+      );
+      expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "admitted" });
     });
   });
 
