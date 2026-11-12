@@ -4,7 +4,7 @@
 // Desain: "Pilih tempatmu di konser." (langkah 1 dari 3). Submit membuat booking lalu ke halaman pembayaran.
 // Customer yang masuk bisa memilih alias dari profil sebagai pemegang tiket; NIK manual tetap tersedia.
 
-import { useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
@@ -134,7 +134,16 @@ export function useBookingController(eventId: string): BookingScreen {
 
   const offsetMs = session ? serverOffsetMs(Date.parse(session.serverNow), query.dataUpdatedAt) : 0;
   const remainingMs = useCountdown(session?.expiresAt, offsetMs);
-  useAskServerAtExpiry(session?.expiresAt, remainingMs, query.refetch);
+  // Server ditanya sekali saat hitung mundur nol. Jawabannya apa pun selain `expiresAt` yang lebih baru berarti waktu
+  // habis: GET /tickets bisa tetap 200 (grant hidup lebih lama dari jendela 5 menit) atau menjawab kode selain 401.
+  const [expiryAnsweredFor, setExpiryAnsweredFor] = useState<string>();
+  const { refetch: refetchSession } = query;
+  const expiresAt = session?.expiresAt;
+  const askServer = useCallback(
+    () => refetchSession().finally(() => setExpiryAnsweredFor(expiresAt)),
+    [refetchSession, expiresAt],
+  );
+  useAskServerAtExpiry(expiresAt, remainingMs, askServer);
 
   const queuePath = `/events/${eventId}/queue`;
   const isExpired =
@@ -145,7 +154,8 @@ export function useBookingController(eventId: string): BookingScreen {
     })();
   // Formulir sudah tampil: waktu habis diberitahukan lewat modal di atasnya, bukan layar pengganti. Hanya setelah
   // server menjawab ACCESS_EXPIRED (ADR-0005).
-  const timedOutWithForm = isExpired && Boolean(session) && remainingMs !== null;
+  const serverAnsweredAtZero = remainingMs === 0 && expiryAnsweredFor === expiresAt;
+  const timedOutWithForm = (isExpired || serverAnsweredAtZero) && Boolean(session) && remainingMs !== null;
   // Grant yang habis dilepas dulu (cookie dihapus): selama cookie ada, `proxy.ts` memantulkan Waiting Room ke /book.
   const requeue = useMutation({
     mutationFn: endSessionUseCase,
