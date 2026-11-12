@@ -546,3 +546,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Link login di email backend (`/auth/login?token=...`) menjawab 404 di FE.
 - **Output**: Route `GET /auth/login` mengalihkan (303) ke `/login/verify#token=...`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`. Test route.
 - **Review manusia**: Token sekali melewati server FE sebagai query sebelum dipindah ke fragmen, kompromi dari ADR-0023. Perbaikan bersih: backend memakai `/login/verify#token=...`. Belum diuji dengan token email asli.
+
+## 2026-11-12 — Link login email langsung masuk dan ke beranda
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Link `/auth/login?token=` dari email langsung menyelesaikan login (token lewat cookie, bukan body) dan mengalihkan ke beranda tanpa layar konfirmasi.
+- **Output**: `accountGateway.verifyLink` (memakai `redeem` yang sama dengan `verify`) dan route `GET /auth/login` menggantikan redirect fragmen. Test gateway dan route. ADR-0023 diberi catatan pembaruan.
+- **Review manusia**: Spesifikasi Apidog tidak bisa dibuka dari sesi ini; acuannya backend yang berjalan (`GET /auth/verify` menjawab 400 "magic_token cookie is required" tanpa cookie, 401 untuk token palsu). Diuji di dev server hanya dengan token palsu (303 ke `/login/verify`); login dengan token email asli belum dicoba. Keamanan: pemindai email bisa menghanguskan token sebelum customer mengklik.
