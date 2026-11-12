@@ -7,5 +7,8 @@ export const PRIVACY_POLICY_VERSION = "2026-10-01";
 /** Panjang maksimal nama panggilan alias; cukup untuk nama lengkap di KTP. Asumsi FE sampai kontrak membatasi. */
 export const SAVED_NIK_LABEL_MAX_LENGTH = 40;
 
-/** Jeda layar sukses (email terverifikasi, berhasil masuk) sebelum pindah otomatis. Permintaan desain: 5 detik. */
+/** Jeda layar sukses berhasil masuk sebelum pindah otomatis. Permintaan desain: 5 detik. */
 export const AUTO_REDIRECT_SECONDS = 5;
+
+/** Permintaan produk: layar sukses verifikasi email menunggu 10 detik sebelum ke halaman masuk. */
+export const EMAIL_VERIFIED_REDIRECT_SECONDS = 10;

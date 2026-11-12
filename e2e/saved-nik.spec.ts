@@ -53,7 +53,10 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await installFakeClock(page);
     await passQueue(page);
 
-    await page.getByRole("textbox", { name: "Email" }).fill("rina@example.com");
+    // Email pemesan dari akun: terisi dan tidak bisa diubah.
+    const email = page.getByRole("textbox", { name: "Email" });
+    await expect(email).toHaveValue("you@example.com");
+    await expect(email).toHaveAttribute("readonly", "");
     await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
 
     await page.getByRole("combobox", { name: "Pemegang tiket 1" }).click();
@@ -113,9 +116,26 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await page.getByRole("combobox", { name: "Pemegang tiket 1" }).click();
     await page.getByRole("option", { name: "Budi · 3171********xx33" }).click();
     await page.getByRole("combobox", { name: "Pemegang tiket 1" }).click();
-    await page.getByRole("option", { name: "Isi NIK manual" }).click();
+    await page.getByRole("option", { name: "NIK lain (isi manual)" }).click();
     const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
     await expect(nik).toBeEditable();
     await expect(nik).toHaveValue("");
+
+    // Isian manual customer yang masuk diverifikasi lewat tombol.
+    await nik.fill("3171000000000033");
+    await page.getByRole("button", { name: "Verifikasi Dukcapil" }).click();
+    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+  });
+
+  test("customer masuk memilih NIK pemesan sebagai pemegang tiket", async ({ page }) => {
+    await signIn(page);
+    await installFakeClock(page);
+    await passQueue(page);
+    await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
+    await page.getByRole("combobox", { name: "Pemegang tiket 1" }).click();
+    await page.getByRole("option", { name: "NIK pemesan · 3171**********22" }).click();
+    const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
+    await expect(nik).toHaveValue("3171**********22");
+    await expect(nik).toHaveAttribute("readonly", "");
   });
 });

@@ -5,10 +5,16 @@ import type { HttpClient } from "../http/http.client";
 
 /** `data` dari `GET /api/auth/session`: profil dari cookie, atau `account: null` untuk tamu. */
 const sessionAccountSchema = z
-  .object({ account: z.object({ email: z.string(), nik_masked: z.string() }).nullable() })
+  .object({
+    account: z.object({ email: z.string(), nik_masked: z.string(), nik: z.string().optional() }).nullable(),
+  })
   .transform(
     (session): SessionAccount | null =>
-      session.account && { email: session.account.email, nikMasked: session.account.nik_masked },
+      session.account && {
+        email: session.account.email,
+        nikMasked: session.account.nik_masked,
+        ...(session.account.nik ? { nik: session.account.nik } : {}),
+      },
   );
 
 export function createHttpSessionAccountService({

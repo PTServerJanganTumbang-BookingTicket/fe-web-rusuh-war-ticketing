@@ -3,8 +3,10 @@ import type { AppConfig } from "@/core/domain/app-config.model";
 import { toAppError } from "@/core/domain/app-error";
 import type { CaptchaProtocol } from "@/core/domain/captcha.protocol";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
+import { QUEUE_POLL_FALLBACK_MS } from "../domain/queue.constants";
 import type { QueueProtocol } from "../domain/queue.protocol";
 import type { QueueEvent } from "../domain/queue-event.model";
+import { pollAfterMs } from "../domain/queue-poll.rules";
 import type { QueueState } from "../domain/queue-state.model";
 import type { QueueTicketCache } from "./memory-queue-ticket.service";
 import {
@@ -14,13 +16,17 @@ import {
   queueMeSchema,
   queueServingSchema,
   toQueueState,
+  waitingState,
   type QueueTicket,
 } from "./queue-state.schema";
 
 const queuePath = (eventId: string) => `/events/${encodeURIComponent(eventId)}/queue`;
 
 /**
- * Snapshot antrian: join sekali per event (server menyetel cookie `queue_token`), lalu `GET /queue/me`.
+ * Alur antrian (kontrak §3.1–3.4, ADR-0016): `join` sekali per kunjungan (server menyetel cookie `queue_token`) dan
+ * hanya menyimpan tiket; posisi awal dihitung dari `now_serving` di respons join. Setelah itu stream SSE yang
+ * mengantar `now_serving`. `GET /queue/me` dipanggil saat giliran tiba, dan `GET /queue/serving` hanya polling
+ * cadangan selama stream tidak tersambung.
  * Tamu wajib mengirim `X-Device-Id` di join dan `/queue/me` supaya tempat dan grant-nya terikat ke perangkat (kontrak).
  * Bila cookie tidak bisa dipakai (`apiCredentials = "omit"`), token dari respons join disimpan dan dikirim sebagai
  * `X-Queue-Token`, jalur yang sama dengan klien mobile.
@@ -51,36 +57,11 @@ export function createHttpQueueService({
     credentialStore.clearQueueToken(eventId);
   }
 
-  /** Laju antrian untuk estimasi; gagal mengambilnya hanya berarti estimasi belum bisa dihitung. */
-  async function ratePerMin(eventId: string): Promise<number> {
-    try {
-      const serving = await httpClient.get(`${queuePath(eventId)}/serving`, queueServingSchema);
-      return Math.max(serving.rate_per_min, 0);
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Laju 0 adalah keadaan awal antrian (belum ada booking yang diproses). Selama itu laju diambil lagi tiap snapshot,
-   * supaya polling cadangan tidak terpaku di "menghitung" saat stream tidak tersambung.
-   */
-  async function withKnownRate(eventId: string, ticket: QueueTicket): Promise<QueueTicket> {
-    if (ticket.ratePerMin > 0) return ticket;
-    const rate = await ratePerMin(eventId);
-    if (rate <= 0) return ticket;
-    const updated = { ...ticket, ratePerMin: rate };
-    queueTicketCache.set(eventId, updated);
-    return updated;
-  }
-
-  async function ticketFor(eventId: string): Promise<QueueTicket> {
-    const cached = queueTicketCache.get(eventId);
-    if (cached) return withKnownRate(eventId, cached);
+  async function join(eventId: string): Promise<QueueState> {
     // Token CAPTCHA diambil lebih dulu: join menolak tanpa token (400), dan nomor antrian dibagikan saat join.
     const event = await httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueJoinEventSchema);
     const captchaToken = await captcha.solve(event.captcha);
-    const join = await httpClient.post(
+    const joined = await httpClient.post(
       `${queuePath(eventId)}/join`,
       { captcha_token: captchaToken },
       queueJoinSchema,
@@ -103,31 +84,59 @@ export function createHttpQueueService({
         },
       },
     );
-    if (tokenInHeader && join.queueToken) credentialStore.saveQueueToken(eventId, join.queueToken);
+    if (tokenInHeader && joined.queueToken) credentialStore.saveQueueToken(eventId, joined.queueToken);
+    // Laju belum diketahui di join; stream dan `/queue/serving` yang mengisinya.
     const ticket: QueueTicket = {
-      ...join,
+      ticketNo: joined.ticketNo,
+      joinedPosition: joined.joinedPosition,
+      queueToken: joined.queueToken,
+      streamUrl: joined.streamUrl,
       eventName: event.name,
-      ratePerMin: await ratePerMin(eventId),
+      ratePerMin: 0,
     };
     queueTicketCache.set(eventId, ticket);
-    return ticket;
+    // Giliran sudah tiba (kontrak §3.1: position ≤ 0) atau join ulang bukan `QUEUED`: grant ada di `/queue/me`.
+    const notQueued = joined.state !== undefined && joined.state !== "QUEUED";
+    if (notQueued || ticket.ticketNo - joined.nowServing <= 0) return getOwnState(eventId);
+    return waitingState(ticket, joined.nowServing);
+  }
+
+  async function getOwnState(eventId: string): Promise<QueueState> {
+    const ticket = queueTicketCache.get(eventId);
+    if (!ticket) return join(eventId);
+    try {
+      const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
+        headers: queueHeaders(eventId),
+        errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
+      });
+      return toQueueState(ticket, me);
+    } catch (error) {
+      const failure = toAppError(error);
+      if (failure.kind === "api" && failure.code === "QUEUE_TOKEN_INVALID") forget(eventId);
+      throw error;
+    }
+  }
+
+  async function getState(eventId: string): Promise<QueueState> {
+    const ticket = queueTicketCache.get(eventId);
+    if (!ticket) return join(eventId);
+    const serving = await httpClient.get(`${queuePath(eventId)}/serving`, queueServingSchema);
+    const known = { ...ticket, ratePerMin: Math.max(serving.ratePerMin, 0) };
+    queueTicketCache.set(eventId, known);
+    if (serving.saleState === "CLOSED")
+      return { status: "ended", eventName: known.eventName, reason: "closed" };
+    if (known.ticketNo > 0 && serving.nowServing >= known.ticketNo) return getOwnState(eventId);
+    const position = Math.max(known.ticketNo - serving.nowServing, 0);
+    return waitingState(known, serving.nowServing, {
+      fullBooked: serving.saleState === "FULL_BOOKED",
+      retryAfterMs: pollAfterMs(position, serving.pollTiers, serving.pollAfterMs ?? QUEUE_POLL_FALLBACK_MS),
+    });
   }
 
   return {
-    async getState(eventId: string): Promise<QueueState> {
-      const ticket = await ticketFor(eventId);
-      try {
-        const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
-          headers: queueHeaders(eventId),
-          errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
-        });
-        return toQueueState(ticket, me);
-      } catch (error) {
-        const failure = toAppError(error);
-        if (failure.kind === "api" && failure.code === "QUEUE_TOKEN_INVALID") forget(eventId);
-        throw error;
-      }
-    },
+    join,
+    getOwnState,
+    getState,
 
     leave(eventId: string): void {
       forget(eventId);

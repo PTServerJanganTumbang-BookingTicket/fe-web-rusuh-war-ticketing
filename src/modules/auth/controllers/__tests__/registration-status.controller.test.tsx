@@ -72,17 +72,18 @@ describe("useEmailVerifiedController", () => {
     const { result } = mountVerified();
     expect(result.current.tone).toBe("info");
     await waitFor(() => expect(result.current.tone).toBe("success"));
-    expect(result.current.link?.href).toBe("/login");
-    expect(result.current.detail).toBe("Kamu akan diarahkan ke halaman masuk dalam 5 detik.");
+    expect(result.current.link).toEqual({ label: "Lanjut ke halaman masuk", href: "/login" });
+    expect(result.current.secondaryLink).toEqual({ label: "Kembali ke beranda", href: "/" });
+    expect(result.current.detail).toBe("Kamu akan diarahkan ke halaman masuk dalam 10 detik.");
   });
 
-  it("5 detik setelah terverifikasi, otomatis diarahkan ke halaman masuk", async () => {
+  it("10 detik setelah terverifikasi, otomatis diarahkan ke halaman masuk", async () => {
     visit("?token=abc");
     const { result } = mountVerified();
     await waitFor(() => expect(result.current.tone).toBe("success"));
     expect(replace).not.toHaveBeenCalled();
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"), { timeout: 7000 });
-  }, 10000);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"), { timeout: 13000 });
+  }, 16000);
 
   it("token di fragmen URL juga dikenali", async () => {
     visit("#token=abc");

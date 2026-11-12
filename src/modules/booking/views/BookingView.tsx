@@ -47,13 +47,17 @@ export type HolderSourceProps = {
   onChange: (value: string) => void;
 };
 
+/** Tombol "Verifikasi Dukcapil" di samping isian NIK manual, hanya untuk customer yang masuk. */
+export type HolderVerifyProps = { label: string; busy: boolean; disabled: boolean; onClick: () => void };
+
 export type TicketHolderProps = {
   id: string;
   /** Hanya ada pada tiket pertama tiap kategori: kategori yang sama dikelompokkan, bukan diulang per tiket. */
   heading?: { title: string; priceLabel: string };
   nik: TextFieldProps;
-  /** Pilihan alias; hanya ada untuk customer yang masuk dan punya alias. */
+  /** Pilihan pemegang (NIK pemesan, alias, atau NIK lain); selalu ada untuk customer yang masuk. */
   holder?: HolderSourceProps;
+  verify?: HolderVerifyProps;
 };
 
 /** Tiket berurutan sekategori jadi satu kelompok; kelompok baru dimulai di tiket yang punya `heading`. */
@@ -266,13 +270,29 @@ export function BookingView(props: BookingViewProps) {
                             {holder.holder ? (
                               <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
                             ) : null}
-                            <div>
-                              <TextInput
-                                id={`nik-${holder.id}`}
-                                field={holder.nik}
-                                inputMode="numeric"
-                                autoComplete="off"
-                              />
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                              <div className="min-w-0 sm:flex-1">
+                                <TextInput
+                                  id={`nik-${holder.id}`}
+                                  field={holder.nik}
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                />
+                              </div>
+                              {holder.verify ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="lg"
+                                  className="w-full sm:w-auto"
+                                  disabled={holder.verify.disabled}
+                                  aria-busy={holder.verify.busy}
+                                  onClick={holder.verify.onClick}
+                                >
+                                  {holder.verify.busy ? <Spinner data-icon="inline-start" /> : null}
+                                  {holder.verify.label}
+                                </Button>
+                              ) : null}
                             </div>
                           </li>
                         ))}

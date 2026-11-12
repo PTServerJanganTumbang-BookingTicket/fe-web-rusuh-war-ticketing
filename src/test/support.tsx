@@ -119,7 +119,7 @@ export const OPEN_EVENT_ID = "evt_konser_a";
 export async function admitToQueue(container: AppContainer, eventId = OPEN_EVENT_ID): Promise<string> {
   const { queueService, credentialStore } = container.cradle;
   for (let poll = 0; poll < 5; poll += 1) {
-    const state = await queueService.getState(eventId);
+    const state = await queueService.getOwnState(eventId);
     if (state.status === "admitted") {
       credentialStore.saveGrantToken(state.accessToken);
       return state.accessToken;

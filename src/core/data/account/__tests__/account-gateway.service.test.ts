@@ -62,7 +62,7 @@ describe("accountGateway.verify", () => {
     expect(body.data).toEqual({
       redirect_path: "/orders/RB-00912/pay",
       booking: { event_id: "evt_konser_a", booking_id: "RB-00912" },
-      account: { email: "you@example.com", nik_masked: "3171********xx22" },
+      account: { email: "you@example.com", nik_masked: "3171**********22", nik: "3171000000000022" },
     });
     expect(JSON.stringify(body)).not.toMatch(/at_|rt_/);
     for (const name of ["account_token", "account_refresh", "account_profile"]) {
@@ -119,7 +119,7 @@ describe("accountGateway.verifyLink", () => {
     const response = await accountGateway.verifyLink(link("?token=a%20b"));
     expect(received).toBe("magic_token=a%20b");
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/`);
+    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/login/verify?signedIn=1`);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     const cookies = cookiesOf(response);
@@ -127,10 +127,45 @@ describe("accountGateway.verifyLink", () => {
     expect(cookies.account_token?.cookie).toContain("HttpOnly");
   });
 
-  it("memulihkan booking aktif lewat redirect_context", async () => {
+  it("booking aktif dari redirect_context dibawa lewat parameter next ke layar sukses", async () => {
     const { accountGateway } = setupTestContainer().cradle;
     const response = await accountGateway.verifyLink(link("?token=mt_1"));
-    expect(response.headers.get("location")).toBe(`${TEST_APP_ORIGIN}/orders/RB-00912/pay`);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      `${TEST_APP_ORIGIN}/login/verify?signedIn=1&next=${encodeURIComponent("/orders/RB-00912/pay")}`,
+    );
+  });
+
+  it("NIK lengkap dari BE disimpan di profil beserta bentuk tersamarnya", async () => {
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link("?token=mt_1"));
+    expect(JSON.parse(cookiesOf(response).account_profile!.value)).toEqual({
+      email: "you@example.com",
+      nik_masked: "3171**********22",
+      nik: "3171000000000022",
+    });
+  });
+
+  it("NIK tersamar dari BE dipakai apa adanya tanpa field nik", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/auth/verify`, () =>
+        HttpResponse.json({
+          meta: { code: 200, message: "Login successful" },
+          data: {
+            access_token: "at_1",
+            refresh_token: "rt_1",
+            expires_in: 22740,
+            user: { id: "usr_1", email: "you@example.com", nik: "3171********xx22" },
+          },
+        }),
+      ),
+    );
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.verifyLink(link("?token=mt_1"));
+    expect(JSON.parse(cookiesOf(response).account_profile!.value)).toEqual({
+      email: "you@example.com",
+      nik_masked: "3171********xx22",
+    });
   });
 
   it("token ditolak BE: tanpa cookie, ke /login/verify", async () => {
@@ -247,7 +282,9 @@ describe("accountGateway.session dan logout", () => {
     const signedIn = (await accountGateway
       .session(api("/auth/session", { headers: cookieHeader(session) }))
       .json()) as { data: unknown };
-    expect(signedIn.data).toEqual({ account: { email: "you@example.com", nik_masked: "3171********xx22" } });
+    expect(signedIn.data).toEqual({
+      account: { email: "you@example.com", nik_masked: "3171**********22", nik: "3171000000000022" },
+    });
   });
 
   it("logout mengosongkan ketiga cookie", () => {

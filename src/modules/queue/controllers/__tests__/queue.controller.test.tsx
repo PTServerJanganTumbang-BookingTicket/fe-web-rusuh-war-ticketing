@@ -15,35 +15,60 @@ import {
 import { useQueueController } from "../queue.controller";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
 
 const server = setupMockServer();
 
+const envelope = (data: unknown) => HttpResponse.json({ meta: { code: 200, message: "Success" }, data });
+
 const grantedMe = (grantToken: string) =>
   http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
-    HttpResponse.json({
-      meta: { code: 200, message: "Success" },
-      data: {
-        state: "GRANTED",
-        grant_token: grantToken,
-        booking_expires_at: "2026-10-19T10:10:00.000Z",
-        server_time: "2026-10-19T10:05:00.000Z",
-      },
+    envelope({
+      state: "GRANTED",
+      grant_token: grantToken,
+      booking_expires_at: "2026-10-19T10:10:00.000Z",
+      server_time: "2026-10-19T10:05:00.000Z",
     }),
   );
 
+/** Join yang langsung diberi giliran (antrian kosong): state diambil dari /queue/me. */
+const joinGranted = () =>
+  http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+    envelope({ granted: true, grant_token: "gt_x", queue_token: "qt_1" }),
+  );
+
+const joinRejected = (status: number, errorCode: string, message: string) =>
+  http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+    HttpResponse.json({ meta: { code: status, message, error_code: errorCode }, data: {} }, { status }),
+  );
+
+/** Path request antrian yang keluar, tanpa awalan host. */
+function recordQueueRequests() {
+  const paths: string[] = [];
+  server.events.on("request:start", ({ request }) => {
+    const { pathname } = new URL(request.url);
+    const at = pathname.indexOf("/queue/");
+    if (at >= 0) paths.push(pathname.slice(at));
+  });
+  return paths;
+}
+
 describe("useQueueController", () => {
-  it("join lalu menampilkan posisi, estimasi, dan progress dari /queue/me", async () => {
+  it("join lalu menampilkan posisi dari now_serving join, tanpa memanggil /queue/serving atau /queue/me", async () => {
+    const paths = recordQueueRequests();
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
     expect(result.current.status.state).toBe("loading");
 
-    // Join di posisi 1.248; poll /queue/me pertama memajukan antrian 416 langkah.
+    // Join di posisi 1.248; laju belum diketahui sampai stream atau polling cadangan memberinya.
     await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+    server.events.removeAllListeners();
     expect(result.current.subtitle).toBe("Kamu sudah masuk antrean resmi Konser A.");
     await waitFor(() => expect(result.current.event?.name).toBe("Konser A — Jakarta"));
-    expect(result.current.status.position?.value).toBe("#832");
-    expect(result.current.status.eta?.value).toBe("± 3 menit");
-    expect(result.current.status.progress?.percent).toBe(33);
+    expect(result.current.status.position?.value).toBe("#1.248");
+    expect(result.current.status.eta?.value).toBe("Menghitung estimasi antrean…");
+    expect(result.current.status.progress?.percent).toBe(0);
+    expect(paths).toEqual(["/queue/join"]);
   });
 
   it("keluar dari antrian: konfirmasi dulu, batal menutup dialog, ya membuang tiket dan kembali ke Home", async () => {
@@ -79,10 +104,12 @@ describe("useQueueController", () => {
     expect(push).toHaveBeenCalledWith("/");
   });
 
-  it("saat giliran tiba menyimpan grant satu kali lalu pindah ke Detail Ticket", async () => {
+  it("join langsung diberi giliran: simpan grant satu kali lalu replace ke booking (Back tidak kembali ke antrian)", async () => {
     push.mockClear();
+    replace.mockClear();
     const started = vi.fn();
     server.use(
+      joinGranted(),
       grantedMe("gt_1"),
       http.post(`${TEST_APP_ORIGIN}/api/session/start`, async ({ request }) => {
         started(await request.json());
@@ -94,7 +121,8 @@ describe("useQueueController", () => {
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
       wrapper: createWrapper(container),
     });
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+    expect(push).not.toHaveBeenCalled();
     expect(started).toHaveBeenCalledTimes(1);
     expect(started).toHaveBeenCalledWith({ accessToken: "gt_1" });
     expect(container.cradle.credentialStore.grantToken()).toBe("gt_1");
@@ -103,7 +131,9 @@ describe("useQueueController", () => {
 
   it("gagal menyimpan sesi: tampil pesan dan tombol coba lagi, tanpa pindah halaman", async () => {
     push.mockClear();
+    replace.mockClear();
     server.use(
+      joinGranted(),
       grantedMe("gt_2"),
       http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 500 })),
     );
@@ -111,6 +141,7 @@ describe("useQueueController", () => {
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.status.action?.label).toBe("Coba lagi"));
     expect(push).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("jaringan gagal: state error dengan pesan jaringan, bukan pesan mentah", async () => {
@@ -120,55 +151,136 @@ describe("useQueueController", () => {
     expect(result.current.status.message).toBe("Koneksi bermasalah. Kami mencoba lagi otomatis.");
   });
 
-  it("antrian penuh (503) memakai pesan QUEUE_FULL", async () => {
-    const { result } = renderHook(() => useQueueController("evt_konser_b"), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.status.state).toBe("error"));
-    expect(result.current.status.message).toBe("Antrian sedang penuh. Coba lagi beberapa saat lagi.");
-  });
-
-  it("antrian penuh saat join: modal dengan coba lagi dan kembali ke beranda", async () => {
-    const { result } = renderHook(() => useQueueController("evt_konser_b"), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.dialog).toBeDefined());
-    expect(result.current.dialog).toMatchObject({
-      title: "Antrian sedang penuh",
-      primary: { label: "Coba lagi" },
-      secondary: { label: "Kembali ke beranda", href: "/" },
+  describe("antrian penuh (QUEUE_FULL)", () => {
+    it("pesan di panel status memakai QUEUE_FULL", async () => {
+      const { result } = renderHook(() => useQueueController("evt_konser_b"), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.status.state).toBe("error"));
+      expect(result.current.status.message).toBe("Antrian sedang penuh. Coba lagi beberapa saat lagi.");
     });
-    act(() => result.current.dialog?.onDismiss());
-    await waitFor(() => expect(result.current.dialog).toBeUndefined());
-    expect(result.current.status.state).toBe("error");
+
+    it("modal dengan coba lagi dan kembali ke beranda; tutup modal meninggalkan panel error", async () => {
+      const { result } = renderHook(() => useQueueController("evt_konser_b"), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.dialog).toBeDefined());
+      expect(result.current.dialog).toMatchObject({
+        title: "Antrian sedang penuh",
+        primary: { label: "Coba lagi" },
+        secondary: { label: "Kembali ke beranda", href: "/" },
+      });
+      act(() => result.current.dialog?.onDismiss());
+      await waitFor(() => expect(result.current.dialog).toBeUndefined());
+      expect(result.current.status.state).toBe("error");
+    });
+
+    it("coba lagi memanggil join ulang dan masuk antrian bila sudah ada tempat", async () => {
+      server.use(joinRejected(503, "QUEUE_FULL", "Antrian sedang penuh"));
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.dialog?.title).toBe("Antrian sedang penuh"));
+
+      server.resetHandlers();
+      const retry = result.current.dialog?.primary;
+      act(() => retry && "onClick" in retry && retry.onClick());
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+      expect(result.current.dialog).toBeUndefined();
+    });
   });
 
-  it("tiket sedang habis (409 FULL_BOOKED) saat join: modal sendiri, bukan 'penjualan belum dibuka'", async () => {
-    server.use(
-      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
-        HttpResponse.json(
-          {
-            meta: { code: 409, message: "Tiket sedang habis", error_code: "FULL_BOOKED" },
-            data: { queue_state: "FULL_BOOKED" },
-          },
-          { status: 409 },
-        ),
-      ),
-    );
-    const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.dialog?.title).toBe("Tiket sedang habis"));
-    expect(result.current.status.message).toContain("Tiket sedang habis");
-  });
+  describe("tiket habis atau penjualan berakhir: modal lalu kembali ke beranda", () => {
+    const countdown = "Kamu akan diarahkan ke beranda dalam 10 detik.";
 
-  it("grant kedaluwarsa: antrian berakhir dengan pesan, tanpa pindah halaman", async () => {
-    push.mockClear();
-    server.use(
-      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
-        HttpResponse.json({ meta: { code: 200, message: "Success" }, data: { state: "EXPIRED" } }),
-      ),
+    it.each([
+      ["FULL_BOOKED", 409, "Tiket sedang habis"],
+      ["SALE_CLOSED", 410, "Tiket sudah habis"],
+    ])(
+      "join ditolak %s: modal habis dan replace ke beranda setelah 10 detik",
+      async (code, status, message) => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+          replace.mockClear();
+          server.use(joinRejected(status, code, message));
+          const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+            wrapper: createWrapper(),
+          });
+          await waitFor(() => expect(result.current.dialog?.title).toBe("Tiket sudah habis"));
+          expect(result.current.dialog).toMatchObject({
+            tone: "warning",
+            illustration: "box",
+            note: countdown,
+            primary: { label: "Kembali ke beranda" },
+          });
+          // Panel status tetap tampil di belakang modal, bukan halaman kosong.
+          expect(result.current.status.state).toBe("error");
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(3000);
+          });
+          expect(result.current.dialog?.note).toBe("Kamu akan diarahkan ke beranda dalam 7 detik.");
+          expect(replace).not.toHaveBeenCalled();
+
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(7000);
+          });
+          expect(replace).toHaveBeenCalledWith("/");
+        } finally {
+          vi.useRealTimers();
+        }
+      },
     );
-    const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.status.state).toBe("error"));
-    expect(result.current.status.message).toBe(
-      "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
-    );
-    expect(push).not.toHaveBeenCalled();
+
+    it("tombol Kembali ke beranda langsung replace ke beranda", async () => {
+      replace.mockClear();
+      server.use(joinRejected(409, "FULL_BOOKED", "Tiket sedang habis"));
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.dialog?.title).toBe("Tiket sudah habis"));
+      const home = result.current.dialog?.primary;
+      act(() => home && "onClick" in home && home.onClick());
+      expect(replace).toHaveBeenCalledWith("/");
+      expect(push).not.toHaveBeenCalledWith("/");
+    });
+
+    it("menutup modal (onDismiss) sama dengan kembali ke beranda", async () => {
+      replace.mockClear();
+      server.use(joinRejected(410, "SALE_CLOSED", "Tiket sudah habis"));
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.dialog).toBeDefined());
+      act(() => result.current.dialog?.onDismiss());
+      expect(replace).toHaveBeenCalledWith("/");
+    });
+
+    it("grant kedaluwarsa: antrian berakhir dengan modal dan pesan, tanpa pindah ke booking", async () => {
+      push.mockClear();
+      replace.mockClear();
+      server.use(
+        joinGranted(),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({ state: "EXPIRED" })),
+      );
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.status.state).toBe("error"));
+      expect(result.current.status.message).toBe(
+        "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
+      );
+      expect(result.current.dialog).toMatchObject({
+        title: "Antrian sudah berakhir",
+        description: "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
+        note: countdown,
+      });
+      expect(push).not.toHaveBeenCalled();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("meninggalkan layar membuang tiket supaya kunjungan berikutnya join bersih", async () => {
+      server.use(
+        joinGranted(),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({ state: "EXPIRED" })),
+      );
+      const container = setupTestContainer();
+      const { result, unmount } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+      await waitFor(() => expect(result.current.dialog).toBeDefined());
+      expect(container.cradle.queueTicketCache.get(OPEN_EVENT_ID)).toBeDefined();
+      unmount();
+      expect(container.cradle.queueTicketCache.get(OPEN_EVENT_ID)).toBeUndefined();
+    });
   });
 
   describe("SSE (kontrak v2.12)", () => {
@@ -181,6 +293,8 @@ describe("useQueueController", () => {
 
     async function waitingWithStream() {
       push.mockClear();
+      replace.mockClear();
+      const paths = recordQueueRequests();
       const fakes = setupFakeEventSources();
       const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
       server.use(
@@ -197,19 +311,85 @@ describe("useQueueController", () => {
           stream.emit("open");
           stream.emit("message", tick(nowServing));
         });
-      return { result, stream, first };
+      return { result, stream, first, paths, fakes };
     }
 
-    it("nowServing dari stream menggantikan snapshot, lalu nowServing >= ticket_no mengambil token", async () => {
-      const { result, stream, first } = await waitingWithStream();
+    it("stream baru dibuka setelah join selesai, memakai sse_url dari join", async () => {
+      let release: () => void = () => undefined;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      server.use(
+        http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, async () => {
+          await gate;
+          return envelope({
+            ticket_no: 100,
+            now_serving: 40,
+            position: 60,
+            queue_token: "qt_1",
+            sse_url: "https://stream.example.test/s/abc",
+          });
+        }),
+      );
+      const fakes = setupFakeEventSources();
+      const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+
+      // Join belum selesai: belum ada stream, layar masih memuat.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(result.current.status.state).toBe("loading");
+      expect(fakes.sources).toHaveLength(0);
+
+      release();
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+      expect(result.current.status.position?.value).toBe("#60");
+      expect(fakes.sources.map((source) => source.url)).toEqual(["https://stream.example.test/s/abc"]);
+    });
+
+    it("selama stream tersambung tidak ada request ke /queue/serving atau /queue/me sampai nowServing >= ticket_no", async () => {
+      const { result, stream, first, paths } = await waitingWithStream();
       // Tiket customer 32.748; nowServing 32.648 berarti posisi 100.
       first(32_648);
       expect(result.current.status.position?.value).toBe("#100");
+      act(() => stream.emit("message", tick(32_700)));
+      await waitFor(() => expect(result.current.status.position?.value).toBe("#48"));
+      expect(paths).toEqual(["/queue/join"]);
 
       server.use(grantedMe("gt_sse"));
       act(() => stream.emit("message", tick(32_748)));
-      await waitFor(() => expect(push).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+      expect(paths).toEqual(["/queue/join", "/queue/me"]);
+      expect(push).not.toHaveBeenCalled();
       expect(stream.closed).toBe(true);
+    });
+
+    it("stream tidak pernah tersambung: polling cadangan memanggil /queue/serving", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        server.use(
+          http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+            envelope({ now_serving: 32_648, rate_per_min: 318, state: "OPEN", poll_after_ms: 1000 }),
+          ),
+        );
+        const paths = recordQueueRequests();
+        const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+          wrapper: createWrapper(),
+        });
+        await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+        expect(result.current.status.position?.value).toBe("#1.248");
+
+        // Polling pertama memakai jeda dari join (5 detik ± jitter); sesudahnya poll_after_ms dari server.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(6000);
+        });
+        server.events.removeAllListeners();
+        await waitFor(() => expect(result.current.status.position?.value).toBe("#100"));
+        expect(paths).toContain("/queue/serving");
+        expect(paths).not.toContain("/queue/me");
+        expect(paths.filter((path) => path === "/queue/join")).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("FULL_BOOKED: estimasi disembunyikan dan ada pemberitahuan; OPEN memulihkannya", async () => {
@@ -222,6 +402,8 @@ describe("useQueueController", () => {
       expect(result.current.status.eta).toBeUndefined();
       expect(result.current.status.position?.value).toBe("#100");
       expect(stream.closed).toBe(false);
+      // Reversibel: tetap menunggu, tanpa modal habis.
+      expect(result.current.dialog).toBeUndefined();
 
       act(() => stream.emit("status", { state: "OPEN", serverTime: "x" }));
       await waitFor(() => expect(result.current.status.notice).toBeUndefined());
@@ -241,12 +423,29 @@ describe("useQueueController", () => {
       await waitFor(() => expect(result.current.status.stale).toBe(false));
     });
 
-    it("sold-out menutup stream dan menampilkan antrian berakhir", async () => {
-      const { result, stream } = await waitingWithStream();
-      act(() => stream.emit("sold-out", { state: "CLOSED", message: "Tiket sudah habis", serverTime: "x" }));
-      await waitFor(() => expect(result.current.status.state).toBe("error"));
-      expect(result.current.status.message).toBe("Penjualan tiket untuk acara ini sudah ditutup.");
-      expect(stream.closed).toBe(true);
+    it("sold-out menutup stream dan menampilkan modal berakhir dengan hitung mundur ke beranda", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const { result, stream } = await waitingWithStream();
+        act(() =>
+          stream.emit("sold-out", { state: "CLOSED", message: "Tiket sudah habis", serverTime: "x" }),
+        );
+        await waitFor(() => expect(result.current.status.state).toBe("error"));
+        expect(result.current.status.message).toBe("Penjualan tiket untuk acara ini sudah ditutup.");
+        expect(stream.closed).toBe(true);
+        expect(result.current.dialog).toMatchObject({
+          title: "Penjualan sudah ditutup",
+          description: "Penjualan tiket untuk acara ini sudah ditutup.",
+          note: "Kamu akan diarahkan ke beranda dalam 10 detik.",
+        });
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(replace).toHaveBeenCalledWith("/");
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
 import type { BookingSession } from "../../domain/booking-session.model";
-import { isBookingFormValid, nikError, toBookingViewProps, type BookingForm } from "../booking.mapper";
+import {
+  isBookingFormValid,
+  nikError,
+  toBookingTimeoutDialog,
+  toBookingViewProps,
+  type BookingForm,
+} from "../booking.mapper";
+import { holderChoices } from "../../domain/ticket-holders.rules";
 
 const session: BookingSession = {
   eventName: "Konser A",
@@ -215,5 +222,121 @@ describe("isBookingFormValid", () => {
       } as const,
     };
     expect(isBookingFormValid(rejected, ["vip-0", "vip-1"])).toBe(false);
+  });
+});
+
+describe("toBookingTimeoutDialog", () => {
+  it("modal peringatan dengan catatan hitung mundur dan satu tombol ke Beranda; menutup sama dengan ke Beranda", () => {
+    const onGoHome = vi.fn();
+    const dialog = toBookingTimeoutDialog({ secondsLeft: 5, onGoHome });
+    expect(dialog).toMatchObject({
+      tone: "warning",
+      icon: "clock",
+      title: "Waktu booking habis",
+      note: expect.stringContaining("5"),
+    });
+    expect(dialog.secondary).toBeUndefined();
+    expect(dialog.primary).toMatchObject({ label: "Kembali ke beranda", onClick: onGoHome });
+    expect(dialog.onDismiss).toBe(onGoHome);
+  });
+});
+
+describe("akun yang masuk", () => {
+  const owner = { email: "rina@example.com", nikMasked: "3171********xx11", nik: "3171000000000011" };
+  const budi = { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171********xx33" };
+  const labels = (view: ReturnType<typeof build>, index = 0) =>
+    view.holders?.items[index]?.holder?.options.map((option) => option.label);
+
+  it("email pemesan terisi dari akun, tidak bisa diubah, tanpa galat, dengan petunjuk akun", () => {
+    const view = build({ account: owner, form: { ...emptyForm, submitted: true } });
+    expect(view.buyer.email).toMatchObject({ value: "rina@example.com", readOnly: true, error: undefined });
+    expect(view.buyer.hint).toBe("E-tiket dikirim ke email akunmu. Email ini tidak bisa diubah di sini.");
+  });
+
+  it("tamu: email bisa diketik dan petunjuk biasa", () => {
+    const view = build({ form: { ...emptyForm, submitted: true } });
+    expect(view.buyer.email.readOnly).toBeUndefined();
+    expect(view.buyer.email.error).toBe("Masukkan alamat email yang valid.");
+    expect(view.buyer.hint).not.toBe("E-tiket dikirim ke email akunmu. Email ini tidak bisa diubah di sini.");
+  });
+
+  it("tanpa alias: pilihan NIK pemilik lalu isi manual, dengan petunjuk akun", () => {
+    const view = build({ account: owner, aliases: holderChoices(owner, []) });
+    const holder = view.holders?.items[0]?.holder;
+    expect(holder?.options.map((option) => option.value)).toEqual(["owner", ""]);
+    expect(labels(view)).toEqual(["NIK pemesan · 3171********xx11", "NIK lain (isi manual)"]);
+    expect(holder?.hint).toBe(
+      "Pilih NIK pemesan, alias dari profilmu, atau NIK lain lalu verifikasi ke Dukcapil.",
+    );
+  });
+
+  it("urutan: pemilik, alias, lalu isi manual", () => {
+    const view = build({ account: owner, aliases: holderChoices(owner, [budi]) });
+    expect(view.holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([
+      "owner",
+      "snk_1",
+      "",
+    ]);
+  });
+
+  it("pemilik tanpa NIK lengkap tidak jadi pilihan, tetapi pilihan manual tetap tampil", () => {
+    const noNik = { email: owner.email, nikMasked: owner.nikMasked };
+    const view = build({ account: noNik, aliases: holderChoices(noNik, []) });
+    expect(view.holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([""]);
+  });
+
+  it("NIK pemilik yang sudah dipakai tiket lain tidak bisa dipilih lagi (BR-02), kecuali pilihan slot itu sendiri", () => {
+    const form: BookingForm = {
+      ...emptyForm,
+      niks: { "vip-0": owner.nik, "vip-1": "" },
+      aliasPicks: { "vip-0": "owner" },
+    };
+    const view = build({ account: owner, aliases: holderChoices(owner, []), form });
+    expect(view.holders?.items[1]?.holder?.options[0]).toMatchObject({
+      value: "owner",
+      disabled: true,
+      label: "NIK pemesan · 3171********xx11 (sudah dipakai tiket lain)",
+    });
+    expect(view.holders?.items[0]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: false });
+  });
+
+  it("tombol verifikasi hanya untuk akun yang masuk dan slot berisian manual", () => {
+    const manual = build({ account: owner, aliases: holderChoices(owner, []) });
+    expect(manual.holders?.items[0]?.verify).toMatchObject({
+      label: "Verifikasi Dukcapil",
+      busy: false,
+      disabled: true,
+    });
+
+    const picked = build({
+      account: owner,
+      aliases: holderChoices(owner, []),
+      form: { ...emptyForm, niks: { "vip-0": owner.nik }, aliasPicks: { "vip-0": "owner" } },
+    });
+    expect(picked.holders?.items[0]?.verify).toBeUndefined();
+    expect(picked.holders?.items[0]?.nik).toMatchObject({ value: owner.nikMasked, readOnly: true });
+
+    expect(build().holders?.items[0]?.holder).toBeUndefined();
+    expect(build().holders?.items[0]?.verify).toBeUndefined();
+  });
+
+  it("tombol verifikasi aktif untuk NIK 16 digit, sibuk saat dicek, dan memanggil onNikVerify dengan slotnya", () => {
+    const onNikVerify = vi.fn();
+    const nik = "3171000000001234";
+    const ready = build({
+      account: owner,
+      onNikVerify,
+      form: { ...emptyForm, niks: { "vip-0": nik } },
+    });
+    const verify = ready.holders?.items[0]?.verify;
+    expect(verify).toMatchObject({ busy: false, disabled: false });
+    verify?.onClick();
+    expect(onNikVerify).toHaveBeenCalledWith("vip-0");
+
+    const checking = build({
+      account: owner,
+      form: { ...emptyForm, niks: { "vip-0": nik }, checks: { "vip-0": { nik, state: "checking" } } },
+    });
+    expect(checking.holders?.items[0]?.verify).toMatchObject({ busy: true, disabled: true });
   });
 });

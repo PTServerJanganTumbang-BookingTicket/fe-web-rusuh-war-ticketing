@@ -1,7 +1,11 @@
 "use client";
 
-// Konfirmasi link login dari email. Requirement: FR-29, BR-09. ADR-0023 (usulan 1 dan 2: token di fragmen URL,
-// dipakai lewat POST saat tombol ditekan, lalu ditukar dengan cookie httpOnly oleh route same-origin).
+// Layar `/login/verify`. Requirement: FR-29, BR-09. ADR-0023. Dua jalur masuk:
+// 1. `?signedIn=1[&next=...]`: link email sudah ditukar di server oleh `GET /auth/login`, cookie akun sudah terpasang.
+//    Layar hanya memastikan sesi ada, menampilkan sukses, dan menghitung mundur 5 detik ke tujuan (`next` disaring
+//    `safeRedirectPath`). Tanpa sesi (URL diketik sendiri), jatuh ke layar gagal.
+// 2. `#token=...` (usulan 1 dan 2: token di fragmen URL, dipakai lewat POST saat tombol ditekan, lalu ditukar dengan
+//    cookie httpOnly oleh route same-origin).
 // Desain: "Authentication — Login", state "Authenticated · return to the requested page".
 
 import { useSyncExternalStore } from "react";
@@ -18,6 +22,7 @@ import { refreshAfterSignIn } from "@/core/controllers/session.cache";
 import { sessionAccountQuery } from "@/core/controllers/session.queries";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { useAutoRedirect } from "@/core/controllers/auto-redirect.hook";
+import { safeRedirectPath } from "../domain/account.rules";
 import { AUTO_REDIRECT_SECONDS } from "../domain/auth.constants";
 import type { VerifyLoginViewProps } from "../views/VerifyLoginView";
 
@@ -28,6 +33,14 @@ const subscribeToHash = (onChange: () => void) => {
 // Fragmen tidak dikirim ke server, jadi token tidak tercatat di log akses maupun header Referer.
 const readToken = () => new URLSearchParams(window.location.hash.slice(1)).get("token");
 const noTokenOnServer = () => undefined;
+
+const subscribeToLocation = (onChange: () => void) => {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+};
+// String mentah yang dibaca (primitif) supaya snapshot stabil; penguraiannya di luar `useSyncExternalStore`.
+const readSearch = () => window.location.search;
+const noSearchOnServer = () => undefined;
 
 const eventDate = new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -41,6 +54,10 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
   // Desain "I / Already used": link sekali pakai sudah ditukar atau kedaluwarsa.
   const linkModal = useModal<{ kind: "linkFailed" }>();
   const token = useSyncExternalStore(subscribeToHash, readToken, noTokenOnServer);
+  const search = useSyncExternalStore(subscribeToLocation, readSearch, noSearchOnServer);
+  const params = search === undefined ? undefined : new URLSearchParams(search);
+  const signedInArrival = params?.get("signedIn") === "1";
+  const arrivalTarget = safeRedirectPath(params?.get("next") ?? null);
   const verify = useMutation({
     mutationFn: (value: string) => verifyLoginUseCase(value),
     onSuccess: () => refreshAfterSignIn(queryClient),
@@ -57,7 +74,9 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
     enabled: Boolean(eventId),
   });
   // Berhasil masuk: setelah jeda singkat pelanggan diarahkan ke tujuannya (beranda, atau booking yang dipulihkan).
-  const redirectIn = useAutoRedirect(verify.data?.redirectPath, AUTO_REDIRECT_SECONDS);
+  // Hook tidak boleh bersyarat, jadi satu tujuan dihitung dari dua jalur: tiba dengan sesi, atau hasil tukar token.
+  const redirectTarget = signedInArrival && session.data ? arrivalTarget : verify.data?.redirectPath;
+  const redirectIn = useAutoRedirect(redirectTarget, AUTO_REDIRECT_SECONDS);
   const chrome = siteChrome;
   const requestNew = { label: t("verify.requestNew"), href: "/login" };
 
@@ -72,6 +91,34 @@ export function useVerifyLoginController(): VerifyLoginViewProps {
       primary: { label: t("verify.done.explore"), href: "/" },
       secondary: { label: t("verify.signedIn.account"), href: "/account" },
     };
+  }
+
+  if (signedInArrival || search === undefined) {
+    // Di server (query belum terbaca) dan selama sesi diperiksa, tampilkan status memverifikasi.
+    if (search === undefined || session.isPending) {
+      return {
+        ...chrome,
+        kind: "confirm",
+        heading: t("verify.heading"),
+        message: t("verify.verifying"),
+        confirm: { label: t("verify.submit"), busy: true, onClick: () => undefined },
+      };
+    }
+    if (session.data) {
+      const explore = { label: t("verify.done.explore"), href: "/" };
+      const hasBooking = arrivalTarget !== "/";
+      return {
+        ...chrome,
+        kind: "done",
+        heading: t("verify.done.heading"),
+        message: t("verify.done.message"),
+        redirectNote: t(hasBooking ? "verify.done.redirectBooking" : "verify.done.redirectHome", {
+          seconds: redirectIn ?? AUTO_REDIRECT_SECONDS,
+        }),
+        primary: hasBooking ? { label: t("verify.done.returnToBooking"), href: arrivalTarget } : explore,
+        secondary: hasBooking ? explore : undefined,
+      };
+    }
   }
 
   if (token === null || verify.isError) {

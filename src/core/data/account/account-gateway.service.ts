@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isFullNik, maskNik } from "@/core/domain/nik.utils";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { FetchFn } from "../http/fetch-http.client";
 import {
@@ -21,8 +22,9 @@ export type AccountGateway = {
   verify(request: Request): Promise<Response>;
   /**
    * `GET /auth/login?token=` (link di email) → menukar token lewat cookie `magic_token` ke `GET /auth/verify` di BE,
-   * menyetel cookie akun, lalu mengalihkan (303) ke tujuan: beranda, atau booking yang dipulihkan. Gagal: ke
-   * `/login/verify`, yang menjelaskan link tidak berlaku.
+   * menyetel cookie akun, lalu mengalihkan (303) ke layar sukses `/login/verify?signedIn=1` (tambah
+   * `&next=<tujuan>` bila ada booking yang dipulihkan). Layar itu menghitung mundur 5 detik lalu pindah ke tujuan.
+   * Gagal: ke `/login/verify` tanpa parameter, yang menjelaskan link tidak berlaku.
    */
   verifyLink(request: Request): Promise<Response>;
   /** `POST /api/auth/verify-email` `{ token }` → `GET /auth/verify-email` di BE (token lewat cookie). Tanpa sesi. */
@@ -150,7 +152,7 @@ export function createAccountGatewayService({
         ok: true;
         redirectPath: string;
         booking: { event_id?: string; booking_id?: string } | null;
-        account: { email: string; nik_masked: string };
+        account: { email: string; nik_masked: string; nik?: string };
         cookies: string[];
       }
     | { ok: false; response: Response };
@@ -166,7 +168,10 @@ export function createAccountGatewayService({
     const parsed = verifySchema.safeParse(await response.json().catch(() => undefined));
     if (!parsed.success) return { ok: false, response: envelope(502, "Unexpected verify response") };
     const { user, redirect_context: context } = parsed.data.data;
-    const account = { email: user.email, nik_masked: user.nik };
+    // BE mengirim NIK lengkap (asumsi, lihat contract-assumptions.md). Bentuk tersamar dari BE lama tetap diterima apa adanya.
+    const account = isFullNik(user.nik)
+      ? { email: user.email, nik_masked: maskNik(user.nik), nik: user.nik }
+      : { email: user.email, nik_masked: user.nik };
     const booking =
       context?.type === "booking" ? { event_id: context.event_id, booking_id: context.booking_id } : null;
     return {
@@ -211,7 +216,9 @@ export function createAccountGatewayService({
       };
       if (!token) return redirect("/login/verify");
       const result = await redeem(token);
-      return result.ok ? redirect(result.redirectPath, result.cookies) : redirect("/login/verify");
+      if (!result.ok) return redirect("/login/verify");
+      const next = result.redirectPath === "/" ? "" : `&next=${encodeURIComponent(result.redirectPath)}`;
+      return redirect(`/login/verify?signedIn=1${next}`, result.cookies);
     },
 
     async verifyEmail(request) {

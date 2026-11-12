@@ -7,6 +7,7 @@ import Link from "next/link";
 import { HeroSection } from "./HeroSection";
 import type { EventCardProps } from "./EventCard";
 import { EventGrid } from "./EventGrid";
+import { RetryButton, type RetryProps } from "./RetryButton";
 
 const EVENT_LIST_ID = "event-list";
 
@@ -35,14 +36,27 @@ export type HomeViewProps = {
   categoryFilter?: { label: string; all: string; empty: string };
   /** Tombol ke halaman semua event; tampil bila ada event. */
   viewAll?: { label: string; href: string };
+  /** Tombol muat ulang di keadaan galat dan "belum ada event"; tanpa ini tombol tidak tampil. */
+  retry?: RetryProps;
   errorMessage?: string;
   /** Teks status memuat untuk pembaca layar; selama ada, kartu event tampil sebagai kerangka. */
   loading?: string;
 };
 
 export function HomeView(props: HomeViewProps) {
-  const { nav, hero, eventList, events, footer, emptyLabel, categoryFilter, viewAll, errorMessage, loading } =
-    props;
+  const {
+    nav,
+    hero,
+    eventList,
+    events,
+    footer,
+    emptyLabel,
+    categoryFilter,
+    viewAll,
+    errorMessage,
+    loading,
+    retry,
+  } = props;
   return (
     <div className="flex min-h-screen flex-col bg-signal-disable">
       <Navbar {...nav} />
@@ -53,7 +67,11 @@ export function HomeView(props: HomeViewProps) {
             <h2 className="type-h3 text-foreground">{eventList.title}</h2>
             <p className="type-body1 text-muted-foreground">{eventList.subtitle}</p>
           </div>
-          {errorMessage && <EmptyState illustration="events" title={errorMessage} />}
+          {errorMessage && (
+            <EmptyState illustration="events" title={errorMessage}>
+              {retry ? <RetryButton {...retry} /> : null}
+            </EmptyState>
+          )}
           {loading ? (
             <div role="status" aria-live="polite" aria-busy="true">
               <span className="sr-only">{loading}</span>
@@ -61,7 +79,9 @@ export function HomeView(props: HomeViewProps) {
             </div>
           ) : null}
           {!loading && !errorMessage && events.length === 0 && (
-            <EmptyState illustration="events" title={emptyLabel ?? ""} />
+            <EmptyState illustration="events" title={emptyLabel ?? ""}>
+              {retry ? <RetryButton {...retry} /> : null}
+            </EmptyState>
           )}
           {events.length > 0 && (
             <EventGrid

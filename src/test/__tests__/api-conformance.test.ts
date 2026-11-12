@@ -178,6 +178,8 @@ describe("kesesuaian FE dan mock dengan openapi.json", () => {
     await eventService.getEvent("evt_konser_a");
     const grant = await admitToQueue(container);
     expect(grant).toMatch(/^gt_/);
+    // Polling cadangan (/queue/serving); join dan /queue/me sudah lewat admitToQueue.
+    await container.cradle.queueService.getState("evt_konser_a");
 
     // Booking
     await bookingService.getSession("evt_konser_a");

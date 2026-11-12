@@ -107,25 +107,236 @@ const midtransCallback = (orderId: string, transactionStatus: string) => ({
 });
 
 describe("queueService", () => {
-  it("join dengan X-Device-Id lalu memetakan QUEUED ke waiting", async () => {
+  /** Path setiap request antrian yang keluar selama `run`, supaya alur join → stream → /me bisa diperiksa. */
+  async function queuePaths(run: () => Promise<unknown>) {
+    const paths: string[] = [];
+    server.events.on("request:start", ({ request }) => {
+      const { pathname } = new URL(request.url);
+      if (pathname.includes("/queue/")) paths.push(pathname.slice(pathname.indexOf("/queue/")));
+    });
+    try {
+      await run();
+    } finally {
+      server.events.removeAllListeners();
+    }
+    return paths;
+  }
+
+  it("join dengan X-Device-Id lalu menghitung posisi dari now_serving, tanpa /queue/serving dan /queue/me", async () => {
     const container = setupTestContainer();
     let deviceId: string | null = null;
     server.events.on("request:start", ({ request }) => {
       if (request.url.endsWith("/queue/join")) deviceId = request.headers.get("x-device-id");
     });
-    expect(await container.cradle.queueService.getState(OPEN_EVENT_ID)).toEqual({
-      status: "waiting",
-      eventName: "Konser A",
-      fullBooked: false,
-      stale: false,
-      position: 832,
-      joinedPosition: 1248,
-      // Laju dari /queue/serving.
-      ratePerMin: 318,
-      retryAfterMs: 5000,
+    const paths = await queuePaths(async () => {
+      expect(await container.cradle.queueService.join(OPEN_EVENT_ID)).toEqual({
+        status: "waiting",
+        eventName: "Konser A",
+        fullBooked: false,
+        stale: false,
+        position: 1248,
+        joinedPosition: 1248,
+        // Laju belum diketahui saat join; stream atau /queue/serving yang mengisinya.
+        ratePerMin: 0,
+        retryAfterMs: 5000,
+      });
     });
-    server.events.removeAllListeners();
+    expect(paths).toEqual(["/queue/join"]);
     expect(deviceId).toBe(container.cradle.credentialStore.deviceId());
+    expect(container.cradle.queueTicketCache.get(OPEN_EVENT_ID)).toMatchObject({
+      ticketNo: 32_748,
+      streamUrl: `/events/${OPEN_EVENT_ID}/queue/stream`,
+      ratePerMin: 0,
+    });
+  });
+
+  it("join dengan posisi <= 0 mengambil state dari /queue/me", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ ticket_no: 10, now_serving: 10, position: 0, queue_token: "qt_1" }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "GRANTED", grant_token: "gt_1", booking_expires_at: "2026-11-10T02:05:00Z" }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    const paths = await queuePaths(async () => {
+      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({
+        status: "admitted",
+        accessToken: "gt_1",
+      });
+    });
+    expect(paths).toEqual(["/queue/join", "/queue/me"]);
+  });
+
+  it("join ulang dengan state bukan QUEUED mengambil state dari /queue/me walau masih ada jarak", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ ticket_no: 100, now_serving: 50, position: 50, state: "GRANTED", rejoined: true }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "GRANTED", grant_token: "gt_2", booking_expires_at: "2026-11-10T02:05:00Z" }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "admitted", accessToken: "gt_2" });
+  });
+
+  it("join ulang dengan state QUEUED tetap menghitung posisi dari now_serving", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ ticket_no: 100, now_serving: 60, position: 40, state: "QUEUED", rejoined: true }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 40 });
+  });
+
+  it("join tanpa now_serving menurunkannya dari ticket_no − position", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ ticket_no: 100, position: 30, queue_token: "qt_1" }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 30 });
+  });
+
+  describe("getOwnState dan getState", () => {
+    it("getOwnState hanya memanggil /queue/me", async () => {
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      const paths = await queuePaths(async () => {
+        // Mock memajukan antrian 416 langkah tiap /queue/me.
+        expect(await queueService.getOwnState(OPEN_EVENT_ID)).toMatchObject({
+          status: "waiting",
+          position: 832,
+        });
+      });
+      expect(paths).toEqual(["/queue/me"]);
+    });
+
+    it("tanpa tiket tersimpan getOwnState dan getState join dulu", async () => {
+      const { queueService } = setupTestContainer().cradle;
+      expect(await queuePaths(() => queueService.getOwnState(OPEN_EVENT_ID))).toEqual(["/queue/join"]);
+      const other = setupTestContainer().cradle.queueService;
+      expect(await queuePaths(() => other.getState(OPEN_EVENT_ID))).toEqual(["/queue/join"]);
+    });
+
+    it("getState (polling cadangan) hanya memanggil /queue/serving dan menghitung posisi + laju", async () => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+          envelope({ now_serving: 32_648, rate_per_min: 50, state: "OPEN", poll_after_ms: 3000 }),
+        ),
+      );
+      const { queueService, queueTicketCache } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      const paths = await queuePaths(async () => {
+        expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({
+          status: "waiting",
+          position: 100,
+          ratePerMin: 50,
+          fullBooked: false,
+          retryAfterMs: 3000,
+        });
+      });
+      expect(paths).toEqual(["/queue/serving"]);
+      expect(queueTicketCache.get(OPEN_EVENT_ID)?.ratePerMin).toBe(50);
+    });
+
+    it.each([
+      [5, 1_000],
+      [100, 2_000],
+      [500, 5_000],
+      [5_000, 10_000],
+    ])("interval polling posisi %i mengikuti poll_tiers (%i ms)", async (position, expected) => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+          envelope({
+            now_serving: 32_748 - position,
+            rate_per_min: 10,
+            state: "OPEN",
+            poll_after_ms: 7_777,
+            poll_tiers: [
+              { max_position: 10, poll_after_ms: 1_000 },
+              { max_position: 100, poll_after_ms: 2_000 },
+              { max_position: 1_000, poll_after_ms: 5_000 },
+              { max_position: null, poll_after_ms: 10_000 },
+            ],
+          }),
+        ),
+      );
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ position, retryAfterMs: expected });
+    });
+
+    it("tanpa poll_tiers dan poll_after_ms memakai jeda cadangan 5 detik", async () => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+          envelope({ now_serving: 32_000, rate_per_min: 0 }),
+        ),
+      );
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ retryAfterMs: 5000, ratePerMin: 0 });
+    });
+
+    it("FULL_BOOKED di /queue/serving menandai fullBooked", async () => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+          envelope({ now_serving: 32_000, rate_per_min: 10, state: "FULL_BOOKED" }),
+        ),
+      );
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({
+        status: "waiting",
+        fullBooked: true,
+      });
+    });
+
+    it("CLOSED di /queue/serving menjadi ended (closed)", async () => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+          envelope({ now_serving: 32_000, rate_per_min: 10, state: "CLOSED" }),
+        ),
+      );
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      expect(await queueService.getState(OPEN_EVENT_ID)).toEqual({
+        status: "ended",
+        eventName: "Konser A",
+        reason: "closed",
+      });
+    });
+
+    it("giliran tiba (now_serving >= ticket_no) mengambil state dari /queue/me", async () => {
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+          envelope({ now_serving: 32_748, rate_per_min: 10, state: "OPEN" }),
+        ),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+          envelope({ state: "GRANTED", grant_token: "gt_3", booking_expires_at: "2026-11-10T02:05:00Z" }),
+        ),
+      );
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      const paths = await queuePaths(async () => {
+        expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({
+          status: "admitted",
+          accessToken: "gt_3",
+        });
+      });
+      expect(paths).toEqual(["/queue/serving", "/queue/me"]);
+    });
+
+    it("gagal memanggil /queue/serving diteruskan sebagai galat, bukan laju 0", async () => {
+      server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 503, "down")));
+      const { queueService } = setupTestContainer().cradle;
+      await queueService.join(OPEN_EVENT_ID);
+      expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toMatchObject({ status: 503 });
+    });
   });
 
   it("memetakan GRANTED ke admitted dengan grant token", async () => {
@@ -135,7 +346,7 @@ describe("queueService", () => {
     expect(container.cradle.credentialStore.grantToken()).toBe(token);
   });
 
-  it("join hanya sekali per event; poll berikutnya hanya /queue/me", async () => {
+  it("join hanya sekali per event; polling berikutnya tidak join lagi", async () => {
     const { queueService } = setupTestContainer().cradle;
     const joins = vi.fn();
     server.events.on("request:start", ({ request }) => {
@@ -149,7 +360,7 @@ describe("queueService", () => {
 
   it("antrian penuh (503) menjadi QUEUE_FULL", async () => {
     const { queueService } = setupTestContainer().cradle;
-    expect(await failureOf(queueService.getState("evt_konser_b"))).toEqual({
+    expect(await failureOf(queueService.join("evt_konser_b"))).toEqual({
       kind: "api",
       code: "QUEUE_FULL",
       status: 503,
@@ -163,7 +374,7 @@ describe("queueService", () => {
       ),
     );
     const { queueService } = setupTestContainer().cradle;
-    expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toEqual({
+    expect(await failureOf(queueService.join(OPEN_EVENT_ID))).toEqual({
       kind: "api",
       code: "SALE_CLOSED",
       status: 410,
@@ -176,7 +387,7 @@ describe("queueService", () => {
     server.events.on("request:start", async ({ request }) => {
       if (request.url.endsWith("/queue/join")) body = await request.clone().json();
     });
-    await queueService.getState(OPEN_EVENT_ID);
+    await queueService.join(OPEN_EVENT_ID);
     server.events.removeAllListeners();
     expect(body).toEqual({ captcha_token: "mock-captcha-token" });
   });
@@ -196,7 +407,7 @@ describe("queueService", () => {
       ),
     );
     const { queueService } = setupTestContainer().cradle;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 5 });
+    expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 5 });
     expect(body).toEqual({ captcha_token: "" });
   });
 
@@ -210,7 +421,7 @@ describe("queueService", () => {
       http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () => envelope({}, status, "ditolak")),
     );
     const { queueService } = setupTestContainer().cradle;
-    expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toEqual({ kind: "api", code, status });
+    expect(await failureOf(queueService.join(OPEN_EVENT_ID))).toEqual({ kind: "api", code, status });
   });
 
   it("join antrian kosong langsung diberi giliran: tanpa nomor antrian, state diambil dari /queue/me", async () => {
@@ -228,7 +439,7 @@ describe("queueService", () => {
       ),
     );
     const { queueService } = setupTestContainer().cradle;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({
+    expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({
       status: "admitted",
       accessToken: "gt_abc123",
     });
@@ -256,7 +467,8 @@ describe("queueService", () => {
     it("token dari respons join disimpan lalu dikirim sebagai X-Queue-Token bersama X-Device-Id ke /queue/me", async () => {
       const requests = seen();
       const { queueService, credentialStore } = headerMode();
-      expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting" });
+      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting" });
+      await queueService.getOwnState(OPEN_EVENT_ID);
 
       const token = credentialStore.queueToken(OPEN_EVENT_ID);
       expect(token).toMatch(/^qt_/);
@@ -267,14 +479,14 @@ describe("queueService", () => {
 
     it("token yang tersimpan ikut saat join ulang, jadi kembali ke tempat yang sama", async () => {
       const first = headerMode();
-      const before = await first.queueService.getState(OPEN_EVENT_ID);
+      const before = await first.queueService.join(OPEN_EVENT_ID);
       const token = first.credentialStore.queueToken(OPEN_EVENT_ID)!;
 
       // Halaman dimuat ulang: tiket di memori hilang, token masih ada di penyimpanan tab.
       const requests = seen();
       const again = headerMode();
       again.credentialStore.saveQueueToken(OPEN_EVENT_ID, token);
-      const after = await again.queueService.getState(OPEN_EVENT_ID);
+      const after = await again.queueService.join(OPEN_EVENT_ID);
       expect(requests.find((request) => request.path.endsWith("/queue/join"))!.token).toBe(token);
       expect(after).toMatchObject({ status: "waiting", joinedPosition: expect.any(Number) });
       expect(before.status).toBe("waiting");
@@ -282,9 +494,9 @@ describe("queueService", () => {
 
     it("401 dari /queue/me membuang token dan tiket; keluar dari antrian juga", async () => {
       const { queueService, credentialStore } = headerMode();
-      await queueService.getState(OPEN_EVENT_ID);
+      await queueService.join(OPEN_EVENT_ID);
       server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({}, 401, "x")));
-      expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toMatchObject({
+      expect(await failureOf(queueService.getOwnState(OPEN_EVENT_ID))).toMatchObject({
         code: "QUEUE_TOKEN_INVALID",
       });
       expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
@@ -301,40 +513,18 @@ describe("queueService", () => {
       if (request.url.endsWith("/queue/me")) token = request.headers.get("x-queue-token");
     });
     const { queueService, credentialStore } = setupTestContainer().cradle;
-    await queueService.getState(OPEN_EVENT_ID);
+    await queueService.join(OPEN_EVENT_ID);
+    await queueService.getOwnState(OPEN_EVENT_ID);
     server.events.removeAllListeners();
     expect(token).toBeNull();
     expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
   });
 
-  it("laju antrian tidak tersedia: join tetap berhasil dengan laju 0", async () => {
-    server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => envelope({}, 503, "down")));
-    const { queueService } = setupTestContainer().cradle;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", ratePerMin: 0 });
-  });
-
-  it("laju 0 saat join (belum ada booking diproses) diambil lagi pada snapshot berikutnya sampai ada", async () => {
-    let rate = 0;
-    let servingCalls = 0;
-    server.use(
-      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () => {
-        servingCalls += 1;
-        return envelope({ rate_per_min: rate });
-      }),
-    );
-    const { queueService } = setupTestContainer().cradle;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", ratePerMin: 0 });
-
-    rate = 200;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", ratePerMin: 200 });
-    await queueService.getState(OPEN_EVENT_ID);
-    expect(servingCalls).toBe(2);
-  });
-
   it("401 dari /queue/me menjadi QUEUE_TOKEN_INVALID", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({}, 401, "Unauthorized")));
     const { queueService } = setupTestContainer().cradle;
-    expect(await failureOf(queueService.getState(OPEN_EVENT_ID))).toEqual({
+    await queueService.join(OPEN_EVENT_ID);
+    expect(await failureOf(queueService.getOwnState(OPEN_EVENT_ID))).toEqual({
       kind: "api",
       code: "QUEUE_TOKEN_INVALID",
       status: 401,
@@ -569,7 +759,11 @@ describe("pemetaan /queue/me", () => {
   ])("%o", async (data, expected) => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope(data)));
     const { queueService } = setupTestContainer().cradle;
-    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ eventName: "Konser A", ...expected });
+    await queueService.join(OPEN_EVENT_ID);
+    expect(await queueService.getOwnState(OPEN_EVENT_ID)).toMatchObject({
+      eventName: "Konser A",
+      ...expected,
+    });
   });
 });
 
@@ -631,7 +825,7 @@ describe("queueUpdatesService", () => {
     const fakes = setupFakeEventSources();
     const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
     const { queueUpdatesService, queueService } = container.cradle;
-    await queueService.getState(OPEN_EVENT_ID);
+    await queueService.join(OPEN_EVENT_ID);
     const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
     const stop = queueUpdatesService.watch(OPEN_EVENT_ID, observer);
     const source = fakes.find("/queue/stream")!;
@@ -655,8 +849,9 @@ describe("queueUpdatesService", () => {
 
   it("nowServing >= ticket_no mengambil token dari /queue/me tanpa event grant", async () => {
     const { source, observer, queueService } = await watching();
-    // Dua poll lagi sampai giliran; /queue/me memajukan antrian di mock.
-    await queueService.getState(OPEN_EVENT_ID);
+    // Join tidak memajukan antrian; dua /queue/me lagi sampai giliran (tiap panggilan memajukan antrian di mock).
+    await queueService.getOwnState(OPEN_EVENT_ID);
+    await queueService.getOwnState(OPEN_EVENT_ID);
     source.emit("message", tick(33_000));
     await vi.waitFor(() =>
       expect(observer.next).toHaveBeenLastCalledWith(expect.objectContaining({ status: "admitted" })),
@@ -812,7 +1007,8 @@ describe("sessionAccountService", () => {
     await authService.verify("mt_session");
     expect(await sessionAccountService.current()).toEqual({
       email: "you@example.com",
-      nikMasked: "3171********xx22",
+      nikMasked: "3171**********22",
+      nik: "3171000000000022",
     });
   });
 });

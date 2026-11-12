@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { MAX_TICKETS_PER_BOOKING } from "../booking.constants";
-import { aliasOptionsFor, validateBookingTickets } from "../ticket-holders.rules";
+import {
+  aliasOptionsFor,
+  holderChoices,
+  OWNER_HOLDER_ID,
+  validateBookingTickets,
+} from "../ticket-holders.rules";
 
 const ticket = (nik: string) => ({ categoryId: "cat_vip", nik });
 const budi = { id: "snk_1", label: "Budi", name: null, nik: "3171000000000033", nikMasked: "3171****33" };
@@ -54,5 +59,31 @@ describe("aliasOptionsFor", () => {
 
   it("NIK manual yang sama dengan alias juga menandai alias itu", () => {
     expect(aliasOptionsFor("b", [sari], { a: sari.nik })[0]?.takenByOtherTicket).toBe(true);
+  });
+});
+
+describe("holderChoices", () => {
+  const owner = { nikMasked: "3171********xx11", nik: "3171000000000011" };
+
+  it("tamu tidak punya pilihan pemilik; alias apa adanya", () => {
+    expect(holderChoices(null, [budi])).toEqual([budi]);
+  });
+
+  it("pemilik dengan NIK lengkap jadi pilihan pertama, sebelum alias", () => {
+    const choices = holderChoices(owner, [budi, sari]);
+    expect(choices.map((choice) => choice.id)).toEqual([OWNER_HOLDER_ID, "snk_1", "snk_2"]);
+    expect(choices[0]).toMatchObject({ nik: owner.nik, nikMasked: owner.nikMasked });
+  });
+
+  it("pemilik tanpa NIK lengkap tidak bisa dipilih", () => {
+    expect(holderChoices({ nikMasked: owner.nikMasked }, [budi])).toEqual([budi]);
+  });
+
+  it("alias dengan NIK yang sama dengan pemilik dibuang agar tidak dobel", () => {
+    const duplicate = { ...budi, id: "snk_9", nik: owner.nik };
+    expect(holderChoices(owner, [duplicate, sari]).map((choice) => choice.id)).toEqual([
+      OWNER_HOLDER_ID,
+      "snk_2",
+    ]);
   });
 });

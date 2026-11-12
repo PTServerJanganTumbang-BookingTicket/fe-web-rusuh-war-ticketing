@@ -26,12 +26,28 @@ export type RegistrationStatusViewProps = Omit<SiteShellProps, "children"> & {
   action?: { label: string; busy: boolean; disabled: boolean; onClick: () => void };
   /** Tautan utama bila tidak ada `action`, atau tautan kedua di bawahnya. */
   link?: LinkProps;
+  /** Tautan kedua (outline) di bawah `link`, mis. kembali ke beranda. */
+  secondaryLink?: LinkProps;
   footnote?: string;
 };
 
 /** Perjalanan verifikasi pendaftaran: menunggu verifikasi, link terkirim, dan email terverifikasi (desain 03). */
 export function RegistrationStatusView(props: RegistrationStatusViewProps) {
-  const { nav, footer, tone, title, message, steps, detail, status, error, action, link, footnote } = props;
+  const {
+    nav,
+    footer,
+    tone,
+    title,
+    message,
+    steps,
+    detail,
+    status,
+    error,
+    action,
+    link,
+    secondaryLink,
+    footnote,
+  } = props;
   return (
     <SiteShell nav={nav} footer={footer}>
       <AuthCard tone={tone} icon={statusIcon[tone]} title={title} description={message}>
@@ -73,6 +89,18 @@ export function RegistrationStatusView(props: RegistrationStatusViewProps) {
             )}
           >
             {link.label}
+          </Link>
+        ) : null}
+        {secondaryLink ? (
+          <Link
+            href={secondaryLink.href}
+            className={cn(
+              buttonVariants({ size: "lg", variant: "outline" }),
+              "w-full",
+              "border-primary text-primary",
+            )}
+          >
+            {secondaryLink.label}
           </Link>
         ) : null}
         {footnote ? <p className="type-body2 text-muted-foreground">{footnote}</p> : null}

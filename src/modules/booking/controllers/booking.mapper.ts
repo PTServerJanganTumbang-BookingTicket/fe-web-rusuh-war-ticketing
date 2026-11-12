@@ -1,4 +1,5 @@
 import { NIK_LENGTH } from "@/core/domain/nik.utils";
+import type { SessionAccount } from "@/core/domain/session-account.model";
 import { COUNTDOWN_URGENT_AT_MS } from "@/core/domain/time/countdown.constants";
 import { formatMmSs } from "@/core/domain/time/format-mm-ss.utils";
 import { formatIdr } from "@/core/controllers/format-currency.utils";
@@ -12,7 +13,7 @@ import { canAddTicket } from "../domain/can-add-ticket.rules";
 import { selectedCount, totalPriceIdr, type Selection } from "../domain/selection.reducer";
 import { duplicateNikSlots, isEmail, isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
 import type { HolderAlias } from "../domain/holder-alias.model";
-import { aliasOptionsFor } from "../domain/ticket-holders.rules";
+import { aliasOptionsFor, OWNER_HOLDER_ID } from "../domain/ticket-holders.rules";
 import type { BookingViewProps, TicketHolderProps } from "../views/BookingView";
 import type { ActionDialogModel } from "@/core/controllers/modal.hook";
 
@@ -60,6 +61,10 @@ export type BookingViewInput = {
   aliases?: readonly HolderAlias[];
   /** `aliasId` kosong berarti kembali ke isian NIK manual. */
   onHolderAlias?: (slotKey: string, aliasId: string) => void;
+  /** Akun yang masuk; `null` atau kosong untuk tamu. Email pemesan terisi dari akun dan pilihan pemegang selalu tampil. */
+  account?: SessionAccount | null;
+  /** Cek NIK yang diketik ke Dukcapil lewat tombol, bukan hanya saat field ditinggalkan. */
+  onNikVerify?: (slotKey: string) => void;
   onFieldBlur: (field: string) => void;
   onSubmit: () => void;
 };
@@ -109,6 +114,17 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     : session.eventName;
   const show = (field: string) => form.submitted || form.touched.has(field);
 
+  const account = input.account ?? null;
+  const aliases = input.aliases ?? [];
+  const holderOptionLabel = (alias: HolderAlias, taken: boolean) => {
+    if (alias.id === OWNER_HOLDER_ID)
+      return t(taken ? "booking.holder.source.ownerTaken" : "booking.holder.source.owner", {
+        nik: alias.nikMasked,
+      });
+    const key = taken ? "booking.holder.source.taken" : "booking.holder.source.alias";
+    return t(key, { label: alias.label, nik: alias.nikMasked });
+  };
+
   const holders: TicketHolderProps[] = slots.map((slot) => {
     const nik = niks[slot.key] ?? "";
     const check = form.checks[slot.key];
@@ -122,9 +138,9 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     if (verified && check.result.status === "valid")
       success = t("booking.holder.nik.valid", { name: check.result.name });
     else if (check?.nik === nik && check.state === "checking") success = t("booking.holder.nik.checking");
-    const aliases = input.aliases ?? [];
     const pickedId = form.aliasPicks?.[slot.key];
     const picked = aliases.find((alias) => alias.id === pickedId);
+    const checking = check?.nik === nik && check.state === "checking";
     // Satu judul per kategori ("Normal × 2"), bukan "Normal × 1" yang berulang untuk tiap tiket.
     const firstOfCategory =
       slots.findIndex((other) => other.categoryId === slot.categoryId) === slots.indexOf(slot);
@@ -151,22 +167,30 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
         onBlur: () => input.onNikBlur(slot.key),
       },
       holder:
-        aliases.length > 0
+        account || aliases.length > 0
           ? {
               label: t("booking.holder.source.label", { number: slot.number }),
               value: picked?.id ?? "",
               options: [
-                { value: "", label: t("booking.holder.source.manual"), disabled: false },
                 ...aliasOptionsFor(slot.key, aliases, niks).map(({ alias, takenByOtherTicket }) => ({
                   value: alias.id,
-                  label: takenByOtherTicket
-                    ? t("booking.holder.source.taken", { label: alias.label, nik: alias.nikMasked })
-                    : t("booking.holder.source.alias", { label: alias.label, nik: alias.nikMasked }),
+                  label: holderOptionLabel(alias, takenByOtherTicket),
                   disabled: takenByOtherTicket && alias.id !== picked?.id,
                 })),
+                { value: "", label: t("booking.holder.source.manual"), disabled: false },
               ],
-              hint: t("booking.holder.source.hint"),
+              hint: account ? t("booking.holder.source.hint.account") : t("booking.holder.source.hint"),
               onChange: (value: string) => input.onHolderAlias?.(slot.key, value),
+            }
+          : undefined,
+      // Tombol hanya untuk customer yang masuk dan mengetik NIK sendiri; pilihan pemilik/alias sudah dicek otomatis.
+      verify:
+        account && !picked
+          ? {
+              label: t("booking.holder.nik.verify"),
+              busy: checking,
+              disabled: checking || !isNikFormat(nik),
+              onClick: () => input.onNikVerify?.(slot.key),
             }
           : undefined,
     };
@@ -210,13 +234,17 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
     dialog: input.dialog,
     buyer: {
       title: t("booking.buyer.title"),
-      hint: t("booking.buyer.hint"),
+      hint: account ? t("booking.buyer.hint.account") : t("booking.buyer.hint"),
       email: {
         label: t("booking.buyer.email.label"),
         placeholder: t("booking.buyer.email.placeholder"),
-        value: form.contactEmail,
+        value: account?.email ?? form.contactEmail,
+        // Email akun ditetapkan dari sesi dan tidak bisa diubah, jadi tidak pernah salah isi.
+        readOnly: account ? true : undefined,
         error:
-          show("contactEmail") && !isEmail(form.contactEmail) ? t("booking.buyer.email.invalid") : undefined,
+          !account && show("contactEmail") && !isEmail(form.contactEmail)
+            ? t("booking.buyer.email.invalid")
+            : undefined,
         onChange: input.onContactEmail,
         onBlur: () => input.onFieldBlur("contactEmail"),
       },
@@ -370,17 +398,24 @@ export function toStockUnavailableDialog({
 
 /**
  * Waktu booking habis, setelah server menjawab ACCESS_EXPIRED (ADR-0005). Formulir tetap terlihat di belakang
- * dialog; satu-satunya jalan lanjut adalah antre lagi, atau kembali ke Beranda.
+ * dialog; permintaan produk: layar kembali ke Beranda sendiri setelah hitung mundur, atau saat customer
+ * menekan tombolnya.
  */
-export function toBookingTimeoutDialog({ onRequeue }: { onRequeue: () => void }): ActionDialogModel {
+export function toBookingTimeoutDialog({
+  secondsLeft,
+  onGoHome,
+}: {
+  secondsLeft: number;
+  onGoHome: () => void;
+}): ActionDialogModel {
   return {
     tone: "warning",
     icon: "clock",
     title: t("booking.timeout.title"),
     description: t("booking.timeout.description"),
-    primary: { label: t("booking.expired.cta"), onClick: onRequeue },
-    secondary: { label: t("booking.timeout.home"), href: "/" },
-    // Tidak ada booking yang bisa dilanjutkan; menutup dialog sama dengan memilih antre lagi.
-    onDismiss: onRequeue,
+    note: t("booking.timeout.redirect", { seconds: secondsLeft }),
+    primary: { label: t("booking.timeout.home"), onClick: onGoHome },
+    // Tidak ada booking yang bisa dilanjutkan; menutup dialog sama dengan kembali ke Beranda.
+    onDismiss: onGoHome,
   };
 }

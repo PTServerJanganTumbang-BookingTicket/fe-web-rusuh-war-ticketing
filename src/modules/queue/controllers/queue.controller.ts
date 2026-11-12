@@ -1,20 +1,25 @@
 "use client";
 
 // Waiting Room. Requirement: FR-06–10, NFR-05, NFR-06. Wireframe 9.2. ADR-0016 (SSE + polling cadangan), ADR-0010 (sesi).
+// Alur: join (POST) → stream SSE dibuka dari `sse_url` hasil join → posisi = ticket_no − nowServing tiap pesan →
+// `/queue/me` saat giliran tiba. `/queue/serving` hanya polling cadangan selama stream tidak tersambung
+// (kontrak §3.1–3.4, ADR-0016). Tiket habis / penjualan berakhir: modal lalu kembali ke beranda.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
+import { useAutoRedirect } from "@/core/controllers/auto-redirect.hook";
 import { useLiveUpdates } from "@/core/controllers/live-updates.hook";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import type { QueueDependencies } from "../application/queue.dependencies";
+import { QUEUE_GONE_REDIRECT_SECONDS } from "../domain/queue.constants";
 import type { QueueState } from "../domain/queue-state.model";
-import { queueEventQuery, queueKeys, queuePositionQuery } from "./queue.queries";
-import { toQueueViewProps, toWaitingStatus } from "./queue.mapper";
+import { queueEventQuery, queueJoinQuery, queueKeys, queuePositionQuery } from "./queue.queries";
+import { toQueueGone, toQueueGoneDialog, toQueueViewProps, toWaitingStatus } from "./queue.mapper";
 import type { QueueStatusProps, QueueViewProps } from "../views/QueueView";
 
 function errorKey(error: AppError): MessageKey {
@@ -33,6 +38,7 @@ export function useQueueController(eventId: string): QueueViewProps {
   const siteChrome = useSiteChrome();
   const router = useRouter();
   const {
+    joinQueueUseCase,
     getQueueStateUseCase,
     getQueueEventUseCase,
     watchQueueStateUseCase,
@@ -43,19 +49,31 @@ export function useQueueController(eventId: string): QueueViewProps {
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [fullDismissed, setFullDismissed] = useState(false);
   const queryClient = useQueryClient();
+  // Join dulu; stream baru dibuka sesudahnya supaya `sse_url` dan tiket hasil join sudah ada.
+  const join = useQuery(queueJoinQuery({ joinQueueUseCase }, eventId));
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
     watch: (observer) => watchQueueStateUseCase(eventId, observer),
     until: (state) => state.status !== "waiting",
+    enabled: join.isSuccess,
   });
-  const queue = useQuery(queuePositionQuery({ getQueueStateUseCase, random }, eventId, live));
+  const queue = useQuery(
+    queuePositionQuery({ getQueueStateUseCase, random }, eventId, { live, initial: join.data }),
+  );
   // Detail event hanya pelengkap: gagal memuatnya tidak menghentikan antrian.
   const event = useQuery(queueEventQuery({ getQueueEventUseCase }, eventId));
   const enter = useMutation({
     mutationFn: (accessToken: string) => startSessionUseCase(accessToken),
-    onSuccess: () => router.push(`/events/${eventId}/book`),
+    // `replace`: tombol Back dari booking tidak boleh kembali ke ruang tunggu yang gilirannya sudah terpakai.
+    onSuccess: () => router.replace(`/events/${eventId}/book`),
   });
-  const data = queue.data;
+  const data = queue.data ?? join.data;
+  // Galat join (QUEUE_FULL, FULL_BOOKED, SALE_CLOSED, CAPTCHA_FAILED, ...). Galat polling saat data sudah ada
+  // tidak menggantikan layar menunggu.
+  const failure = join.error ?? queue.error;
+  const failureError = failure ? toAppError(failure) : undefined;
+  const gone = toQueueGone(data, failureError);
+  const goneSeconds = useAutoRedirect(gone ? "/" : undefined, QUEUE_GONE_REDIRECT_SECONDS);
 
   // Giliran tiba: masuk otomatis (FR-06–08). Tombol hanya muncul sebagai cadangan bila penyimpanan sesi gagal.
   const admittedToken = data?.status === "admitted" ? data.accessToken : undefined;
@@ -67,11 +85,23 @@ export function useQueueController(eventId: string): QueueViewProps {
     mutate(admittedToken);
   }, [admittedToken, mutate]);
 
-  const leaveQueue = () => {
+  const forgetQueue = useCallback(() => {
     leaveQueueUseCase(eventId);
     queryClient.removeQueries({ queryKey: queueKeys.position(eventId) });
+    queryClient.removeQueries({ queryKey: queueKeys.join(eventId) });
+  }, [eventId, leaveQueueUseCase, queryClient]);
+  const leaveQueue = () => {
+    forgetQueue();
     router.push("/");
   };
+  // Tiket habis / berakhir: kunjungan berikutnya harus join bersih, bukan memakai hasil lama dari cache.
+  // Dibersihkan saat layar ditinggalkan, jadi berlaku juga untuk pengalihan otomatis setelah hitung mundur.
+  const goneActive = gone !== undefined;
+  useEffect(() => {
+    if (!goneActive) return;
+    return forgetQueue;
+  }, [goneActive, forgetQueue]);
+  const goHome = () => router.replace("/");
   const closeLeave = () => setConfirmingLeave(false);
   const leaveDialog: QueueViewProps["dialog"] = confirmingLeave
     ? {
@@ -85,36 +115,32 @@ export function useQueueController(eventId: string): QueueViewProps {
       }
     : undefined;
 
-  // Beranda masih menampilkan antrian terbuka (data di-cache), tetapi join ditolak karena penuh: beri tahu lewat
-  // modal dengan jalan keluar, bukan hanya pesan di panel status.
-  const fullError = queue.isError ? toAppError(queue.error) : undefined;
-  const fullKind =
-    fullError?.kind === "api" && (fullError.code === "QUEUE_FULL" || fullError.code === "FULL_BOOKED")
-      ? fullError.code
-      : undefined;
+  // Antrian penuh: customer boleh mencoba lagi, jadi modalnya punya jalan keluar dan coba lagi. Tiket habis dan
+  // penjualan berakhir ada di `goneDialog`.
   const fullDialog: QueueViewProps["dialog"] =
-    fullKind && !fullDismissed
+    failureError?.kind === "api" && failureError.code === "QUEUE_FULL" && !fullDismissed
       ? {
           tone: "warning",
           illustration: "box",
-          title: t(`queue.full.${fullKind}.title`),
-          description: t(`queue.full.${fullKind}.description`),
+          title: t("queue.full.QUEUE_FULL.title"),
+          description: t("queue.full.QUEUE_FULL.description"),
           primary: {
             label: t("queue.full.retry"),
-            busy: queue.isFetching,
+            busy: join.isFetching,
             onClick: () => {
               setFullDismissed(false);
-              void queue.refetch();
+              void join.refetch();
             },
           },
           secondary: { label: t("queue.full.home"), href: "/" },
           onDismiss: () => setFullDismissed(true),
         }
       : undefined;
+  const goneDialog = gone ? toQueueGoneDialog({ gone, seconds: goneSeconds, onGoHome: goHome }) : undefined;
 
   const page = (status: QueueStatusProps) =>
     toQueueViewProps({
-      dialog: leaveDialog ?? fullDialog,
+      dialog: leaveDialog ?? goneDialog ?? fullDialog,
       chrome: siteChrome,
       eventName: event.data?.name ?? (data?.eventName || undefined),
       event: event.data,
@@ -147,11 +173,11 @@ export function useQueueController(eventId: string): QueueViewProps {
     });
   }
 
-  if (queue.isError) {
+  if (failureError) {
     return page({
       state: "error",
       badge: { label: t("queue.badge.error"), tone: "error" },
-      message: t(errorKey(toAppError(queue.error))),
+      message: t(errorKey(failureError)),
     });
   }
 

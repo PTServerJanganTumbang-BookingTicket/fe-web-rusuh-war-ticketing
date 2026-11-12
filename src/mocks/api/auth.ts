@@ -63,7 +63,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
       return ok(
         {
           ...issueTokens(),
-          user: { id: "usr_123", email: "you@example.com", nik: maskNik(REGISTERED_NIK) },
+          user: { id: "usr_123", email: "you@example.com", nik: REGISTERED_NIK },
           redirect_context: {
             type: "booking",
             event_id: "evt_konser_a",
