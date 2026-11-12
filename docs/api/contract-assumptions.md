@@ -9,6 +9,7 @@ Field di bawah dipakai FE tetapi **belum ada** di kontrak (`docs/api/api-contrac
 | Kebutuhan FE | Asumsi | Dipakai di | Bila BE belum menyediakan |
 |---|---|---|---|
 | NIK lengkap alias | `GET /accounts/me/saved-niks` menambah `nik` (16 digit) di setiap item, hanya untuk pemilik akun | `booking/data/holder-alias.schema.ts` | Pilihan alias di Detail Ticket tidak muncul; NIK diisi manual seperti sebelumnya |
+| NIK lengkap pemesan | `user.nik` di `GET /auth/verify` berisi NIK lengkap 16 digit; FE menyimpannya di cookie profil httpOnly dan mengembalikannya lewat `/api/auth/session` (`nik`), tampilan tetap tersamar | `core/data/account/account-gateway.service.ts`, `booking` Detail Ticket | Pilihan 'NIK pemesan' di Detail Ticket tidak muncul |
 | E-tiket untuk pemilik yang masuk | `GET /tickets/{ticket_id}/eticket` dengan Bearer (kontrak sudah menyebut Bearer atau `?t=`); FE web meneruskannya lewat `/api/account/tickets/{id}/eticket` karena token akun ada di cookie httpOnly | `ticket/data/http-ticket.service.ts` | — (sesuai kontrak) |
 
 ## Kenapa NIK lengkap, bukan id alias, di booking

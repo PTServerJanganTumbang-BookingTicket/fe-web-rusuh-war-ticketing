@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
+import type { AppError } from "@/core/domain/app-error";
 import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
-import { toEventCard, toQueueViewProps, toWaitingStatus } from "../queue.mapper";
+import {
+  toEventCard,
+  toQueueGone,
+  toQueueGoneDialog,
+  toQueueViewProps,
+  toWaitingStatus,
+} from "../queue.mapper";
 
 const waiting = {
   status: "waiting",
@@ -108,5 +115,76 @@ describe("toQueueViewProps", () => {
     expect(view.breadcrumb.map((crumb) => crumb.label)).toEqual(["Beranda", "Ruang tunggu"]);
     expect(view.subtitle).toBe("Menyiapkan tempatmu di antrean…");
     expect(view.event).toBeUndefined();
+  });
+});
+
+describe("toQueueGone", () => {
+  const api = (code: "FULL_BOOKED" | "SALE_CLOSED" | "QUEUE_FULL"): AppError => ({
+    kind: "api",
+    code,
+    status: 409,
+  });
+  const ended = { status: "ended", eventName: "Konser A", reason: "closed" } as const;
+
+  it("join ditolak FULL_BOOKED atau SALE_CLOSED: tiket habis", () => {
+    expect(toQueueGone(undefined, api("FULL_BOOKED"))).toEqual({ cause: "sold-out" });
+    expect(toQueueGone(undefined, api("SALE_CLOSED"))).toEqual({ cause: "sold-out" });
+  });
+
+  it("antrian berstatus ended membawa alasannya", () => {
+    expect(toQueueGone(ended, undefined)).toEqual({ cause: "ended", reason: "closed" });
+  });
+
+  it("QUEUE_FULL dan galat lain bukan habis: customer masih boleh mencoba lagi", () => {
+    expect(toQueueGone(undefined, api("QUEUE_FULL"))).toBeUndefined();
+    expect(toQueueGone(undefined, { kind: "network" })).toBeUndefined();
+    expect(toQueueGone(undefined, undefined)).toBeUndefined();
+  });
+
+  it("galat polling saat data antrian masih ada tidak menggantikan layar menunggu", () => {
+    expect(toQueueGone(waiting, api("SALE_CLOSED"))).toBeUndefined();
+  });
+});
+
+describe("toQueueGoneDialog", () => {
+  const onGoHome = () => undefined;
+
+  it("tiket habis: judul dan penjelasan habis, catatan hitung mundur, tombol ke beranda", () => {
+    const dialog = toQueueGoneDialog({ gone: { cause: "sold-out" }, seconds: 7, onGoHome });
+    expect(dialog).toEqual({
+      tone: "warning",
+      illustration: "box",
+      title: "Tiket sudah habis",
+      description: "Semua tiket untuk acara ini sudah terjual, jadi antrian tidak bisa dilanjutkan.",
+      note: "Kamu akan diarahkan ke beranda dalam 7 detik.",
+      primary: { label: "Kembali ke beranda", onClick: onGoHome },
+      onDismiss: onGoHome,
+    });
+  });
+
+  it.each([
+    ["closed", "Penjualan sudah ditutup", "Penjualan tiket untuk acara ini sudah ditutup."],
+    [
+      "expired",
+      "Antrian sudah berakhir",
+      "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
+    ],
+    [
+      "confirmed",
+      "Antrian sudah berakhir",
+      "Pembayaranmu sudah selesai. Lihat tiketmu di halaman Tiket saya.",
+    ],
+  ] as const)("antrian berakhir (%s): judul dan penjelasan sesuai alasan", (reason, title, description) => {
+    expect(toQueueGoneDialog({ gone: { cause: "ended", reason }, seconds: 10, onGoHome })).toMatchObject({
+      title,
+      description,
+      note: "Kamu akan diarahkan ke beranda dalam 10 detik.",
+    });
+  });
+
+  it("hitung mundur belum jalan: catatan memakai total detik", () => {
+    expect(toQueueGoneDialog({ gone: { cause: "sold-out" }, seconds: null, onGoHome }).note).toContain(
+      "10 detik",
+    );
   });
 });

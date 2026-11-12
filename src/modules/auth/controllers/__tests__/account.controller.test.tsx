@@ -41,7 +41,7 @@ describe("useAccountController", () => {
     await waitFor(() => expect(ready().saved.items).toHaveLength(1));
     expect(ready().profile.fields).toEqual([
       { label: "Email", value: "you@example.com" },
-      { label: "NIK terdaftar", value: "3171********xx22" },
+      { label: "NIK terdaftar", value: "3171**********22" },
     ]);
     expect(ready().profile).toMatchObject({ name: "you@example.com", initials: "Y" });
     expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi"]);

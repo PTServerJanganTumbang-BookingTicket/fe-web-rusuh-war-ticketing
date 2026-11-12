@@ -1,5 +1,6 @@
 import { asFunction, type NameAndRegistrationPair } from "awilix";
 import { createGetQueueEventUseCase } from "./application/get-queue-event.use-case";
+import { createJoinQueueUseCase } from "./application/join-queue.use-case";
 import { createLeaveQueueUseCase } from "./application/leave-queue.use-case";
 import { createGetQueueStateUseCase } from "./application/get-queue-state.use-case";
 import type { QueueProtocol } from "./domain/queue.protocol";
@@ -21,6 +22,7 @@ export function queueModule(): NameAndRegistrationPair<QueueRegistry> {
     queueTicketCache: asFunction(createMemoryQueueTicketService).singleton(),
     queueService: asFunction(createHttpQueueService).singleton(),
     queueUpdatesService: asFunction(createSseQueueUpdatesService).singleton(),
+    joinQueueUseCase: asFunction(createJoinQueueUseCase).singleton(),
     getQueueStateUseCase: asFunction(createGetQueueStateUseCase).singleton(),
     getQueueEventUseCase: asFunction(createGetQueueEventUseCase).singleton(),
     watchQueueStateUseCase: asFunction(createWatchQueueStateUseCase).singleton(),

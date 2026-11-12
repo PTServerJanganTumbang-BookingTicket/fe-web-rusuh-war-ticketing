@@ -15,6 +15,25 @@ export function validateBookingTickets(tickets: readonly BookingTicketInput[]): 
   return null;
 }
 
+/** Id pseudo-alias untuk NIK pemilik akun (pemesan); tidak bentrok dengan id alias dari BE (`snk_*`). */
+export const OWNER_HOLDER_ID = "owner";
+
+/**
+ * Pilihan pemegang tiket untuk customer yang masuk: NIK pemilik akun dulu, lalu alias. Pemilik diperlakukan
+ * sebagai alias supaya mekanik pilih/isi NIK/cek Dukcapil/BR-02 dipakai ulang. Pemilik hanya masuk bila NIK
+ * lengkapnya ada, karena `POST /bookings` butuh NIK utuh (docs/api/contract-assumptions.md). Alias dengan NIK
+ * yang sama dengan pemilik dibuang agar tidak ada dua pilihan untuk orang yang sama.
+ */
+export function holderChoices(
+  account: { nikMasked: string; nik?: string } | null,
+  aliases: readonly HolderAlias[],
+): HolderAlias[] {
+  const ownerNik = account?.nik;
+  if (!account || !ownerNik) return [...aliases];
+  const owner: HolderAlias = { id: OWNER_HOLDER_ID, label: "", nik: ownerNik, nikMasked: account.nikMasked };
+  return [owner, ...aliases.filter((alias) => alias.nik !== ownerNik)];
+}
+
 export type AliasOption = { alias: HolderAlias; takenByOtherTicket: boolean };
 
 /**

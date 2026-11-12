@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isEmail, isNikFormat, savedNikLabelOf, validateSavedNikInput } from "../account.rules";
+import {
+  isEmail,
+  isNikFormat,
+  safeRedirectPath,
+  savedNikLabelOf,
+  validateSavedNikInput,
+} from "../account.rules";
 import { SAVED_NIK_LABEL_MAX_LENGTH } from "../auth.constants";
 
 describe("isNikFormat", () => {
@@ -64,5 +70,29 @@ describe("validateSavedNikInput", () => {
     expect(validateSavedNikInput({ label: "Budi", nik: "123" })).toEqual({
       nik: "format",
     });
+  });
+});
+
+describe("safeRedirectPath", () => {
+  it("meloloskan halaman bayar dan antrean booking", () => {
+    expect(safeRedirectPath("/orders/RB-00912/pay")).toBe("/orders/RB-00912/pay");
+    expect(safeRedirectPath("/events/evt_konser_a/queue")).toBe("/events/evt_konser_a/queue");
+  });
+
+  it.each([
+    null,
+    "",
+    "/",
+    "//evil.com",
+    "https://evil.com",
+    "/account",
+    "/orders/RB-1/pay?x=1",
+    "/orders/RB-1/pay#frag",
+    "/orders//pay",
+    "/orders/a/b/pay",
+    "/orders/evt%20a/pay",
+    "/events/evt_a/queue/",
+  ])("%j → beranda", (next) => {
+    expect(safeRedirectPath(next)).toBe("/");
   });
 });

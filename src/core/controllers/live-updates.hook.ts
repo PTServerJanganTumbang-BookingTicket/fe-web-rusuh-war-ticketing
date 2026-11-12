@@ -9,13 +9,21 @@ type LiveUpdatesOptions<T> = {
   watch: (observer: Observer<T>) => Unsubscribe;
   /** Status akhir: stream ditutup supaya EventSource tidak menyambung ulang. */
   until?: (value: T) => boolean;
+  /** Berlangganan hanya saat true (bawaan true). Dipakai bila stream baru boleh dibuka setelah langkah lain selesai. */
+  enabled?: boolean;
 };
 
 /**
  * Menulis pembaruan SSE ke cache TanStack Query (ADR-0016). Mengembalikan `true` selama stream tersambung;
  * query options memakai nilai ini untuk mematikan polling, dan menyalakannya lagi saat stream putus.
+ * Selama `enabled` false stream tidak dibuka dan hasilnya `false`.
  */
-export function useLiveUpdates<T>({ queryKey, watch, until }: LiveUpdatesOptions<T>): boolean {
+export function useLiveUpdates<T>({
+  queryKey,
+  watch,
+  until,
+  enabled = true,
+}: LiveUpdatesOptions<T>): boolean {
   const queryClient = useQueryClient();
   const [live, setLive] = useState(false);
   const latest = useRef({ queryKey, watch, until });
@@ -25,6 +33,7 @@ export function useLiveUpdates<T>({ queryKey, watch, until }: LiveUpdatesOptions
   const key = hashKey(queryKey);
 
   useEffect(() => {
+    if (!enabled) return;
     let done = false;
     const stop = () => {
       done = true;
@@ -42,7 +51,7 @@ export function useLiveUpdates<T>({ queryKey, watch, until }: LiveUpdatesOptions
       disconnected: () => setLive(false),
     });
     return stop;
-  }, [key, queryClient]);
+  }, [key, queryClient, enabled]);
 
-  return live;
+  return enabled && live;
 }

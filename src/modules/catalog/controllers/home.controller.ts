@@ -32,6 +32,11 @@ export type HomeControllerState = {
   error: AppError | null;
   /** Sedang melakukan refetch (polling atau manual). */
   isRefetching: boolean;
+  /**
+   * Muat ulang manual. Polling berhenti setelah galat kontrak (`pollingStopped`), jadi tombol "Coba lagi" di
+   * keadaan kosong/galat inilah jalan pulihnya.
+   */
+  refetch: () => void;
 };
 
 /**
@@ -60,5 +65,6 @@ export function useHomeController(): HomeControllerState {
     isLoading: eventsQuery.isLoading,
     error: eventsQuery.error ? toAppError(eventsQuery.error) : null,
     isRefetching: eventsQuery.isRefetching,
+    refetch: () => void eventsQuery.refetch(),
   };
 }

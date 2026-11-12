@@ -32,10 +32,10 @@ export function createSseQueueUpdatesService({
       let stopped = false;
       let retry: ReturnType<typeof setTimeout> | undefined;
 
-      /** Gagal mengambil grant dianggap stream putus: controller kembali ke polling `/queue/me`. */
+      /** Gagal mengambil grant dianggap stream putus: controller kembali ke polling cadangan `/queue/serving`. */
       const fetchGrant = () => {
         retry = undefined;
-        queueService.getState(eventId).then(
+        queueService.getOwnState(eventId).then(
           (state) => {
             if (stopped) return;
             if (state.status === "waiting") {
@@ -52,7 +52,7 @@ export function createSseQueueUpdatesService({
 
       const publish = () => {
         const ticket = queueTicketCache.get(eventId);
-        // Sebelum join selesai belum ada tiket; snapshot GET yang mengisi state pertama.
+        // Stream dibuka setelah join, jadi tiket ada; penjaga ini hanya untuk tiket yang dibuang saat keluar antrian.
         if (!ticket || nowServing === undefined) return;
         if (nowServing >= ticket.ticketNo && ticket.ticketNo > 0) {
           if (!retry) fetchGrant();

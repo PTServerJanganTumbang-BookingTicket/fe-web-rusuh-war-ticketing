@@ -27,7 +27,7 @@ const admitted: QueueState = {
   expiresAt: "x",
 };
 
-function setup(getState: QueueProtocol["getState"], withTicket = true) {
+function setup(getOwnState: QueueProtocol["getOwnState"], withTicket = true) {
   let push: Observer<QueueStreamMessage> | undefined;
   const closeStream = vi.fn();
   const client: EventStreamClient = {
@@ -38,7 +38,15 @@ function setup(getState: QueueProtocol["getState"], withTicket = true) {
   };
   const cache = createMemoryQueueTicketService();
   if (withTicket) cache.set(EVENT, ticket);
-  const queueService = { getState, getEvent: vi.fn(), leave: vi.fn() } as QueueProtocol;
+  // Grant diambil lewat getOwnState (/queue/me); getState adalah polling cadangan /queue/serving dan tidak boleh dipakai.
+  const getState = vi.fn();
+  const queueService: QueueProtocol = {
+    join: vi.fn(),
+    getOwnState,
+    getState,
+    getEvent: vi.fn(),
+    leave: vi.fn(),
+  };
   const service = createSseQueueUpdatesService({
     eventStreamClient: client,
     queueService,
@@ -47,7 +55,7 @@ function setup(getState: QueueProtocol["getState"], withTicket = true) {
   const observer = { next: vi.fn(), connected: vi.fn(), disconnected: vi.fn() };
   const stop = service.watch(EVENT, observer);
   const tick = (nowServing: number) => push!.next({ type: "serving", nowServing, saleState: "OPEN" });
-  return { observer, stop, tick, push: () => push!, closeStream, cache };
+  return { observer, stop, tick, push: () => push!, closeStream, cache, getState };
 }
 
 describe("createSseQueueUpdatesService", () => {
@@ -62,7 +70,7 @@ describe("createSseQueueUpdatesService", () => {
     expect(observer.disconnected).toHaveBeenCalledOnce();
   });
 
-  it("sebelum join selesai (tiket belum ada) pesan serving diabaikan", () => {
+  it("tanpa tiket tersimpan (sudah keluar antrian) pesan serving diabaikan", () => {
     const { observer, tick } = setup(vi.fn(), false);
     tick(50);
     expect(observer.next).not.toHaveBeenCalled();
@@ -86,26 +94,35 @@ describe("createSseQueueUpdatesService", () => {
   });
 
   it("giliran tiba tetapi grant belum terbaca (QUEUED posisi 0): ulang /queue/me tiap 1 detik sampai admitted", async () => {
-    const getState = vi.fn().mockResolvedValueOnce(waiting(0)).mockResolvedValueOnce(admitted);
-    const { observer, tick } = setup(getState);
+    const getOwnState = vi.fn().mockResolvedValueOnce(waiting(0)).mockResolvedValueOnce(admitted);
+    const { observer, tick } = setup(getOwnState);
     tick(100);
     await vi.advanceTimersByTimeAsync(0);
-    expect(getState).toHaveBeenCalledTimes(1);
+    expect(getOwnState).toHaveBeenCalledTimes(1);
     expect(observer.next).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1000);
-    expect(getState).toHaveBeenCalledTimes(2);
+    expect(getOwnState).toHaveBeenCalledTimes(2);
     expect(observer.next).toHaveBeenCalledWith(admitted);
   });
 
+  it("grant diambil lewat getOwnState, bukan polling /queue/serving", async () => {
+    const getOwnState = vi.fn().mockResolvedValue(admitted);
+    const { tick, getState } = setup(getOwnState);
+    tick(100);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getOwnState).toHaveBeenCalledWith(EVENT);
+    expect(getState).not.toHaveBeenCalled();
+  });
+
   it("pesan serving berikutnya tidak menggandakan pengambilan grant yang sedang diulang", async () => {
-    const getState = vi.fn().mockResolvedValue(waiting(0));
-    const { tick } = setup(getState);
+    const getOwnState = vi.fn().mockResolvedValue(waiting(0));
+    const { tick } = setup(getOwnState);
     tick(100);
     await vi.advanceTimersByTimeAsync(0);
     tick(101);
     tick(102);
-    expect(getState).toHaveBeenCalledTimes(1);
+    expect(getOwnState).toHaveBeenCalledTimes(1);
   });
 
   it("gagal mengambil grant dilaporkan sebagai putus (controller kembali ke polling)", async () => {
@@ -117,20 +134,20 @@ describe("createSseQueueUpdatesService", () => {
   });
 
   it("berhenti menonton: stream ditutup dan ulangan grant dibatalkan", async () => {
-    const getState = vi.fn().mockResolvedValue(waiting(0));
-    const { stop, tick, closeStream } = setup(getState);
+    const getOwnState = vi.fn().mockResolvedValue(waiting(0));
+    const { stop, tick, closeStream } = setup(getOwnState);
     tick(100);
     await vi.advanceTimersByTimeAsync(0);
     stop();
     await vi.advanceTimersByTimeAsync(5000);
     expect(closeStream).toHaveBeenCalledOnce();
-    expect(getState).toHaveBeenCalledTimes(1);
+    expect(getOwnState).toHaveBeenCalledTimes(1);
   });
 
   it("hasil grant yang tiba setelah berhenti menonton tidak diteruskan", async () => {
     let resolve: (state: QueueState) => void = () => {};
-    const getState = vi.fn().mockReturnValue(new Promise<QueueState>((done) => (resolve = done)));
-    const { observer, stop, tick } = setup(getState);
+    const getOwnState = vi.fn().mockReturnValue(new Promise<QueueState>((done) => (resolve = done)));
+    const { observer, stop, tick } = setup(getOwnState);
     tick(100);
     stop();
     resolve(admitted);
@@ -140,8 +157,8 @@ describe("createSseQueueUpdatesService", () => {
 
   it("gagal setelah berhenti menonton tidak melaporkan putus", async () => {
     let reject: (error: Error) => void = () => {};
-    const getState = vi.fn().mockReturnValue(new Promise<QueueState>((_, fail) => (reject = fail)));
-    const { observer, stop, tick } = setup(getState);
+    const getOwnState = vi.fn().mockReturnValue(new Promise<QueueState>((_, fail) => (reject = fail)));
+    const { observer, stop, tick } = setup(getOwnState);
     tick(100);
     stop();
     reject(new Error("x"));

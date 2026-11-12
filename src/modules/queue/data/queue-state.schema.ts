@@ -1,28 +1,38 @@
 import { z } from "zod";
 import { QUEUE_POLL_FALLBACK_MS } from "../domain/queue.constants";
 import type { QueueEvent } from "../domain/queue-event.model";
+import type { QueuePollTier } from "../domain/queue-poll.rules";
 import type { QueueState } from "../domain/queue-state.model";
 
 /**
  * `data` dari `POST /events/{event_id}/queue/join`. Ada tiga bentuk: antrian baru, join ulang (`rejoined`, tanpa
  * `event`), dan antrian kosong yang langsung diberi giliran (`granted`, tanpa nomor). Kontrak tidak membawa estimasi
  * tunggu: estimasi dihitung dari laju antrian (`ratePerMin` di stream, `rate_per_min` di `/queue/serving`).
+ * Tanpa `now_serving`, nilainya diturunkan dari rumus kontrak: `ticket_no − position`.
  */
 export const queueJoinSchema = z
   .object({
     ticket_no: z.number().optional(),
     position: z.number().optional(),
+    now_serving: z.number().optional(),
+    state: z.string().optional(),
     queue_token: z.string().nullish(),
     sse_url: z.string().nullish(),
   })
-  .transform((join): QueueJoin => ({
-    ticketNo: join.ticket_no ?? 0,
-    joinedPosition: join.position ?? 0,
-    queueToken: join.queue_token ?? undefined,
-    streamUrl: join.sse_url ?? undefined,
-  }));
+  .transform((join): QueueJoin => {
+    const ticketNo = join.ticket_no ?? 0;
+    const joinedPosition = join.position ?? 0;
+    return {
+      ticketNo,
+      joinedPosition,
+      queueToken: join.queue_token ?? undefined,
+      streamUrl: join.sse_url ?? undefined,
+      nowServing: join.now_serving ?? ticketNo - joinedPosition,
+      state: join.state,
+    };
+  });
 
-export type QueueJoin = {
+type QueueTicketCore = {
   ticketNo: number;
   joinedPosition: number;
   /** Token ruang tunggu; hanya dipakai bila cookie tidak bisa dipakai (header `X-Queue-Token`). */
@@ -31,15 +41,52 @@ export type QueueJoin = {
   streamUrl?: string;
 };
 
+/** Hasil join apa adanya. `nowServing` dan `state` hanya untuk menentukan hasil join; tidak disimpan di tiket. */
+export type QueueJoin = QueueTicketCore & {
+  nowServing: number;
+  /** State customer bila server mengirimnya (join ulang): selain `QUEUED` berarti state diambil dari `/queue/me`. */
+  state?: string;
+};
+
 /** Tiket antrian customer di satu event, dipakai bersama service HTTP dan SSE. */
-export type QueueTicket = QueueJoin & {
+export type QueueTicket = QueueTicketCore & {
   eventName: string;
   /** Laju antrian terakhir yang diketahui (nomor per menit); 0 bila belum diketahui. */
   ratePerMin: number;
 };
 
-/** `data` dari `GET /events/{event_id}/queue/serving`; hanya laju yang dipakai FE. */
-export const queueServingSchema = z.object({ rate_per_min: z.number() });
+/**
+ * `data` dari `GET /events/{event_id}/queue/serving` (polling cadangan, kontrak §3.4). Interval berikutnya dipilih
+ * dari `poll_tiers` menurut posisi (lihat `pollAfterMs`), dengan `poll_after_ms` sebagai bawaan.
+ */
+export const queueServingSchema = z
+  .object({
+    now_serving: z.number(),
+    rate_per_min: z.number(),
+    state: z.string().optional(),
+    poll_after_ms: z.number().optional(),
+    poll_tiers: z
+      .array(z.object({ max_position: z.number().nullable(), poll_after_ms: z.number() }))
+      .optional(),
+  })
+  .transform((serving): QueueServing => ({
+    nowServing: serving.now_serving,
+    ratePerMin: serving.rate_per_min,
+    saleState: serving.state,
+    pollAfterMs: serving.poll_after_ms,
+    pollTiers: (serving.poll_tiers ?? []).map((tier) => ({
+      maxPosition: tier.max_position,
+      pollAfterMs: tier.poll_after_ms,
+    })),
+  }));
+
+export type QueueServing = {
+  nowServing: number;
+  ratePerMin: number;
+  saleState?: string;
+  pollAfterMs?: number;
+  pollTiers: QueuePollTier[];
+};
 
 /** `data` dari `GET /events/{event_id}` untuk join: nama event dan konfigurasi CAPTCHA (bisa tidak ada). */
 export const queueJoinEventSchema = z
@@ -112,7 +159,7 @@ export const queueStreamSchemas = {
 export function waitingState(
   ticket: QueueTicket,
   nowServing: number,
-  live: { fullBooked?: boolean; stale?: boolean } = {},
+  live: { fullBooked?: boolean; stale?: boolean; retryAfterMs?: number } = {},
 ): QueueState {
   const position = Math.max(ticket.ticketNo - nowServing, 0);
   return {
@@ -123,7 +170,7 @@ export function waitingState(
     position,
     joinedPosition: ticket.joinedPosition,
     ratePerMin: ticket.ratePerMin,
-    retryAfterMs: QUEUE_POLL_FALLBACK_MS,
+    retryAfterMs: live.retryAfterMs ?? QUEUE_POLL_FALLBACK_MS,
   };
 }
 

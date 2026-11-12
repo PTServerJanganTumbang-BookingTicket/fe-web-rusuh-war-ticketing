@@ -59,7 +59,7 @@ describe("useVerifyLoginController", () => {
     expect(replace).not.toHaveBeenCalled();
     expect(await container.cradle.getAccountUseCase()).toEqual({
       email: "you@example.com",
-      nikMasked: "3171********xx22",
+      nikMasked: "3171**********22",
     });
   });
 
@@ -114,5 +114,55 @@ describe("useVerifyLoginController", () => {
       ),
     );
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  describe("tiba dari link email yang sudah ditukar server (?signedIn=1)", () => {
+    const arrive = async (search: string, signedIn = true) => {
+      const container = setupTestContainer();
+      if (signedIn) await container.cradle.verifyLoginUseCase("mt_arrival");
+      window.history.replaceState(null, "", `/login/verify${search}`);
+      return renderHook(() => useVerifyLoginController(), { wrapper: createWrapper(container) });
+    };
+
+    it("dengan sesi: layar sukses, hitung mundur 5 detik, lalu ke beranda", async () => {
+      const { result } = await arrive("?signedIn=1");
+      await waitFor(() => expect(result.current.kind).toBe("done"));
+      const done = result.current;
+      if (done.kind !== "done") throw new Error("belum selesai");
+      expect(done.heading).toBe("Kamu sudah masuk");
+      expect(done.primary).toEqual({ label: "Jelajahi event", href: "/" });
+      expect(done.secondary).toBeUndefined();
+      expect(done.redirectNote).toContain("5 detik");
+      expect(replace).not.toHaveBeenCalled();
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 7000 });
+    }, 10000);
+
+    it("next halaman bayar: tombol kembali ke booking dan redirect ke sana", async () => {
+      const { result } = await arrive(`?signedIn=1&next=${encodeURIComponent("/orders/RB-1/pay")}`);
+      await waitFor(() => expect(result.current.kind).toBe("done"));
+      const done = result.current;
+      if (done.kind !== "done") throw new Error("belum selesai");
+      expect(done.primary).toEqual({ label: "Kembali ke booking", href: "/orders/RB-1/pay" });
+      expect(done.secondary?.href).toBe("/");
+      expect(done.redirectNote).toBe("Kamu akan kembali ke booking dalam 5 detik.");
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-1/pay"), { timeout: 7000 });
+    }, 10000);
+
+    it("next di luar daftar (//evil.com) diabaikan: tujuan tetap beranda", async () => {
+      const { result } = await arrive(`?signedIn=1&next=${encodeURIComponent("//evil.com")}`);
+      await waitFor(() => expect(result.current.kind).toBe("done"));
+      if (result.current.kind !== "done") throw new Error("belum selesai");
+      expect(result.current.primary.href).toBe("/");
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 7000 });
+      expect(replace).not.toHaveBeenCalledWith("//evil.com");
+    }, 10000);
+
+    it("tanpa sesi (URL diketik sendiri): layar gagal, tanpa redirect", async () => {
+      const { result } = await arrive("?signedIn=1", false);
+      await waitFor(() => expect(result.current.kind).toBe("failed"));
+      if (result.current.kind !== "failed") throw new Error("bukan layar gagal");
+      expect(result.current.message).toBe("Link login tidak lengkap. Minta link baru dari halaman masuk.");
+      expect(replace).not.toHaveBeenCalled();
+    });
   });
 });

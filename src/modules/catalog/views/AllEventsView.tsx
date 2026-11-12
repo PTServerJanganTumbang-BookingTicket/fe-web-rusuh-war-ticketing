@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/layout/EmptyState";
 import { CardGridSkeleton } from "@/components/ui/layout/PageSkeleton";
 import type { EventCardProps } from "./EventCard";
 import { EventGrid, type EventGridProps } from "./EventGrid";
+import { RetryButton, type RetryProps } from "./RetryButton";
 
 export type AllEventsViewProps = {
   nav: NavbarProps;
@@ -13,6 +14,8 @@ export type AllEventsViewProps = {
   footer: { copyright: string; tagline: string; links?: { label: string; href: string }[] };
   grid: Pick<EventGridProps, "filterLabel" | "allLabel" | "emptyCategoryLabel" | "search">;
   emptyLabel: string;
+  /** Tombol muat ulang di keadaan galat dan "belum ada event"; tanpa ini tombol tidak tampil. */
+  retry?: RetryProps;
   errorMessage?: string;
   /** Teks status memuat untuk pembaca layar; selama ada, kartu event tampil sebagai kerangka. */
   loading?: string;
@@ -29,6 +32,7 @@ export function AllEventsView({
   emptyLabel,
   errorMessage,
   loading,
+  retry,
 }: AllEventsViewProps) {
   return (
     <div className="flex min-h-screen flex-col bg-signal-disable">
@@ -38,7 +42,11 @@ export function AllEventsView({
           <h1 className="type-h3 text-foreground">{title}</h1>
           <p className="type-body1 text-muted-foreground">{subtitle}</p>
         </div>
-        {errorMessage && <EmptyState illustration="events" title={errorMessage} />}
+        {errorMessage && (
+          <EmptyState illustration="events" title={errorMessage}>
+            {retry ? <RetryButton {...retry} /> : null}
+          </EmptyState>
+        )}
         {loading ? (
           <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">{loading}</span>
@@ -46,7 +54,9 @@ export function AllEventsView({
           </div>
         ) : null}
         {!loading && !errorMessage && events.length === 0 && (
-          <EmptyState illustration="events" title={emptyLabel} />
+          <EmptyState illustration="events" title={emptyLabel}>
+            {retry ? <RetryButton {...retry} /> : null}
+          </EmptyState>
         )}
         {events.length > 0 && <EventGrid events={events} {...grid} />}
       </main>

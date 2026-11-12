@@ -41,3 +41,13 @@ export function validateSavedNikInput(input: SavedNikInput): SavedNikInputError 
   if (!isNikFormat(input.nik)) errors.nik = "format";
   return errors.label || errors.nik ? errors : null;
 }
+
+const SAFE_REDIRECT_PATTERN = /^\/(?:orders\/[\w-]+\/pay|events\/[\w-]+\/queue)$/;
+
+/**
+ * Tujuan setelah masuk dari parameter `next` di URL. Nilainya datang dari URL, jadi tidak pernah diikuti begitu saja
+ * (ADR-0023 butir 5): hanya halaman bayar dan antrean booking yang dikenal yang lolos, selain itu ke beranda.
+ */
+export function safeRedirectPath(next: string | null): string {
+  return next !== null && SAFE_REDIRECT_PATTERN.test(next) ? next : "/";
+}

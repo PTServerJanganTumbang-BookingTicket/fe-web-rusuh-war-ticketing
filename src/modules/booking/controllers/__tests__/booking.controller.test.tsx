@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
@@ -175,15 +175,16 @@ describe("useBookingController", () => {
   });
 
   it("submit tanpa data lengkap menampilkan galat, tanpa request", async () => {
-    push.mockClear();
+    replace.mockClear();
     const { view } = await readyView();
     add(view, "cat_vip");
     act(() => view().submit.onSubmit());
     expect(view().holders?.items[0]?.nik.error).toBe("NIK harus 16 digit angka.");
-    expect(push).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("submit lengkap membuat booking dan lanjut ke pembayaran", async () => {
+    replace.mockClear();
     push.mockClear();
     const { view } = await readyView();
     add(view, "cat_vip");
@@ -192,11 +193,15 @@ describe("useBookingController", () => {
     act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
     act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
     await submitAndConfirm(view);
-    await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringMatching(/^\/orders\/RB-\d+\/pay$/)));
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(expect.stringMatching(/^\/orders\/RB-\d+\/pay$/)),
+    );
+    // `replace`, bukan `push`: Back dari pembayaran tidak boleh kembali ke formulir yang sudah terpakai.
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("submit lengkap membuka ringkasan pesanan dulu; Periksa lagi menutupnya tanpa membuat booking", async () => {
-    push.mockClear();
+    replace.mockClear();
     let created = false;
     server.use(
       http.post(`${MOCK_API_BASE_URL}/bookings`, () => {
@@ -219,7 +224,7 @@ describe("useBookingController", () => {
     act(() => back && "onClick" in back && back.onClick());
     expect(view().dialog).toBeUndefined();
     expect(created).toBe(false);
-    expect(push).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 
   describe("stok berubah saat submit (409 INSUFFICIENT_STOCK)", () => {
@@ -264,7 +269,6 @@ describe("useBookingController", () => {
     }
 
     it("sebagian kategori habis: modal minta pilih kategori lain, pilihan dipangkas ke stok terbaru", async () => {
-      push.mockClear();
       replace.mockClear();
       server.use(insufficient());
       const { view } = await readyView();
@@ -279,7 +283,6 @@ describe("useBookingController", () => {
       act(() => another && "onClick" in another && another.onClick());
       expect(view().dialog).toBeUndefined();
       expect(view().holders).toBeUndefined();
-      expect(push).not.toHaveBeenCalled();
       expect(replace).not.toHaveBeenCalled();
     });
 
@@ -319,7 +322,7 @@ describe("useBookingController", () => {
   });
 
   it("customer masuk memilih alias sebagai pemegang tiket; NIK lengkapnya yang dikirim", async () => {
-    push.mockClear();
+    replace.mockClear();
     let tickets: unknown;
     server.use(
       savedNiksWithFullNik,
@@ -334,12 +337,13 @@ describe("useBookingController", () => {
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
     add(view, "cat_festival");
-    await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+    await waitFor(() => expect(view().holders?.items[0]?.holder?.options).toHaveLength(3));
     const first = () => view().holders?.items[0];
     const second = () => view().holders?.items[1];
     expect(first()?.holder?.options.map((option) => option.label)).toEqual([
-      "Isi NIK manual",
+      "NIK pemesan · 3171**********22",
       "Budi · 3171********xx33",
+      "NIK lain (isi manual)",
     ]);
 
     act(() => first()?.holder?.onChange("snk_1"));
@@ -357,12 +361,11 @@ describe("useBookingController", () => {
     expect(view().submit.disabled).toBe(true);
 
     act(() => second()?.nik.onChange("3171000000005678"));
-    act(() => view().buyer.email.onChange("rina@example.com"));
     await submitAndConfirm(view);
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/orders/RB-ALIAS/pay"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ALIAS/pay"));
     expect(tickets).toEqual([
-      { category_id: "cat_vip", nik: "3171000000000033", holder_email: "rina@example.com" },
-      { category_id: "cat_festival", nik: "3171000000005678", holder_email: "rina@example.com" },
+      { category_id: "cat_vip", nik: "3171000000000033", holder_email: "you@example.com" },
+      { category_id: "cat_festival", nik: "3171000000005678", holder_email: "you@example.com" },
     ]);
   });
 
@@ -370,7 +373,7 @@ describe("useBookingController", () => {
     server.use(savedNiksWithFullNik);
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
-    await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+    await waitFor(() => expect(view().holders?.items[0]?.holder?.options).toHaveLength(3));
     act(() => view().holders?.items[0]?.holder?.onChange("snk_1"));
     act(() => view().holders?.items[0]?.holder?.onChange(""));
     expect(view().holders?.items[0]?.nik).toMatchObject({ value: "", readOnly: false });
@@ -381,7 +384,7 @@ describe("useBookingController", () => {
     server.use(savedNiksOf("3171000000000099"));
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
-    await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+    await waitFor(() => expect(view().holders?.items[0]?.holder?.options).toHaveLength(3));
     act(() => view().holders?.items[0]?.holder?.onChange("snk_1"));
     await waitFor(() => expect(view().dialog?.title).toBe("Periksa NIK-mu"));
     expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171********xx99", readOnly: true });
@@ -399,7 +402,7 @@ describe("useBookingController", () => {
   ])(
     "submit ditolak server (%i): pesan galat sesuai alasan, tanpa pindah halaman",
     async (status, message) => {
-      push.mockClear();
+      replace.mockClear();
       server.use(
         http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
           HttpResponse.json({ meta: { code: status, message: "x" } }, { status }),
@@ -411,12 +414,12 @@ describe("useBookingController", () => {
       act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
       await submitAndConfirm(view);
       await waitFor(() => expect(view().error).toBe(message));
-      expect(push).not.toHaveBeenCalled();
+      expect(replace).not.toHaveBeenCalled();
     },
   );
 
   it("submit tanpa respons: dialog koneksi bermasalah, coba lagi mengirim ulang isian yang sama", async () => {
-    push.mockClear();
+    replace.mockClear();
     let attempts = 0;
     server.use(
       http.post(`${MOCK_API_BASE_URL}/bookings`, () => {
@@ -437,7 +440,7 @@ describe("useBookingController", () => {
     expect(view().error).toBeUndefined();
     const retry = view().dialog?.primary;
     act(() => retry && "onClick" in retry && retry.onClick());
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/orders/RB-RETRY/pay"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-RETRY/pay"));
     expect(attempts).toBe(2);
   });
 
@@ -462,7 +465,6 @@ describe("useBookingController", () => {
 
   it("mode screen: layar sesi berakhir dengan tombol antre lagi, tanpa redirect otomatis", async () => {
     replace.mockClear();
-    push.mockClear();
     const ended = endSessionRoute();
     const container = setupTestContainer({}, { ...testConfig, bookingExpiry: "screen" });
     const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), {
@@ -478,42 +480,219 @@ describe("useBookingController", () => {
     expect(ended).toHaveBeenCalledTimes(1);
   });
 
-  it("waktu booking habis saat formulir terbuka: modal di atas formulir, antre lagi menuju Waiting Room", async () => {
-    push.mockClear();
-    replace.mockClear();
-    endSessionRoute();
-    // Sesi tersisa 1,2 detik; saat hitungan nol FE bertanya ke server dan dijawab 401. Server yang memutuskan (ADR-0005).
-    let calls = 0;
-    server.use(
-      http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => {
-        calls += 1;
-        if (calls > 1)
-          return HttpResponse.json(
-            { meta: { code: 401, message: "Grant expired", error_code: "GRANT_TOKEN_INVALID" }, data: {} },
-            { status: 401 },
-          );
-        return HttpResponse.json({
-          meta: { code: 200, message: "Success" },
-          data: {
-            event: { name: "Konser A" },
-            session: {
-              expires_at: new Date(Date.now() + 1200).toISOString(),
-              server_time: new Date().toISOString(),
+  describe("waktu booking habis saat formulir terbuka", () => {
+    /**
+     * Sesi tersisa 1,2 detik; saat hitungan nol FE bertanya ke server dan dijawab 401. Server yang memutuskan
+     * (ADR-0005). Jam palsu berjalan mengikuti waktu nyata supaya hitung mundur 5 detik bisa dimajukan.
+     */
+    async function expireWithForm() {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      replace.mockClear();
+      push.mockClear();
+      const ended = endSessionRoute();
+      let calls = 0;
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => {
+          calls += 1;
+          if (calls > 1)
+            return HttpResponse.json(
+              { meta: { code: 401, message: "Grant expired", error_code: "GRANT_TOKEN_INVALID" }, data: {} },
+              { status: 401 },
+            );
+          return HttpResponse.json({
+            meta: { code: 200, message: "Success" },
+            data: {
+              event: { name: "Konser A" },
+              session: {
+                expires_at: new Date(Date.now() + 1200).toISOString(),
+                server_time: new Date().toISOString(),
+              },
+              categories: [{ id: "cat_vip", name: "VIP", description: "", price: 100_000, available: 5 }],
+              rules: { max_tickets_per_order: 3 },
             },
-            categories: [{ id: "cat_vip", name: "VIP", description: "", price: 100_000, available: 5 }],
-            rules: { max_tickets_per_order: 3 },
-          },
+          });
+        }),
+      );
+      const { view } = await readyView();
+      await waitFor(() => expect(view().dialog?.title).toBe("Waktu booking habis"), { timeout: 6000 });
+      return { view, ended };
+    }
+
+    const tick = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+
+    afterEach(() => vi.useRealTimers());
+
+    it("modal dengan hitung mundur 5 detik, grant dilepas sekali, lalu kembali ke Beranda", async () => {
+      const { view, ended } = await expireWithForm();
+      expect(view().dialog?.note).toBe("Kamu akan diarahkan ke beranda dalam 5 detik.");
+      expect(view().dialog?.secondary).toBeUndefined();
+      expect(view().dialog?.primary).toMatchObject({ label: "Kembali ke beranda" });
+      // Grant yang sudah kedaluwarsa dilepas, kalau tidak proxy memantulkan Waiting Room kembali ke /book.
+      await waitFor(() => expect(ended).toHaveBeenCalledTimes(1));
+      expect(replace).not.toHaveBeenCalled();
+
+      await tick(2000);
+      expect(view().dialog?.note).toBe("Kamu akan diarahkan ke beranda dalam 3 detik.");
+      expect(replace).not.toHaveBeenCalled();
+
+      await tick(3000);
+      expect(replace).toHaveBeenCalledWith("/");
+      expect(replace).not.toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
+      expect(ended).toHaveBeenCalledTimes(1);
+    }, 15000);
+
+    it("tombol Kembali ke beranda dan menutup modal langsung ke Beranda, tanpa menunggu hitung mundur", async () => {
+      const { view } = await expireWithForm();
+      const home = view().dialog?.primary;
+      act(() => home && "onClick" in home && home.onClick());
+      expect(replace).toHaveBeenCalledWith("/");
+
+      replace.mockClear();
+      act(() => view().dialog?.onDismiss());
+      expect(replace).toHaveBeenCalledWith("/");
+    }, 15000);
+
+    it("gagal melepas grant tidak menahan pindah ke Beranda", async () => {
+      const { view } = await expireWithForm();
+      server.use(
+        http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => new HttpResponse(null, { status: 500 })),
+      );
+      await tick(5000);
+      expect(view().dialog).toBeDefined();
+      expect(replace).toHaveBeenCalledWith("/");
+    }, 15000);
+  });
+
+  describe("customer masuk", () => {
+    const sessionBody = (account: Record<string, string> | null) =>
+      http.get(`${TEST_APP_ORIGIN}/api/auth/session`, () =>
+        HttpResponse.json({ meta: { code: 200, message: "Success" }, data: { account } }),
+      );
+    const bookingCapture = (captured: { body?: Record<string, unknown> }) =>
+      http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
+        captured.body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-ACCOUNT" } },
+          { status: 201 },
+        );
+      });
+    const validateCapture = (niks: string[]) =>
+      http.post(`${MOCK_API_BASE_URL}/nik/validate`, async ({ request }) => {
+        const { nik } = (await request.json()) as { nik: string };
+        niks.push(nik);
+        return HttpResponse.json({
+          meta: { code: 200, message: "NIK is valid" },
+          data: { nik, valid: true, name: "PEMILIK AKUN", status: "ACTIVE" },
         });
-      }),
-    );
-    const { view } = await readyView();
-    await waitFor(() => expect(view().dialog?.title).toBe("Waktu booking habis"), { timeout: 6000 });
-    expect(view().dialog?.secondary).toMatchObject({ href: "/" });
-    expect(replace).not.toHaveBeenCalled();
-    const requeue = view().dialog?.primary;
-    act(() => requeue && "onClick" in requeue && requeue.onClick());
-    await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`));
-  }, 10000);
+      });
+
+    it("email pemesan terisi dari akun dan tidak bisa diubah; email akun yang dikirim", async () => {
+      replace.mockClear();
+      const captured: { body?: Record<string, unknown> } = {};
+      server.use(bookingCapture(captured));
+      const { view } = await readyView({ signedIn: true });
+      await waitFor(() =>
+        expect(view().buyer.email).toMatchObject({ value: "you@example.com", readOnly: true }),
+      );
+      expect(view().buyer.hint).toBe("E-tiket dikirim ke email akunmu. Email ini tidak bisa diubah di sini.");
+
+      add(view, "cat_vip");
+      act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+      act(() => view().submit.onSubmit());
+      await waitFor(() => expect(view().dialog?.title).toBe("Periksa pesananmu"));
+      expect(view().dialog?.details?.find((detail) => detail.label === "Email")?.value).toBe(
+        "you@example.com",
+      );
+      const confirm = view().dialog?.primary;
+      act(() => confirm && "onClick" in confirm && confirm.onClick());
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ACCOUNT/pay"));
+      expect(captured.body).toMatchObject({ contact_email: "you@example.com" });
+      expect(captured.body?.tickets).toEqual([
+        { category_id: "cat_vip", nik: "3171000000001234", holder_email: "you@example.com" },
+      ]);
+    });
+
+    it("memilih NIK pemesan: dicek ke Dukcapil dengan NIK lengkap, tampil tersamar, dan NIK lengkap dikirim", async () => {
+      replace.mockClear();
+      const validated: string[] = [];
+      const captured: { body?: Record<string, unknown> } = {};
+      server.use(savedNiksOf(), validateCapture(validated), bookingCapture(captured));
+      const { view } = await readyView({ signedIn: true });
+      add(view, "cat_vip");
+      await waitFor(() =>
+        expect(view().holders?.items[0]?.holder?.options.map((o) => o.value)).toEqual(["owner", ""]),
+      );
+      expect(view().holders?.items[0]?.verify).toBeDefined();
+
+      act(() => view().holders?.items[0]?.holder?.onChange("owner"));
+      expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171**********22", readOnly: true });
+      expect(view().holders?.items[0]?.verify).toBeUndefined();
+      await waitFor(() =>
+        expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama PEMILIK AKUN"),
+      );
+      expect(validated).toEqual(["3171000000000022"]);
+
+      await submitAndConfirm(view);
+      await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ACCOUNT/pay"));
+      expect((captured.body?.tickets as { nik: string }[])[0]?.nik).toBe("3171000000000022");
+    });
+
+    it("NIK pemesan yang sudah dipakai satu tiket tidak bisa dipilih untuk tiket lain", async () => {
+      server.use(savedNiksOf(), validateCapture([]));
+      const { view } = await readyView({ signedIn: true });
+      add(view, "cat_vip");
+      add(view, "cat_festival");
+      await waitFor(() => expect(view().holders?.items[1]?.holder?.options).toHaveLength(2));
+      act(() => view().holders?.items[0]?.holder?.onChange("owner"));
+      expect(view().holders?.items[1]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: true });
+      expect(view().holders?.items[0]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: false });
+      // Tunggu cek Dukcapil selesai supaya permintaannya tidak bocor ke test berikutnya.
+      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toContain("Terverifikasi"));
+    });
+
+    it("tombol Verifikasi Dukcapil mengecek NIK yang diketik, tanpa menunggu field ditinggalkan", async () => {
+      const validated: string[] = [];
+      server.use(validateCapture(validated));
+      const { view } = await readyView({ signedIn: true });
+      add(view, "cat_vip");
+      await waitFor(() => expect(view().holders?.items[0]?.verify).toBeDefined());
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+
+      act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+      act(() => view().holders?.items[0]?.verify?.onClick());
+      await waitFor(() =>
+        expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama PEMILIK AKUN"),
+      );
+      expect(validated).toEqual(["3171000000001234"]);
+      expect(view().holders?.items[0]?.verify?.busy).toBe(false);
+
+      // Menekan lagi untuk NIK yang sama tetap bertanya ke server (coba lagi).
+      act(() => view().holders?.items[0]?.verify?.onClick());
+      await waitFor(() => expect(validated).toHaveLength(2));
+    });
+
+    it("akun tanpa NIK lengkap: NIK pemesan tidak ditawarkan, isi manual tetap ada", async () => {
+      server.use(savedNiksOf(), sessionBody({ email: "rina@example.com", nik_masked: "3171**********22" }));
+      const { view } = await readyView({ signedIn: true });
+      add(view, "cat_vip");
+      await waitFor(() => expect(view().buyer.email.value).toBe("rina@example.com"));
+      expect(view().holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([""]);
+    });
+
+    it("tamu: tanpa pilihan pemegang dan tanpa tombol verifikasi; email bisa diketik", async () => {
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      await waitFor(() => expect(view().holders?.items).toHaveLength(1));
+      expect(view().holders?.items[0]).toMatchObject({ holder: undefined, verify: undefined });
+      expect(view().buyer.email.readOnly).toBeUndefined();
+      act(() => view().buyer.email.onChange("tamu@example.com"));
+      expect(view().buyer.email.value).toBe("tamu@example.com");
+    });
+  });
 
   it("jaringan gagal tanpa data: layar status error", async () => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => HttpResponse.error()));

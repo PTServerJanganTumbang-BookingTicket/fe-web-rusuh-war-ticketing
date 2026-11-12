@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { EVENT_ID, passQueue, pickVipAndContinue, installFakeClock } from "./helpers";
+import { advance, EVENT_ID, passQueue, pickVipAndContinue, installFakeClock } from "./helpers";
 
 test.describe("Kedaluwarsa dan gerbang akses", () => {
-  test("waktu booking habis: server menjawab ACCESS_EXPIRED lalu customer kembali ke Waiting Room (FR-19, ADR-0005)", async ({
+  test("waktu booking habis: server menjawab ACCESS_EXPIRED, modal tampil, lalu customer kembali ke Beranda (FR-19, ADR-0005)", async ({
     page,
   }) => {
     await installFakeClock(page);
@@ -11,10 +11,13 @@ test.describe("Kedaluwarsa dan gerbang akses", () => {
 
     await page.clock.runFor(80_000);
 
-    await expect(page).toHaveURL(new RegExp(`/events/${EVENT_ID}/queue$`));
-    await expect(
-      page.getByText("Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal."),
-    ).toBeVisible();
+    const dialog = page.getByRole("alertdialog", { name: "Waktu booking habis" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/diarahkan ke beranda dalam \d detik/)).toBeVisible();
+
+    // Hitung mundur 5 detik, lalu pindah sendiri ke Beranda.
+    await advance(page, 6000);
+    await expect(page).toHaveURL("/");
   });
 
   test("waktu pembayaran habis: status expired dari server (FR-23, BR-06)", async ({ page }) => {

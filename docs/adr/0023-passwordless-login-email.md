@@ -81,3 +81,7 @@ Bagian ini belum disepakati BE dan perlu dibawa ke repo `documentations`.
 Backend membuat link email `/auth/login?token=...` (query, bukan fragmen) dan `GET /auth/verify` hanya membaca cookie `magic_token`. Route `GET /auth/login` menukar token di server lewat cookie `magic_token`, menyetel cookie akun, lalu mengalihkan (303) ke beranda, atau ke booking yang dipulihkan (BR-09). Tidak ada layar konfirmasi pada jalur ini. Token gagal atau tanpa token menuju `/login/verify`.
 
 **Harga yang diterima:** token sempat lewat sebagai query di server FE dan log akses, dan pemindai email yang membuka link bisa menghanguskan token sebelum customer mengklik (butir 2 di atas). Layar konfirmasi di `/login/verify#token=...` tetap ada untuk link berbentuk fragmen.
+
+## Pembaruan 2026-11-12 (lanjutan): layar sukses setelah penukaran di server
+
+Route `GET /auth/login` kini mengalihkan (303) ke layar sukses `/login/verify?signedIn=1` (ditambah `&next=<path>` bila ada booking yang dipulihkan), bukan langsung ke tujuan. Layar itu memastikan sesi ada, lalu menghitung mundur 5 detik ke tujuan. `next` berasal dari URL, jadi disaring `safeRedirectPath` (hanya `/orders/<id>/pay` dan `/events/<id>/queue`); selain itu ke beranda (butir 5). Tanpa sesi, layar jatuh ke keadaan gagal. Cookie dan header (`no-store`, `no-referrer`) tidak berubah. Verifikasi email: `GET /auth/verify-email?token=` hanya mengalihkan ke `/register/verified?token=`; token dikonfirmasi oleh halaman lewat `POST /api/auth/verify-email`.

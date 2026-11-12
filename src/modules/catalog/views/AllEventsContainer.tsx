@@ -20,7 +20,7 @@ export function AllEventsContainer() {
 }
 
 function AllEventsContent() {
-  const { events, isLoading, error } = useHomeController();
+  const { events, isLoading, error, isRefetching, refetch } = useHomeController();
   const { nav, footer } = useSiteChrome({ active: "/events" });
   return (
     <AllEventsView
@@ -40,6 +40,11 @@ function AllEventsContent() {
         },
       }}
       emptyLabel={t("home.empty")}
+      retry={{
+        label: t(isRefetching ? "home.retrying" : "home.retry"),
+        busy: isRefetching,
+        onClick: refetch,
+      }}
       errorMessage={error ? t("home.error") : undefined}
       loading={isLoading && events.length === 0 && !error ? t("common.loading") : undefined}
     />

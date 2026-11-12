@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { asValue } from "awilix";
 import { AppFailure } from "@/core/domain/app-error";
 import { createWrapper, setupTestContainer } from "@/test/support";
@@ -28,6 +28,34 @@ describe("useHomeController", () => {
     const { result } = mount(() => Promise.reject(new AppFailure({ kind: "network" })));
     await waitFor(() => expect(result.current.error).toEqual({ kind: "network" }));
     expect(result.current.events).toEqual([]);
+  });
+});
+
+describe("useHomeController.refetch", () => {
+  it("memuat ulang daftar event dengan permintaan baru", async () => {
+    const listEvents = vi.fn(() => Promise.resolve([event]));
+    const { result } = mount(listEvents);
+    await waitFor(() => expect(result.current.events).toEqual([event]));
+    expect(listEvents).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.refetch());
+    await waitFor(() => expect(listEvents).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.isRefetching).toBe(false));
+  });
+
+  it("setelah galat, muat ulang yang berhasil menampilkan event dan menghapus galat", async () => {
+    const listEvents = vi
+      .fn<() => Promise<Event[]>>()
+      .mockRejectedValueOnce(new AppFailure({ kind: "network" }))
+      .mockResolvedValue([event]);
+    const { result } = mount(listEvents);
+    await waitFor(() => expect(result.current.error).toEqual({ kind: "network" }));
+    expect(result.current.events).toEqual([]);
+
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.events).toEqual([event]));
+    expect(result.current.error).toBeNull();
+    expect(listEvents).toHaveBeenCalledTimes(2);
   });
 });
 

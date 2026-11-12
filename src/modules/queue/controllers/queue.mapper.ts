@@ -1,5 +1,7 @@
+import type { AppError } from "@/core/domain/app-error";
 import { t } from "@/core/i18n/t.utils";
 import type { SiteChrome } from "@/core/controllers/site-chrome.utils";
+import { QUEUE_GONE_REDIRECT_SECONDS } from "../domain/queue.constants";
 import { queueProgressPercent } from "../domain/queue-progress.rules";
 import { queueWaitEstimate, type QueueWaitEstimate } from "../domain/queue-wait.rules";
 import type { QueueEvent } from "../domain/queue-event.model";
@@ -98,5 +100,56 @@ export function toQueueViewProps({
         { icon: "connection", text: t("queue.tips.connection") },
       ],
     },
+  };
+}
+
+/** Antrian tidak bisa dilanjutkan dan customer dikembalikan ke beranda: tiket habis atau penjualan/antrian berakhir. */
+export type QueueGone =
+  { cause: "sold-out" } | { cause: "ended"; reason: Extract<QueueState, { status: "ended" }>["reason"] };
+
+/**
+ * Kapan modal "habis/berakhir" tampil: join ditolak FULL_BOOKED/SALE_CLOSED (tanpa data antrian) atau antrian
+ * sudah berstatus ended. QUEUE_FULL bukan di sini: customer masih boleh mencoba lagi.
+ */
+export function toQueueGone(
+  data: QueueState | undefined,
+  failure: AppError | undefined,
+): QueueGone | undefined {
+  if (data?.status === "ended") return { cause: "ended", reason: data.reason };
+  if (data) return undefined;
+  if (failure?.kind === "api" && (failure.code === "FULL_BOOKED" || failure.code === "SALE_CLOSED")) {
+    return { cause: "sold-out" };
+  }
+  return undefined;
+}
+
+function goneTitle(gone: QueueGone): string {
+  if (gone.cause === "sold-out") return t("queue.gone.soldOut.title");
+  if (gone.reason === "closed") return t("queue.gone.closed.title");
+  return t("queue.gone.ended.title");
+}
+
+function goneDescription(gone: QueueGone): string {
+  return gone.cause === "sold-out" ? t("queue.gone.soldOut.description") : t(`queue.ended.${gone.reason}`);
+}
+
+/** Modal tiket habis/penjualan berakhir dengan hitung mundur ke beranda (`seconds` kosong: belum mulai menghitung). */
+export function toQueueGoneDialog({
+  gone,
+  seconds,
+  onGoHome,
+}: {
+  gone: QueueGone;
+  seconds: number | null;
+  onGoHome: () => void;
+}): NonNullable<QueueViewProps["dialog"]> {
+  return {
+    tone: "warning",
+    illustration: "box",
+    title: goneTitle(gone),
+    description: goneDescription(gone),
+    note: t("queue.gone.redirect", { seconds: seconds ?? QUEUE_GONE_REDIRECT_SECONDS }),
+    primary: { label: t("queue.gone.home"), onClick: onGoHome },
+    onDismiss: onGoHome,
   };
 }

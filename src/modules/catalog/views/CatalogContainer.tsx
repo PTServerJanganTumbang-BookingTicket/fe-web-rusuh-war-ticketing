@@ -28,7 +28,7 @@ export function CatalogContainer() {
 }
 
 function CatalogContent() {
-  const { events, isLoading, error } = useHomeController();
+  const { events, isLoading, error, isRefetching, refetch } = useHomeController();
   const { nav } = useSiteChrome({ active: "/" });
   const eventCards = latestEvents(events, HOME_EVENT_LIMIT).map(toEventCardProps);
 
@@ -64,6 +64,11 @@ function CatalogContent() {
         empty: t("home.filter.empty"),
       }}
       viewAll={{ label: t("home.viewAll"), href: "/events" }}
+      retry={{
+        label: t(isRefetching ? "home.retrying" : "home.retry"),
+        busy: isRefetching,
+        onClick: refetch,
+      }}
       errorMessage={getErrorMessage()}
       loading={isLoading && events.length === 0 && !error ? t("common.loading") : undefined}
     />
