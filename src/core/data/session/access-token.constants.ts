@@ -7,4 +7,9 @@ export const ACCESS_TOKEN_COOKIE = "access_token";
  */
 export const ACCESS_EVENT_COOKIE = "access_event";
 
-export const ACCESS_TOKEN_MAX_AGE_SECONDS = 10 * 60;
+/**
+ * Umur cookie grant = `GRANT_TOKEN_TTL_SECONDS` di kontrak (docs/api/api-contracts.md): booking 300 + payment 600 +
+ * grace 180 detik. Lebih pendek dari ini membuat `proxy.ts` mengalihkan `/orders/:id/pay` ke `/` saat customer masih
+ * membayar.
+ */
+export const ACCESS_TOKEN_MAX_AGE_SECONDS = 1080;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { setupMockServer, setupTestContainer, TEST_APP_ORIGIN } from "@/test/support";
+import { readCookie } from "../account-cookies.utils";
 import { redirectPathFor } from "../account-gateway.service";
 
 const server = setupMockServer();
@@ -377,6 +378,78 @@ describe("accountGateway.forward", () => {
     );
     expect(reused.status).toBe(401);
     expect(cookiesOf(reused).account_token?.cookie).toContain("Max-Age=0");
+  });
+});
+
+describe("accountGateway.forward: kegagalan refresh", () => {
+  const expiredTickets = () =>
+    http.get(`${MOCK_API_BASE_URL}/users/me/tickets`, () =>
+      HttpResponse.json({ meta: { code: 401, message: "expired" }, data: {} }, { status: 401 }),
+    );
+
+  it.each([
+    ["5xx", () => HttpResponse.json({}, { status: 503 })],
+    ["body rusak", () => HttpResponse.json({ oops: true })],
+    ["jaringan putus", () => HttpResponse.error()],
+  ])("refresh gagal sementara (%s): 502 dan cookie tidak dihapus", async (_name, resolver) => {
+    const { accountGateway, session } = await signIn();
+    server.use(expiredTickets(), http.post(`${MOCK_API_BASE_URL}/auth/refresh`, resolver));
+    const response = await accountGateway.forward(
+      api("/account/tickets", { headers: cookieHeader(session) }),
+      "tickets",
+    );
+    expect(response.status).toBe(502);
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("refresh ditolak 400: sesi berakhir dan cookie dihapus", async () => {
+    const { accountGateway, session } = await signIn();
+    server.use(
+      expiredTickets(),
+      http.post(`${MOCK_API_BASE_URL}/auth/refresh`, () => HttpResponse.json({}, { status: 400 })),
+    );
+    const response = await accountGateway.forward(
+      api("/account/tickets", { headers: cookieHeader(session) }),
+      "tickets",
+    );
+    expect(response.status).toBe(401);
+    expect(cookiesOf(response).account_refresh?.cookie).toContain("Max-Age=0");
+  });
+
+  it("permintaan paralel berbagi satu refresh dan semuanya mendapat cookie baru", async () => {
+    const { accountGateway, session } = await signIn();
+    let refreshCalls = 0;
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/users/me/tickets`, ({ request }) =>
+        request.headers.get("authorization") === `Bearer ${session.account_token}`
+          ? HttpResponse.json({ meta: { code: 401, message: "expired" }, data: {} }, { status: 401 })
+          : HttpResponse.json({ meta: { code: 200, message: "Success" }, data: [] }),
+      ),
+      http.post(`${MOCK_API_BASE_URL}/auth/refresh`, async () => {
+        refreshCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return HttpResponse.json({
+          meta: { code: 200, message: "Success" },
+          data: { access_token: "at_new", refresh_token: "rt_new", expires_in: 60 },
+        });
+      }),
+    );
+    const call = () =>
+      accountGateway.forward(api("/account/tickets", { headers: cookieHeader(session) }), "tickets");
+    const responses = await Promise.all([call(), call(), call()]);
+    expect(refreshCalls).toBe(1);
+    for (const response of responses) {
+      expect(response.status).toBe(200);
+      expect(cookiesOf(response).account_refresh?.value).toBe("rt_new");
+    }
+  });
+});
+
+describe("readCookie", () => {
+  it("cookie dengan percent-encoding rusak dianggap tidak ada", () => {
+    const request = new Request(TEST_APP_ORIGIN, { headers: { cookie: "a=%E0%A4%A; b=ok%20x" } });
+    expect(readCookie(request, "a")).toBeUndefined();
+    expect(readCookie(request, "b")).toBe("ok x");
   });
 });
 
