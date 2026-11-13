@@ -635,3 +635,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: NIK yang diketik sudah dicek otomatis begitu 16 digit, jadi tombol "Verifikasi Dukcapil" tidak diperlukan lagi.
 - **Output**: `onNik` memanggil `checkNik` saat NIK genap 16 digit (blur tetap mengecek, tanpa permintaan kembar). Tombol, jeda `NIK_VERIFY_COOLDOWN_MS`, `useVerifyCooldown`, `HolderVerifyProps`, dan kunci i18n `booking.holder.nik.verify` dihapus. Test tombol diganti test cek otomatis.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 134 test Vitest modul booking lulus. Tampilan belum dilihat di browser, e2e belum dijalankan.
+
+## 2026-11-14 — Tombol Verifikasi Dukcapil dikembalikan, cek otomatis 16 digit dibatalkan
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Tombol "Verifikasi Dukcapil" tetap dipakai; cek otomatis begitu NIK 16 digit dibatalkan.
+- **Output**: Commit c118681 di-revert: tombol, jeda `NIK_VERIFY_COOLDOWN_MS`, kunci i18n, dan test tombol kembali; `onNik` hanya menyaring isian. Cek saat field ditinggalkan (blur) tetap seperti sebelumnya.
+- **Review manusia**: Menunggu review. tsc dan test Vitest modul booking lulus. Tampilan belum dilihat di browser.
