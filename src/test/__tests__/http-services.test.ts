@@ -111,6 +111,7 @@ describe("queueService", () => {
     const paths: string[] = [];
     server.events.on("request:start", ({ request }) => {
       const { pathname } = new URL(request.url);
+      if (pathname.startsWith("/api/")) return;
       if (pathname.includes("/queue/")) paths.push(pathname.slice(pathname.indexOf("/queue/")));
     });
     try {
@@ -369,7 +370,7 @@ describe("queueService", () => {
     const { queueService } = setupTestContainer().cradle;
     const joins = vi.fn();
     server.events.on("request:start", ({ request }) => {
-      if (request.url.endsWith("/queue/join")) joins();
+      if (!request.url.includes("/api/") && request.url.endsWith("/queue/join")) joins();
     });
     await queueService.getState(OPEN_EVENT_ID);
     await queueService.getState(OPEN_EVENT_ID);
@@ -526,17 +527,39 @@ describe("queueService", () => {
     });
   });
 
-  it("mode cookie (bawaan): token antrian tidak disimpan dan tidak dikirim lewat header", async () => {
+  it("lewat route same-origin (bawaan): token antrian disimpan dan dikirim lewat header ke BE", async () => {
     let token: string | null = "unset";
     server.events.on("request:start", ({ request }) => {
-      if (request.url.endsWith("/queue/me")) token = request.headers.get("x-queue-token");
+      if (!request.url.includes("/api/") && request.url.endsWith("/queue/me"))
+        token = request.headers.get("x-queue-token");
     });
     const { queueService, credentialStore } = setupTestContainer().cradle;
     await queueService.join(OPEN_EVENT_ID);
     await queueService.getOwnState(OPEN_EVENT_ID);
     server.events.removeAllListeners();
-    expect(token).toBeNull();
-    expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
+    expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBe("qt_001");
+    expect(token).toBe("qt_001");
+  });
+
+  it("join dan /queue/me lewat gateway membawa Bearer akun yang masuk; tamu tanpa Bearer", async () => {
+    const auths: Array<string | null> = [];
+    server.events.on("request:start", ({ request }) => {
+      if (!request.url.includes("/api/") && /\/queue\/(join|me)$/.test(request.url))
+        auths.push(request.headers.get("authorization"));
+    });
+    const guest = setupTestContainer().cradle;
+    await guest.queueService.join(OPEN_EVENT_ID);
+    await guest.queueService.getOwnState(OPEN_EVENT_ID);
+    expect(auths).toEqual([null, null]);
+
+    auths.length = 0;
+    const member = setupTestContainer().cradle;
+    await member.verifyLoginUseCase("mt_booking");
+    await member.queueService.join(OPEN_EVENT_ID);
+    await member.queueService.getOwnState(OPEN_EVENT_ID);
+    server.events.removeAllListeners();
+    expect(auths).toHaveLength(2);
+    expect(auths.every((value) => value?.startsWith("Bearer "))).toBe(true);
   });
 
   it("401 dari /queue/me menjadi QUEUE_TOKEN_INVALID", async () => {
@@ -1017,7 +1040,10 @@ describe("state /queue/me yang tidak dikenal", () => {
 describe("queueService grant dan giliran tiba", () => {
   it("join saat grant event ini masih dipegang: admitted tanpa POST join (tanpa CAPTCHA), state dari /queue/me", async () => {
     const paths: string[] = [];
-    server.events.on("request:start", ({ request }) => void paths.push(new URL(request.url).pathname));
+    server.events.on("request:start", ({ request }) => {
+      const { pathname } = new URL(request.url);
+      if (!pathname.startsWith("/api/")) paths.push(pathname);
+    });
     try {
       const { queueService, credentialStore } = setupTestContainer().cradle;
       credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_dipegang");

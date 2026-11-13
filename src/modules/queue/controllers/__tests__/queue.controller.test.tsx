@@ -50,6 +50,8 @@ function recordQueueRequests() {
   const paths: string[] = [];
   server.events.on("request:start", ({ request }) => {
     const { pathname } = new URL(request.url);
+    // Route same-origin (`/api/account/...`) diteruskan ke BE; hanya request ke BE yang dihitung.
+    if (pathname.startsWith("/api/")) return;
     const at = pathname.indexOf("/queue/");
     if (at >= 0) paths.push(pathname.slice(at));
   });
@@ -200,7 +202,8 @@ describe("useQueueController", () => {
   });
 
   it("jaringan gagal: state error dengan pesan jaringan, bukan pesan mentah", async () => {
-    server.use(http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () => HttpResponse.error()));
+    // Join lewat route same-origin: koneksi browser ke aplikasi yang putus.
+    server.use(http.post(`${TEST_APP_ORIGIN}/api/account/events/:id/queue/join`, () => HttpResponse.error()));
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.status.state).toBe("error"));
     expect(result.current.status.message).toBe("Koneksi bermasalah. Kami mencoba lagi otomatis.");

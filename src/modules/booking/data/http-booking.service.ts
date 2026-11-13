@@ -1,3 +1,4 @@
+import { queueTokenInHeader, viaAccountGateway } from "@/core/data/credentials/account-gateway-mode.utils";
 import { grantHeaders } from "@/core/data/credentials/grant-headers.utils";
 import type { HttpClient } from "@/core/data/http/http.client";
 import type { AppConfig } from "@/core/domain/app-config.model";
@@ -39,9 +40,9 @@ export function createHttpBookingService({
   credentialStore: CredentialStoreProtocol;
 }): BookingProtocol {
   // Mock di browser (dev, e2e): state grant ada di memori MSW browser, sedangkan route same-origin berjalan di server
-  // dengan MSW sendiri yang tidak mengenal grant itu. Di sana kedua endpoint dipanggil langsung seperti sebelumnya;
+  // dengan MSW sendiri yang tidak mengenal grant itu. Di sana endpoint dipanggil langsung seperti sebelumnya;
   // mock tidak memeriksa Bearer. Di test (appBaseUrl terisi) dan produksi, lewat route same-origin.
-  const viaServer = !(appConfig.mocking && appConfig.appBaseUrl === "");
+  const viaServer = viaAccountGateway(appConfig);
   const bookingClient = viaServer ? bffHttpClient : httpClient;
   const bookingPath = (path: string) => (viaServer ? `/account${path}` : path);
 
@@ -52,14 +53,18 @@ export function createHttpBookingService({
    * hanya bila cookie tidak bisa dipakai.
    */
   async function recoverGrant(eventId: string): Promise<string | null> {
-    const queueToken = appConfig.apiCredentials === "omit" ? credentialStore.queueToken(eventId) : null;
-    const grant = await httpClient.get(`/events/${encodeURIComponent(eventId)}/queue/me`, queueGrantSchema, {
-      headers: {
-        "x-device-id": credentialStore.deviceId(),
-        ...(queueToken ? { "x-queue-token": queueToken } : {}),
+    const queueToken = queueTokenInHeader(appConfig) ? credentialStore.queueToken(eventId) : null;
+    const grant = await bookingClient.get(
+      bookingPath(`/events/${encodeURIComponent(eventId)}/queue/me`),
+      queueGrantSchema,
+      {
+        headers: {
+          "x-device-id": credentialStore.deviceId(),
+          ...(queueToken ? { "x-queue-token": queueToken } : {}),
+        },
+        errorCodes: { 401: "ACCESS_EXPIRED" },
       },
-      errorCodes: { 401: "ACCESS_EXPIRED" },
-    });
+    );
     if (grant) credentialStore.saveGrantToken(eventId, grant);
     return grant;
   }
@@ -88,7 +93,7 @@ export function createHttpBookingService({
     },
 
     validateNik(nik: string): Promise<NikCheck> {
-      return httpClient.post("/nik/validate", { nik }, nikCheckSchema, {
+      return bookingClient.post(bookingPath("/nik/validate"), { nik }, nikCheckSchema, {
         headers: grantHeaders(credentialStore),
         errorCodes: { 400: "NIK_INVALID", 401: "ACCESS_EXPIRED", 429: "RATE_LIMITED" },
       });

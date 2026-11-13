@@ -33,6 +33,7 @@ function setup(
   getOwnState: QueueProtocol["getOwnState"],
   withTicket = true,
   apiCredentials: "omit" | "include" = "include",
+  gateway = false,
 ) {
   let push: Observer<QueueStreamMessage> | undefined;
   let options: StreamOptions | undefined;
@@ -59,7 +60,11 @@ function setup(
     eventStreamClient: client,
     queueService,
     queueTicketCache: cache,
-    appConfig: { apiCredentials } as AppConfig,
+    appConfig: {
+      apiCredentials,
+      mocking: !gateway,
+      appBaseUrl: gateway ? "http://app.test" : "",
+    } as AppConfig,
     credentialStore: {
       deviceId: () => "dev_1",
       queueToken: () => "qt_1",
@@ -75,11 +80,11 @@ describe("createSseQueueUpdatesService", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("mode cookie membuka stream tanpa header; mode omit mengirim X-Queue-Token dan X-Device-Id", () => {
+  it("mode cookie membuka stream tanpa header; omit dan route same-origin mengirim X-Queue-Token dan X-Device-Id", () => {
+    const headers = { headers: { "x-queue-token": "qt_1", "x-device-id": "dev_1" } };
     expect(setup(vi.fn()).options()).toBeUndefined();
-    expect(setup(vi.fn(), true, "omit").options()).toEqual({
-      headers: { "x-queue-token": "qt_1", "x-device-id": "dev_1" },
-    });
+    expect(setup(vi.fn(), true, "omit").options()).toEqual(headers);
+    expect(setup(vi.fn(), true, "include", true).options()).toEqual(headers);
   });
 
   it("meneruskan connected dan disconnected dari stream", () => {

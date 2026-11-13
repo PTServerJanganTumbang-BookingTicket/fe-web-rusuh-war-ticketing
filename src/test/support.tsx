@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { asValue, type NameAndRegistrationPair } from "awilix";
+import { asFunction, asValue, type NameAndRegistrationPair } from "awilix";
 import { http } from "msw";
 import { createAppContainer, type AppContainer, type AppRegistry } from "@/di/container";
 import { server } from "@/mocks/node";
 import { createHandlers, MOCK_API_BASE_URL } from "@/mocks/handlers";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import { DependencyProvider } from "@/core/controllers/dependencies.context";
+import { createEventSourceStreamClient } from "@/core/data/sse/event-source-stream.client";
+import type { EventStreamClient } from "@/core/data/sse/event-stream.client";
 import { setupFakeEventSources } from "./fake-event-source";
 
 /** Origin palsu untuk route handler same-origin (`/api/session/start`) di Node. */
@@ -92,7 +94,21 @@ export function setupTestContainer(
   config: AppConfig = testConfig,
 ): AppContainer {
   const container = createAppContainer(config);
-  container.register({ eventSourceFactory: asValue(setupFakeEventSources().factory), ...overrides });
+  container.register({
+    eventSourceFactory: asValue(setupFakeEventSources().factory),
+    // Token antrian lewat header memindahkan stream ke fetch (EventSource tidak bisa menyetel header). Test controller
+    // tetap memakai EventSource palsu, jadi header diabaikan di sini; jalur fetch dites di klien stream-nya.
+    eventStreamClient: asFunction(
+      ({ appConfig, eventSourceFactory }: Pick<AppRegistry, "appConfig" | "eventSourceFactory">) => {
+        const client = createEventSourceStreamClient({ appConfig, eventSourceFactory });
+        const wrapped: EventStreamClient = {
+          open: (path, schemas, observer) => client.open(path, schemas, observer),
+        };
+        return wrapped;
+      },
+    ).singleton(),
+    ...overrides,
+  });
   return container;
 }
 
