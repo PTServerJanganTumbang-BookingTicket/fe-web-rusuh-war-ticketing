@@ -1,10 +1,13 @@
 /**
  * Konstanta untuk modul catalog.
- * Ref: Req 1.4 — data harus ter-refresh dalam waktu tidak lebih dari 5 detik.
+ * Ref: Req 1.4 — semula refresh ≤5 detik; dilonggarkan jadi 10 detik atas permintaan produk (kurangi trafik polling).
  */
 
-/** Interval polling untuk refresh daftar event (Req 1.4). */
-export const CATALOG_REFRESH_INTERVAL_MS = 5_000;
+/** Interval polling untuk refresh daftar event dan detail event. Berhenti saat tab tersembunyi. */
+export const CATALOG_REFRESH_INTERVAL_MS = 10_000;
+
+/** Data dianggap segar sebentar supaya kembali ke tab tidak memicu refetch beruntun. */
+export const CATALOG_STALE_TIME_MS = 5_000;
 
 /** Waktu sebelum sold out menjadi final (15.5 menit = 930 detik) (BR-20). */
 export const SOLD_OUT_FINAL_TIMEOUT_SECONDS = 930;

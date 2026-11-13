@@ -32,7 +32,12 @@ export function clearCookie(name: string, secure: boolean): string {
 export function readCookie(request: Request, name: string): string | undefined {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [key, ...value] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(value.join("="));
+    if (key !== name) continue;
+    try {
+      return decodeURIComponent(value.join("="));
+    } catch {
+      return undefined; // Cookie malformed (mis. `%E0%A4%A`) dianggap tidak ada, bukan membuat route melempar 500.
+    }
   }
   return undefined;
 }

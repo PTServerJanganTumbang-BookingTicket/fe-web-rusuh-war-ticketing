@@ -113,9 +113,16 @@ export type PaymentStatusResult = PendingStatus | PaidStatus | FailedStatus | Ex
  * - PAID: pembayaran berhasil
  * - FAILED: pembayaran gagal
  * - EXPIRED: waktu habis
+ * - SELECTING: customer belum menekan Bayar; halaman ini bukan tempatnya, kembali ke Detail Ticket (kontrak §4.4)
  */
 export type OrderStatus =
-  "PENDING_PAYMENT" | "AWAITING_PAYMENT" | "PENDING_CANCELLATION" | "PAID" | "FAILED" | "EXPIRED";
+  | "SELECTING"
+  | "PENDING_PAYMENT"
+  | "AWAITING_PAYMENT"
+  | "PENDING_CANCELLATION"
+  | "PAID"
+  | "FAILED"
+  | "EXPIRED";
 
 /** Item dalam order */
 export type OrderItem = {

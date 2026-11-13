@@ -601,6 +601,7 @@ describe("useQueueController", () => {
     it("grant masih dipegang: Waiting Room dipasang ulang langsung meneruskan ke booking tanpa join (tanpa CAPTCHA)", async () => {
       replace.mockClear();
       sessionStarts();
+      server.use(grantedMe("gt_dipegang"));
       const container = setupTestContainer();
       container.cradle.credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_dipegang");
       const paths = recordQueueRequests();

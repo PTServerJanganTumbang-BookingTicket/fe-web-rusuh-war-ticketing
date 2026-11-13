@@ -58,6 +58,10 @@ const verifySchema = z.object({
 });
 
 type Tokens = z.infer<typeof tokensSchema>;
+type RefreshResult = { kind: "ok"; tokens: Tokens } | { kind: "rejected" } | { kind: "unavailable" };
+
+/** Refresh yang sedang berjalan per refresh token, dibersihkan saat selesai. Dibagi lintas permintaan di proses ini. */
+const inflightRefreshes = new Map<string, Promise<RefreshResult>>();
 type RedirectContext = z.infer<typeof verifySchema>["data"]["redirect_context"];
 
 /** Endpoint akun yang boleh diteruskan. Path di luar daftar ini dijawab 404 tanpa menyentuh BE. */
@@ -172,15 +176,27 @@ export function createAccountGatewayService({
     return new Response(body, { status: response.status, headers });
   }
 
-  async function refresh(refreshToken: string): Promise<Tokens | null> {
+  /** `rejected`: BE menolak refresh token (sesi memang berakhir). `unavailable`: gagal sementara, cookie harus tetap. */
+  async function refresh(refreshToken: string): Promise<RefreshResult> {
     const response = await callBackend("/auth/refresh", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    if (!response?.ok) return null;
+    if (!response) return { kind: "unavailable" };
+    if (response.status === 400 || response.status === 401) return { kind: "rejected" };
+    if (!response.ok) return { kind: "unavailable" };
     const parsed = z.object({ data: tokensSchema }).safeParse(await response.json().catch(() => undefined));
-    return parsed.success ? parsed.data.data : null;
+    return parsed.success ? { kind: "ok", tokens: parsed.data.data } : { kind: "unavailable" };
+  }
+
+  /** Refresh token berotasi: permintaan paralel dengan token yang sama berbagi satu panggilan ke BE. */
+  function refreshShared(refreshToken: string): Promise<RefreshResult> {
+    const existing = inflightRefreshes.get(refreshToken);
+    if (existing) return existing;
+    const pending = refresh(refreshToken).finally(() => inflightRefreshes.delete(refreshToken));
+    inflightRefreshes.set(refreshToken, pending);
+    return pending;
   }
 
   type Redeemed =
@@ -339,10 +355,14 @@ export function createAccountGatewayService({
       if (accessToken && !first) return envelope(502, "Backend unavailable");
 
       // Access token habis atau tidak ada: refresh sekali (rotasi), lalu ulangi permintaan.
-      const tokens = refreshToken ? await refresh(refreshToken) : null;
+      const outcome: RefreshResult = refreshToken ? await refreshShared(refreshToken) : { kind: "rejected" };
       // Pada route tamu, 401 bisa berasal dari grant, bukan sesi akun: jawaban BE diteruskan, cookie tidak dihapus.
-      if (!tokens && guestAllowed && first) return passThrough(first);
-      if (!tokens) return envelope(401, "Session ended; please sign in again", {}, clearedCookies());
+      if (outcome.kind !== "ok" && guestAllowed && first) return passThrough(first);
+      // Gagal sementara (jaringan, 5xx, body rusak): jangan hapus refresh token 30 hari.
+      if (outcome.kind === "unavailable") return envelope(502, "Backend unavailable");
+      if (outcome.kind === "rejected")
+        return envelope(401, "Session ended; please sign in again", {}, clearedCookies());
+      const { tokens } = outcome;
       const retried = await send(tokens.access_token);
       if (!retried) return envelope(502, "Backend unavailable");
       return passThrough(retried, tokenCookies(tokens));

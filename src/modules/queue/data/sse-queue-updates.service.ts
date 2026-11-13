@@ -48,25 +48,43 @@ export function createSseQueueUpdatesService({
       let stopped = false;
       let retry: ReturnType<typeof setTimeout> | undefined;
 
-      /** Gagal mengambil grant dianggap stream putus: controller kembali ke polling cadangan `/queue/serving`. */
+      let inFlight = false;
+      /** Grant (atau akhir antrian) sudah diteruskan; pesan stream berikutnya tidak mengambilnya lagi. */
+      let settled = false;
+
+      /**
+       * Satu pengambilan `/queue/me` pada satu waktu. Gagal tidak dilaporkan sebagai stream putus (stream masih
+       * tersambung); pesan stream berikutnya mencoba lagi. `waiting` (grant belum terbaca) diulang tiap jeda.
+       */
       const fetchGrant = () => {
-        retry = undefined;
+        if (stopped || inFlight || settled) return;
+        if (retry) {
+          clearTimeout(retry);
+          retry = undefined;
+        }
+        inFlight = true;
         queueService.getOwnState(eventId).then(
           (state) => {
+            inFlight = false;
             if (stopped) return;
             if (state.status === "waiting") {
-              retry = setTimeout(fetchGrant, GRANT_RETRY_MS);
+              retry = setTimeout(() => {
+                retry = undefined;
+                fetchGrant();
+              }, GRANT_RETRY_MS);
               return;
             }
+            settled = true;
             observer.next(state);
           },
           () => {
-            if (!stopped) observer.disconnected();
+            inFlight = false;
           },
         );
       };
 
       const publish = () => {
+        if (settled) return;
         const ticket = queueTicketCache.get(eventId);
         // Stream dibuka setelah join, jadi tiket ada; penjaga ini hanya untuk tiket yang dibuang saat keluar antrian.
         if (!ticket || nowServing === undefined) return;
@@ -75,6 +93,15 @@ export function createSseQueueUpdatesService({
           return;
         }
         observer.next(waitingState(ticket, nowServing, { fullBooked, stale }));
+      };
+
+      const end = () => {
+        settled = true;
+        observer.next({
+          status: "ended",
+          eventName: queueTicketCache.get(eventId)?.eventName ?? "",
+          reason: "closed",
+        });
       };
 
       /** Laju terbaru disimpan di tiket, jadi polling cadangan memakai laju yang sama saat stream putus. */
@@ -87,6 +114,7 @@ export function createSseQueueUpdatesService({
       const next = (message: QueueStreamMessage) => {
         switch (message.type) {
           case "serving":
+            if (message.saleState === "CLOSED") return end();
             nowServing = message.nowServing;
             keepRate(message.ratePerMin);
             fullBooked = message.saleState === "FULL_BOOKED";
@@ -94,20 +122,18 @@ export function createSseQueueUpdatesService({
             publish();
             return;
           case "status":
+            if (message.saleState === "CLOSED") return end();
             fullBooked = message.saleState === "FULL_BOOKED";
             publish();
             return;
           case "stale":
+            if (message.saleState === "CLOSED") return end();
             stale = message.stale;
             fullBooked = message.saleState === "FULL_BOOKED";
             publish();
             return;
           case "closed":
-            observer.next({
-              status: "ended",
-              eventName: queueTicketCache.get(eventId)?.eventName ?? "",
-              reason: "closed",
-            });
+            end();
             return;
           case "reconnect":
             // Server sedang shutdown; EventSource menyambung ulang sendiri, selama itu controller memakai polling.

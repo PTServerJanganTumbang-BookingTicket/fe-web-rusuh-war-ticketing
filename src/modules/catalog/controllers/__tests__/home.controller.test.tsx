@@ -60,14 +60,14 @@ describe("useHomeController.refetch", () => {
 });
 
 describe("eventsQueryOptions", () => {
-  it("polling sekitar 5 detik dengan jitter dari random", () => {
+  it("polling sekitar 10 detik dengan jitter dari random", () => {
     const listEventsUseCase = vi.fn(() => Promise.resolve([event]));
     const options = eventsQueryOptions({ listEventsUseCase, random: { next: () => 0 } });
     expect(options.queryKey).toEqual(["catalog", "events"]);
     const poll = options.refetchInterval as (query: { state: { status: string } }) => number | false;
     const interval = poll({ state: { status: "success" } }) as number;
-    expect(interval).toBeGreaterThanOrEqual(4000);
-    expect(interval).toBeLessThanOrEqual(6000);
+    expect(interval).toBeGreaterThanOrEqual(8000);
+    expect(interval).toBeLessThanOrEqual(12000);
   });
 
   it("berhenti polling setelah query berstatus error (retry habis)", () => {

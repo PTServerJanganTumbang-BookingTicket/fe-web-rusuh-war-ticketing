@@ -5,7 +5,11 @@ import { withJitter } from "@/core/domain/time/jitter.utils";
 import type { GetBookingEventUseCase } from "../application/get-booking-event.use-case";
 import type { GetBookingSessionUseCase } from "../application/get-booking-session.use-case";
 import type { ListHolderAliasesUseCase } from "../application/list-holder-aliases.use-case";
-import { STOCK_REFRESH_INTERVAL_MS } from "../domain/booking.constants";
+import { STOCK_REFRESH_INTERVAL_MS, STOCK_STALE_TIME_MS } from "../domain/booking.constants";
+
+function isAllSoldOut(session: { categories: readonly { stock: number }[] } | undefined): boolean {
+  return Boolean(session) && session!.categories.length > 0 && session!.categories.every((c) => c.stock <= 0);
+}
 
 export const bookingKeys = {
   session: (eventId: string) => ["booking", "session", eventId] as const,
@@ -30,8 +34,15 @@ export function bookingSessionQuery(
   return queryOptions({
     queryKey: bookingKeys.session(eventId),
     queryFn: () => deps.getBookingSessionUseCase(eventId),
+    // Berhenti saat error, saat semua kategori habis (layar kembali ke Beranda), dan selama tab tersembunyi.
     refetchInterval: (query) =>
-      pollingStopped(query) ? false : withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next()),
+      pollingStopped(query) || isAllSoldOut(query.state.data)
+        ? false
+        : withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next()),
+    refetchIntervalInBackground: false,
+    // Kembali ke tab menyegarkan stok yang sudah lewat staleTime tanpa menunggu tik polling.
+    refetchOnWindowFocus: true,
+    staleTime: STOCK_STALE_TIME_MS,
   });
 }
 

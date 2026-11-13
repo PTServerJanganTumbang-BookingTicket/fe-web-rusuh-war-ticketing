@@ -14,6 +14,7 @@ import type { WatchOrderUseCase } from "./watch-order.use-case";
 import type { GetPaymentEventUseCase } from "./get-payment-event.use-case";
 import type { SimulatePaymentUseCase } from "./simulate-payment.use-case";
 import type { HandleWebViewHandoffUseCase } from "./handle-webview-handoff.use-case";
+import type { PaymentSessionProtocol } from "../domain/payment-session.protocol";
 import type { WebViewBridgeProtocol } from "../domain/webview-handoff.protocol";
 
 /**
@@ -47,4 +48,7 @@ export type PaymentDependencies = {
 
   /** Service untuk komunikasi WebView ↔ mobile app (ADR-007) */
   readonly webViewBridgeService: WebViewBridgeProtocol;
+
+  /** Penyimpan payment session WebView di memori (ADR-007 §6) */
+  readonly paymentSessionService: PaymentSessionProtocol;
 };

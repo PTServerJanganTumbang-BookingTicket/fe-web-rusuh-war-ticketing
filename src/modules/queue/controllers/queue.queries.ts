@@ -45,6 +45,8 @@ export function queueJoinQuery(deps: { joinQueueUseCase: JoinQueueUseCase }, eve
     queryKey: queueKeys.join(eventId),
     queryFn: () => deps.joinQueueUseCase(eventId),
     staleTime: 0,
+    // Sambung ulang jaringan tidak boleh mengulang `POST /queue/join` beserta CAPTCHA.
+    refetchOnReconnect: false,
   });
 }
 

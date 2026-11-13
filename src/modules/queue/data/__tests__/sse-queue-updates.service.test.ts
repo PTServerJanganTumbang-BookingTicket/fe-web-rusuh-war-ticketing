@@ -150,12 +150,44 @@ describe("createSseQueueUpdatesService", () => {
     expect(getOwnState).toHaveBeenCalledTimes(1);
   });
 
-  it("gagal mengambil grant dilaporkan sebagai putus (controller kembali ke polling)", async () => {
-    const { observer, tick } = setup(vi.fn().mockRejectedValue(new Error("offline")));
+  it("gagal mengambil grant tidak dilaporkan sebagai stream putus; pesan berikutnya mencoba lagi", async () => {
+    const getOwnState = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(admitted);
+    const { observer, tick } = setup(getOwnState);
     tick(100);
     await vi.advanceTimersByTimeAsync(0);
-    expect(observer.disconnected).toHaveBeenCalledOnce();
+    expect(observer.disconnected).not.toHaveBeenCalled();
     expect(observer.next).not.toHaveBeenCalled();
+    tick(101);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getOwnState).toHaveBeenCalledTimes(2);
+    expect(observer.next).toHaveBeenCalledWith(admitted);
+  });
+
+  it("pesan serving saat /queue/me masih berjalan tidak memulai panggilan kedua", async () => {
+    let resolve: (state: QueueState) => void = () => {};
+    const getOwnState = vi.fn().mockReturnValue(new Promise<QueueState>((done) => (resolve = done)));
+    const { observer, tick } = setup(getOwnState);
+    tick(100);
+    tick(101);
+    tick(102);
+    expect(getOwnState).toHaveBeenCalledTimes(1);
+    resolve(admitted);
+    await vi.advanceTimersByTimeAsync(0);
+    tick(103);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(getOwnState).toHaveBeenCalledTimes(1);
+    expect(observer.next).toHaveBeenCalledTimes(1);
+  });
+
+  const closedMessages: [string, QueueStreamMessage][] = [
+    ["serving", { type: "serving", nowServing: 5, saleState: "CLOSED" }],
+    ["status", { type: "status", saleState: "CLOSED" }],
+    ["stale", { type: "stale", stale: false, saleState: "CLOSED" }],
+  ];
+  it.each(closedMessages)("saleState CLOSED pada pesan %s menjadi ended", (_type, message) => {
+    const { observer, push } = setup(vi.fn());
+    push().next(message);
+    expect(observer.next).toHaveBeenCalledWith({ status: "ended", eventName: "Konser A", reason: "closed" });
   });
 
   it("berhenti menonton: stream ditutup dan ulangan grant dibatalkan", async () => {

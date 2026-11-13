@@ -22,7 +22,8 @@ import { MIN_RETRY_REMAINING_SECONDS } from "./payment.constants";
  * @returns true jika order sudah final (PAID, FAILED, atau EXPIRED)
  */
 export const isFinalOrder = (order: Order): boolean => {
-  const terminalStatuses = ["PAID", "FAILED", "EXPIRED"];
+  // SELECTING ikut berhenti: customer dialihkan ke halaman booking, tidak ada yang perlu di-poll di sini.
+  const terminalStatuses = ["PAID", "FAILED", "EXPIRED", "SELECTING"];
   return terminalStatuses.includes(order.status);
 };
 

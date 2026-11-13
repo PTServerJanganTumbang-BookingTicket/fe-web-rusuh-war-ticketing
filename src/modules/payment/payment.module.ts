@@ -23,10 +23,12 @@ import { createHttpOrderService } from "./data/http-order.service";
 import { createHttpPaymentSimulatorService } from "./data/http-payment-simulator.service";
 import { createWebViewHandoffService } from "./data/webview-handoff.service";
 import { createWebViewBridgeService } from "./data/webview-bridge.service";
+import { createPaymentSessionService } from "./data/payment-session.service";
 
 // Types
 import type { PaymentDependencies } from "./application/payment.dependencies";
 import type { OrderProtocol } from "./domain/order.protocol";
+import type { PaymentSessionProtocol } from "./domain/payment-session.protocol";
 import type { PaymentSimulatorProtocol } from "./domain/payment-simulator.protocol";
 import type { WebViewHandoffProtocol, WebViewBridgeProtocol } from "./domain/webview-handoff.protocol";
 import type { HandleWebViewHandoffUseCase } from "./application/handle-webview-handoff.use-case";
@@ -44,6 +46,7 @@ export type PaymentRegistry = PaymentDependencies & {
   readonly paymentSimulatorService: PaymentSimulatorProtocol;
   readonly webViewHandoffService: WebViewHandoffProtocol;
   readonly webViewBridgeService: WebViewBridgeProtocol;
+  readonly paymentSessionService: PaymentSessionProtocol;
   readonly handleWebViewHandoffUseCase: HandleWebViewHandoffUseCase;
 };
 
@@ -100,6 +103,9 @@ export const paymentModule = (): NameAndRegistrationPair<PaymentRegistry> => ({
 
   /** HTTP service untuk operasi WebView payment handoff */
   webViewHandoffService: asFunction(createWebViewHandoffService).singleton(),
+
+  /** Penyimpan payment session di memori; dibaca orderService, diisi controller setelah exchange (BR-27) */
+  paymentSessionService: asFunction(createPaymentSessionService).singleton(),
 
   /** WebView bridge service untuk komunikasi ke aplikasi mobile */
   webViewBridgeService: asFunction(createWebViewBridgeService).singleton(),

@@ -39,6 +39,10 @@ const json = (body: unknown) =>
   new Request("http://localhost:3000/api/session/start", { method: "POST", body: JSON.stringify(body) });
 
 describe("POST /api/session/start", () => {
+  it("umur cookie grant 1080 detik, sama dengan GRANT_TOKEN_TTL_SECONDS di kontrak", () => {
+    expect(ACCESS_TOKEN_MAX_AGE_SECONDS).toBe(1080);
+  });
+
   it("menyimpan access token dan event pemiliknya ke cookie httpOnly dan membalas 204", async () => {
     const { POST } = await import("../session/start/route");
     const response = await POST(json({ accessToken: "grant-abc", eventId: "evt_a" }));
