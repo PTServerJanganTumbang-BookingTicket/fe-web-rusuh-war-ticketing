@@ -1,12 +1,12 @@
 import type { SessionProtocol } from "@/core/domain/session.protocol";
 
-export type StartSessionUseCase = (accessToken: string) => Promise<void>;
+export type StartSessionUseCase = (eventId: string, accessToken: string) => Promise<void>;
 
-/** Menyimpan access token dari antrian sebelum customer masuk Detail Ticket. */
+/** Menyimpan grant dari antrian sebuah event sebelum customer masuk Detail Ticket event itu. */
 export function createStartSessionUseCase({
   sessionService,
 }: {
   sessionService: SessionProtocol;
 }): StartSessionUseCase {
-  return (accessToken) => sessionService.start(accessToken);
+  return (eventId, accessToken) => sessionService.start(eventId, accessToken);
 }

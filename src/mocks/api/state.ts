@@ -49,7 +49,7 @@ export type Booking = {
   paidWith: Payment["method"] | null;
 };
 
-/** `nik` lengkap ikut dikirim ke pemiliknya; asumsi FE untuk memilih alias di Detail Ticket (contract-assumptions.md). */
+/** `nik` lengkap hanya dipegang server mock (untuk `saved_nik_id` di `POST /bookings`); API hanya mengirim `nikMasked`. */
 export type SavedNik = {
   id: string;
   nik: string;

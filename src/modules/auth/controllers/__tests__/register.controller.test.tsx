@@ -4,12 +4,15 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { createWrapper, setupMockServer, TEST_APP_ORIGIN } from "@/test/support";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import { useRegisterController } from "../register.controller";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 
 const server = setupMockServer();
+
+const emailOfLength = (length: number) => `${"a".repeat(length - "@example.com".length)}@example.com`;
 
 /** Menekan aksi dialog berupa tombol. */
 function click(action: { label: string; onClick: () => void } | { label: string; href: string } | undefined) {
@@ -53,6 +56,34 @@ describe("useRegisterController", () => {
     fill({ email: "alex@example.com" });
     expect(form().submit.disabled).toBe(false);
     expect(form().email.error).toBeUndefined();
+  });
+
+  it("email dibatasi 50 karakter di input; tepat 50 karakter masih valid", () => {
+    const { form, fill } = mount();
+    expect(form().email.maxLength).toBe(EMAIL_MAX_LENGTH);
+    fill({ email: emailOfLength(EMAIL_MAX_LENGTH), nik: "3171000000000044", consent: true });
+    expect(form().email.error).toBeUndefined();
+    expect(form().submit.disabled).toBe(false);
+  });
+
+  it("email lebih dari 50 karakter: galat langsung tampil, tinjauan tidak terbuka, tanpa permintaan", async () => {
+    let requests = 0;
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/auth/register`, () => {
+        requests += 1;
+        return HttpResponse.json({ meta: { code: 201, message: "registered" } }, { status: 201 });
+      }),
+    );
+    const { form, fill, result } = mount();
+    const tooLong = emailOfLength(EMAIL_MAX_LENGTH + 1);
+    fill({ email: tooLong, nik: "3171000000000044", consent: true });
+    expect(form().email.value).toBe(tooLong);
+    expect(form().email.error).toBe("Alamat email maksimal 50 karakter.");
+    expect(form().submit.disabled).toBe(true);
+    act(() => form().submit.onSubmit());
+    expect(result.current.dialog).toBeUndefined();
+    await new Promise((done) => setTimeout(done, 0));
+    expect(requests).toBe(0);
   });
 
   it("tombol daftar nonaktif sampai NIK 16 digit dan persetujuan dicentang", () => {
@@ -99,6 +130,7 @@ describe("useRegisterController", () => {
     expect(body).toBeUndefined();
     const review = result.current.dialog;
     expect(review?.title).toBe("Konfirmasi datamu");
+    expect(review?.illustration).toBe("confirmation");
     expect(review?.details?.map((item) => item.value)).toEqual(["alex@example.com", "3171000000000044"]);
     act(() => click(review?.primary));
     await waitFor(() => expect(result.current.dialog?.tone).toBe("success"));

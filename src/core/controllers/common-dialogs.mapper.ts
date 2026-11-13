@@ -64,7 +64,7 @@ export function toSessionExpiredDialog({
 }): ActionDialogModel {
   return {
     tone: "warning",
-    icon: "clock",
+    illustration: "confirmation",
     title: t("dialog.sessionExpired.title"),
     description: t("dialog.sessionExpired.description"),
     primary: { label: t("dialog.sessionExpired.login"), href: loginHref },

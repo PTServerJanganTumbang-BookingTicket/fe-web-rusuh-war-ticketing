@@ -2,16 +2,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { onlineManager } from "@tanstack/react-query";
-import { useDependencies } from "@/core/controllers/dependencies.context";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
-import { AppProviders } from "../AppProviders";
 
 const startWorker = vi.fn<(scenario: string | null) => Promise<void>>();
 vi.mock("@/mocks/browser", () => ({ startWorker: (scenario: string | null) => startWorker(scenario) }));
 
-function Probe() {
-  const { appConfig } = useDependencies<CoreDependencies>();
-  return <p>mocking: {String(appConfig.mocking)}</p>;
+/**
+ * Modul dimuat ulang tiap test: container dan QueryClient browser dibuat sekali per modul. Context ikut dimuat ulang,
+ * jadi `Probe` memakai `useDependencies` dari muatan yang sama.
+ */
+async function loadAppProviders() {
+  vi.resetModules();
+  const { AppProviders } = await import("../AppProviders");
+  const { useDependencies } = await import("@/core/controllers/dependencies.context");
+  function Probe() {
+    const { appConfig } = useDependencies<CoreDependencies>();
+    return <p>mocking: {String(appConfig.mocking)}</p>;
+  }
+  return { AppProviders, Probe };
 }
 
 afterEach(() => {
@@ -22,8 +30,9 @@ afterEach(() => {
 });
 
 describe("AppProviders", () => {
-  it("menyediakan dependensi dari container ke anak tanpa menyalakan worker mock", () => {
+  it("menyediakan dependensi dari container ke anak tanpa menyalakan worker mock", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "");
+    const { AppProviders, Probe } = await loadAppProviders();
     render(
       <AppProviders>
         <Probe />
@@ -38,6 +47,7 @@ describe("AppProviders", () => {
     window.history.replaceState(null, "", "/?scenario=booking-expiring");
     let finishWorker: () => void = () => undefined;
     startWorker.mockReturnValue(new Promise<void>((resolve) => (finishWorker = resolve)));
+    const { AppProviders, Probe } = await loadAppProviders();
     render(
       <AppProviders>
         <Probe />
@@ -53,6 +63,7 @@ describe("AppProviders", () => {
   it("worker gagal start: query tetap dilepas supaya galat tampil", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "enabled");
     startWorker.mockRejectedValue(new Error("worker gagal"));
+    const { AppProviders, Probe } = await loadAppProviders();
     render(
       <AppProviders>
         <Probe />

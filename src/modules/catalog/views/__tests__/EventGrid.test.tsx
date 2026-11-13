@@ -7,6 +7,7 @@ import { EventGrid } from "../EventGrid";
 const card = (id: string, category: string): EventCardProps => ({
   id,
   name: `Event ${id}`,
+  detailHref: `/events/${id}`,
   imageUrl: "/x.webp",
   location: "Jakarta",
   category,

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
 import type { BookingSession } from "../../domain/booking-session.model";
 import {
@@ -231,7 +232,7 @@ describe("toBookingTimeoutDialog", () => {
     const dialog = toBookingTimeoutDialog({ secondsLeft: 5, onGoHome });
     expect(dialog).toMatchObject({
       tone: "warning",
-      icon: "clock",
+      illustration: "confirmation",
       title: "Waktu booking habis",
       note: expect.stringContaining("5"),
     });
@@ -241,9 +242,32 @@ describe("toBookingTimeoutDialog", () => {
   });
 });
 
+describe("email pemesan maksimal 50 karakter", () => {
+  const tooLong = `${"a".repeat(EMAIL_MAX_LENGTH)}@example.com`;
+
+  it("input tamu dibatasi maxLength; email akun yang terkunci tidak", () => {
+    expect(build().buyer.email.maxLength).toBe(EMAIL_MAX_LENGTH);
+    expect(
+      build({ account: { email: "rina@example.com", nikMasked: "" } }).buyer.email.maxLength,
+    ).toBeUndefined();
+  });
+
+  it("nilai yang lebih panjang dari batas langsung diberi galat dan memblokir submit", () => {
+    const form: BookingForm = {
+      ...emptyForm,
+      contactEmail: tooLong,
+      niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
+    };
+    const view = build({ form });
+    expect(view.buyer.email.error).toBe(`Email maksimal ${EMAIL_MAX_LENGTH} karakter.`);
+    expect(view.submit.disabled).toBe(true);
+    expect(isBookingFormValid(form, ["vip-0", "vip-1"])).toBe(false);
+  });
+});
+
 describe("akun yang masuk", () => {
-  const owner = { email: "rina@example.com", nikMasked: "3171********xx11", nik: "3171000000000011" };
-  const budi = { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171********xx33" };
+  const owner = { email: "rina@example.com", nikMasked: "3171**********11" };
+  const budi = { id: "snk_1", label: "Budi", nikMasked: "3171**********33" };
   const labels = (view: ReturnType<typeof build>, index = 0) =>
     view.holders?.items[index]?.holder?.options.map((option) => option.label);
 
@@ -261,17 +285,17 @@ describe("akun yang masuk", () => {
   });
 
   it("tanpa alias: pilihan NIK pemilik lalu isi manual, dengan petunjuk akun", () => {
-    const view = build({ account: owner, aliases: holderChoices(owner, []) });
+    const view = build({ account: owner, aliases: holderChoices(owner.nikMasked, []) });
     const holder = view.holders?.items[0]?.holder;
     expect(holder?.options.map((option) => option.value)).toEqual(["owner", ""]);
-    expect(labels(view)).toEqual(["NIK pemesan · 3171********xx11", "NIK lain (isi manual)"]);
+    expect(labels(view)).toEqual(["NIK pemesan · 3171**********11", "NIK lain (isi manual)"]);
     expect(holder?.hint).toBe(
       "Pilih NIK pemesan, alias dari profilmu, atau NIK lain lalu verifikasi ke Dukcapil.",
     );
   });
 
   it("urutan: pemilik, alias, lalu isi manual", () => {
-    const view = build({ account: owner, aliases: holderChoices(owner, [budi]) });
+    const view = build({ account: owner, aliases: holderChoices(owner.nikMasked, [budi]) });
     expect(view.holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([
       "owner",
       "snk_1",
@@ -279,29 +303,27 @@ describe("akun yang masuk", () => {
     ]);
   });
 
-  it("pemilik tanpa NIK lengkap tidak jadi pilihan, tetapi pilihan manual tetap tampil", () => {
-    const noNik = { email: owner.email, nikMasked: owner.nikMasked };
-    const view = build({ account: noNik, aliases: holderChoices(noNik, []) });
+  it("akun tanpa NIK terverifikasi: pemilik tidak jadi pilihan, tetapi pilihan manual tetap tampil", () => {
+    const view = build({ account: { email: owner.email, nikMasked: "" }, aliases: holderChoices("", []) });
     expect(view.holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([""]);
   });
 
   it("NIK pemilik yang sudah dipakai tiket lain tidak bisa dipilih lagi (BR-02), kecuali pilihan slot itu sendiri", () => {
     const form: BookingForm = {
       ...emptyForm,
-      niks: { "vip-0": owner.nik, "vip-1": "" },
       aliasPicks: { "vip-0": "owner" },
     };
-    const view = build({ account: owner, aliases: holderChoices(owner, []), form });
+    const view = build({ account: owner, aliases: holderChoices(owner.nikMasked, []), form });
     expect(view.holders?.items[1]?.holder?.options[0]).toMatchObject({
       value: "owner",
       disabled: true,
-      label: "NIK pemesan · 3171********xx11 (sudah dipakai tiket lain)",
+      label: "NIK pemesan · 3171**********11 (sudah dipakai tiket lain)",
     });
     expect(view.holders?.items[0]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: false });
   });
 
-  it("tombol verifikasi hanya untuk akun yang masuk dan slot berisian manual", () => {
-    const manual = build({ account: owner, aliases: holderChoices(owner, []) });
+  it("tombol verifikasi untuk setiap slot berisian manual (akun maupun tamu), bukan untuk pemegang dari profil", () => {
+    const manual = build({ account: owner, aliases: holderChoices(owner.nikMasked, []) });
     expect(manual.holders?.items[0]?.verify).toMatchObject({
       label: "Verifikasi Dukcapil",
       busy: false,
@@ -310,14 +332,65 @@ describe("akun yang masuk", () => {
 
     const picked = build({
       account: owner,
-      aliases: holderChoices(owner, []),
-      form: { ...emptyForm, niks: { "vip-0": owner.nik }, aliasPicks: { "vip-0": "owner" } },
+      aliases: holderChoices(owner.nikMasked, []),
+      form: { ...emptyForm, aliasPicks: { "vip-0": "owner" } },
     });
     expect(picked.holders?.items[0]?.verify).toBeUndefined();
     expect(picked.holders?.items[0]?.nik).toMatchObject({ value: owner.nikMasked, readOnly: true });
 
+    // Tamu: tanpa pilihan pemegang, tetapi tombol verifikasi tetap ada.
     expect(build().holders?.items[0]?.holder).toBeUndefined();
-    expect(build().holders?.items[0]?.verify).toBeUndefined();
+    expect(build().holders?.items[0]?.verify).toMatchObject({ label: "Verifikasi Dukcapil", disabled: true });
+  });
+
+  it("pemegang dari profil tampil tersamar dan tidak punya NIK lengkap", () => {
+    const view = build({
+      account: owner,
+      aliases: holderChoices(owner.nikMasked, [budi]),
+      form: { ...emptyForm, aliasPicks: { "vip-0": "snk_1" } },
+    });
+    expect(view.holders?.items[0]?.nik).toMatchObject({
+      value: "3171**********33",
+      readOnly: true,
+      success: "NIK ini sudah terverifikasi di profilmu.",
+    });
+    expect(view.holders?.items[0]?.nik.onBlur).toBeUndefined();
+  });
+
+  it("entri Daftar NIK yang sama di dua tiket ditandai duplikat dan memblokir submit (BR-02)", () => {
+    const view = build({
+      account: owner,
+      aliases: holderChoices(owner.nikMasked, [budi]),
+      form: {
+        ...emptyForm,
+        contactEmail: owner.email,
+        emailLocked: true,
+        aliasPicks: { "vip-0": "snk_1", "vip-1": "snk_1" },
+      },
+    });
+    expect(view.holders?.items.map((item) => item.nik.error)).toEqual([
+      "NIK ini sudah dipakai untuk tiket lain di pesanan ini.",
+      "NIK ini sudah dipakai untuk tiket lain di pesanan ini.",
+    ]);
+    expect(view.submit.disabled).toBe(true);
+  });
+
+  it("pemegang dari profil tidak butuh NIK 16 digit untuk submit", () => {
+    const form: BookingForm = {
+      ...emptyForm,
+      contactEmail: owner.email,
+      emailLocked: true,
+      aliasPicks: { "vip-0": "owner", "vip-1": "snk_1" },
+    };
+    expect(isBookingFormValid(form, ["vip-0", "vip-1"])).toBe(true);
+  });
+
+  it("jeda verifikasi mematikan tombol meski NIK sudah 16 digit; selesai jeda, tombol hidup lagi", () => {
+    const form = { ...emptyForm, niks: { "vip-0": "3171000000001234" } };
+    const cooling = build({ form, verifyCooldown: new Set(["vip-0"]) });
+    expect(cooling.holders?.items[0]?.verify).toMatchObject({ busy: false, disabled: true });
+    const ready = build({ form, verifyCooldown: new Set(["vip-1"]) });
+    expect(ready.holders?.items[0]?.verify).toMatchObject({ disabled: false });
   });
 
   it("tombol verifikasi aktif untuk NIK 16 digit, sibuk saat dicek, dan memanggil onNikVerify dengan slotnya", () => {

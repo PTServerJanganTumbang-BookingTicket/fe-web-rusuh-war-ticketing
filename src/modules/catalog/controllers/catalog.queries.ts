@@ -1,13 +1,24 @@
 import { queryOptions } from "@tanstack/react-query";
-import { pollingStopped } from "@/core/controllers/query-retry.utils";
+import { pollingStopped, shouldRetryQuery } from "@/core/controllers/query-retry.utils";
+import { toAppError, type AppError } from "@/core/domain/app-error";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
+import type { GetEventUseCase } from "../application/get-event.use-case";
 import type { ListEventsUseCase } from "../application/list-events.use-case";
 import { CATALOG_REFRESH_INTERVAL_MS } from "../domain/catalog.constants";
 
 export const catalogKeys = {
   events: () => ["catalog", "events"] as const,
+  event: (eventId: string) => ["catalog", "event", eventId] as const,
 };
+
+/**
+ * 404 `NOT_FOUND` dari `GET /events/{event_id}`: event tidak ada (kontrak §2.2). Katalog error FE tidak punya
+ * kode untuk ini, jadi dikenali dari status HTTP-nya.
+ */
+export function isEventNotFound(error: AppError): boolean {
+  return error.kind === "unknown" && error.status === 404;
+}
 
 /**
  * Query options untuk daftar event dengan polling 5s.
@@ -23,5 +34,25 @@ export function eventsQueryOptions(deps: { listEventsUseCase: ListEventsUseCase;
       pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
     // Data stale setelah 1 detik untuk memicu refetch saat focus
     staleTime: 1_000,
+  });
+}
+
+/**
+ * Detail satu event. Stok per kategori dan status jual disegarkan dengan irama yang sama dengan Home (Req 1.4,
+ * jitter ADR-0004); respons ini di-cache CDN, jadi polling tidak sampai ke origin (kontrak §2.2).
+ */
+export function eventDetailQueryOptions(
+  deps: { getEventUseCase: GetEventUseCase; random: RandomProtocol },
+  eventId: string,
+) {
+  return queryOptions({
+    queryKey: catalogKeys.event(eventId),
+    queryFn: () => deps.getEventUseCase(eventId),
+    refetchInterval: (query) =>
+      pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
+    staleTime: 1_000,
+    // Event yang tidak ada tidak akan muncul bila diulang; galat sementara mengikuti aturan bersama.
+    retry: (failureCount, error) =>
+      !isEventNotFound(toAppError(error)) && shouldRetryQuery(failureCount, error),
   });
 }

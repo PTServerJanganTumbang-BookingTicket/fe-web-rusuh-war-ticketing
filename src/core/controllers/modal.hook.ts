@@ -12,8 +12,7 @@ export type ActionDialogAction =
 
 export type ActionDialogModel = {
   tone: "error" | "warning" | "info" | "success";
-  icon?: "alert" | "clock" | "mail" | "check" | "info";
-  illustration?: "network" | "confirmation" | "success" | "email" | "error" | "box";
+  illustration: "network" | "confirmation" | "success" | "email" | "error" | "box";
   title: string;
   description: string;
   details?: { label: string; value: string }[];

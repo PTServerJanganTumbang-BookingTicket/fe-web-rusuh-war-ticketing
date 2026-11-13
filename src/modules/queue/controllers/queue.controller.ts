@@ -51,23 +51,37 @@ export function useQueueController(eventId: string): QueueViewProps {
   const queryClient = useQueryClient();
   // Join dulu; stream baru dibuka sesudahnya supaya `sse_url` dan tiket hasil join sudah ada.
   const join = useQuery(queueJoinQuery({ joinQueueUseCase }, eventId));
+  // Hasil non-waiting dari kunjungan lalu sedang diverifikasi ulang ke server (lihat `queue.queries.ts`): jangan
+  // diikuti, grant lamanya bisa sudah tidak berlaku. Layar memuat sampai server menjawab.
+  const verifyingJoin = join.isFetching && join.data?.status !== "waiting";
+  const joined = verifyingJoin ? undefined : join.data;
+  // Stream dan posisi hanya untuk yang masih mengantre; hasil join lain (admitted, ended) sudah final untuk kunjungan ini.
+  const waitingJoin = joined?.status === "waiting" ? joined : undefined;
   const live = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
     watch: (observer) => watchQueueStateUseCase(eventId, observer),
     until: (state) => state.status !== "waiting",
-    enabled: join.isSuccess,
+    enabled: waitingJoin !== undefined,
   });
   const queue = useQuery(
-    queuePositionQuery({ getQueueStateUseCase, random }, eventId, { live, initial: join.data }),
+    queuePositionQuery({ getQueueStateUseCase, random }, eventId, { live, initial: waitingJoin }),
   );
   // Detail event hanya pelengkap: gagal memuatnya tidak menghentikan antrian.
   const event = useQuery(queueEventQuery({ getQueueEventUseCase }, eventId));
+  const forwarding = useRef(false);
   const enter = useMutation({
-    mutationFn: (accessToken: string) => startSessionUseCase(accessToken),
+    mutationFn: (accessToken: string) => startSessionUseCase(eventId, accessToken),
     // `replace`: tombol Back dari booking tidak boleh kembali ke ruang tunggu yang gilirannya sudah terpakai.
     onSuccess: () => router.replace(`/events/${eventId}/book`),
+    onSettled: () => {
+      forwarding.current = false;
+    },
   });
-  const data = queue.data ?? join.data;
+  // Posisi dari kunjungan lalu yang non-waiting sedang diverifikasi ulang: tunggu jawaban server.
+  const verifying = verifyingJoin || (queue.isFetching && queue.data?.status !== "waiting");
+  // Hasil join yang bukan waiting menang atas posisi lama di cache; posisi hanya melanjutkan join yang waiting.
+  const current = waitingJoin ? (queue.data ?? waitingJoin) : joined;
+  const data = verifying ? undefined : current;
   // Galat join (QUEUE_FULL, FULL_BOOKED, SALE_CLOSED, CAPTCHA_FAILED, ...). Galat polling saat data sudah ada
   // tidak menggantikan layar menunggu.
   const failure = join.error ?? queue.error;
@@ -77,11 +91,13 @@ export function useQueueController(eventId: string): QueueViewProps {
 
   // Giliran tiba: masuk otomatis (FR-06–08). Tombol hanya muncul sebagai cadangan bila penyimpanan sesi gagal.
   const admittedToken = data?.status === "admitted" ? data.accessToken : undefined;
-  const entered = useRef<string>(undefined);
   const { mutate } = enter;
+  // Penjaga hanya untuk satu permintaan yang sedang berjalan (StrictMode memasang efek dua kali). Bukan "sudah pernah
+  // masuk": route Waiting Room bisa tersembunyi lalu tampil lagi (Back/Forward) dengan state yang sama, dan saat itu
+  // customer harus diteruskan ke booking lagi. Efek dijalankan ulang tiap layar tampil.
   useEffect(() => {
-    if (!admittedToken || entered.current === admittedToken) return;
-    entered.current = admittedToken;
+    if (!admittedToken || forwarding.current) return;
+    forwarding.current = true;
     mutate(admittedToken);
   }, [admittedToken, mutate]);
 
@@ -162,7 +178,7 @@ export function useQueueController(eventId: string): QueueViewProps {
     const waiting = toWaitingStatus(data);
     // Stream tidak tersambung dan polling cadangan gagal: angka di layar tidak lagi diperbarui. Beri tahu dan
     // sediakan tombol ambil ulang, daripada tampak "diperbarui otomatis" tanpa batas.
-    const stalled = !live && queue.isError;
+    const stalled = queue.isError;
     return page({
       ...waiting,
       ...(stalled

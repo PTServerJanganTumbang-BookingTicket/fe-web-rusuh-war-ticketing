@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { Activity, StrictMode, type ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { asValue } from "awilix";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
+import { t } from "@/core/i18n/t.utils";
 import { setupFakeEventSources } from "@/test/fake-event-source";
 import {
   createWrapper,
@@ -53,6 +55,9 @@ function recordQueueRequests() {
   });
   return paths;
 }
+
+// Grant tersimpan per tab (sessionStorage): jangan bocor ke test berikutnya.
+afterEach(() => window.sessionStorage.clear());
 
 describe("useQueueController", () => {
   it("join lalu menampilkan posisi dari now_serving join, tanpa memanggil /queue/serving atau /queue/me", async () => {
@@ -124,8 +129,8 @@ describe("useQueueController", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
     expect(push).not.toHaveBeenCalled();
     expect(started).toHaveBeenCalledTimes(1);
-    expect(started).toHaveBeenCalledWith({ accessToken: "gt_1" });
-    expect(container.cradle.credentialStore.grantToken()).toBe("gt_1");
+    expect(started).toHaveBeenCalledWith({ eventId: OPEN_EVENT_ID, accessToken: "gt_1" });
+    expect(container.cradle.credentialStore.grantToken(OPEN_EVENT_ID)).toBe("gt_1");
     expect(result.current.status.state).toBe("admitted");
   });
 
@@ -494,5 +499,157 @@ describe("useQueueController", () => {
         vi.useRealTimers();
       }
     });
+  });
+  describe("kembali ke Waiting Room setelah lolos antrian (Back/Forward, route disembunyikan lalu tampil)", () => {
+    const sessionStarts = () => {
+      const bodies: unknown[] = [];
+      server.use(
+        http.post(`${TEST_APP_ORIGIN}/api/session/start`, async ({ request }) => {
+          bodies.push(await request.json());
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+      return bodies;
+    };
+
+    /** Meniru `<Activity>` Next: state dan ref bertahan, efek dibersihkan saat disembunyikan dan dijalankan lagi saat tampil. */
+    function setupActivityHook(container = setupTestContainer()) {
+      const Providers = createWrapper(container);
+      let mode: "visible" | "hidden" = "visible";
+      const Wrapper = ({ children }: { children: ReactNode }) => (
+        <Providers>
+          <Activity mode={mode}>{children}</Activity>
+        </Providers>
+      );
+      const hook = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: Wrapper });
+      const setMode = (next: typeof mode) => {
+        mode = next;
+        hook.rerender();
+      };
+      return { ...hook, container, hide: () => setMode("hidden"), show: () => setMode("visible") };
+    }
+
+    it("layar yang sama tampil lagi saat sudah admitted: diteruskan ke booking lagi, bukan diam di 'giliran tiba'", async () => {
+      replace.mockClear();
+      const starts = sessionStarts();
+      server.use(joinGranted(), grantedMe("gt_1"));
+      const { result, hide, show } = setupActivityHook();
+      await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+      expect(starts).toEqual([{ eventId: OPEN_EVENT_ID, accessToken: "gt_1" }]);
+
+      hide();
+      show();
+      await waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
+      expect(replace).toHaveBeenLastCalledWith(`/events/${OPEN_EVENT_ID}/book`);
+      expect(starts).toHaveLength(2);
+      expect(result.current.status.state).toBe("admitted");
+    });
+
+    it("grant masih dipegang: Waiting Room dipasang ulang langsung meneruskan ke booking tanpa join (tanpa CAPTCHA)", async () => {
+      replace.mockClear();
+      sessionStarts();
+      const container = setupTestContainer();
+      container.cradle.credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_dipegang");
+      const paths = recordQueueRequests();
+      renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper(container) });
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+      server.events.removeAllListeners();
+      expect(paths).toEqual([]);
+    });
+
+    it("StrictMode memasang efek dua kali: grant disimpan satu kali", async () => {
+      replace.mockClear();
+      const starts = sessionStarts();
+      server.use(joinGranted(), grantedMe("gt_1"));
+      const Providers = createWrapper();
+      renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: ({ children }) => (
+          <StrictMode>
+            <Providers>{children}</Providers>
+          </StrictMode>
+        ),
+      });
+      await waitFor(() => expect(replace).toHaveBeenCalled());
+      expect(starts).toHaveLength(1);
+    });
+
+    it("hasil admitted lama di cache tidak diikuti: kunjungan berikutnya mengikuti jawaban server sekarang", async () => {
+      replace.mockClear();
+      sessionStarts();
+      server.use(joinGranted(), grantedMe("gt_lama"));
+      const container = setupTestContainer();
+      const { result, hide, show } = setupActivityHook(container);
+      await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+
+      // Customer melepas grant (kedaluwarsa di booking), lalu server menjawab keterlibatan lamanya sudah berakhir.
+      container.cradle.credentialStore.clearGrantToken();
+      server.use(
+        http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+          envelope({ rejoined: true, state: "LAPSED", queue_token: "qt_1" }),
+        ),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({ state: "LAPSED" })),
+      );
+      hide();
+      show();
+      await waitFor(() => expect(result.current.status.state).toBe("error"));
+      expect(result.current.status.message).toBe(
+        "Waktu pemilihan tiketmu sudah habis. Masuk antrian lagi dari awal.",
+      );
+      // Tidak ada penerusan kedua dengan grant lama.
+      expect(replace).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("giliran tiba tetapi server masih menjawab QUEUED", () => {
+    it("/queue/me ditanya tiap detik walau stream tersambung dan diam, sampai grant terbaca", async () => {
+      replace.mockClear();
+      let meCalls = 0;
+      server.use(
+        http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+          envelope({
+            ticket_no: 100,
+            now_serving: 100,
+            position: 0,
+            queue_token: "qt_1",
+            sse_url: "https://stream.example.test/s/abc",
+          }),
+        ),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => {
+          meCalls += 1;
+          return meCalls < 3
+            ? envelope({ state: "QUEUED", ticket_no: 100, now_serving: 100 })
+            : envelope({
+                state: "GRANTED",
+                grant_token: "gt_late",
+                booking_expires_at: "2026-10-19T10:10:00Z",
+              });
+        }),
+        http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 204 })),
+      );
+      const fakes = setupFakeEventSources();
+      const container = setupTestContainer({ eventSourceFactory: asValue(fakes.factory) });
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+      expect(result.current.status.position?.value).toBe("#0");
+      // Stream tersambung tetapi tidak mengirim apa pun.
+      act(() => fakes.find("https://stream.example.test/s/abc")?.emit("open"));
+
+      await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`), {
+        timeout: 6_000,
+      });
+      expect(meCalls).toBeGreaterThanOrEqual(3);
+    }, 15_000);
+  });
+
+  it("state /queue/me yang tidak dikenal menjadi galat dengan pesan, bukan layar menunggu yang diam", async () => {
+    server.use(
+      joinGranted(),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({ state: "SESUATU_BARU" })),
+    );
+    const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.status.state).toBe("error"));
+    expect(result.current.status.message).toBe(t("queue.error.unknown"));
   });
 });

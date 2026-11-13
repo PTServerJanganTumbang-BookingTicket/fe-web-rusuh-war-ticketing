@@ -24,10 +24,30 @@ function OfflineDialog() {
   return dialog ? <ActionDialog {...dialog} /> : null;
 }
 
+type AppScope = { container: ReturnType<typeof createAppContainer>; queryClient: QueryClient };
+
+function createAppScope(): AppScope {
+  const container = createAppContainer(readAppConfig());
+  return { container, queryClient: createQueryClient(container.cradle.appConfig.mocking) };
+}
+
+let browserScope: AppScope | undefined;
+
+/**
+ * Di browser semua layout memakai container dan QueryClient yang sama. Next menyimpan sampai tiga route tersembunyi
+ * (Activity, `cacheComponents`), jadi cache per layout membuat keluar akun di satu route tidak terlihat route lain,
+ * dan grant atau tiket antrian di memori hilang saat pindah route. Di server tetap baru per render supaya data
+ * tidak bocor antar request.
+ */
+function getAppScope(): AppScope {
+  if (typeof window === "undefined") return createAppScope();
+  browserScope ??= createAppScope();
+  return browserScope;
+}
+
 // Dipasang di layout route yang butuh data klien, bukan di root layout (ADR-0007).
 export function AppProviders({ children }: { children: ReactNode }) {
-  const [container] = useState(() => createAppContainer(readAppConfig()));
-  const [queryClient] = useState(() => createQueryClient(container.cradle.appConfig.mocking));
+  const [{ container, queryClient }] = useState(getAppScope);
 
   useEffect(() => {
     // Kondisi ditulis langsung (bukan lewat config) agar bundler membuang import dinamis ini di build tanpa mock.

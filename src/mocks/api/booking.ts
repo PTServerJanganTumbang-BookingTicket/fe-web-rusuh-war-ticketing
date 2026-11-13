@@ -1,6 +1,13 @@
 import { http } from "msw";
-import { fail, field, iso, ok, readJson, ttlSeconds } from "./envelope";
-import { isNikFormat, lookupNik, MAX_TICKETS_PER_ORDER, maskNik } from "./fixtures";
+import { fail, field, hasBearer, iso, ok, readJson, ttlSeconds } from "./envelope";
+import {
+  isNikFormat,
+  lookupNik,
+  MAX_TICKETS_PER_ORDER,
+  maskNik,
+  MOCK_ACCOUNT_EMAIL,
+  REGISTERED_NIK,
+} from "./fixtures";
 import type { BookedTicket, Booking, Grant, MockState } from "./state";
 
 /**
@@ -78,23 +85,47 @@ export function bookingBody(state: MockState, booking: Booking, now: number) {
   };
 }
 
-type TicketRequest = { categoryId: string; nik: string; holderEmail: string };
+/** Kursi yang sudah diurai: NIK lengkap hanya dikenal server (dari ketikan, Daftar NIK, atau akun). */
+type TicketRequest = { categoryId: string; nik: string; typed: boolean };
 
-function parseTickets(body: unknown): TicketRequest[] | null {
-  const tickets = field(body, "tickets");
-  if (!Array.isArray(tickets)) return null;
-  const parsed = tickets.map((ticket: unknown) => ({
-    categoryId: field(ticket, "category_id"),
-    nik: field(ticket, "nik"),
-    holderEmail: field(ticket, "holder_email"),
-  }));
-  const valid = parsed.every(
-    (ticket): ticket is TicketRequest =>
-      typeof ticket.categoryId === "string" &&
-      isNikFormat(ticket.nik) &&
-      typeof ticket.holderEmail === "string",
-  );
-  return valid ? (parsed as TicketRequest[]) : null;
+/**
+ * Kontrak §4.3: tiap kursi membawa tepat satu dari `nik`, `saved_nik_id`, `use_account_nik: true`; `use_account_nik`
+ * paling banyak di satu kursi. Kegagalan menjawab `400 VALIDATION_ERROR` + `data.index`, sama untuk semua sebab.
+ * Asumsi mock (docs/api/contract-assumptions.md): BE hanya menerima dua bentuk terakhir dari akun yang terbukti lewat
+ * `Authorization`, tetapi FE belum mengirimnya ke endpoint ber-grant dan mock tidak bisa membaca cookie akun, jadi
+ * mock menerimanya tanpa memeriksa bukti akun.
+ */
+function parseTickets(
+  state: MockState,
+  body: unknown,
+): { tickets: TicketRequest[] } | { badIndex: number } | null {
+  const raw = field(body, "tickets");
+  if (!Array.isArray(raw)) return null;
+  const tickets: TicketRequest[] = [];
+  let accountSeats = 0;
+  for (const [index, seat] of raw.entries()) {
+    const categoryId = field(seat, "category_id");
+    if (typeof categoryId !== "string") return null;
+    const typedNik = field(seat, "nik");
+    const savedId = field(seat, "saved_nik_id");
+    const useAccount = field(seat, "use_account_nik") === true;
+    const given = [typedNik !== undefined, savedId !== undefined, useAccount].filter(Boolean).length;
+    if (given !== 1) return { badIndex: index };
+    if (typedNik !== undefined) {
+      const nik = typeof typedNik === "string" ? typedNik.replace(/\D/g, "") : "";
+      if (!isNikFormat(nik)) return { badIndex: index };
+      tickets.push({ categoryId, nik, typed: true });
+    } else if (savedId !== undefined) {
+      const saved = state.savedNiks.find((item) => item.id === savedId);
+      if (!saved) return { badIndex: index };
+      tickets.push({ categoryId, nik: saved.nik, typed: false });
+    } else {
+      accountSeats += 1;
+      if (accountSeats > 1) return { badIndex: index };
+      tickets.push({ categoryId, nik: REGISTERED_NIK, typed: false });
+    }
+  }
+  return { tickets };
 }
 
 /** Tag Booking dan NIK. */
@@ -124,6 +155,10 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
           max_per_order: category.available > 0 ? Math.min(MAX_TICKETS_PER_ORDER, category.available) : 0,
         })),
         rules: { max_tickets_per_order: MAX_TICKETS_PER_ORDER, one_nik_per_ticket: true },
+        // Hanya customer login; NIK-nya tersamar (kontrak §4.1). Tamu: `null`.
+        account: hasBearer(request)
+          ? { email: MOCK_ACCOUNT_EMAIL, nik_masked: maskNik(REGISTERED_NIK) }
+          : null,
       });
     }),
 
@@ -153,12 +188,15 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
       const grant = requireGrant(state, request, { checkExpiry: true });
       if (grant instanceof Response) return grant;
       const body = await readJson(request);
-      const tickets = parseTickets(body);
+      const parsed = parseTickets(state, body);
       const contactEmail = field(body, "contact_email");
       const event = state.findEvent(String(field(body, "event_id")));
       if (!event || event.id !== grant.eventId) return fail(400, "event_id does not match grant");
-      if (!tickets || tickets.length === 0 || typeof contactEmail !== "string")
+      if (!parsed || typeof contactEmail !== "string")
         return fail(400, "tickets and contact_email are required");
+      if ("badIndex" in parsed) return fail(400, "Invalid ticket holder", { index: parsed.badIndex });
+      const { tickets } = parsed;
+      if (tickets.length === 0) return fail(400, "tickets and contact_email are required");
       if (tickets.length > MAX_TICKETS_PER_ORDER)
         return fail(400, `Maximum ${MAX_TICKETS_PER_ORDER} tickets per order`, {}, "QTY_EXCEEDED");
       if (new Set(tickets.map((ticket) => ticket.nik)).size !== tickets.length)
@@ -169,7 +207,8 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
         )
       )
         return fail(409, "Booking already exists for this grant");
-      if (tickets.some((ticket) => lookupNik(ticket.nik)?.status !== "ACTIVE"))
+      // Hanya NIK yang diketik diverifikasi; NIK dari Daftar NIK atau akun sudah terverifikasi (kontrak §4.3).
+      if (tickets.some((ticket) => ticket.typed && lookupNik(ticket.nik)?.status !== "ACTIVE"))
         return fail(400, "NIK not found or inactive", {}, "NIK_UNVERIFIED");
       if (tickets.some((ticket) => state.usedNiks.has(`${event.id}:${ticket.nik}`)))
         return fail(409, "NIK sudah digunakan untuk event ini", {}, "NIK_ALREADY_USED");
@@ -199,7 +238,7 @@ export function bookingHandlers(state: MockState, baseUrl: string) {
             price: category.price,
             nik: ticket.nik,
             holderName: lookupNik(ticket.nik)?.name ?? "",
-            holderEmail: ticket.holderEmail,
+            holderEmail: contactEmail,
           };
         }),
         contactEmail,

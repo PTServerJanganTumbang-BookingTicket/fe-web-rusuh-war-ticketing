@@ -12,6 +12,8 @@ import {
   TEST_APP_ORIGIN,
   testConfig,
 } from "@/test/support";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
+import { NIK_VERIFY_COOLDOWN_MS } from "../../domain/booking.constants";
 import { useBookingController } from "../booking.controller";
 import type { BookingViewProps } from "../../views/BookingView";
 
@@ -56,20 +58,16 @@ async function submitAndConfirm(view: () => BookingViewProps) {
   act(() => confirm && "onClick" in confirm && confirm.onClick());
 }
 
-/**
- * Asumsi FE (docs/api/contract-assumptions.md): BE menambah `nik` lengkap di daftar NIK tersimpan. Kontrak
- * hanya membawa `nik_masked`; mock bawaan sudah menyertakan `nik`, dan di sini daftarnya dibuat eksplisit.
- */
-const savedNiksOf = (...niks: string[]) =>
+/** Daftar NIK tersimpan sesuai kontrak §1.6: hanya `nik_masked`, tidak pernah NIK lengkap. */
+const savedNiksOf = (...maskedNiks: string[]) =>
   http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
     HttpResponse.json({
       meta: { code: 200, message: "Success" },
       data: {
         max_entries: 5,
-        saved_niks: niks.map((nik, index) => ({
+        saved_niks: maskedNiks.map((nikMasked, index) => ({
           id: `snk_${index + 1}`,
-          nik,
-          nik_masked: `${nik.slice(0, 4)}********xx${nik.slice(-2)}`,
+          nik_masked: nikMasked,
           label: "Budi",
           verified_at: "2026-10-20T08:11:00Z",
           status: "VERIFIED",
@@ -77,7 +75,30 @@ const savedNiksOf = (...niks: string[]) =>
       },
     }),
   );
-const savedNiksWithFullNik = savedNiksOf("3171000000000033");
+const BUDI_MASKED = "3171**********33";
+
+/** Menangkap body `POST /bookings`. */
+function captureBooking(captured: { body?: Record<string, unknown> }, bookingId = "RB-CAPTURED") {
+  return http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
+    captured.body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      { meta: { code: 201, message: "Created" }, data: { booking_id: bookingId } },
+      { status: 201 },
+    );
+  });
+}
+
+/** Mencatat NIK yang dikirim ke `POST /nik/validate`. */
+function captureValidate(niks: string[]) {
+  return http.post(`${MOCK_API_BASE_URL}/nik/validate`, async ({ request }) => {
+    const { nik } = (await request.json()) as { nik: string };
+    niks.push(nik);
+    return HttpResponse.json({
+      meta: { code: 200, message: "NIK is valid" },
+      data: { nik, valid: true, name: "PEMILIK AKUN", status: "ACTIVE" },
+    });
+  });
+}
 
 describe("useBookingController", () => {
   const add = (view: () => BookingViewProps, id: string) =>
@@ -216,7 +237,14 @@ describe("useBookingController", () => {
     act(() => view().submit.onSubmit());
     await waitFor(() => expect(view().dialog?.title).toBe("Periksa pesananmu"));
     const details = view().dialog?.details ?? [];
-    expect(details.map((detail) => detail.label)).toEqual(["Acara", "Email", "VIP × 1", "Total bayar"]);
+    expect(details.map((detail) => detail.label)).toEqual([
+      "Acara",
+      "Email",
+      "VIP × 1",
+      "NIK tiket 1",
+      "Total bayar",
+    ]);
+    expect(details.find((detail) => detail.label === "NIK tiket 1")?.value).toBe("3171000000001234");
     expect(details.find((detail) => detail.label === "Email")?.value).toBe("rina@example.com");
     expect(created).toBe(false);
 
@@ -321,19 +349,11 @@ describe("useBookingController", () => {
     expect(view().holders?.items[0]?.holder).toBeUndefined();
   });
 
-  it("customer masuk memilih alias sebagai pemegang tiket; NIK lengkapnya yang dikirim", async () => {
+  it("customer masuk memilih alias sebagai pemegang tiket; yang dikirim saved_nik_id, tanpa NIK dan tanpa cek Dukcapil", async () => {
     replace.mockClear();
-    let tickets: unknown;
-    server.use(
-      savedNiksWithFullNik,
-      http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
-        tickets = ((await request.json()) as { tickets: unknown }).tickets;
-        return HttpResponse.json(
-          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-ALIAS" } },
-          { status: 201 },
-        );
-      }),
-    );
+    const captured: { body?: Record<string, unknown> } = {};
+    const validated: string[] = [];
+    server.use(savedNiksOf(BUDI_MASKED), captureValidate(validated), captureBooking(captured, "RB-ALIAS"));
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
     add(view, "cat_festival");
@@ -342,35 +362,34 @@ describe("useBookingController", () => {
     const second = () => view().holders?.items[1];
     expect(first()?.holder?.options.map((option) => option.label)).toEqual([
       "NIK pemesan · 3171**********22",
-      "Budi · 3171********xx33",
+      "Budi · 3171**********33",
       "NIK lain (isi manual)",
     ]);
 
     act(() => first()?.holder?.onChange("snk_1"));
-    expect(first()?.nik).toMatchObject({ value: "3171********xx33", readOnly: true });
-    await waitFor(() => expect(first()?.nik.success).toBe("Terverifikasi atas nama JANE DOE"));
+    expect(first()?.nik).toMatchObject({ value: BUDI_MASKED, readOnly: true });
+    expect(first()?.nik.success).toBe("NIK ini sudah terverifikasi di profilmu.");
+    expect(first()?.verify).toBeUndefined();
     // Alias yang sudah dipakai tiket 1 tidak bisa dipilih untuk tiket 2 (BR-02).
     expect(second()?.holder?.options[1]).toMatchObject({
-      label: "Budi · 3171********xx33 (sudah dipakai tiket lain)",
+      label: "Budi · 3171**********33 (sudah dipakai tiket lain)",
       disabled: true,
     });
-
-    // NIK manual yang sama dengan alias juga dobel.
-    act(() => second()?.nik.onChange("3171000000000033"));
-    expect(second()?.nik.error).toBe("NIK ini sudah dipakai untuk tiket lain di pesanan ini.");
-    expect(view().submit.disabled).toBe(true);
 
     act(() => second()?.nik.onChange("3171000000005678"));
     await submitAndConfirm(view);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ALIAS/pay"));
-    expect(tickets).toEqual([
-      { category_id: "cat_vip", nik: "3171000000000033", holder_email: "you@example.com" },
-      { category_id: "cat_festival", nik: "3171000000005678", holder_email: "you@example.com" },
+    expect(captured.body?.tickets).toEqual([
+      { category_id: "cat_vip", saved_nik_id: "snk_1" },
+      { category_id: "cat_festival", nik: "3171000000005678" },
     ]);
+    // Pemegang dari profil tidak dikirim ke Dukcapil; hanya NIK yang diketik (kalau dicek).
+    expect(validated).not.toContain(BUDI_MASKED);
+    expect(validated.every((nik) => /^\d{16}$/.test(nik))).toBe(true);
   });
 
-  it("kembali ke isian manual mengosongkan NIK dari alias", async () => {
-    server.use(savedNiksWithFullNik);
+  it("kembali ke isian manual mengosongkan tampilan NIK dari alias", async () => {
+    server.use(savedNiksOf(BUDI_MASKED));
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
     await waitFor(() => expect(view().holders?.items[0]?.holder?.options).toHaveLength(3));
@@ -380,19 +399,16 @@ describe("useBookingController", () => {
     expect(view().holders?.items[0]?.holder?.value).toBe("");
   });
 
-  it("Alias ditolak Dukcapil: Ubah data mengembalikan slot ke isian manual yang kosong", async () => {
-    server.use(savedNiksOf("3171000000000099"));
+  it("alias hanya dikenal tersamar: tidak ada dialog Dukcapil, dan tidak ada yang bocor ke /nik/validate", async () => {
+    const validated: string[] = [];
+    server.use(savedNiksOf("3171**********99"), captureValidate(validated));
     const { view } = await readyView({ signedIn: true });
     add(view, "cat_vip");
     await waitFor(() => expect(view().holders?.items[0]?.holder?.options).toHaveLength(3));
     act(() => view().holders?.items[0]?.holder?.onChange("snk_1"));
-    await waitFor(() => expect(view().dialog?.title).toBe("Periksa NIK-mu"));
-    expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171********xx99", readOnly: true });
-
-    const edit = view().dialog?.primary;
-    act(() => edit && "onClick" in edit && edit.onClick());
-    expect(view().holders?.items[0]?.holder?.value).toBe("");
-    expect(view().holders?.items[0]?.nik).toMatchObject({ value: "", readOnly: false, focusKey: 1 });
+    expect(view().dialog).toBeUndefined();
+    expect(view().holders?.items[0]?.nik.onBlur).toBeUndefined();
+    expect(validated).toEqual([]);
   });
 
   it.each([
@@ -579,28 +595,10 @@ describe("useBookingController", () => {
       http.get(`${TEST_APP_ORIGIN}/api/auth/session`, () =>
         HttpResponse.json({ meta: { code: 200, message: "Success" }, data: { account } }),
       );
-    const bookingCapture = (captured: { body?: Record<string, unknown> }) =>
-      http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
-        captured.body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-ACCOUNT" } },
-          { status: 201 },
-        );
-      });
-    const validateCapture = (niks: string[]) =>
-      http.post(`${MOCK_API_BASE_URL}/nik/validate`, async ({ request }) => {
-        const { nik } = (await request.json()) as { nik: string };
-        niks.push(nik);
-        return HttpResponse.json({
-          meta: { code: 200, message: "NIK is valid" },
-          data: { nik, valid: true, name: "PEMILIK AKUN", status: "ACTIVE" },
-        });
-      });
-
     it("email pemesan terisi dari akun dan tidak bisa diubah; email akun yang dikirim", async () => {
       replace.mockClear();
       const captured: { body?: Record<string, unknown> } = {};
-      server.use(bookingCapture(captured));
+      server.use(captureBooking(captured, "RB-ACCOUNT"));
       const { view } = await readyView({ signedIn: true });
       await waitFor(() =>
         expect(view().buyer.email).toMatchObject({ value: "you@example.com", readOnly: true }),
@@ -618,16 +616,14 @@ describe("useBookingController", () => {
       act(() => confirm && "onClick" in confirm && confirm.onClick());
       await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ACCOUNT/pay"));
       expect(captured.body).toMatchObject({ contact_email: "you@example.com" });
-      expect(captured.body?.tickets).toEqual([
-        { category_id: "cat_vip", nik: "3171000000001234", holder_email: "you@example.com" },
-      ]);
+      expect(captured.body?.tickets).toEqual([{ category_id: "cat_vip", nik: "3171000000001234" }]);
     });
 
-    it("memilih NIK pemesan: dicek ke Dukcapil dengan NIK lengkap, tampil tersamar, dan NIK lengkap dikirim", async () => {
+    it("memilih NIK pemesan: tampil tersamar, tanpa cek Dukcapil, dan yang dikirim use_account_nik", async () => {
       replace.mockClear();
       const validated: string[] = [];
       const captured: { body?: Record<string, unknown> } = {};
-      server.use(savedNiksOf(), validateCapture(validated), bookingCapture(captured));
+      server.use(savedNiksOf(), captureValidate(validated), captureBooking(captured, "RB-ACCOUNT"));
       const { view } = await readyView({ signedIn: true });
       add(view, "cat_vip");
       await waitFor(() =>
@@ -638,18 +634,15 @@ describe("useBookingController", () => {
       act(() => view().holders?.items[0]?.holder?.onChange("owner"));
       expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171**********22", readOnly: true });
       expect(view().holders?.items[0]?.verify).toBeUndefined();
-      await waitFor(() =>
-        expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama PEMILIK AKUN"),
-      );
-      expect(validated).toEqual(["3171000000000022"]);
 
       await submitAndConfirm(view);
       await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ACCOUNT/pay"));
-      expect((captured.body?.tickets as { nik: string }[])[0]?.nik).toBe("3171000000000022");
+      expect(captured.body?.tickets).toEqual([{ category_id: "cat_vip", use_account_nik: true }]);
+      expect(validated).toEqual([]);
     });
 
     it("NIK pemesan yang sudah dipakai satu tiket tidak bisa dipilih untuk tiket lain", async () => {
-      server.use(savedNiksOf(), validateCapture([]));
+      server.use(savedNiksOf(), captureValidate([]));
       const { view } = await readyView({ signedIn: true });
       add(view, "cat_vip");
       add(view, "cat_festival");
@@ -657,48 +650,161 @@ describe("useBookingController", () => {
       act(() => view().holders?.items[0]?.holder?.onChange("owner"));
       expect(view().holders?.items[1]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: true });
       expect(view().holders?.items[0]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: false });
-      // Tunggu cek Dukcapil selesai supaya permintaannya tidak bocor ke test berikutnya.
-      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toContain("Terverifikasi"));
     });
 
-    it("tombol Verifikasi Dukcapil mengecek NIK yang diketik, tanpa menunggu field ditinggalkan", async () => {
-      const validated: string[] = [];
-      server.use(validateCapture(validated));
-      const { view } = await readyView({ signedIn: true });
-      add(view, "cat_vip");
-      await waitFor(() => expect(view().holders?.items[0]?.verify).toBeDefined());
-      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
-
-      act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
-      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
-      act(() => view().holders?.items[0]?.verify?.onClick());
-      await waitFor(() =>
-        expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama PEMILIK AKUN"),
-      );
-      expect(validated).toEqual(["3171000000001234"]);
-      expect(view().holders?.items[0]?.verify?.busy).toBe(false);
-
-      // Menekan lagi untuk NIK yang sama tetap bertanya ke server (coba lagi).
-      act(() => view().holders?.items[0]?.verify?.onClick());
-      await waitFor(() => expect(validated).toHaveLength(2));
-    });
-
-    it("akun tanpa NIK lengkap: NIK pemesan tidak ditawarkan, isi manual tetap ada", async () => {
-      server.use(savedNiksOf(), sessionBody({ email: "rina@example.com", nik_masked: "3171**********22" }));
+    it("akun tanpa NIK terverifikasi: NIK pemesan tidak ditawarkan, isi manual tetap ada", async () => {
+      server.use(savedNiksOf(), sessionBody({ email: "rina@example.com", nik_masked: "" }));
       const { view } = await readyView({ signedIn: true });
       add(view, "cat_vip");
       await waitFor(() => expect(view().buyer.email.value).toBe("rina@example.com"));
       expect(view().holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([""]);
     });
 
-    it("tamu: tanpa pilihan pemegang dan tanpa tombol verifikasi; email bisa diketik", async () => {
+    it("tamu: tanpa pilihan pemegang tetapi dengan tombol verifikasi; email bisa diketik", async () => {
       const { view } = await readyView();
       add(view, "cat_vip");
       await waitFor(() => expect(view().holders?.items).toHaveLength(1));
-      expect(view().holders?.items[0]).toMatchObject({ holder: undefined, verify: undefined });
+      expect(view().holders?.items[0]?.holder).toBeUndefined();
+      expect(view().holders?.items[0]?.verify).toMatchObject({
+        label: "Verifikasi Dukcapil",
+        disabled: true,
+      });
       expect(view().buyer.email.readOnly).toBeUndefined();
       act(() => view().buyer.email.onChange("tamu@example.com"));
       expect(view().buyer.email.value).toBe("tamu@example.com");
+    });
+  });
+
+  describe("tombol Verifikasi Dukcapil", () => {
+    const click = (view: () => BookingViewProps) => act(() => view().holders?.items[0]?.verify?.onClick());
+    const typeNik = (view: () => BookingViewProps, nik = "3171000000001234") =>
+      act(() => view().holders?.items[0]?.nik.onChange(nik));
+    const tick = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+
+    afterEach(() => vi.useRealTimers());
+
+    it("tamu: tombol mati sampai 16 digit, lalu mengecek NIK dan mati selama jeda NIK_VERIFY_COOLDOWN_MS", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const validated: string[] = [];
+      server.use(captureValidate(validated));
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      await waitFor(() => expect(view().holders?.items[0]?.verify).toBeDefined());
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+
+      typeNik(view, "3171");
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+      typeNik(view);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+
+      click(view);
+      await waitFor(() =>
+        expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama PEMILIK AKUN"),
+      );
+      expect(validated).toEqual(["3171000000001234"]);
+      // Pengecekan selesai tetapi jeda masih berjalan: tombol tetap mati.
+      expect(view().holders?.items[0]?.verify).toMatchObject({ busy: false, disabled: true });
+
+      // Jam palsu ikut berjalan mengikuti waktu nyata selama menunggu respons, jadi batasnya diberi ruang 1,5 detik.
+      await tick(NIK_VERIFY_COOLDOWN_MS - 1500);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+      await tick(2000);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+
+      // Setelah jeda, menekan lagi untuk NIK yang sama tetap bertanya ke server (coba lagi).
+      click(view);
+      await waitFor(() => expect(validated).toHaveLength(2));
+    });
+
+    it("tekanan kedua selama jeda diabaikan; jeda per slot tiket", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const validated: string[] = [];
+      server.use(captureValidate(validated));
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      add(view, "cat_festival");
+      await waitFor(() => expect(view().holders?.items).toHaveLength(2));
+      typeNik(view);
+      act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
+
+      click(view);
+      click(view);
+      await waitFor(() => expect(validated).toEqual(["3171000000001234"]));
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+      // Slot lain tidak ikut terkunci.
+      expect(view().holders?.items[1]?.verify?.disabled).toBe(false);
+    });
+
+    it("blur lalu klik untuk NIK yang sama tidak membuat permintaan kembar", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const validated: string[] = [];
+      server.use(
+        http.post(`${MOCK_API_BASE_URL}/nik/validate`, async ({ request }) => {
+          const { nik } = (await request.json()) as { nik: string };
+          validated.push(nik);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          return HttpResponse.json({
+            meta: { code: 200, message: "NIK is valid" },
+            data: { nik, valid: true, name: "PEMILIK AKUN", status: "ACTIVE" },
+          });
+        }),
+      );
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      typeNik(view);
+      act(() => view().holders?.items[0]?.nik.onBlur?.());
+      click(view);
+      await tick(500);
+      expect(validated).toEqual(["3171000000001234"]);
+    });
+
+    it("slot yang hilang (tiket dikurangi) tidak menyisakan jeda untuk tiket baru di slot yang sama", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      server.use(captureValidate([]));
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      typeNik(view);
+      click(view);
+      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toContain("Terverifikasi"));
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+
+      act(() =>
+        view()
+          .categories.items.find((item) => item.id === "cat_vip")
+          ?.onRemove(),
+      );
+      add(view, "cat_vip");
+      typeNik(view);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+    });
+
+    it("customer masuk: NIK lain yang diketik dicek lewat tombol yang sama", async () => {
+      const validated: string[] = [];
+      server.use(captureValidate(validated));
+      const { view } = await readyView({ signedIn: true });
+      add(view, "cat_vip");
+      await waitFor(() => expect(view().holders?.items[0]?.verify).toBeDefined());
+      typeNik(view);
+      click(view);
+      await waitFor(() => expect(validated).toEqual(["3171000000001234"]));
+    });
+  });
+
+  describe("email pemesan", () => {
+    it(`tamu: dibatasi ${EMAIL_MAX_LENGTH} karakter; email lebih panjang yang masuk lewat jalan lain memblokir submit`, async () => {
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      expect(view().buyer.email.maxLength).toBe(EMAIL_MAX_LENGTH);
+      act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
+      act(() => view().buyer.email.onChange(`${"a".repeat(EMAIL_MAX_LENGTH)}@example.com`));
+      expect(view().buyer.email.error).toBe(`Email maksimal ${EMAIL_MAX_LENGTH} karakter.`);
+      expect(view().submit.disabled).toBe(true);
+      act(() => view().buyer.email.onChange("rina@example.com"));
+      expect(view().buyer.email.error).toBeUndefined();
+      expect(view().submit.disabled).toBe(false);
     });
   });
 

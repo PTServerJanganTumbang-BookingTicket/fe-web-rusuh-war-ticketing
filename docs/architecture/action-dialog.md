@@ -27,9 +27,8 @@ bentuk harus dilakukan di keduanya.
 
 | Prop | Wajib | Arti |
 |---|---|---|
-| `tone` | ya | `error` (merah), `warning` (kuning, sesi atau waktu), `info` (biru, tinjauan), `success` (hijau). |
-| `icon` | tidak | `alert`, `clock`, `mail`, `check`, `info`. Bawaan mengikuti `tone`. |
-| `illustration` | tidak | Ilustrasi Signal DS menggantikan ikon: `network`, `confirmation`, `success`, `email`, `error` (`public/images/illustrations/`). |
+| `tone` | ya | `error`, `warning` (sesi atau waktu), `info` (tinjauan), `success`. Menentukan peran: `error` dan `warning` adalah `alertdialog`. |
+| `illustration` | ya | Ilustrasi Signal DS: `network`, `confirmation`, `success`, `email`, `error`, `box` (`public/images/illustrations/`). Setiap dialog, sukses maupun gagal, memakai aset Signal; ikon generik dalam lingkaran sudah dihapus. Pedoman: galat layanan atau link `error`, tanpa jaringan `network`, konfirmasi, peringatan waktu, dan isian yang perlu diperiksa `confirmation`, stok atau antrian habis `box`. |
 | `title`, `description` | ya | Judul singkat dan satu sampai dua kalimat penjelasan. Dari i18n. |
 | `details` | tidak | Ringkasan isian (label dan nilai), misalnya email dan NIK sebelum mendaftar. |
 | `note` | tidak | Catatan kecil di bawah ringkasan atau penjelasan. |
@@ -38,7 +37,7 @@ bentuk harus dilakukan di keduanya.
 | `secondary` | tidak | Aksi cadangan, tombol garis merah. Bentuk sama dengan `primary`. |
 | `onDismiss` | ya | Escape, klik di luar, tombol tutup, dan geser ke bawah. Tidak dipanggil selama `primary.busy`. |
 
-Tampilan: ikon dalam lingkaran 64px, judul `type-h5`, penjelasan `type-body1`, tombol pil setinggi 48px selebar
+Tampilan: ilustrasi Signal di atas, judul `type-h5`, penjelasan `type-body1`, tombol pil setinggi 48px selebar
 dialog. Tombol tutup (X) selalu ada kecuali aksi utama sedang berjalan.
 
 ## Responsif
@@ -124,7 +123,7 @@ View cukup merender `{dialog ? <ActionDialog {...dialog} /> : null}`.
 | Akun sudah terdaftar | `toAlreadyRegisteredDialog` | error | Masuk (tautan), Ubah email | Register 409 | Register |
 | Link login gagal | `toLoginLinkFailedDialog` | error | Minta link login baru (tautan) | Link login sudah dipakai atau kedaluwarsa, tanpa sesi | Verifikasi login |
 | Verifikasi email gagal | `toEmailVerificationFailedDialog` | error | Kirim ulang email verifikasi | Link verifikasi email tidak valid | Belum dipakai: kontrak belum punya endpoint verifikasi pendaftaran |
-| Konfirmasi datamu | (di `register.controller.ts`) | info, ikon `mail` | Konfirmasi & daftar, Ubah data | Submit form register | Register |
+| Konfirmasi datamu | (di `register.controller.ts`) | info, ilustrasi `confirmation` | Konfirmasi & daftar, Ubah data | Submit form register | Register |
 | Pendaftaran berhasil | (di `register.controller.ts`) | success | Mengerti | Register berhasil | Register |
 | Hapus alias? | (di `account.controller.ts`) | error | Hapus alias, Batal | Tombol hapus alias | Profil |
 | Koneksi bermasalah / Terjadi kesalahan | `toRequestFailedDialog` | error | Coba lagi | Bayar gagal tanpa respons atau respons asing; metode yang dipilih tetap | Payment |

@@ -1,6 +1,8 @@
 import { expect, type Page } from "@playwright/test";
 
 export const EVENT_ID = "evt_konser_a";
+/** Event lain di mock; grant EVENT_ID tidak boleh membuka halaman booking-nya. */
+export const OTHER_EVENT_ID = "evt_konser_b";
 export const FAKE_NOW = new Date("2026-10-19T10:00:00.000Z");
 
 /** Jam palsu (testing.md): waktu hanya maju lewat `page.clock`, tanpa sleep. */

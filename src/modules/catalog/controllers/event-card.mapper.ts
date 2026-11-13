@@ -33,6 +33,9 @@ const dateFormatter = new Intl.DateTimeFormat("id-ID", {
   timeZone: "Asia/Jakarta",
 });
 
+export const eventDetailHref = (eventId: string) => `/events/${eventId}`;
+export const eventQueueHref = (eventId: string) => `/events/${eventId}/queue`;
+
 /** Belum dibuka: "Buka 10 Nov 09:00" (waktu absolut, kontrak §2.1); tanpa jadwal jatuh ke label umum. */
 function disabledLabel(display: Event["display"], saleStartsAt?: string): string {
   if (display.labelKey === "home.event.notOpen" && saleStartsAt) {
@@ -54,7 +57,7 @@ function resolveCta(
   if (!display.enabled || display.action === "disabled") {
     return { label: disabledLabel(display, saleStartsAt) };
   }
-  const href = display.action === "queue" ? `/events/${eventId}/queue` : `/events/${eventId}/book`;
+  const href = display.action === "queue" ? eventQueueHref(eventId) : `/events/${eventId}/book`;
   return { label: t(display.labelKey as MessageKey), href };
 }
 
@@ -67,6 +70,7 @@ export function toEventCardProps(event: Event): EventCardProps {
   return {
     id,
     name,
+    detailHref: eventDetailHref(id),
     imageUrl: imageUrl || "/images/concert-placeholder.webp",
     location: venue.split(",")[0]?.trim() || "JAKARTA",
     category,

@@ -12,3 +12,9 @@ export const WAIT_MAX_MINUTES = 180;
 
 /** Permintaan produk: tiket habis/penjualan berakhir → modal lalu kembali ke beranda dalam 10 detik. */
 export const QUEUE_GONE_REDIRECT_SECONDS = 10;
+
+/**
+ * Jeda `GET /queue/me` selama giliran sudah tiba (posisi ≤ 0) tetapi server masih menjawab `QUEUED` karena baris
+ * grant belum terbaca: "klien mengulang setelah 1 detik" (kontrak §3.2 dan §3.3). Berlaku juga saat stream tersambung.
+ */
+export const QUEUE_TURN_ARRIVED_POLL_MS = 1_000;

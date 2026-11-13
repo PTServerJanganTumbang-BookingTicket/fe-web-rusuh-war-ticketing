@@ -4,12 +4,15 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
 import { createWrapper, setupMockServer, TEST_APP_ORIGIN } from "@/test/support";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import { useLoginController } from "../login.controller";
 
 let search = "";
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(search) }));
 
 const server = setupMockServer();
+
+const emailOfLength = (length: number) => `${"a".repeat(length - "@example.com".length)}@example.com`;
 
 afterEach(() => {
   search = "";
@@ -159,6 +162,36 @@ describe("useLoginController", () => {
     expect(form().email.value).toBe("you@example.com");
     act(() => click(result.current.dialog?.secondary));
     expect(result.current.dialog).toBeUndefined();
+  });
+
+  it("email dibatasi 50 karakter di input; tepat 50 karakter masih bisa dikirim", () => {
+    const { form } = mount();
+    expect(form().email.maxLength).toBe(EMAIL_MAX_LENGTH);
+    act(() => form().email.onChange(emailOfLength(EMAIL_MAX_LENGTH)));
+    expect(form().email.error).toBeUndefined();
+    expect(form().submit.disabled).toBe(false);
+  });
+
+  // Tempelan di peramban yang mengabaikan `maxLength` atau isian otomatis: nilai panjang tetap bisa sampai ke controller.
+  it("email lebih dari 50 karakter: galat langsung tampil dan tidak ada permintaan yang dikirim", async () => {
+    let requests = 0;
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/auth/magic-link`, () => {
+        requests += 1;
+        return HttpResponse.json({ meta: { code: 200, message: "sent" } });
+      }),
+    );
+    const { form, result } = mount();
+    const tooLong = emailOfLength(EMAIL_MAX_LENGTH + 1);
+    act(() => form().email.onChange(tooLong));
+    // Isian tidak dipotong diam-diam: alamat yang terpotong adalah alamat orang lain.
+    expect(form().email.value).toBe(tooLong);
+    expect(form().email.error).toBe("Alamat email maksimal 50 karakter.");
+    expect(form().submit.disabled).toBe(true);
+    act(() => form().submit.onSubmit());
+    await new Promise((done) => setTimeout(done, 0));
+    expect(requests).toBe(0);
+    expect(result.current.kind).toBe("form");
   });
 
   it("ganti email kembali ke form", async () => {

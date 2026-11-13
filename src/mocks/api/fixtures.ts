@@ -34,7 +34,6 @@ export type MockEvent = {
 export const QUEUE_CAPACITY = 300_000;
 export const MAX_TICKETS_PER_ORDER = 3;
 export const MAX_SAVED_NIKS = 5;
-export const TERMS_VERSION = "2026-10-01";
 
 export function createEvents(): MockEvent[] {
   return [
@@ -157,3 +156,6 @@ export const maskNik = (nik: string) => `${nik.slice(0, 4)}********xx${nik.slice
 
 /** NIK yang sudah terdaftar ke akun lain (POST /auth/register → 409). */
 export const REGISTERED_NIK = "3171000000000022";
+
+/** Email akun yang masuk lewat magic link di mock (`GET /auth/verify`, `GET /events/{id}/tickets` → `account`). */
+export const MOCK_ACCOUNT_EMAIL = "you@example.com";

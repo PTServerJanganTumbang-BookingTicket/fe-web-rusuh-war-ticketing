@@ -6,13 +6,24 @@ export type NikCheck =
   /** Sudah dipakai untuk tiket lain di event yang sama. */
   | { status: "used" };
 
-export type BookingTicketInput = { categoryId: string; nik: string };
+/**
+ * Pemegang satu tiket; tepat satu bentuk per kursi (kontrak §4.3). NIK lengkap hanya ada bila diketik: NIK tersimpan
+ * dan NIK akun hanya dikenal FE dalam bentuk tersamar, jadi kursinya merujuk id entri atau akun itu sendiri.
+ */
+export type TicketHolderInput =
+  /** NIK 16 digit yang diketik; server memverifikasinya ke Dukcapil. */
+  | { kind: "typed"; nik: string }
+  /** Entri Daftar NIK (`GET /accounts/me/saved-niks`), sudah terverifikasi. */
+  | { kind: "saved"; savedNikId: string }
+  /** NIK terdaftar milik customer yang masuk; paling banyak satu kursi. */
+  | { kind: "account" };
+
+export type BookingTicketInput = { categoryId: string; holder: TicketHolderInput };
 
 export type SubmitBookingInput = {
   eventId: string;
   contactEmail: string;
   tickets: BookingTicketInput[];
-  termsVersion: string;
 };
 
 export type CreatedBooking = { bookingId: string };

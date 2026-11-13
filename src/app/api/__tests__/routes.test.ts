@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ACCESS_EVENT_COOKIE,
   ACCESS_TOKEN_COOKIE,
   ACCESS_TOKEN_MAX_AGE_SECONDS,
 } from "@/core/data/session/access-token.constants";
@@ -7,8 +8,12 @@ import {
 // API Next (`cookies`, `connection`) hanya hidup di dalam request Next, jadi di test diganti fake tipis.
 const setCookie = vi.fn();
 const deleteCookie = vi.fn();
+/** Cookie yang "dikirim browser" pada request yang sedang dites. */
+const sentCookies = new Map<string, string>();
+const getCookie = (name: string) =>
+  sentCookies.has(name) ? { name, value: sentCookies.get(name) } : undefined;
 vi.mock("next/headers", () => ({
-  cookies: () => Promise.resolve({ set: setCookie, delete: deleteCookie }),
+  cookies: () => Promise.resolve({ set: setCookie, delete: deleteCookie, get: getCookie }),
 }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
@@ -25,32 +30,36 @@ const gateway = {
 };
 vi.mock("@/di/server-dependencies", () => ({ getServerDependencies: () => ({ accountGateway: gateway }) }));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  sentCookies.clear();
+});
 
 const json = (body: unknown) =>
   new Request("http://localhost:3000/api/session/start", { method: "POST", body: JSON.stringify(body) });
 
 describe("POST /api/session/start", () => {
-  it("menyimpan access token ke cookie httpOnly dan membalas 204", async () => {
+  it("menyimpan access token dan event pemiliknya ke cookie httpOnly dan membalas 204", async () => {
     const { POST } = await import("../session/start/route");
-    const response = await POST(json({ accessToken: "grant-abc" }));
+    const response = await POST(json({ accessToken: "grant-abc", eventId: "evt_a" }));
     expect(response.status).toBe(204);
-    expect(setCookie).toHaveBeenCalledWith(
-      ACCESS_TOKEN_COOKIE,
-      "grant-abc",
-      expect.objectContaining({
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: ACCESS_TOKEN_MAX_AGE_SECONDS,
-      }),
-    );
+    const options = expect.objectContaining({
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: ACCESS_TOKEN_MAX_AGE_SECONDS,
+    });
+    expect(setCookie).toHaveBeenCalledWith(ACCESS_TOKEN_COOKIE, "grant-abc", options);
+    expect(setCookie).toHaveBeenCalledWith(ACCESS_EVENT_COOKIE, "evt_a", options);
   });
 
   it.each([
-    ["tanpa token", {}],
-    ["token kosong", { accessToken: "" }],
-    ["token bukan string", { accessToken: 5 }],
+    ["tanpa token", { eventId: "evt_a" }],
+    ["token kosong", { accessToken: "", eventId: "evt_a" }],
+    ["token bukan string", { accessToken: 5, eventId: "evt_a" }],
+    ["tanpa event", { accessToken: "grant-abc" }],
+    ["event kosong", { accessToken: "grant-abc", eventId: "" }],
+    ["event bukan string", { accessToken: "grant-abc", eventId: 7 }],
   ])("menolak %s dengan 400 QUEUE_TOKEN_INVALID", async (_name, body) => {
     const { POST } = await import("../session/start/route");
     const response = await POST(json(body));
@@ -69,11 +78,40 @@ describe("POST /api/session/start", () => {
 });
 
 describe("POST /api/session/end", () => {
-  it("menghapus cookie access token dan membalas 204", async () => {
+  const end = (body?: unknown) =>
+    new Request("http://localhost:3000/api/session/end", {
+      method: "POST",
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+
+  it("tanpa body: menghapus cookie grant dan event pemiliknya, membalas 204", async () => {
+    sentCookies.set(ACCESS_TOKEN_COOKIE, "grant-abc");
     const { POST } = await import("../session/end/route");
-    const response = await POST();
+    const response = await POST(end());
     expect(response.status).toBe(204);
     expect(deleteCookie).toHaveBeenCalledWith(ACCESS_TOKEN_COOKIE);
+    expect(deleteCookie).toHaveBeenCalledWith(ACCESS_EVENT_COOKIE);
+  });
+
+  it("menyebut grant yang masih ada di cookie: cookie dihapus", async () => {
+    sentCookies.set(ACCESS_TOKEN_COOKIE, "grant-abc");
+    const { POST } = await import("../session/end/route");
+    expect((await POST(end({ accessToken: "grant-abc" }))).status).toBe(204);
+    expect(deleteCookie).toHaveBeenCalledWith(ACCESS_TOKEN_COOKIE);
+    expect(deleteCookie).toHaveBeenCalledWith(ACCESS_EVENT_COOKIE);
+  });
+
+  it("menyebut grant lama padahal cookie sudah berisi grant baru: cookie tidak dihapus", async () => {
+    sentCookies.set(ACCESS_TOKEN_COOKIE, "grant-baru");
+    const { POST } = await import("../session/end/route");
+    expect((await POST(end({ accessToken: "grant-lama" }))).status).toBe(204);
+    expect(deleteCookie).not.toHaveBeenCalled();
+  });
+
+  it("menyebut grant tetapi cookie sudah tidak ada: catatan event yang tersisa ikut dibersihkan", async () => {
+    const { POST } = await import("../session/end/route");
+    expect((await POST(end({ accessToken: "grant-lama" }))).status).toBe(204);
+    expect(deleteCookie).toHaveBeenCalledWith(ACCESS_EVENT_COOKIE);
   });
 });
 

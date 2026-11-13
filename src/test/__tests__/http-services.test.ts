@@ -32,9 +32,8 @@ async function createBooking(grantToken: string, deviceId: string) {
     headers: { "content-type": "application/json", "x-grant-token": grantToken, "x-device-id": deviceId },
     body: JSON.stringify({
       event_id: OPEN_EVENT_ID,
-      tickets: [{ category_id: "cat_vip", nik: "3171000000000022", holder_email: "a@b.co" }],
+      tickets: [{ category_id: "cat_vip", nik: "3171000000000022" }],
       contact_email: "a@b.co",
-      terms_version: "2026-10-01",
     }),
   });
   const { data } = (await response.json()) as { data: { booking_id: string } };
@@ -594,13 +593,103 @@ describe("bookingService", () => {
     });
   });
 
+  describe("getSession memulihkan grant yang tidak ada di penyimpanan tab (Bug D)", () => {
+    /** Mencatat header setiap permintaan ke `/tickets` dan `/queue/me`; `me` adalah jawaban `/queue/me`. */
+    function recordRecovery(me: Response | (() => Response)) {
+      const tickets: Array<Record<string, string>> = [];
+      const meCalls: Array<Record<string, string>> = [];
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, ({ request }) => {
+          meCalls.push(Object.fromEntries(request.headers));
+          return me instanceof Response ? me.clone() : me();
+        }),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, ({ request }) => {
+          tickets.push(Object.fromEntries(request.headers));
+          return HttpResponse.error();
+        }),
+      );
+      return { tickets, meCalls };
+    }
+
+    it("penyimpanan kosong: grant diambil dari /queue/me, disimpan, lalu dikirim ke /tickets", async () => {
+      const { tickets, meCalls } = recordRecovery(
+        envelope({ state: "SELECTING", grant_token: "gt_pulih", booking_id: "RB-1", server_time: "x" }),
+      );
+      const { bookingService, credentialStore } = setupTestContainer().cradle;
+      await failureOf(bookingService.getSession(OPEN_EVENT_ID));
+      expect(meCalls).toHaveLength(1);
+      expect(meCalls[0]).toMatchObject({ "x-device-id": credentialStore.deviceId() });
+      expect(meCalls[0]).not.toHaveProperty("x-queue-token");
+      expect(tickets).toHaveLength(1);
+      expect(tickets[0]).toMatchObject({
+        "x-grant-token": "gt_pulih",
+        "x-device-id": credentialStore.deviceId(),
+      });
+      expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBe("gt_pulih");
+    });
+
+    it("grant event lain tidak dikirim: dipulihkan untuk event ini", async () => {
+      const { tickets } = recordRecovery(envelope({ state: "GRANTED", grant_token: "gt_ini" }));
+      const { bookingService, credentialStore } = setupTestContainer().cradle;
+      credentialStore.saveGrantToken("evt_lain", "gt_lain");
+      await failureOf(bookingService.getSession(OPEN_EVENT_ID));
+      expect(tickets.map((headers) => headers["x-grant-token"])).toEqual(["gt_ini"]);
+    });
+
+    it("grant event ini sudah ada: langsung ke /tickets tanpa memanggil /queue/me", async () => {
+      const { tickets, meCalls } = recordRecovery(envelope({ state: "EXPIRED" }));
+      const { bookingService, credentialStore } = setupTestContainer().cradle;
+      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_ada");
+      await failureOf(bookingService.getSession(OPEN_EVENT_ID));
+      expect(meCalls).toHaveLength(0);
+      expect(tickets.map((headers) => headers["x-grant-token"])).toEqual(["gt_ada"]);
+    });
+
+    it.each([
+      ["masih mengantre", { state: "QUEUED", ticket_no: 10, now_serving: 5 }],
+      ["kedaluwarsa", { state: "EXPIRED" }],
+      ["state grant tanpa grant_token", { state: "GRANTED" }],
+    ])("%s: ACCESS_EXPIRED dan /tickets tidak pernah dipanggil tanpa grant", async (_name, data) => {
+      const { tickets } = recordRecovery(envelope(data));
+      const { bookingService, credentialStore } = setupTestContainer().cradle;
+      expect(await failureOf(bookingService.getSession(OPEN_EVENT_ID))).toEqual({
+        kind: "api",
+        code: "ACCESS_EXPIRED",
+        status: 401,
+      });
+      expect(tickets).toHaveLength(0);
+      expect(credentialStore.grantToken()).toBeNull();
+    });
+
+    it("/queue/me menjawab 401: ACCESS_EXPIRED tanpa memanggil /tickets", async () => {
+      const { tickets } = recordRecovery(
+        HttpResponse.json({ meta: { code: 401, message: "x" }, data: {} }, { status: 401 }),
+      );
+      const { bookingService } = setupTestContainer().cradle;
+      expect(await failureOf(bookingService.getSession(OPEN_EVENT_ID))).toMatchObject({
+        code: "ACCESS_EXPIRED",
+      });
+      expect(tickets).toHaveLength(0);
+    });
+
+    it("cookie tidak dipakai (apiCredentials omit): token antrian ikut dikirim ke /queue/me", async () => {
+      const { meCalls } = recordRecovery(envelope({ state: "EXPIRED" }));
+      const { bookingService, credentialStore } = setupTestContainer(
+        {},
+        { ...testConfig, apiCredentials: "omit" },
+      ).cradle;
+      credentialStore.saveQueueToken(OPEN_EVENT_ID, "qt_1");
+      await failureOf(bookingService.getSession(OPEN_EVENT_ID));
+      expect(meCalls[0]).toMatchObject({ "x-queue-token": "qt_1" });
+    });
+  });
+
   it("submit 409: error_code INSUFFICIENT_STOCK menjadi STOCK_INSUFFICIENT, 409 lain tetap BOOKING_REJECTED", async () => {
     const submit = () =>
       setupTestContainer().cradle.bookingService.submitBooking({
         eventId: OPEN_EVENT_ID,
         contactEmail: "rina@example.com",
-        termsVersion: "v1",
-        tickets: [{ categoryId: "cat_vip", nik: "3171000000000033" }],
+        tickets: [{ categoryId: "cat_vip", holder: { kind: "typed", nik: "3171000000000033" } }],
       });
     const conflict = (errorCode?: string) =>
       http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
@@ -616,6 +705,61 @@ describe("bookingService", () => {
     expect(await failureOf(submit())).toEqual({ kind: "api", code: "BOOKING_REJECTED", status: 409 });
     server.use(conflict());
     expect(await failureOf(submit())).toEqual({ kind: "api", code: "BOOKING_REJECTED", status: 409 });
+  });
+
+  it("submit mengirim tepat satu dari nik, saved_nik_id, use_account_nik per kursi (kontrak §4.3)", async () => {
+    let body: Record<string, unknown> | undefined;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-SEATS" } },
+          { status: 201 },
+        );
+      }),
+    );
+    const container = setupTestContainer();
+    await admitToQueue(container);
+    await container.cradle.bookingService.submitBooking({
+      eventId: OPEN_EVENT_ID,
+      contactEmail: "rina@example.com",
+      tickets: [
+        { categoryId: "cat_vip", holder: { kind: "account" } },
+        { categoryId: "cat_vip", holder: { kind: "saved", savedNikId: "snk_1" } },
+        { categoryId: "cat_festival", holder: { kind: "typed", nik: "3171000000000033" } },
+      ],
+    });
+    expect(body).toEqual({
+      event_id: OPEN_EVENT_ID,
+      contact_email: "rina@example.com",
+      tickets: [
+        { category_id: "cat_vip", use_account_nik: true },
+        { category_id: "cat_vip", saved_nik_id: "snk_1" },
+        { category_id: "cat_festival", nik: "3171000000000033" },
+      ],
+    });
+  });
+
+  it("submit 401 UNAUTHORIZED (akun tidak terbukti) menjadi UNAUTHENTICATED, bukan ACCESS_EXPIRED", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
+        HttpResponse.json(
+          { meta: { code: 401, message: "x", error_code: "UNAUTHORIZED" }, data: {} },
+          { status: 401 },
+        ),
+      ),
+    );
+    const container = setupTestContainer();
+    await admitToQueue(container);
+    expect(
+      await failureOf(
+        container.cradle.bookingService.submitBooking({
+          eventId: OPEN_EVENT_ID,
+          contactEmail: "rina@example.com",
+          tickets: [{ categoryId: "cat_vip", holder: { kind: "account" } }],
+        }),
+      ),
+    ).toEqual({ kind: "api", code: "UNAUTHENTICATED", status: 401 });
   });
 });
 
@@ -776,6 +920,28 @@ describe("pemetaan /queue/me", () => {
       { status: "ended", reason: "confirmed" },
     ],
     [{ state: "EXPIRED" }, { status: "ended", reason: "expired" }],
+    // Keadaan akhir tanpa grant yang disebut kontrak §3.3 selain EXPIRED.
+    [{ state: "LAPSED" }, { status: "ended", reason: "expired" }],
+    [{ state: "ABANDONED" }, { status: "ended", reason: "expired" }],
+    [
+      {
+        state: "SELECTING",
+        grant_token: "gt_s",
+        booking_id: "RB-1",
+        booking_expires_at: "2026-10-19T10:10:00Z",
+        server_time: "2026-10-19T10:05:00Z",
+      },
+      { status: "admitted", accessToken: "gt_s", expiresAt: "2026-10-19T10:10:00Z" },
+    ],
+    // Tenggat yang tidak terkirim tidak boleh menggagalkan pemulihan grant.
+    [
+      { state: "GRANTED", grant_token: "gt_g" },
+      { status: "admitted", accessToken: "gt_g" },
+    ],
+    [
+      { state: "AWAITING_PAYMENT", grant_token: "gt_p", booking_id: "RB-1", payment_ref: "pay_1" },
+      { status: "admitted", accessToken: "gt_p" },
+    ],
   ])("%o", async (data, expected) => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope(data)));
     const { queueService } = setupTestContainer().cradle;
@@ -783,6 +949,85 @@ describe("pemetaan /queue/me", () => {
     expect(await queueService.getOwnState(OPEN_EVENT_ID)).toMatchObject({
       eventName: "Konser A",
       ...expected,
+    });
+  });
+});
+
+describe("state /queue/me yang tidak dikenal", () => {
+  it("gagal sebagai invalid_response, bukan menjadi layar tunggu yang diam", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({ state: "SESUATU_BARU" })),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    await queueService.join(OPEN_EVENT_ID);
+    expect(await failureOf(queueService.getOwnState(OPEN_EVENT_ID))).toEqual({ kind: "invalid_response" });
+  });
+
+  it("GRANTED tanpa grant_token juga gagal, bukan dianggap masuk", async () => {
+    server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope({ state: "GRANTED" })));
+    const { queueService } = setupTestContainer().cradle;
+    await queueService.join(OPEN_EVENT_ID);
+    expect(await failureOf(queueService.getOwnState(OPEN_EVENT_ID))).toEqual({ kind: "invalid_response" });
+  });
+});
+
+describe("queueService grant dan giliran tiba", () => {
+  it("join saat grant event ini masih dipegang: admitted tanpa POST join (tanpa CAPTCHA)", async () => {
+    const paths: string[] = [];
+    server.events.on("request:start", ({ request }) => void paths.push(new URL(request.url).pathname));
+    try {
+      const { queueService, credentialStore } = setupTestContainer().cradle;
+      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_dipegang");
+      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({
+        status: "admitted",
+        accessToken: "gt_dipegang",
+      });
+      expect(paths).toEqual([]);
+    } finally {
+      server.events.removeAllListeners();
+    }
+  });
+
+  it("join saat yang dipegang adalah grant event lain: join normal", async () => {
+    const { queueService, credentialStore } = setupTestContainer().cradle;
+    credentialStore.saveGrantToken("evt_lain", "gt_lain");
+    expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting" });
+  });
+
+  it("getState: giliran tiba menurut /queue/serving mengambil /queue/me; QUEUED posisi 0 tetap waiting", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ ticket_no: 100, now_serving: 40, position: 60, queue_token: "qt_1" }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+        envelope({ now_serving: 100, rate_per_min: 300, state: "OPEN" }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "QUEUED", ticket_no: 100, now_serving: 100 }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    await queueService.join(OPEN_EVENT_ID);
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 0 });
+  });
+
+  it("getState: tiket tanpa nomor (join langsung diberi giliran) tidak berhenti di posisi 0 dari /queue/serving", async () => {
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ granted: true, queue_token: "qt_1" }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/serving`, () =>
+        envelope({ now_serving: 7, rate_per_min: 300, state: "OPEN" }),
+      ),
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "GRANTED", grant_token: "gt_n", booking_expires_at: "2026-10-19T10:10:00Z" }),
+      ),
+    );
+    const { queueService } = setupTestContainer().cradle;
+    await queueService.join(OPEN_EVENT_ID);
+    expect(await queueService.getState(OPEN_EVENT_ID)).toMatchObject({
+      status: "admitted",
+      accessToken: "gt_n",
     });
   });
 });
@@ -797,9 +1042,10 @@ describe("sessionService", () => {
       }),
     );
     const { sessionService, credentialStore } = setupTestContainer().cradle;
-    await sessionService.start("tok");
-    expect(received).toEqual({ accessToken: "tok" });
-    expect(credentialStore.grantToken()).toBe("tok");
+    await sessionService.start(OPEN_EVENT_ID, "tok");
+    expect(received).toEqual({ eventId: OPEN_EVENT_ID, accessToken: "tok" });
+    expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBe("tok");
+    expect(credentialStore.grantToken("evt_lain")).toBeNull();
   });
 
   it("gagal dari route menjadi unknown, gagal jaringan menjadi network", async () => {
@@ -807,25 +1053,99 @@ describe("sessionService", () => {
     server.use(
       http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 500 })),
     );
-    expect(await failureOf(sessionService.start("tok"))).toEqual({ kind: "unknown", status: 500 });
+    expect(await failureOf(sessionService.start(OPEN_EVENT_ID, "tok"))).toEqual({
+      kind: "unknown",
+      status: 500,
+    });
 
     server.use(http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => HttpResponse.error()));
-    expect(await failureOf(sessionService.start("tok"))).toEqual({ kind: "network" });
+    expect(await failureOf(sessionService.start(OPEN_EVENT_ID, "tok"))).toEqual({ kind: "network" });
   });
 
-  it("end membuang grant di klien dan meminta route menghapus cookie", async () => {
-    let called = false;
+  /** Mencatat body setiap permintaan ke `/api/session/end` (teks kosong bila tanpa body). */
+  function recordEnds() {
+    const bodies: string[] = [];
     server.use(
-      http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => {
-        called = true;
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, async ({ request }) => {
+        bodies.push(await request.text());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return bodies;
+  }
+
+  it("end membuang grant di klien, mempertahankan token antrian, dan menyebut grant yang dilepas ke route", async () => {
+    const bodies = recordEnds();
+    const { sessionService, credentialStore } = setupTestContainer().cradle;
+    credentialStore.saveGrantToken(OPEN_EVENT_ID, "tok");
+    credentialStore.saveQueueToken(OPEN_EVENT_ID, "qt_1");
+    await sessionService.end();
+    expect(bodies.map((body) => JSON.parse(body) as unknown)).toEqual([{ accessToken: "tok" }]);
+    expect(credentialStore.grantToken()).toBeNull();
+    expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBe("qt_1");
+  });
+
+  it("end tanpa grant di tab ini: cookie dihapus apa adanya (tanpa body)", async () => {
+    const bodies = recordEnds();
+    await setupTestContainer().cradle.sessionService.end();
+    expect(bodies).toEqual([""]);
+  });
+
+  it("reset membuang grant dan token antrian semua event, dan menghapus cookie tanpa syarat", async () => {
+    const bodies = recordEnds();
+    const { resetSessionUseCase, credentialStore } = setupTestContainer().cradle;
+    credentialStore.saveGrantToken(OPEN_EVENT_ID, "tok");
+    credentialStore.saveQueueToken(OPEN_EVENT_ID, "qt_1");
+    credentialStore.saveQueueToken("evt_lain", "qt_2");
+    await resetSessionUseCase();
+    expect(bodies).toEqual([""]);
+    expect(credentialStore.grantToken()).toBeNull();
+    expect(credentialStore.queueToken(OPEN_EVENT_ID)).toBeNull();
+    expect(credentialStore.queueToken("evt_lain")).toBeNull();
+  });
+
+  it("start setelah end baru dikirim sesudah end dijawab: jawaban end yang lambat tidak menimpa grant baru", async () => {
+    const order: string[] = [];
+    let releaseEnd: () => void = () => undefined;
+    const endGate = new Promise<void>((resolve) => (releaseEnd = resolve));
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, async () => {
+        order.push("end:diterima");
+        await endGate;
+        order.push("end:dijawab");
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => {
+        order.push("start:diterima");
         return new HttpResponse(null, { status: 204 });
       }),
     );
     const { sessionService, credentialStore } = setupTestContainer().cradle;
-    credentialStore.saveGrantToken("tok");
-    await sessionService.end();
-    expect(called).toBe(true);
-    expect(credentialStore.grantToken()).toBeNull();
+    credentialStore.saveGrantToken(OPEN_EVENT_ID, "lama");
+    const ended = sessionService.end();
+    const started = sessionService.start(OPEN_EVENT_ID, "baru");
+    await vi.waitFor(() => expect(order).toEqual(["end:diterima"]));
+    releaseEnd();
+    await Promise.all([ended, started]);
+    expect(order).toEqual(["end:diterima", "end:dijawab", "start:diterima"]);
+    // Grant baru sudah bisa dipakai header tanpa menunggu route.
+    expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBe("baru");
+  });
+
+  it("end yang gagal tidak menahan start berikutnya", async () => {
+    let started = false;
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => new HttpResponse(null, { status: 500 })),
+      http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => {
+        started = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const { sessionService } = setupTestContainer().cradle;
+    const ended = failureOf(sessionService.end());
+    await sessionService.start(OPEN_EVENT_ID, "baru");
+    expect(await ended).toEqual({ kind: "unknown", status: 500 });
+    expect(started).toBe(true);
   });
 
   it("end: gagal dari route menjadi unknown, gagal jaringan menjadi network", async () => {
@@ -950,21 +1270,14 @@ describe("savedNikService", () => {
 });
 
 describe("holderAliasService", () => {
-  it("hanya alias dengan NIK lengkap yang bisa dipilih", async () => {
+  it("entri Daftar NIK dipetakan apa adanya dengan NIK tersamar; NIK lengkap tidak pernah ada", async () => {
     server.use(
       http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, () =>
         envelope({
           max_entries: 5,
           saved_niks: [
-            {
-              id: "snk_1",
-              nik: "3171000000000033",
-              nik_masked: "3171****33",
-              label: "Budi",
-              name: " Budi Santoso ",
-              verified_at: "x",
-            },
-            { id: "snk_2", nik_masked: "3171****44", label: "Sari", verified_at: "x" },
+            { id: "snk_1", nik_masked: "3171**********33", label: "Budi", verified_at: "x" },
+            { id: "snk_2", nik_masked: "3171**********44", label: "Sari", verified_at: "x" },
           ],
         }),
       ),
@@ -972,7 +1285,8 @@ describe("holderAliasService", () => {
     const { holderAliasService, authService } = setupTestContainer().cradle;
     await authService.verify("mt_aliases");
     expect(await holderAliasService.list()).toEqual([
-      { id: "snk_1", label: "Budi", nik: "3171000000000033", nikMasked: "3171****33" },
+      { id: "snk_1", label: "Budi", nikMasked: "3171**********33" },
+      { id: "snk_2", label: "Sari", nikMasked: "3171**********44" },
     ]);
   });
 

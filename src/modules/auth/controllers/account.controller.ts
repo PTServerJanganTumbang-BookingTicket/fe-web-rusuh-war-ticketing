@@ -4,9 +4,10 @@
 // login sendiri; tidak ada redirect paksa dari proxy). Identitas yang tampil berasal dari sesi (email dan NIK
 // tersamar); kontrak tidak punya endpoint profil maupun ubah alias, jadi alias hanya ditambah atau dihapus.
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
@@ -26,7 +27,11 @@ import {
 } from "@/core/controllers/common-dialogs.mapper";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import type { SavedNik } from "../domain/account.model";
-import { validateSavedNikInput, type SavedNikInputError } from "../domain/account.rules";
+import {
+  sanitizeSavedNikLabelInput,
+  validateSavedNikInput,
+  type SavedNikInputError,
+} from "../domain/account.rules";
 import { SAVED_NIK_LABEL_MAX_LENGTH } from "../domain/auth.constants";
 import { authErrorKey } from "./auth-error.mapper";
 import { accountQuery, authKeys, savedNiksQuery } from "./auth.queries";
@@ -52,7 +57,10 @@ function initialsOf(name: string): string {
 }
 
 type AccountModal =
-  { kind: NikDialogKind } | { kind: "sessionExpired" } | { kind: "removeFailed"; id: string };
+  | { kind: NikDialogKind }
+  | { kind: "sessionExpired" }
+  | { kind: "removeFailed"; id: string }
+  | { kind: "signOutFailed" };
 
 const isSessionEnded = (error: AppError) => error.kind === "api" && error.code === "UNAUTHENTICATED";
 
@@ -91,7 +99,8 @@ export function useAccountController(): AccountViewProps {
     addSavedNikUseCase,
     removeSavedNikUseCase,
     signOutUseCase,
-  } = useDependencies<AuthDependencies>();
+    resetSessionUseCase,
+  } = useDependencies<AuthDependencies & CoreDependencies>();
   const account = useQuery(accountQuery({ getAccountUseCase }));
   const signedIn = Boolean(account.data);
   const saved = useQuery({ ...savedNiksQuery({ listSavedNiksUseCase }), enabled: signedIn });
@@ -133,12 +142,31 @@ export function useAccountController(): AccountViewProps {
       nikModal.open(kind === "removeFailed" ? { kind, id } : { kind });
     },
   });
+  /** Sudah keluar dan sedang pindah ke Home: layar tidak menampilkan profil lama maupun ajakan masuk sekilas. */
+  const [leaving, setLeaving] = useState(false);
+  // Next menyimpan route tersembunyi berikut state-nya (Activity); tanpa ini kunjungan berikutnya macet di "keluar".
+  useLayoutEffect(() => () => setLeaving(false), []);
   const signOut = useMutation({
-    mutationFn: () => signOutUseCase(),
-    onSuccess: () => {
-      clearAfterSignOut(queryClient);
-      router.push("/");
+    mutationFn: async () => {
+      await signOutUseCase();
+      // Grant booking dan token antrian milik identitas lama ikut dibuang, supaya tamu berikutnya tidak melompati
+      // antrian. Akun sudah keluar di server, jadi kegagalan di sini tidak boleh menahan layar tetap "masuk".
+      await resetSessionUseCase().catch(() => undefined);
     },
+    // Urutan penting: server sudah menghapus cookie, baru cache dikosongkan, baru pindah halaman. Dengan begitu
+    // tidak ada pemeriksaan sesi yang berangkat membawa cookie lama setelah cache menjadi tamu.
+    onSuccess: async () => {
+      nikModal.close();
+      // Isian alias milik akun lama tidak boleh tersisa untuk akun berikutnya di perangkat ini.
+      resetForm();
+      setPendingRemove(null);
+      setLeaving(true);
+      await clearAfterSignOut(queryClient);
+      // `replace`: tombol Back tidak kembali ke halaman profil yang sudah keluar.
+      router.replace("/");
+    },
+    // Gagal keluar tidak boleh diam: cookie masih ada, jadi customer diberi jalan untuk mencoba lagi.
+    onError: () => nikModal.open({ kind: "signOutFailed" }),
   });
   const page = {
     ...siteChrome,
@@ -149,6 +177,7 @@ export function useAccountController(): AccountViewProps {
     },
   };
 
+  if (leaving) return { ...page, kind: "loading", message: t("account.signingOut") };
   if (account.isPending || (signedIn && saved.isPending)) {
     return { ...page, kind: "loading", message: t("account.loading") };
   }
@@ -191,13 +220,19 @@ export function useAccountController(): AccountViewProps {
       onDismiss: nikModal.close,
       retrying: remove.isPending,
     });
+  } else if (openModal?.kind === "signOutFailed" && signOut.error) {
+    dialog = toRequestFailedDialog(toAppError(signOut.error), {
+      onRetry: () => signOut.mutate(),
+      onDismiss: nikModal.close,
+      retrying: signOut.isPending,
+    });
   }
   // Konfirmasi hapus memakai dialog aksi yang sama dengan modal lain; satu dialog sekaligus.
   if (!dialog && pendingRemove) {
     const cancelRemove = () => setPendingRemove(null);
     dialog = {
       tone: "error",
-      icon: "alert",
+      illustration: "confirmation",
       title: t("account.saved.confirm.title"),
       description: t("account.saved.confirm.description", {
         label: pendingRemove.label,
@@ -220,8 +255,11 @@ export function useAccountController(): AccountViewProps {
       label: t("account.saved.label.label"),
       placeholder: t("account.saved.label.placeholder"),
       value: label,
+      hint: t("account.saved.label.hint", { max: SAVED_NIK_LABEL_MAX_LENGTH }),
+      maxLength: SAVED_NIK_LABEL_MAX_LENGTH,
       error: labelError(invalid?.label),
-      onChange: setLabel,
+      // Hanya huruf, angka, dan spasi antar kata, maksimal 50: simbol dan karakter berlebih ditolak saat diketik.
+      onChange: (value) => setLabel(sanitizeSavedNikLabelInput(value)),
     },
     nik: {
       label: t("account.saved.nik.label"),

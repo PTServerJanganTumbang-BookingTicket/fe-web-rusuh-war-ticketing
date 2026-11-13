@@ -46,6 +46,13 @@ test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
     }
   });
 
+  test("email pemesan tamu dibatasi 50 karakter", async ({ page }) => {
+    const email = page.getByRole("textbox", { name: "Email" });
+    await expect(email).toHaveAttribute("maxlength", "50");
+    await email.fill(`${"a".repeat(60)}@example.com`);
+    expect((await email.inputValue()).length).toBe(50);
+  });
+
   test("sebelum bayar ada ringkasan pesanan; Periksa lagi menutupnya tanpa membuat booking", async ({
     page,
   }) => {
