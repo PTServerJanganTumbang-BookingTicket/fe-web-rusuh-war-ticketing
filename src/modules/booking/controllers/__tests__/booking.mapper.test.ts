@@ -41,6 +41,15 @@ const emptyForm: BookingForm = {
   submitted: false,
 };
 
+/** Hasil cek Dukcapil "valid" untuk tiap slot berisi NIK yang diketik. */
+const verifiedChecks = (niks: Readonly<Record<string, string>>): BookingForm["checks"] =>
+  Object.fromEntries(
+    Object.entries(niks).map(([key, nik]) => [
+      key,
+      { nik, state: "done", result: { status: "valid", name: "WARGA" } },
+    ]),
+  );
+
 const build = (overrides: Partial<Parameters<typeof toBookingViewProps>[0]> = {}) =>
   toBookingViewProps({
     chrome: toSiteChrome(),
@@ -125,12 +134,16 @@ describe("toBookingViewProps", () => {
     expect(build({ selection: {} }).submit.disabled).toBe(true);
     expect(build({ remainingMs: 0 }).submit.disabled).toBe(true);
     // With valid form data, button should be enabled
+    const niks = { "vip-0": "3171000000000022", "vip-1": "3171000000000033" };
     const validForm: BookingForm = {
       ...emptyForm,
       contactEmail: "rina@example.com",
-      niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
+      niks,
+      checks: verifiedChecks(niks),
     };
     expect(build({ form: validForm }).submit.disabled).toBe(false);
+    // NIK berformat benar yang belum dicek ke Dukcapil tetap memblokir submit.
+    expect(build({ form: { ...validForm, checks: {} } }).submit.disabled).toBe(true);
   });
 
   it("tombol lanjut mati saat form tidak valid", () => {
@@ -179,8 +192,18 @@ describe("nikError", () => {
     expect(nikError("3171000000000022", { show: true, duplicate: false, check: used })).toBe(
       "NIK ini sudah dipakai untuk event ini.",
     );
-    // Hasil untuk NIK lama diabaikan setelah diketik ulang.
-    expect(nikError("3171000000000033", { show: true, duplicate: false, check: used })).toBeUndefined();
+    // Hasil untuk NIK lama diabaikan setelah diketik ulang: NIK baru belum dicek.
+    expect(nikError("3171000000000033", { show: true, duplicate: false, check: used })).toBe(
+      "Verifikasi NIK ini ke Dukcapil dulu sebelum lanjut.",
+    );
+    expect(nikError("3171000000000033", { show: false, duplicate: false })).toBeUndefined();
+    expect(
+      nikError("3171000000000033", {
+        show: true,
+        duplicate: false,
+        check: { nik: "3171000000000033", state: "checking" },
+      }),
+    ).toBeUndefined();
     expect(
       nikError("3171000000000022", {
         show: true,
@@ -192,10 +215,12 @@ describe("nikError", () => {
 });
 
 describe("isBookingFormValid", () => {
+  const niks = { "vip-0": "3171000000000022", "vip-1": "3171000000000033" };
   const valid: BookingForm = {
     ...emptyForm,
     contactEmail: "rina@example.com",
-    niks: { "vip-0": "3171000000000022", "vip-1": "3171000000000033" },
+    niks,
+    checks: verifiedChecks(niks),
   };
 
   it("butuh pemesan lengkap dan NIK unik berformat benar untuk setiap tiket", () => {
@@ -212,6 +237,23 @@ describe("isBookingFormValid", () => {
         "vip-0",
         "vip-1",
       ]),
+    ).toBe(false);
+  });
+
+  it("NIK yang belum dicek, sedang dicek, gagal dicek, atau hasil ceknya untuk NIK lain memblokir submit", () => {
+    const slots = ["vip-0", "vip-1"];
+    const withCheck = (check: BookingForm["checks"][string]) => ({
+      ...valid,
+      checks: { ...valid.checks, "vip-0": check },
+    });
+    expect(isBookingFormValid({ ...valid, checks: {} }, slots)).toBe(false);
+    expect(isBookingFormValid(withCheck({ nik: "3171000000000022", state: "checking" }), slots)).toBe(false);
+    expect(isBookingFormValid(withCheck({ nik: "3171000000000022", state: "failed" }), slots)).toBe(false);
+    expect(
+      isBookingFormValid(
+        withCheck({ nik: "3171000000000099", state: "done", result: { status: "valid", name: "LAIN" } }),
+        slots,
+      ),
     ).toBe(false);
   });
 

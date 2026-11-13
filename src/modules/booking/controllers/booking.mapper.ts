@@ -93,7 +93,8 @@ export function nikError(
 ): string | undefined {
   if (show && !isNikFormat(nik)) return t("booking.holder.nik.invalid");
   if (duplicate) return t("booking.holder.nik.duplicate");
-  if (check?.nik !== nik) return undefined;
+  // NIK berformat benar yang belum pernah dicek memblokir submit; beri tahu alasannya setelah field disentuh.
+  if (check?.nik !== nik) return show ? t("booking.holder.nik.unverified") : undefined;
   if (check.state === "failed") return t("booking.holder.nik.error");
   if (check.state === "done" && check.result.status !== "valid") return t(checkMessages[check.result.status]);
   return undefined;
@@ -112,7 +113,8 @@ function isContactEmailValid(form: BookingForm): boolean {
 
 /**
  * Form siap dikirim: email pemesan valid, tiap tiket punya pemegang yang tidak dipakai tiket lain (BR-02), dan NIK
- * yang diketik berformat benar serta tidak ditolak Dukcapil. Pemegang dari profil sudah terverifikasi (kontrak §4.3).
+ * yang diketik berformat benar serta sudah dinyatakan valid oleh Dukcapil untuk NIK yang sama. Belum dicek, sedang
+ * dicek, gagal dicek, atau ditolak semuanya memblokir submit. Pemegang dari profil sudah terverifikasi (kontrak §4.3).
  */
 export function isBookingFormValid(form: BookingForm, slotKeys: string[]): boolean {
   if (slotKeys.length === 0 || !isContactEmailValid(form)) return false;
@@ -123,8 +125,8 @@ export function isBookingFormValid(form: BookingForm, slotKeys: string[]): boole
     if (!holder || duplicates.has(key)) return false;
     if (holder.kind !== "typed") return true;
     const check = form.checks[key];
-    const rejected = check?.nik === holder.nik && check.state === "done" && check.result.status !== "valid";
-    return isNikFormat(holder.nik) && !rejected;
+    const verified = check?.nik === holder.nik && check.state === "done" && check.result.status === "valid";
+    return isNikFormat(holder.nik) && verified;
   });
 }
 

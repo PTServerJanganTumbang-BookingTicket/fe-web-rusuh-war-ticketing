@@ -79,6 +79,16 @@ function buildViewInput(overrides: Partial<BookingViewInput> = {}): BookingViewI
   };
 }
 
+/** Hasil cek Dukcapil "valid" untuk tiap slot: NIK yang diketik baru bisa dikirim setelah lolos cek ini. */
+function verifiedChecks(niks: Readonly<Record<string, string>>): BookingForm["checks"] {
+  return Object.fromEntries(
+    Object.entries(niks).map(([key, nik]) => [
+      key,
+      { nik, state: "done", result: { status: "valid", name: "WARGA" } },
+    ]),
+  );
+}
+
 // ─── Smart Generators (Arbitraries) ──────────────────────────────────────────
 
 /** Generate valid 16-digit NIK strings */
@@ -125,7 +135,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
           const form: BookingForm = {
             contactEmail: email,
             niks: { "vip-0": nik1 },
-            checks: {},
+            checks: verifiedChecks({ "vip-0": nik1 }),
             touched: new Set(["contactEmail", "nik:vip-0"]),
             submitted: false,
           };
@@ -168,7 +178,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
         const form: BookingForm = {
           contactEmail: email,
           niks: { "vip-0": nik },
-          checks: {},
+          checks: verifiedChecks({ "vip-0": nik }),
           touched: new Set(["contactEmail", "nik:vip-0"]),
           submitted: false,
         };
@@ -240,7 +250,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
         const form: BookingForm = {
           contactEmail: email,
           niks: { "vip-0": nik },
-          checks: {},
+          checks: verifiedChecks({ "vip-0": nik }),
           touched: new Set(["contactEmail", "nik:vip-0"]),
           submitted: false,
         };
@@ -462,17 +472,14 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
           const form: BookingForm = {
             contactEmail: email,
             niks,
-            checks: {},
+            checks: verifiedChecks(niks),
             touched: new Set(["contactEmail", ...slotKeys.map((k) => `nik:${k}`)]),
             submitted: false,
           };
 
           // Verify form is valid
           const isValid = isBookingFormValid(form, slotKeys);
-          if (!isValid) {
-            // Skip if form happens to be invalid (should be rare with unique NIKs)
-            return;
-          }
+          expect(isValid).toBe(true);
 
           const viewInput = buildViewInput({
             form,
@@ -501,7 +508,7 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
     const form: BookingForm = {
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
-      checks: {},
+      checks: verifiedChecks({ "vip-0": "3171000000000022" }),
       touched: new Set(["contactEmail", "nik:vip-0"]),
       submitted: false,
     };
@@ -526,7 +533,11 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
         "vip-1": "3171000000000033",
         "festival-0": "3171000000000044",
       },
-      checks: {},
+      checks: verifiedChecks({
+        "vip-0": "3171000000000022",
+        "vip-1": "3171000000000033",
+        "festival-0": "3171000000000044",
+      }),
       touched: new Set(),
       submitted: false,
     };
@@ -547,7 +558,7 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
     const form: BookingForm = {
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
-      checks: {},
+      checks: verifiedChecks({ "vip-0": "3171000000000022" }),
       touched: new Set(),
       submitted: false,
     };
@@ -587,7 +598,7 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
     const form: BookingForm = {
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
-      checks: {},
+      checks: verifiedChecks({ "vip-0": "3171000000000022" }),
       touched: new Set(),
       submitted: false,
     };
