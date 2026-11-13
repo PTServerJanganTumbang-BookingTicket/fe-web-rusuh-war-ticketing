@@ -38,7 +38,6 @@ import {
 import { PageHeader, type PageHeaderProps } from "@/components/ui/layout/PageHeader";
 import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell";
 import { ActionDialog, type ActionDialogProps } from "@/components/ui/layout/ActionDialog";
-import { FakeQr } from "./FakeQr";
 
 /* ========================================================================== */
 /*                                   Types                                    */
@@ -86,10 +85,10 @@ export type PaymentInstructionView =
     }
   | {
       readonly type: "qr";
-      readonly seed: string;
+      /** URL gambar QR code dari payment gateway (Midtrans) */
+      readonly qrUrl: string;
       readonly qrLabel: string;
       readonly hint: string;
-      readonly fakeNote: string;
       readonly openApp?: LinkProps;
     };
 
@@ -341,9 +340,15 @@ const PendingPayment = ({ stage }: PendingPaymentProps) => {
 
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl bg-signal-disable p-4 text-center sm:p-5">
-        <FakeQr seed={instruction.seed} label={instruction.qrLabel} />
+        {/* eslint-disable-next-line @next/next/no-img-element -- QR dari payment gateway, bukan aset statis */}
+        <img
+          src={instruction.qrUrl}
+          alt={instruction.qrLabel}
+          width={192}
+          height={192}
+          className="rounded-lg"
+        />
         <p className="type-body2 text-muted-foreground">{instruction.hint}</p>
-        <p className="type-body2 text-muted-foreground">{instruction.fakeNote}</p>
         {instruction.openApp != null && (
           <a
             href={instruction.openApp.href}

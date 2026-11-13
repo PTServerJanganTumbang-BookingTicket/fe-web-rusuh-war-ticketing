@@ -98,15 +98,13 @@ const mapInstructionToView = (
   // QR (GoPay) instruction
   const qrLabel = t("payment.qr.label");
   const qrHint = t("payment.pending.qr");
-  const qrFakeNote = t("payment.qr.fake");
   const openAppLabel = t("payment.pending.openApp");
 
   return {
     type: "qr",
-    seed: instruction.qrUrl,
+    qrUrl: instruction.qrUrl,
     qrLabel,
     hint: qrHint,
-    fakeNote: qrFakeNote,
     openApp: {
       label: openAppLabel,
       href: instruction.deeplinkUrl,
