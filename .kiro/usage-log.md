@@ -651,3 +651,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Lambat atau gagalnya Turnstile tidak lagi terbaca sebagai masalah antrean.
 - **Output**: `CaptchaProtocol` punya `status()` (`idle`/`checking`/`interactive`) dan `subscribe`; hanya `solve` yang dihitung. Waiting Room menampilkan state `checking` (badge "Pemeriksaan keamanan", ikon perisai, subtitle "Satu langkah lagi sebelum kamu masuk antrean."). `CAPTCHA_FAILED` memakai badge "Verifikasi gagal" dan tombol "Coba verifikasi lagi" (refetch join) alih-alih "Antrean berhenti" dan muat ulang. Tantangan interaktif Turnstile kini ditampilkan di tengah bawah layar dengan batas 2 menit (sebelumnya widget 0×0 tersembunyi selalu timeout); presolve di latar membatalkan tantangan dan `solve` mengulangnya.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 905 test Vitest lulus. State checking dilihat di browser (mode mock dengan jeda sementara yang sudah dikembalikan). Tantangan interaktif belum dicoba dengan Turnstile asli.
+
+## 2026-11-14 — Pembayaran customer login lewat route same-origin (Bearer)
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Booking berhasil sebagai tamu tetapi gagal saat login: `GET /bookings/{id}` dan `/payments/*` dipanggil langsung ke API tanpa `Authorization: Bearer`, padahal grant milik akun login mewajibkannya (kontrak v2.20). Token akun ada di cookie httpOnly.
+- **Output**: `createHttpOrderService` memakai `bffHttpClient` dengan awalan `/account` saat `viaAccountGateway`, seperti booking dan antrian; WebView (payment session) tetap langsung. Gateway mengizinkan `GET bookings/{id}`, `POST payments/{id}`, `GET payments/{id}/methods|status`, `POST payments/{id}/retry` sebagai route `guestAllowed` (Bearer dari cookie bila ada, header grant diteruskan). `GET /events/{id}` tetap langsung (publik).
+- **Review manusia**: Menunggu review. tsc dan 908 test Vitest (coverage) lulus; test gateway memeriksa Bearer dan grant sampai ke BE untuk kelima endpoint. Belum diuji terhadap backend asli dengan akun login; mode mock browser memang melewati gateway.

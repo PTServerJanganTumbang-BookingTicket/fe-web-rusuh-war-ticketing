@@ -94,6 +94,31 @@ const ACCOUNT_ROUTES: AccountRoute[] = [
     guestAllowed: true,
   },
   { pattern: /^bookings$/, methods: ["POST"], target: () => "/bookings", guestAllowed: true },
+  // Detail booking dan pembayaran: grant milik akun login wajib disertai Bearer (kontrak v2.20, §4 dan §5).
+  {
+    pattern: /^bookings\/([\w-]+)$/,
+    methods: ["GET"],
+    target: (match) => `/bookings/${match[1]}`,
+    guestAllowed: true,
+  },
+  {
+    pattern: /^payments\/([\w-]+)$/,
+    methods: ["POST"],
+    target: (match) => `/payments/${match[1]}`,
+    guestAllowed: true,
+  },
+  {
+    pattern: /^payments\/([\w-]+)\/(methods|status)$/,
+    methods: ["GET"],
+    target: (match) => `/payments/${match[1]}/${match[2]}`,
+    guestAllowed: true,
+  },
+  {
+    pattern: /^payments\/([\w-]+)\/retry$/,
+    methods: ["POST"],
+    target: (match) => `/payments/${match[1]}/retry`,
+    guestAllowed: true,
+  },
   // Join antrian, grant (`/queue/me`), dan cek NIK membawa identitas akun supaya tempat antrian terikat ke akun,
   // bukan hanya ke perangkat: keluar akun lalu masuk lagi tidak mengulang antrian dari awal. Tamu tetap sama.
   {
