@@ -476,11 +476,24 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
       onDismiss: () => router.replace("/"),
     };
   } else if (openModal?.kind === "payFailed" && payError) {
-    dialog = toRequestFailedDialog(payError, {
+    const retry = {
       onRetry: () => payMutation.mutate(openModal.input),
       onDismiss: payModal.close,
       retrying: payMutation.isPending,
-    });
+    };
+    // Server gagal memproses charge (5xx): sebut pembayarannya, bukan "terjadi kesalahan" umum.
+    dialog =
+      payError.kind === "unknown" && (payError.status ?? 0) >= 500
+        ? {
+            tone: "error",
+            illustration: "error",
+            title: t("payment.error.chargeFailed.title"),
+            description: t("payment.error.chargeFailed.description"),
+            primary: { label: t("dialog.retry"), onClick: retry.onRetry, busy: retry.retrying },
+            secondary: { label: t("payment.error.chargeFailed.reload"), onClick: () => router.refresh() },
+            onDismiss: retry.onDismiss,
+          }
+        : toRequestFailedDialog(payError, retry);
   }
 
   return {

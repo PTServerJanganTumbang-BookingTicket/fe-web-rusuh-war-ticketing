@@ -858,6 +858,49 @@ describe("orderService", () => {
     expect(order.instruction?.type).toBe("gopay");
   });
 
+  it("ganti metode lewat initiatePayment membatalkan charge berjalan dulu, bukan charge ulang", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    await orderService.initiatePayment(bookingId, "bank_transfer", "bca");
+    const paths: string[] = [];
+    server.events.on("request:start", ({ request }) => {
+      if (request.method === "POST") paths.push(new URL(request.url).pathname);
+    });
+    const order = await orderService.initiatePayment(bookingId, "gopay");
+    server.events.removeAllListeners();
+    expect(paths.filter((path) => path.startsWith("/payments/"))).toEqual([
+      `/payments/${bookingId}/retry`,
+      `/payments/${bookingId}`,
+    ]);
+    expect(order.instruction?.type).toBe("gopay");
+  });
+
+  it("charge 500 (instruksi lama hilang): retry lalu charge ulang berhasil", async () => {
+    const { orderService, bookingId } = await setupBooking();
+    let first = true;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/payments/${bookingId}/retry`, () =>
+        envelope({
+          booking_id: bookingId,
+          status: "HELD",
+          attempt: 1,
+          cancelled_order_id: `${bookingId}:1`,
+          payment_expires_at: "2099-01-01T00:00:00Z",
+          server_time: "2026-11-13T14:40:44Z",
+        }),
+      ),
+      http.post(`${MOCK_API_BASE_URL}/payments/${bookingId}`, () => {
+        if (!first) return undefined;
+        first = false;
+        return HttpResponse.json(
+          { data: {}, meta: { code: 500, error_code: "INTERNAL_ERROR", message: "could not replay charge" } },
+          { status: 500 },
+        );
+      }),
+    );
+    const order = await orderService.initiatePayment(bookingId, "gopay");
+    expect(order.instruction?.type).toBe("gopay");
+  });
+
   it("pembayaran berhasil dari webhook: order PAID tanpa TTL", async () => {
     const { orderService, bookingId } = await setupBooking();
     await orderService.initiatePayment(bookingId, "gopay");

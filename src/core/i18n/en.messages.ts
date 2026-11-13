@@ -229,6 +229,10 @@ export const en: Partial<Record<MessageKey, string>> = {
   "payment.expired.dialog.description":
     "Your booking was automatically cancelled because the 10-minute limit has passed. The tickets have been released for the next in line.",
   "payment.expired.dialog.cta": "Back to Home",
+  "payment.error.chargeFailed.title": "Payment could not be processed",
+  "payment.error.chargeFailed.description":
+    "The server failed to process this payment method. A previous payment may still be in progress. Try again or reload the page; your payment time is unchanged.",
+  "payment.error.chargeFailed.reload": "Reload page",
   // Catalog, bantuan, antrean, auth, pembayaran
   "common.placeholder": "This screen hasn't been built yet.",
   "home.title": "Rusuh Ticket Booking",

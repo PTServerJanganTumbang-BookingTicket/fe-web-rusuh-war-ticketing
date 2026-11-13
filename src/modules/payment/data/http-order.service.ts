@@ -15,6 +15,7 @@
 
 import { grantHeaders } from "@/core/data/credentials/grant-headers.utils";
 import type { HttpClient, RequestOptions } from "@/core/data/http/http.client";
+import { toAppError } from "@/core/domain/app-error";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { OrderProtocol } from "../domain/order.protocol";
 import type { PaymentEvent } from "../domain/payment-event.model";
@@ -105,11 +106,7 @@ export const createHttpOrderService = ({
   /**
    * POST /payments/{id} - Inisiasi pembayaran dengan metode yang dipilih.
    */
-  const initiatePayment = async (
-    bookingId: string,
-    method: PaymentMethod,
-    bank?: BankCode,
-  ): Promise<Order> => {
+  const charge = async (bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order> => {
     const paymentPath = createPaymentPath(bookingId);
     const requestBody = bank != null ? { method, bank } : { method };
 
@@ -159,7 +156,32 @@ export const createHttpOrderService = ({
     activePaymentsCache.delete(bookingId);
 
     // Inisiasi ulang dengan metode baru
-    return initiatePayment(bookingId, method, bank);
+    return charge(bookingId, method, bank);
+  };
+
+  /**
+   * POST /payments/{id}. Booking yang sudah punya charge berjalan (customer kembali dari halaman booking lalu
+   * memilih metode lain) tidak boleh di-charge ulang: server mencoba memutar ulang charge lama dan gagal 500
+   * ("could not replay charge"). Charge lama dibatalkan dulu lewat retry. Bila cache instruksi sudah hilang (muat
+   * ulang halaman) dan server menjawab 5xx, retry dicoba sekali; galat asli yang dilempar bila retry juga gagal.
+   */
+  const initiatePayment = async (
+    bookingId: string,
+    method: PaymentMethod,
+    bank?: BankCode,
+  ): Promise<Order> => {
+    if (activePaymentsCache.has(bookingId)) return retryPayment(bookingId, method, bank);
+    try {
+      return await charge(bookingId, method, bank);
+    } catch (failure) {
+      const error = toAppError(failure);
+      if (error.kind !== "unknown" || (error.status ?? 0) < 500) throw failure;
+      try {
+        return await retryPayment(bookingId, method, bank);
+      } catch {
+        throw failure;
+      }
+    }
   };
 
   return {
