@@ -5,7 +5,7 @@ export const MAX_TICKETS_PER_NIK = 3;
 export const MAX_TICKETS_PER_BOOKING = 3;
 
 /** Interval penyegaran stok Detail Ticket, sebelum jitter (ADR-0004). */
-export const STOCK_REFRESH_INTERVAL_MS = 15_000;
+export const STOCK_REFRESH_INTERVAL_MS = 10_000;
 
 /**
  * Permintaan produk: setelah waktu booking habis, modal tampil lalu layar kembali ke Beranda dalam 5 detik.

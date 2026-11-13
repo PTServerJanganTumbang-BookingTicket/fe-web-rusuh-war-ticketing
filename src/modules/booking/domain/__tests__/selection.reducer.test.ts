@@ -54,4 +54,8 @@ describe("CLAMP_TO_STOCK", () => {
     );
     expect(next).toEqual({ cat_vip: 1, cat_tribune: 1 });
   });
+
+  it("RESET membuang semua pilihan saat akses habis", () => {
+    expect(selectionReducer({ vip: 2, festival: 1 }, { type: "RESET" })).toEqual({});
+  });
 });

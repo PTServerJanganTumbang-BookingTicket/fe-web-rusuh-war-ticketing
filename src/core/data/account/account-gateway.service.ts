@@ -250,9 +250,8 @@ export function createAccountGatewayService({
       const token = typeof body === "object" && body !== null && "token" in body ? body.token : undefined;
       if (typeof token !== "string" || token === "") return envelope(400, "token is required");
 
-      // Kontrak tertulis `?token=`, tetapi BE yang berjalan membaca cookie `magic_token` (seperti /auth/verify).
-      // Keduanya dikirim supaya cocok dengan kontrak sekarang dan implementasi sekarang.
-      const response = await callBackend(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
+      // Token lewat cookie `magic_token`, bukan query parameter (kontrak §1.7, v2.24), supaya tidak masuk log akses.
+      const response = await callBackend("/auth/verify-email", {
         headers: { cookie: `magic_token=${encodeURIComponent(token)}` },
       });
       if (!response) return envelope(502, "Backend unavailable");

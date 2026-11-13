@@ -163,7 +163,7 @@ describe("Authentication dan Accounts", () => {
   });
 
   it("registerAccount: sukses, NIK salah, consent, dan NIK terdaftar", async () => {
-    const consent = { accepted: true, policy_version: "2026-10-01" };
+    const consent = { accepted: true };
     await expectContract(
       await post("/auth/register", { email: "alex@example.com", nik: "3171000000000044", consent }),
       "registerAccount",

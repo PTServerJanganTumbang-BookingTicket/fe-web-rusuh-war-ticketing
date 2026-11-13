@@ -1,27 +1,98 @@
 name: ci
 
+# Pola yang sama dengan pipeline backend (be-rusuh-war-ticketing/.github/workflows/cicd.yml): deteksi perubahan supaya
+# job mahal hanya jalan bila perlu, concurrency yang membatalkan run usang, action dipin ke SHA, dan satu job
+# `quality-gate` sebagai satu-satunya check wajib di branch protection. Deploy tidak ada di sini: FE di-deploy oleh
+# Vercel dari `main` (docs/deploy/vercel-cloudflare-dns.md).
+
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# Run lama di branch yang sama dibatalkan; `main` tidak pernah dibatalkan supaya setiap commit-nya punya hasil.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 jobs:
-  check:
+  # ── Apa yang berubah? Perubahan dokumen saja tidak menyalakan job mana pun. ───────────────────────────────────────
+  detect-changes:
+    name: Detect changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      image: ${{ steps.filter.outputs.image }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'src/**'
+              - 'public/**'
+              - 'emails/**'
+              - 'scripts/**'
+              - 'e2e/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'next.config.ts'
+              - 'tsconfig.json'
+              - 'eslint*.mjs'
+              - 'vitest.config.ts'
+              - 'sonar-project.properties'
+              - '.env.example'
+              - '.github/workflows/ci.yml'
+            image:
+              - 'Dockerfile'
+              - '.dockerignore'
+              - '.env.example'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'next.config.ts'
+              - 'src/**'
+              - 'public/**'
+              - '.github/workflows/ci.yml'
+            e2e:
+              - 'src/**'
+              - 'e2e/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'playwright.config.ts'
+              - '.github/workflows/ci.yml'
+
+  # ── Satu job untuk semua pemeriksaan kode: satu `npm ci`, urut dari yang termurah supaya gagal cepat. ──────────────
+  check:
+    name: Check (format, lint, types, tests, build)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # SonarCloud butuh riwayat penuh untuk atribusi dan deteksi kode baru.
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
 
       # Aturan dependensi antar lapisan dan modul (ADR-0014, ADR-0015) ditegakkan ESLint boundaries.
       - run: npm run format:check
@@ -32,7 +103,17 @@ jobs:
       # Memakai coverage/lcov.info dari langkah di atas. Secret tidak tersedia di PR dari fork, jadi dilewati.
       - name: Analisis SonarCloud
         if: env.SONAR_TOKEN != ''
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+
+      # Cache build Next (kompilasi dan gambar) dipakai ulang antar run; kuncinya mengikuti lockfile.
+      - name: Cache build Next
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            next-${{ runner.os }}-
 
       - name: Build
         run: npm run build | tee build.log
@@ -41,10 +122,15 @@ jobs:
       - name: Home tetap statis
         run: grep -E '^(┌|├|└) ○ /[[:space:]]*$' build.log
 
+  # ── Image hanya dibangun bila Dockerfile, dependensi, atau konfigurasi build berubah. ─────────────────────────────
   image:
+    name: Container image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.image == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       # ADR-0021: NEXT_PUBLIC_* di-inline saat build, jadi setiap flag di .env.example wajib punya ARG di Dockerfile.
       - name: Flag build tercatat di Dockerfile
@@ -55,10 +141,10 @@ jobs:
           done
           exit $missing
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
           load: true
@@ -81,27 +167,66 @@ jobs:
           test "$(docker inspect -f '{{.Config.User}}' web)" = "app"
           docker stop -t 15 web
 
+  # ── E2E hanya bila kode aplikasi atau spek e2e berubah. Berjalan paralel dengan `check`. ──────────────────────────
   e2e:
+    name: E2E (Playwright)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
+
+      # Unduhan Chromium (~150 MB) di-cache per versi Playwright; dependensi sistemnya tetap dipasang tiap run.
+      - name: Cache browser Playwright
+        id: playwright-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Pasang Chromium untuk Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: Pasang dependensi sistem Chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       # Server dev dengan mock MSW dijalankan oleh webServer di playwright.config.ts. Jam palsu lewat page.clock.
       - run: npm run test:e2e
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  # ── Satu-satunya check yang diwajibkan branch protection. Job yang dilewati (tidak ada perubahan) dianggap lulus. ──
+  quality-gate:
+    name: Quality Gate
+    needs: [detect-changes, check, image, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Semua job yang berjalan harus lulus
+        run: |
+          fail=0
+          check() {
+            echo "$1: $2"
+            case "$2" in success|skipped) ;; *) fail=1 ;; esac
+          }
+          check detect-changes "${{ needs.detect-changes.result }}"
+          check check          "${{ needs.check.result }}"
+          check image          "${{ needs.image.result }}"
+          check e2e            "${{ needs.e2e.result }}"
+          exit $fail

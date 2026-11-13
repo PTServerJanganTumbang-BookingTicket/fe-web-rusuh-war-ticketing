@@ -44,6 +44,7 @@ export function useQueueController(eventId: string): QueueViewProps {
     watchQueueStateUseCase,
     leaveQueueUseCase,
     startSessionUseCase,
+    endSessionUseCase,
     random,
   } = useDependencies<QueueDependencies & CoreDependencies>();
   const [confirmingLeave, setConfirmingLeave] = useState(false);
@@ -70,9 +71,14 @@ export function useQueueController(eventId: string): QueueViewProps {
   const event = useQuery(queueEventQuery({ getQueueEventUseCase }, eventId));
   const forwarding = useRef(false);
   const enter = useMutation({
-    mutationFn: (accessToken: string) => startSessionUseCase(eventId, accessToken),
+    mutationFn: ({ accessToken }: { accessToken: string; paymentBookingId?: string }) =>
+      startSessionUseCase(eventId, accessToken),
     // `replace`: tombol Back dari booking tidak boleh kembali ke ruang tunggu yang gilirannya sudah terpakai.
-    onSuccess: () => router.replace(`/events/${eventId}/book`),
+    // Customer yang sudah menekan Bayar kembali ke Payment dengan tenggat pembayarannya (kontrak §3.3).
+    onSuccess: (_, { paymentBookingId }) =>
+      router.replace(
+        paymentBookingId ? `/orders/${encodeURIComponent(paymentBookingId)}/pay` : `/events/${eventId}/book`,
+      ),
     onSettled: () => {
       forwarding.current = false;
     },
@@ -82,6 +88,13 @@ export function useQueueController(eventId: string): QueueViewProps {
   // Hasil join yang bukan waiting menang atas posisi lama di cache; posisi hanya melanjutkan join yang waiting.
   const current = waitingJoin ? (queue.data ?? waitingJoin) : joined;
   const data = verifying ? undefined : current;
+  // Antrian berakhir (sesi habis, ditinggalkan, penjualan tutup): cookie grant dihapus supaya `proxy.ts` tidak
+  // memantulkan kunjungan berikutnya ke /book. Gagal melepas diabaikan; layar berakhir tetap tampil.
+  const ended = data?.status === "ended";
+  const { mutate: releaseGrant } = useMutation({ mutationFn: endSessionUseCase });
+  useEffect(() => {
+    if (ended) releaseGrant();
+  }, [ended, releaseGrant]);
   // Galat join (QUEUE_FULL, FULL_BOOKED, SALE_CLOSED, CAPTCHA_FAILED, ...). Galat polling saat data sudah ada
   // tidak menggantikan layar menunggu.
   const failure = join.error ?? queue.error;
@@ -91,6 +104,7 @@ export function useQueueController(eventId: string): QueueViewProps {
 
   // Giliran tiba: masuk otomatis (FR-06–08). Tombol hanya muncul sebagai cadangan bila penyimpanan sesi gagal.
   const admittedToken = data?.status === "admitted" ? data.accessToken : undefined;
+  const admittedPayment = data?.status === "admitted" ? data.paymentBookingId : undefined;
   const { mutate } = enter;
   // Penjaga hanya untuk satu permintaan yang sedang berjalan (StrictMode memasang efek dua kali). Bukan "sudah pernah
   // masuk": route Waiting Room bisa tersembunyi lalu tampil lagi (Back/Forward) dengan state yang sama, dan saat itu
@@ -98,8 +112,8 @@ export function useQueueController(eventId: string): QueueViewProps {
   useEffect(() => {
     if (!admittedToken || forwarding.current) return;
     forwarding.current = true;
-    mutate(admittedToken);
-  }, [admittedToken, mutate]);
+    mutate({ accessToken: admittedToken, paymentBookingId: admittedPayment });
+  }, [admittedToken, admittedPayment, mutate]);
 
   const forgetQueue = useCallback(() => {
     leaveQueueUseCase(eventId);
@@ -169,7 +183,10 @@ export function useQueueController(eventId: string): QueueViewProps {
       badge: { label: t("queue.badge.admitted"), tone: "info" },
       message: enter.isError ? t(errorKey(toAppError(enter.error))) : t("queue.admitted.message"),
       action: enter.isError
-        ? { label: t("queue.admitted.retry"), onClick: () => mutate(data.accessToken) }
+        ? {
+            label: t("queue.admitted.retry"),
+            onClick: () => mutate({ accessToken: data.accessToken, paymentBookingId: data.paymentBookingId }),
+          }
         : undefined,
     });
   }

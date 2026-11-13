@@ -967,7 +967,23 @@ describe("pemetaan /queue/me", () => {
     ],
     [
       { state: "AWAITING_PAYMENT", grant_token: "gt_p", booking_id: "RB-1", payment_ref: "pay_1" },
-      { status: "admitted", accessToken: "gt_p" },
+      { status: "admitted", accessToken: "gt_p", paymentBookingId: "RB-1" },
+    ],
+    // v2.27: Bayar sudah ditekan, kursi di-hold, pembayaran belum dimulai. Tujuannya Payment, bukan Detail Ticket.
+    [
+      {
+        state: "HELD",
+        grant_token: "gt_h",
+        booking_id: "RB-1",
+        payment_expires_at: "2026-10-19T10:20:00Z",
+        server_time: "2026-10-19T10:10:00Z",
+      },
+      {
+        status: "admitted",
+        accessToken: "gt_h",
+        expiresAt: "2026-10-19T10:20:00Z",
+        paymentBookingId: "RB-1",
+      },
     ],
   ])("%o", async (data, expected) => {
     server.use(http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () => envelope(data)));
@@ -999,7 +1015,7 @@ describe("state /queue/me yang tidak dikenal", () => {
 });
 
 describe("queueService grant dan giliran tiba", () => {
-  it("join saat grant event ini masih dipegang: admitted tanpa POST join (tanpa CAPTCHA)", async () => {
+  it("join saat grant event ini masih dipegang: admitted tanpa POST join (tanpa CAPTCHA), state dari /queue/me", async () => {
     const paths: string[] = [];
     server.events.on("request:start", ({ request }) => void paths.push(new URL(request.url).pathname));
     try {
@@ -1009,7 +1025,7 @@ describe("queueService grant dan giliran tiba", () => {
         status: "admitted",
         accessToken: "gt_dipegang",
       });
-      expect(paths).toEqual([]);
+      expect(paths).toEqual([`/events/${OPEN_EVENT_ID}/queue/me`]);
     } finally {
       server.events.removeAllListeners();
     }

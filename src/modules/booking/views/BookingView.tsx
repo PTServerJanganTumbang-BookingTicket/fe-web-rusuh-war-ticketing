@@ -96,11 +96,14 @@ function TextInput({
   field,
   inputMode,
   autoComplete,
+  action,
 }: {
   id: string;
   field: TextFieldProps;
   inputMode?: "numeric" | "email";
   autoComplete?: string;
+  /** Tombol di sebelah isian (mis. Verifikasi Dukcapil); sejajar dengan input, bukan dengan label atau pesan galat. */
+  action?: ReactNode;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -112,21 +115,24 @@ function TextInput({
   return (
     <Field data-invalid={Boolean(field.error)}>
       <FieldLabel htmlFor={id}>{field.label}</FieldLabel>
-      <Input
-        ref={ref}
-        id={id}
-        value={field.value}
-        placeholder={field.placeholder}
-        readOnly={field.readOnly}
-        className={field.readOnly ? "bg-signal-disable" : undefined}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        maxLength={field.maxLength}
-        aria-invalid={Boolean(field.error)}
-        aria-describedby={describedBy}
-        onChange={(event) => field.onChange(event.target.value)}
-        onBlur={field.onBlur}
-      />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          ref={ref}
+          id={id}
+          value={field.value}
+          placeholder={field.placeholder}
+          readOnly={field.readOnly}
+          className={field.readOnly ? "min-w-0 flex-1 bg-signal-disable" : "min-w-0 flex-1"}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          maxLength={field.maxLength}
+          aria-invalid={Boolean(field.error)}
+          aria-describedby={describedBy}
+          onChange={(event) => field.onChange(event.target.value)}
+          onBlur={field.onBlur}
+        />
+        {action}
+      </div>
       {field.error ? <FieldError id={`${id}-error`}>{field.error}</FieldError> : null}
       {!field.error && field.success ? (
         <FieldDescription id={`${id}-hint`} className="text-signal-valid">
@@ -270,30 +276,32 @@ export function BookingView(props: BookingViewProps) {
                             {holder.holder ? (
                               <HolderSourceSelect id={`holder-${holder.id}`} source={holder.holder} />
                             ) : null}
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                              <div className="min-w-0 sm:flex-1">
-                                <TextInput
-                                  id={`nik-${holder.id}`}
-                                  field={holder.nik}
-                                  inputMode="numeric"
-                                  autoComplete="off"
-                                />
-                              </div>
-                              {holder.verify ? (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="lg"
-                                  className="w-full sm:w-auto"
-                                  disabled={holder.verify.disabled}
-                                  aria-busy={holder.verify.busy}
-                                  onClick={holder.verify.onClick}
-                                >
-                                  {holder.verify.busy ? <Spinner data-icon="inline-start" /> : null}
-                                  {holder.verify.label}
-                                </Button>
-                              ) : null}
-                            </div>
+                            <TextInput
+                              id={`nik-${holder.id}`}
+                              field={holder.nik}
+                              inputMode="numeric"
+                              autoComplete="off"
+                              action={
+                                holder.verify ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="lg"
+                                    className="w-full shrink-0 sm:w-auto"
+                                    disabled={holder.verify.disabled}
+                                    aria-busy={holder.verify.busy}
+                                    onClick={holder.verify.onClick}
+                                  >
+                                    {holder.verify.busy ? (
+                                      <Spinner data-icon="inline-start" />
+                                    ) : (
+                                      <IdCardIcon data-icon="inline-start" />
+                                    )}
+                                    {holder.verify.label}
+                                  </Button>
+                                ) : null
+                              }
+                            />
                           </li>
                         ))}
                       </ol>
