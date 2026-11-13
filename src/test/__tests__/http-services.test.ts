@@ -684,13 +684,40 @@ describe("bookingService", () => {
     });
   });
 
+  it("submit tanpa grant di tab: grant dipulihkan dari /queue/me dulu; jika tidak ada, ACCESS_EXPIRED tanpa memanggil /bookings", async () => {
+    const posts: (string | null)[] = [];
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, ({ request }) => {
+        posts.push(request.headers.get("x-grant-token"));
+        return HttpResponse.json(
+          { meta: { code: 201, message: "Created" }, data: { booking_id: "RB-1" } },
+          { status: 201 },
+        );
+      }),
+      http.get(`${MOCK_API_BASE_URL}/events/${OPEN_EVENT_ID}/queue/me`, () =>
+        HttpResponse.json({ meta: { code: 200, message: "Success" }, data: { state: "EXPIRED" } }),
+      ),
+    );
+    const input = {
+      eventId: OPEN_EVENT_ID,
+      contactEmail: "rina@example.com",
+      tickets: [{ categoryId: "cat_vip", holder: { kind: "typed" as const, nik: "3171000000000033" } }],
+    };
+    const { bookingService } = setupTestContainer().cradle;
+    expect(await failureOf(bookingService.submitBooking(input))).toMatchObject({ code: "ACCESS_EXPIRED" });
+    expect(posts).toEqual([]);
+  });
+
   it("submit 409: error_code INSUFFICIENT_STOCK menjadi STOCK_INSUFFICIENT, 409 lain tetap BOOKING_REJECTED", async () => {
-    const submit = () =>
-      setupTestContainer().cradle.bookingService.submitBooking({
+    const submit = () => {
+      const { bookingService, credentialStore } = setupTestContainer().cradle;
+      credentialStore.saveGrantToken(OPEN_EVENT_ID, "grant_1");
+      return bookingService.submitBooking({
         eventId: OPEN_EVENT_ID,
         contactEmail: "rina@example.com",
         tickets: [{ categoryId: "cat_vip", holder: { kind: "typed", nik: "3171000000000033" } }],
       });
+    };
     const conflict = (errorCode?: string) =>
       http.post(`${MOCK_API_BASE_URL}/bookings`, () =>
         HttpResponse.json(

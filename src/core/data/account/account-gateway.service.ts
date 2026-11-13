@@ -61,21 +61,42 @@ type Tokens = z.infer<typeof tokensSchema>;
 type RedirectContext = z.infer<typeof verifySchema>["data"]["redirect_context"];
 
 /** Endpoint akun yang boleh diteruskan. Path di luar daftar ini dijawab 404 tanpa menyentuh BE. */
-const ACCOUNT_ROUTES: { pattern: RegExp; methods: string[]; target: (match: RegExpMatchArray) => string }[] =
-  [
-    { pattern: /^saved-niks$/, methods: ["GET", "POST"], target: () => "/accounts/me/saved-niks" },
-    {
-      pattern: /^saved-niks\/([\w-]+)$/,
-      methods: ["DELETE"],
-      target: (match) => `/accounts/me/saved-niks/${match[1]}`,
-    },
-    { pattern: /^tickets$/, methods: ["GET"], target: () => "/users/me/tickets" },
-    {
-      pattern: /^tickets\/([\w-]+)\/eticket$/,
-      methods: ["GET"],
-      target: (match) => `/tickets/${match[1]}/eticket`,
-    },
-  ];
+type AccountRoute = {
+  pattern: RegExp;
+  methods: string[];
+  target: (match: RegExpMatchArray) => string;
+  /**
+   * Endpoint yang juga dipakai tamu: tanpa cookie akun permintaan tetap diteruskan (tanpa Bearer), dan 401 dari BE
+   * (grant) dijawab apa adanya. Header grant dan device id dari browser ikut diteruskan.
+   */
+  guestAllowed?: boolean;
+};
+
+/** Header kredensial antrian yang diteruskan apa adanya pada route `guestAllowed`. */
+const FORWARDED_HEADERS = ["x-grant-token", "x-device-id", "x-queue-token"];
+
+const ACCOUNT_ROUTES: AccountRoute[] = [
+  { pattern: /^saved-niks$/, methods: ["GET", "POST"], target: () => "/accounts/me/saved-niks" },
+  {
+    pattern: /^saved-niks\/([\w-]+)$/,
+    methods: ["DELETE"],
+    target: (match) => `/accounts/me/saved-niks/${match[1]}`,
+  },
+  // Kursi dari profil (`saved_nik_id` / `use_account_nik`) hanya berlaku bila BE melihat token akun (kontrak §4.1, §4.3).
+  {
+    pattern: /^events\/([\w-]+)\/tickets$/,
+    methods: ["GET"],
+    target: (match) => `/events/${match[1]}/tickets`,
+    guestAllowed: true,
+  },
+  { pattern: /^bookings$/, methods: ["POST"], target: () => "/bookings", guestAllowed: true },
+  { pattern: /^tickets$/, methods: ["GET"], target: () => "/users/me/tickets" },
+  {
+    pattern: /^tickets\/([\w-]+)\/eticket$/,
+    methods: ["GET"],
+    target: (match) => `/tickets/${match[1]}/eticket`,
+  },
+];
 
 /** Endpoint auth anonim yang boleh diteruskan; semuanya `POST` dengan body JSON. */
 const ANONYMOUS_AUTH_ROUTES = new Set(["magic-link", "magic-link/resend", "register"]);
@@ -274,18 +295,30 @@ export function createAccountGatewayService({
 
       const target = `${route.item.target(route.match)}${new URL(request.url).search}`;
       const body = ["POST", "PATCH"].includes(request.method) ? await request.text() : undefined;
-      const send = (accessToken: string) =>
+      const guestAllowed = route.item.guestAllowed === true;
+      const credentialHeaders: Record<string, string> = {};
+      for (const name of FORWARDED_HEADERS) {
+        const value = guestAllowed ? request.headers.get(name) : null;
+        if (value) credentialHeaders[name] = value;
+      }
+      const send = (accessToken?: string) =>
         callBackend(target, {
           method: request.method,
-          headers: body
-            ? { authorization: `Bearer ${accessToken}`, "content-type": "application/json" }
-            : { authorization: `Bearer ${accessToken}` },
+          headers: {
+            ...credentialHeaders,
+            ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+            ...(body ? { "content-type": "application/json" } : {}),
+          },
           body,
         });
 
       const accessToken = readCookie(request, ACCOUNT_TOKEN_COOKIE);
       const refreshToken = readCookie(request, ACCOUNT_REFRESH_COOKIE);
-      if (!accessToken && !refreshToken) return envelope(401, "Login required");
+      if (!accessToken && !refreshToken) {
+        if (!guestAllowed) return envelope(401, "Login required");
+        const guest = await send();
+        return guest ? passThrough(guest) : envelope(502, "Backend unavailable");
+      }
 
       const first = accessToken ? await send(accessToken) : null;
       if (first && first.status !== 401) return passThrough(first);
@@ -293,6 +326,8 @@ export function createAccountGatewayService({
 
       // Access token habis atau tidak ada: refresh sekali (rotasi), lalu ulangi permintaan.
       const tokens = refreshToken ? await refresh(refreshToken) : null;
+      // Pada route tamu, 401 bisa berasal dari grant, bukan sesi akun: jawaban BE diteruskan, cookie tidak dihapus.
+      if (!tokens && guestAllowed && first) return passThrough(first);
       if (!tokens) return envelope(401, "Session ended; please sign in again", {}, clearedCookies());
       const retried = await send(tokens.access_token);
       if (!retried) return envelope(502, "Backend unavailable");
