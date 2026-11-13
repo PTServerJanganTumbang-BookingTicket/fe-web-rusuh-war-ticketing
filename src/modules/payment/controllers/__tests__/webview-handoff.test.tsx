@@ -25,6 +25,7 @@ import { createWrapper, setupTestContainer, testConfig } from "@/test/support";
 import type { Order, AvailableMethod } from "../../domain/order.model";
 import type { WebViewHandoffResult } from "../../application/handle-webview-handoff.use-case";
 import type { WebViewBridgeProtocol } from "../../domain/webview-handoff.protocol";
+import type { PaymentSessionProtocol } from "../../domain/payment-session.protocol";
 import { usePaymentController, type PaymentScreen } from "../payment.controller";
 
 /* ========================================================================== */
@@ -108,6 +109,8 @@ function cleanupWebViewEnvironment() {
 /**
  * Set URL fragment dengan handoff code
  */
+const DEFAULT_HANDOFF_CODE = "hc_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
 function setUrlFragment(fragment: string) {
   window.history.replaceState(null, "", window.location.pathname + fragment);
 }
@@ -123,6 +126,7 @@ type TestFakes = {
   simulate?: Mock;
   handleWebViewHandoff?: Mock;
   webViewBridge?: WebViewBridgeProtocol;
+  paymentSessionService?: PaymentSessionProtocol;
   mocking?: boolean;
 };
 
@@ -163,6 +167,7 @@ function mountController(order: Order | Error, fakes: TestFakes = {}) {
       simulatePaymentUseCase: asValue(simulate),
       handleWebViewHandoffUseCase: asValue(handleWebViewHandoff),
       webViewBridgeService: asValue(webViewBridge),
+      ...(fakes.paymentSessionService ? { paymentSessionService: asValue(fakes.paymentSessionService) } : {}),
     } as never,
     { ...testConfig, mocking: fakes.mocking ?? true },
   );
@@ -196,6 +201,8 @@ describe("WebView Payment Integration", () => {
     vi.clearAllMocks();
     // Setup WebView environment by default (tests can override)
     setupWebViewEnvironment();
+    // Halaman WebView baru hanya memuat order setelah exchange berhasil, jadi default-nya membawa kode.
+    setUrlFragment(`#code=${DEFAULT_HANDOFF_CODE}`);
   });
 
   afterEach(() => {
@@ -241,6 +248,40 @@ describe("WebView Payment Integration", () => {
 
       // Assert: Code sudah dihapus dari URL oleh use case (dilakukan di handleWebViewHandoff)
       // Note: URL cleanup dilakukan di dalam use case, bukan di controller
+    });
+
+    /**
+     * ADR-007: session menggantikan grant, jadi order baru diminta setelah exchange dan session sudah
+     * diserahkan ke holder yang dibaca service HTTP (header X-Payment-Session).
+     */
+    it("waits for the exchange before loading the order and hands the session to the holder", async () => {
+      let resolveExchange: (result: WebViewHandoffResult) => void = () => undefined;
+      const handleWebViewHandoff = vi.fn(
+        () =>
+          new Promise<WebViewHandoffResult>((resolve) => {
+            resolveExchange = resolve;
+          }),
+      );
+      const held: Array<string | null> = [];
+      const paymentSessionService: PaymentSessionProtocol = {
+        current: () => held.at(-1) ?? null,
+        set: (session) => {
+          held.push(session);
+        },
+      };
+
+      const { getOrder, result } = mountController(makeOrder(), {
+        handleWebViewHandoff,
+        paymentSessionService,
+      });
+      await waitFor(() => expect(handleWebViewHandoff).toHaveBeenCalled());
+      expect(getOrder).not.toHaveBeenCalled();
+      expect(result.current.kind).toBe("status");
+
+      act(() => resolveExchange({ success: true, paymentSession: "ps_late" }));
+      await waitFor(() => expect(getOrder).toHaveBeenCalled());
+      expect(held).toEqual(["ps_late"]);
+      await waitFor(() => expect(result.current.kind).toBe("payment"));
     });
 
     /**
@@ -392,16 +433,9 @@ describe("WebView Payment Integration", () => {
      * ADR-007 §6: Session hanya di memori halaman (bukan localStorage).
      * Muat ulang = session hilang = minta kode baru ke aplikasi (HANDOFF_EXPIRED)
      */
-    it("sends HANDOFF_EXPIRED when page reloads without handoff code", async () => {
-      // Arrange: WebView environment, tapi TIDAK ada code di URL (simulasi reload)
-      // Session sebelumnya hilang karena hanya di memori
-
-      const handleWebViewHandoff = vi.fn((): Promise<WebViewHandoffResult> =>
-        Promise.resolve({
-          success: false,
-          error: "NO_CODE", // Tidak ada code di URL
-        }),
-      );
+    it("sends HANDOFF_EXPIRED and does not call the API when page reloads without handoff code", async () => {
+      // Reload: session di memori hilang dan URL tidak lagi membawa kode
+      window.history.replaceState(null, "", window.location.pathname);
 
       const webViewBridge: WebViewBridgeProtocol = {
         notifyPaymentDone: vi.fn(),
@@ -411,15 +445,15 @@ describe("WebView Payment Integration", () => {
         notifyClose: vi.fn(),
       };
 
-      const { payment } = mountController(makeOrder(), { handleWebViewHandoff, webViewBridge });
+      const { getOrder, handleWebViewHandoff, result } = mountController(makeOrder(), { webViewBridge });
 
-      // Assert: WebView context terdeteksi tapi tidak ada code
-      await waitFor(() => expect(payment().webViewContext.isEmbedded).toBe(true));
-
-      // Note: Berdasarkan implementasi, jika NO_CODE, controller tidak memanggil notify
-      // karena kondisi isEmbedded && hasHandoffCode. Test ini verifikasi bahwa
-      // controller TIDAK error dan tetap menampilkan halaman pembayaran normal
-      expect(payment().webViewContext.paymentSession).toBeNull();
+      await waitFor(() => {
+        expect(webViewBridge.notifyHandoffExpired).toHaveBeenCalledWith("RB-WEBVIEW-001");
+      });
+      // Tanpa session tidak ada request order: header kredensial akan kosong dan 401.
+      expect(handleWebViewHandoff).not.toHaveBeenCalled();
+      expect(getOrder).not.toHaveBeenCalled();
+      expect(result.current.kind).toBe("status");
     });
 
     /**
@@ -594,6 +628,7 @@ describe("WebView Payment Integration", () => {
       };
 
       // Mock window.location.href assignment
+      const originalLocation = window.location;
       const originalHref = window.location.href;
       let navigatedUrl = "";
       Object.defineProperty(window, "location", {
@@ -625,6 +660,8 @@ describe("WebView Payment Integration", () => {
       // Assert: Navigasi langsung, bukan via bridge
       expect(webViewBridge.requestOpenExternal).not.toHaveBeenCalled();
       expect(navigatedUrl).toBe(goPayUrl);
+      // Pulihkan stub agar test berikutnya membaca hash URL yang sebenarnya.
+      Object.defineProperty(window, "location", { value: originalLocation, writable: true });
     });
   });
 

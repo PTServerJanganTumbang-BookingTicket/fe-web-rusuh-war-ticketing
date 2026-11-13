@@ -104,7 +104,7 @@ const paymentTtlSchema = z
 export const bookingSchema = z
   .object({
     booking_id: z.string(),
-    status: z.enum(["PENDING_PAYMENT", "PAID", "EXPIRED"]),
+    status: z.enum(["SELECTING", "PENDING_PAYMENT", "PENDING_CANCELLATION", "PAID", "EXPIRED"]),
     event: z.object({
       id: z.string(),
       name: z.string(),

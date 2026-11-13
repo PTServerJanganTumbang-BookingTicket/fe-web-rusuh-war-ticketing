@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { asValue } from "awilix";
 import { AppFailure } from "@/core/domain/app-error";
+import { t } from "@/core/i18n/t.utils";
 import { createWrapper, setupTestContainer, testConfig } from "@/test/support";
 import type { AvailableMethod, Order } from "../../domain/order.model";
 import type { PaymentViewProps } from "../../views/PaymentView";
@@ -59,6 +60,7 @@ type Fakes = {
   start?: ReturnType<typeof vi.fn>;
   retry?: ReturnType<typeof vi.fn>;
   simulate?: ReturnType<typeof vi.fn>;
+  endSession?: ReturnType<typeof vi.fn>;
   mocking?: boolean;
 };
 
@@ -68,6 +70,7 @@ function mount(order: Order | Error, fakes: Fakes = {}) {
   const start = fakes.start ?? vi.fn(() => Promise.resolve(awaiting(order as Order)));
   const retry = fakes.retry ?? vi.fn(() => Promise.resolve(makeOrder()));
   const simulate = fakes.simulate ?? vi.fn(() => Promise.resolve());
+  const endSession = fakes.endSession ?? vi.fn(() => Promise.resolve());
   const container = setupTestContainer(
     {
       getOrderUseCase: asValue(getOrder),
@@ -76,6 +79,7 @@ function mount(order: Order | Error, fakes: Fakes = {}) {
       startPaymentUseCase: asValue(start),
       retryPaymentUseCase: asValue(retry),
       simulatePaymentUseCase: asValue(simulate),
+      endSessionUseCase: asValue(endSession),
     } as never,
     { ...testConfig, mocking: fakes.mocking ?? true },
   );
@@ -90,7 +94,7 @@ function mount(order: Order | Error, fakes: Fakes = {}) {
     if (stage.kind !== "select") throw new Error("bukan select");
     return stage;
   };
-  return { ...hook, payment, select, getOrder, start, retry, simulate };
+  return { ...hook, payment, select, getOrder, start, retry, simulate, endSession };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -158,7 +162,7 @@ describe("usePaymentController", () => {
     expect(start.mock.calls[0]?.[0]).toEqual({ bookingId: "RB-T1", method: "gopay", bank: undefined });
   });
 
-  it("order FAILED tetap menampilkan metode dan memakai retry, bukan start", async () => {
+  it("order FAILED tetap menampilkan metode dan bayar ulang lewat start (POST /payments), bukan retry", async () => {
     const { payment, select, retry, start } = mount(makeOrder({ status: "FAILED" }));
     await waitFor(() => expect(select().methods).toHaveLength(2));
     expect(select().failedNotice).toBeDefined();
@@ -168,9 +172,9 @@ describe("usePaymentController", () => {
         ?.onSelect(),
     );
     act(() => payment().pay?.onClick());
-    await waitFor(() => expect(retry).toHaveBeenCalled());
-    expect(retry.mock.calls[0]?.[0]).toEqual({ bookingId: "RB-T1", method: "gopay", bank: undefined });
-    expect(start).not.toHaveBeenCalled();
+    await waitFor(() => expect(start).toHaveBeenCalled());
+    expect(start.mock.calls[0]?.[0]).toEqual({ bookingId: "RB-T1", method: "gopay", bank: undefined });
+    expect(retry).not.toHaveBeenCalled();
   });
 
   it("galat jaringan saat bayar membuka dialog; coba lagi mengirim ulang pilihan yang sama", async () => {
@@ -301,31 +305,98 @@ describe("usePaymentController TTL expiry redirect", () => {
   });
 });
 
-it("menampilkan dialog waktu habis saat countdown mencapai 0, lalu redirect setelah user klik tombol", async () => {
-  // Order dengan TTL yang sudah expired (expiresAt di masa lalu)
-  // Status tetap PENDING_PAYMENT supaya isOrderActive = true
-  const expiredOrder = makeOrder({
-    status: "PENDING_PAYMENT",
-    paymentTtl: {
-      expiresAt: new Date(Date.now() - 5000).toISOString(),
-      ttlSeconds: 0,
-      serverTime: new Date(Date.now() - 5000).toISOString(),
-    },
+describe("usePaymentController error bisnis pembayaran", () => {
+  it.each([
+    ["PAYMENT_ALREADY_SETTLED", "payment.error.PAYMENT_ALREADY_SETTLED"],
+    ["PAYMENT_WINDOW_CLOSED", "payment.error.PAYMENT_WINDOW_CLOSED"],
+    ["MAX_ATTEMPTS_EXCEEDED", "payment.error.MAX_ATTEMPTS_EXCEEDED"],
+    ["BOOKING_STATUS_INVALID", "payment.error.BOOKING_STATUS_INVALID"],
+  ] as const)("%s: pesan lokal, tanpa dialog coba lagi, order di-refetch", async (code, key) => {
+    const start = vi.fn().mockRejectedValue(new AppFailure({ kind: "api", code, status: 409 }));
+    const { payment, select, getOrder } = mount(makeOrder(), { start });
+    await waitFor(() => expect(payment).not.toThrow());
+    act(() =>
+      select()
+        .methods.find((method) => method.id === "gopay")
+        ?.onSelect(),
+    );
+    const before = getOrder.mock.calls.length;
+    act(() => payment().pay?.onClick());
+    await waitFor(() => expect(payment().error).toBe(t(key)));
+    expect(payment().dialog).toBeUndefined();
+    await waitFor(() => expect(getOrder.mock.calls.length).toBeGreaterThan(before));
   });
-  const { result, payment } = mount(expiredOrder);
-  // Tunggu sampai data ter-load dan dialog muncul
-  await waitFor(() => expect(result.current.kind).toBe("payment"), { timeout: 3000 });
-  await waitFor(() => expect(payment().dialog).toBeDefined(), { timeout: 3000 });
+});
 
-  // Verifikasi dialog content
-  const dialog = payment().dialog;
-  expect(dialog?.tone).toBe("warning");
-  expect(dialog?.title).toBeDefined();
-
-  // Klik tombol primary untuk redirect ke Home
-  const primary = dialog?.primary;
-  act(() => {
-    if (primary && "onClick" in primary) primary.onClick();
+describe("usePaymentController tenggat dan grace pembayaran", () => {
+  const pastTtl = (ageMs: number): Order["paymentTtl"] => ({
+    expiresAt: new Date(Date.now() - ageMs).toISOString(),
+    ttlSeconds: 0,
+    serverTime: new Date(Date.now() - ageMs).toISOString(),
   });
-  await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 1000 });
+
+  beforeEach(() => replace.mockClear());
+
+  it("tenggat lokal lewat tetapi server masih PENDING: tampil 'memverifikasi', sesi tidak diakhiri, tanpa dialog", async () => {
+    const { result, getOrder, endSession } = mount(makeOrder({ paymentTtl: pastTtl(5000) }));
+    await waitFor(() => expect(result.current.kind).toBe("status"));
+    await waitFor(() => expect(getOrder.mock.calls.length).toBeGreaterThanOrEqual(2)); // tanya server saat nol
+    expect(result.current.kind).toBe("status");
+    if (result.current.kind !== "status") return;
+    expect(result.current.view.message).toBe(t("payment.pending.verifying"));
+    expect(endSession).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("pembayaran masuk saat grace: server menjawab PAID, layar hasil tanpa mengakhiri sesi", async () => {
+    const getOrder = vi
+      .fn()
+      .mockResolvedValueOnce(makeOrder({ paymentTtl: pastTtl(5000) }))
+      .mockResolvedValue(makeOrder({ status: "PAID" }));
+    const { payment, endSession } = mount(makeOrder(), { getOrder });
+    await waitFor(() => expect(payment().stage.kind).toBe("result"));
+    expect(payment().dialog).toBeUndefined();
+    expect(endSession).not.toHaveBeenCalled();
+  });
+
+  it("server menjawab EXPIRED setelah tenggat: sesi diakhiri dan dialog waktu habis muncul, lalu ke Home", async () => {
+    const getOrder = vi
+      .fn()
+      .mockResolvedValueOnce(makeOrder({ paymentTtl: pastTtl(5000) }))
+      .mockResolvedValue(makeOrder({ status: "EXPIRED", paymentTtl: pastTtl(5000) }));
+    const { payment, endSession } = mount(makeOrder(), { getOrder });
+    await waitFor(() => expect(payment().dialog).toBeDefined(), { timeout: 3000 });
+    expect(payment().dialog?.tone).toBe("warning");
+    expect(endSession).toHaveBeenCalled();
+    const primary = payment().dialog?.primary;
+    act(() => {
+      if (primary && "onClick" in primary) primary.onClick();
+    });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 1000 });
+  });
+
+  it("status PENDING_CANCELLATION dari booking: tampil 'memverifikasi' walau hitung mundur lokal belum nol", async () => {
+    const { result } = mount(makeOrder({ status: "PENDING_CANCELLATION" }));
+    await waitFor(() => expect(result.current.kind).toBe("status"));
+    await waitFor(() => {
+      if (result.current.kind !== "status") throw new Error("bukan status");
+      expect(result.current.view.message).toBe(t("payment.pending.verifying"));
+    });
+  });
+
+  it("401 pada order: sesi diakhiri dan kembali ke antrian event", async () => {
+    const getOrder = vi
+      .fn()
+      .mockResolvedValueOnce(makeOrder({ paymentTtl: pastTtl(5000) }))
+      .mockRejectedValue(new AppFailure({ kind: "unknown", status: 401 }));
+    const { endSession } = mount(makeOrder(), { getOrder });
+    await waitFor(() => expect(endSession).toHaveBeenCalled(), { timeout: 3000 });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/events/evt_konser_a/queue"));
+  });
+
+  it("booking SELECTING (belum menekan Bayar): kembali ke halaman booking event", async () => {
+    const { result } = mount(makeOrder({ status: "SELECTING" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/events/evt_konser_a/book"));
+    expect(result.current.kind).toBe("status");
+  });
 });

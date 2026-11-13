@@ -28,6 +28,7 @@ import type { PaymentDependencies } from "../application/payment.dependencies";
 import type { BankCode, Order, PaymentMethod } from "../domain/order.model";
 import type { WebViewContext } from "../domain/webview-handoff.model";
 import { isReactNativeWebView, extractHandoffCodeFromFragment } from "../domain/webview-handoff.rules";
+import { getPaymentErrorMessageKey } from "./payment-error.mapper";
 import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentViewProps } from "./payment.mapper";
 import type { PaymentViewProps } from "../views/PaymentView";
@@ -75,9 +76,22 @@ const COPIED_FEEDBACK_DURATION_MS = 2_000;
 /**
  * Menentukan message key berdasarkan jenis error.
  */
+const PAYMENT_BUSINESS_CODES = [
+  "BOOKING_STATUS_INVALID",
+  "PAYMENT_WINDOW_CLOSED",
+  "MAX_ATTEMPTS_EXCEEDED",
+  "PAYMENT_ALREADY_SETTLED",
+] as const;
+
+const isPaymentBusinessCode = (code: string): code is (typeof PAYMENT_BUSINESS_CODES)[number] =>
+  (PAYMENT_BUSINESS_CODES as readonly string[]).includes(code);
+
 const getErrorMessageKey = (error: AppError): MessageKey => {
   if (error.kind === "network") {
     return "payment.error.network";
+  }
+  if (error.kind === "api" && isPaymentBusinessCode(error.code)) {
+    return getPaymentErrorMessageKey(error.code);
   }
   return "payment.error.unknown";
 };
@@ -106,47 +120,14 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     getAvailableMethodsUseCase,
     getPaymentEventUseCase,
     startPaymentUseCase,
-    retryPaymentUseCase,
     simulatePaymentUseCase,
     handleWebViewHandoffUseCase,
     endSessionUseCase,
     webViewBridgeService,
+    paymentSessionService,
     random,
     appConfig,
   } = useDependencies<PaymentDependencies & CoreDependencies>();
-
-  /* ======================================================================== */
-  /*                                 Queries                                  */
-  /* ======================================================================== */
-
-  // Query untuk order data dengan polling
-  const orderQueryResult = useQuery(orderQuery({ getOrderUseCase, random }, orderId));
-  const orderData = orderQueryResult.data;
-
-  // Query untuk available payment methods
-  const methodsQueryResult = useQuery({
-    queryKey: ["payment", "methods", orderId],
-    queryFn: () => getAvailableMethodsUseCase(orderId),
-    // FAILED tetap butuh daftar metode: customer boleh memilih ulang (BR-06). Hanya PAID dan EXPIRED yang berakhir.
-    enabled: orderData != null && orderData.status !== "PAID" && orderData.status !== "EXPIRED",
-  });
-
-  // Query untuk event detail (pelengkap kartu samping, opsional)
-  const eventQueryResult = useQuery({
-    queryKey: ["payment", "event", orderData?.eventId],
-    queryFn: () => getPaymentEventUseCase(orderData?.eventId ?? ""),
-    enabled: orderData?.eventId != null,
-    staleTime: Infinity,
-  });
-
-  /* ======================================================================== */
-  /*                               Local State                                */
-  /* ======================================================================== */
-
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-  const [selectedBank, setSelectedBank] = useState<BankCode | null>(null);
-  const [isBankMissing, setIsBankMissing] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
 
   /* ======================================================================== */
   /*                           WebView Context State                          */
@@ -172,6 +153,52 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   });
 
   /* ======================================================================== */
+  /*                                 Queries                                  */
+  /* ======================================================================== */
+
+  // WebView: payment session menggantikan grant (ADR-007), jadi query order dan metode menunggu hasil exchange.
+  // Tanpa ini request pertama berangkat tanpa kredensial dan 401.
+  const sessionReady = !webViewContext.isEmbedded || webViewContext.paymentSession != null;
+
+  // Query untuk order data dengan polling
+  const orderQueryResult = useQuery({
+    ...orderQuery({ getOrderUseCase, random }, orderId),
+    enabled: sessionReady,
+  });
+  const orderData = orderQueryResult.data;
+
+  // Query untuk available payment methods
+  const methodsQueryResult = useQuery({
+    queryKey: ["payment", "methods", orderId],
+    queryFn: () => getAvailableMethodsUseCase(orderId),
+    // FAILED tetap butuh daftar metode: customer boleh memilih ulang (BR-06). PAID, EXPIRED, dan SELECTING
+    // (belum sampai bayar) tidak.
+    enabled:
+      sessionReady &&
+      orderData != null &&
+      orderData.status !== "PAID" &&
+      orderData.status !== "EXPIRED" &&
+      orderData.status !== "SELECTING",
+  });
+
+  // Query untuk event detail (pelengkap kartu samping, opsional)
+  const eventQueryResult = useQuery({
+    queryKey: ["payment", "event", orderData?.eventId],
+    queryFn: () => getPaymentEventUseCase(orderData?.eventId ?? ""),
+    enabled: orderData?.eventId != null,
+    staleTime: Infinity,
+  });
+
+  /* ======================================================================== */
+  /*                               Local State                                */
+  /* ======================================================================== */
+
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [selectedBank, setSelectedBank] = useState<BankCode | null>(null);
+  const [isBankMissing, setIsBankMissing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  /* ======================================================================== */
   /*                     WebView Initialization & Handlers                    */
   /* ======================================================================== */
 
@@ -186,7 +213,8 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     const result = await handleWebViewHandoffUseCase(orderId);
 
     if (result.success) {
-      // Store payment session in memory only (BR-27)
+      // Store payment session in memory only (BR-27); orderService membacanya untuk header X-Payment-Session
+      paymentSessionService.set(result.paymentSession);
       setWebViewContext((prev) => ({
         ...prev,
         paymentSession: result.paymentSession,
@@ -204,7 +232,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
         webViewBridgeService.notifyHandoffExpired(orderId);
       }
     }
-  }, [orderId, handleWebViewHandoffUseCase, webViewBridgeService]);
+  }, [orderId, handleWebViewHandoffUseCase, webViewBridgeService, paymentSessionService]);
 
   /**
    * Handle 401 PAYMENT_SESSION_INVALID pada API call apapun.
@@ -213,8 +241,9 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
    * Session invalid berarti halaman dimuat ulang atau session sudah expired.
    */
   const handlePaymentSessionInvalid = useCallback(() => {
+    paymentSessionService.set(null);
     webViewBridgeService.notifyHandoffExpired(orderId);
-  }, [orderId, webViewBridgeService]);
+  }, [orderId, webViewBridgeService, paymentSessionService]);
 
   /**
    * Handle GoPay deeplink - behavior berbeda di WebView vs desktop.
@@ -249,6 +278,9 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     if (webViewContext.isEmbedded && webViewContext.hasHandoffCode) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Async handoff: setState terjadi setelah await, bukan sinkron di effect body
       void handleWebViewHandoff();
+    } else if (webViewContext.isEmbedded) {
+      // Dimuat ulang tanpa kode: session sudah hilang dari memori, minta kode baru (ADR-007 §6).
+      webViewBridgeService.notifyHandoffExpired(orderId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Hanya run sekali saat mount, deteksi sudah di lazy init
   }, []);
@@ -281,30 +313,28 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     [queryClient, orderId],
   );
 
-  // Mutation untuk memulai atau retry pembayaran
+  // Mutation untuk memulai pembayaran. Selalu POST /payments/{id}: setelah penolakan (FAILED) booking sudah HELD
+  // dan tidak ada transaksi Midtrans yang hidup, jadi /retry salah (kontrak §5.2-5.3). Hanya orderService yang
+  // tahu ada charge berjalan (ganti metode) dan membatalkannya lebih dulu lewat /retry.
   const payMutation = useMutation({
-    mutationFn: ({ selected, selectedBank: bank }: PayMutationInput) => {
-      // Jika order FAILED, gunakan retry flow (BR-06)
-      if (orderData?.status === "FAILED") {
-        return retryPaymentUseCase({
-          bookingId: orderId,
-          method: selected,
-          bank,
-        });
-      }
-      // Normal flow: start payment
-      return startPaymentUseCase({
+    mutationFn: ({ selected, selectedBank: bank }: PayMutationInput) =>
+      startPaymentUseCase({
         bookingId: orderId,
         method: selected,
         bank,
-      });
-    },
+      }),
     onSuccess: (updatedOrder) => {
       payModal.close();
       updateOrderCache(updatedOrder);
     },
     onError: (failure, input) => {
-      if (isUnexpectedError(toAppError(failure))) payModal.open({ kind: "payFailed", input });
+      const error = toAppError(failure);
+      if (isUnexpectedError(error)) payModal.open({ kind: "payFailed", input });
+      // Error bisnis (sudah lunas, jendela tertutup, status berubah, batas percobaan): tampilkan pesannya dan
+      // sinkronkan order dari server. Tidak ada tombol coba lagi; PAYMENT_ALREADY_SETTLED menunggu poll PAID.
+      else if (error.kind === "api" && isPaymentBusinessCode(error.code)) {
+        void queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+      }
     },
   });
 
@@ -325,49 +355,59 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
       : 0;
 
   // Tentukan apakah countdown aktif
-  const isOrderActive = orderData != null && orderData.status !== "PAID" && orderData.status !== "EXPIRED";
+  const isOrderActive =
+    orderData != null &&
+    orderData.status !== "PAID" &&
+    orderData.status !== "EXPIRED" &&
+    orderData.status !== "SELECTING";
 
   const expiresAt = isOrderActive ? orderData.paymentTtl.expiresAt : undefined;
 
   // Hook countdown
   const remainingTimeMs = useCountdown(expiresAt, serverTimeOffset);
 
-  // Hook untuk refresh saat TTL hampir habis
+  // Saat hitung mundur nol FE hanya bertanya ke server (ADR-0005); jawabannya yang menentukan.
   useAskServerAtExpiry(expiresAt, remainingTimeMs, orderQueryResult.refetch);
 
-  // Redirect ke Home saat TTL expired (hanya untuk non-WebView)
-  // WebView case sudah di-handle via notifyPaymentExpired di effect status changes
-  // Tampilkan dialog dulu sebelum redirect agar user aware waktu sudah habis
-  useEffect(() => {
-    // Hanya tampilkan dialog jika:
-    // 1. Bukan WebView (WebView kirim pesan ke app, tidak redirect)
-    // 2. Order masih aktif (expiresAt ada)
-    // 3. Countdown sudah mencapai 0
-    // 4. Dialog belum dibuka (mencegah multiple open)
-    if (webViewContext.isEmbedded) return;
-    if (expiresAt == null) return;
-    if (remainingTimeMs == null || remainingTimeMs > 0) return;
-    if (payModal.modal?.kind === "paymentExpired") return;
+  const timeUp = expiresAt != null && remainingTimeMs != null && remainingTimeMs <= 0;
+  // Kontrak §5.4: tenggat lewat belum berarti kedaluwarsa. Grace 30 detik (PENDING_CANCELLATION) masih bisa
+  // menerima pembayaran, jadi tampilkan "memverifikasi" dan terus polling sampai server menjawab PAID atau EXPIRED.
+  const verifying = isOrderActive && (orderData.status === "PENDING_CANCELLATION" || timeUp);
 
-    payModal.open({ kind: "paymentExpired" });
-  }, [webViewContext.isEmbedded, expiresAt, remainingTimeMs, payModal]);
-
-  // Grant sudah dihapus (401): kembali ke antrian event. Waktu habis ditangani dialog di atas, tanpa redirect otomatis.
+  // Grant sudah dihapus (401): kembali ke antrian event.
   const failure = orderQueryResult.isError ? toAppError(orderQueryResult.error) : undefined;
   const grantGone =
     failure != null && failure.kind !== "network" && "status" in failure && failure.status === 401;
   const queueEventId = orderData?.eventId;
-  const timeUp = expiresAt != null && remainingTimeMs != null && remainingTimeMs <= 0;
+  // Kedaluwarsa hanya bila server yang bilang. Dialog dulu agar customer sadar sebelum pindah halaman.
   const expiredOnServer = orderData?.status === "EXPIRED";
+  const selectingOnServer = orderData?.status === "SELECTING";
+  useEffect(() => {
+    if (webViewContext.isEmbedded || !expiredOnServer) return;
+    if (payModal.modal?.kind === "paymentExpired") return;
+    payModal.open({ kind: "paymentExpired" });
+  }, [webViewContext.isEmbedded, expiredOnServer, payModal]);
   useEffect(() => {
     if (webViewContext.isEmbedded) return;
     // Cookie grant dihapus supaya kunjungan berikutnya tidak memantul ke /book; gagal melepas tidak menahan apa pun.
-    if (grantGone || timeUp || expiredOnServer) endSessionUseCase().catch(() => undefined);
-  }, [webViewContext.isEmbedded, grantGone, timeUp, expiredOnServer, endSessionUseCase]);
+    if (grantGone || expiredOnServer) endSessionUseCase().catch(() => undefined);
+  }, [webViewContext.isEmbedded, grantGone, expiredOnServer, endSessionUseCase]);
   useEffect(() => {
     if (webViewContext.isEmbedded || !queueEventId || !grantGone) return;
     router.replace(`/events/${encodeURIComponent(queueEventId)}/queue`);
   }, [webViewContext.isEmbedded, grantGone, queueEventId, router]);
+  // Booking belum sampai bayar (SELECTING): kembali ke Detail Ticket (kontrak §4.4).
+  useEffect(() => {
+    if (webViewContext.isEmbedded || !queueEventId || !selectingOnServer) return;
+    router.replace(`/events/${encodeURIComponent(queueEventId)}/book`);
+  }, [webViewContext.isEmbedded, selectingOnServer, queueEventId, router]);
+  // WebView: 401 berarti session mati; minta kode baru ke aplikasi (ADR-007 §8).
+  useEffect(() => {
+    if (webViewContext.isEmbedded && grantGone) {
+      paymentSessionService.set(null);
+      webViewBridgeService.notifyHandoffExpired(orderId);
+    }
+  }, [webViewContext.isEmbedded, grantGone, orderId, paymentSessionService, webViewBridgeService]);
 
   /* ======================================================================== */
   /*                           Loading & Error States                         */
@@ -395,6 +435,34 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
         ...siteChrome,
         title: t("payment.title"),
         message: t("payment.loading"),
+        tone: "neutral",
+        skeleton: "checkout",
+      },
+    };
+  }
+
+  // Belum sampai bayar: redirect ke halaman booking sedang berjalan (effect di atas).
+  if (selectingOnServer) {
+    return {
+      kind: "status",
+      view: {
+        ...siteChrome,
+        title: t("payment.title"),
+        message: t("payment.loading"),
+        tone: "neutral",
+        skeleton: "checkout",
+      },
+    };
+  }
+
+  // Tenggat lewat tetapi server belum menyatakan kedaluwarsa: tanpa pilihan bayar atau ganti metode (kontrak §5.4).
+  if (verifying) {
+    return {
+      kind: "status",
+      view: {
+        ...siteChrome,
+        title: t("payment.title"),
+        message: t("payment.pending.verifying"),
         tone: "neutral",
         skeleton: "checkout",
       },

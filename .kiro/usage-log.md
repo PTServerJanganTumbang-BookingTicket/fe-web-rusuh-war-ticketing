@@ -611,3 +611,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Output**: (1) `STOCK_REFRESH_INTERVAL_MS` 15 detik menjadi 10 detik (jitter ±20% tetap). (2) Register: "Ubah data" disembunyikan selama permintaan berjalan. (3) Booking: aksi `RESET` pada reducer pilihan; saat akses habis, pilihan tiket, email, NIK, alias, dan hasil cek dikosongkan sehingga masuk ulang ke route yang disembunyikan Next tidak membawa tiket terpilih. (4) Antrian berakhir dan pembayaran kedaluwarsa/401 melepas grant (`endSessionUseCase`) sebelum redirect. (5) Tombol Verifikasi Dukcapil kini sebaris dengan input (bukan dengan label atau pesan galat), berikon.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 829 test Vitest lulus. Tampilan tombol NIK belum dilihat di browser dan e2e belum dijalankan; test baru hanya untuk `RESET`.
 
+
+## 2026-11-13 — Audit bug alur queue, booking, payment, auth dan perbaikan yang berkeyakinan tinggi
+
+- **Tool**: Claude Code (Claude Sonnet 5.5, subagent Sonnet untuk audit dan perbaikan)
+- **Oleh**: zaki
+- **Tujuan**: Mencari bug di alur aplikasi lewat audit baca-kode paralel, memperbaiki yang berkeyakinan tinggi, dan mengurangi polling ketersediaan tiket.
+- **Output**: (1) Payment: bayar ulang setelah ditolak memanggil `POST /payments/{id}` (bukan `/retry`); masa tenggang TTL hanya bertanya ke server dan menampilkan "memverifikasi"; status `SELECTING` dan `PENDING_CANCELLATION`; `X-Payment-Session` di WebView; kode galat bisnis pembayaran dipetakan. (2) Auth gateway: umur cookie grant 18 menit; kegagalan refresh sementara tidak menghapus cookie; refresh paralel dibagi satu permintaan; `readCookie` tidak melempar. (3) Queue: satu `/queue/me` sekaligus di SSE, `CLOSED` dari SSE mengakhiri antrian, `join` dengan grant tersimpan memeriksa server, `refetchOnReconnect` mati. (4) Polling: Home dan detail event 10 detik (Req 1.4 dilonggarkan dari 5), polling berhenti di tab tersembunyi, booking berhenti saat semua kategori habis, Home tidak merender ulang tiap poll. (5) Sisa temuan dicatat di `docs/known-bugs.md`.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 877 test Vitest lulus. Belum diuji terhadap backend asli, e2e belum dijalankan, tampilan belum dilihat di browser. Teks Req 1.4 (5 detik) di dokumen lain belum disesuaikan.

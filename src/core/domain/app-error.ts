@@ -25,7 +25,11 @@ export type ApiErrorCode =
   | "BOOKING_INVALID"
   | "TICKET_NOT_FOUND"
   | "HANDOFF_CODE_INVALID"
-  | "GRANT_EXPIRED";
+  | "GRANT_EXPIRED"
+  | "BOOKING_STATUS_INVALID"
+  | "PAYMENT_WINDOW_CLOSED"
+  | "MAX_ATTEMPTS_EXCEEDED"
+  | "PAYMENT_ALREADY_SETTLED";
 
 export type AppError =
   | { kind: "api"; code: ApiErrorCode; status: number }
@@ -58,6 +62,10 @@ const API_ERROR_CODES: readonly string[] = [
   "TICKET_NOT_FOUND",
   "HANDOFF_CODE_INVALID",
   "GRANT_EXPIRED",
+  "BOOKING_STATUS_INVALID",
+  "PAYMENT_WINDOW_CLOSED",
+  "MAX_ATTEMPTS_EXCEEDED",
+  "PAYMENT_ALREADY_SETTLED",
 ];
 
 export function parseApiErrorCode(value: unknown): ApiErrorCode | undefined {

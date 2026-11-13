@@ -8,6 +8,8 @@ Titik masuk semua dokumentasi FE. Baca berurutan saat onboarding.
 | [`adr/`](adr/README.md) | Architecture Decision Record, satu keputusan per file | Semua, penilai |
 | [`meetings/`](meetings/) | Notulen rapat (MoM), dampaknya ke ADR, dan pertanyaan terbuka. Terbaru: [fitur tambahan dan reversal](meetings/2026-10-28-mom-fitur-dan-reversal.md) | Semua |
 
+Daftar bug yang sudah diketahui tetapi belum diperbaiki ada di [`known-bugs.md`](known-bugs.md).
+
 ## Sumber kebenaran
 
 | Hal | Sumber |
