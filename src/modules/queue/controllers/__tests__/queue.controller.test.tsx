@@ -153,6 +153,7 @@ describe("useQueueController", () => {
   it("grant masih dipegang tapi Bayar sudah ditekan (HELD): kembali ke Payment, bukan Detail Ticket", async () => {
     replace.mockClear();
     server.use(
+      joinGranted(),
       http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
         envelope({
           state: "HELD",
@@ -174,6 +175,7 @@ describe("useQueueController", () => {
   it("grant masih dipegang dan masih memilih (SELECTING): tetap ke booking", async () => {
     replace.mockClear();
     server.use(
+      joinGranted(),
       http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
         envelope({ state: "SELECTING", grant_token: "gt_s", booking_id: "RB-78", booking_expires_at: "x" }),
       ),
@@ -606,18 +608,18 @@ describe("useQueueController", () => {
       expect(result.current.status.state).toBe("admitted");
     });
 
-    it("grant masih dipegang: Waiting Room dipasang ulang langsung meneruskan ke booking tanpa join (tanpa CAPTCHA)", async () => {
+    it("grant masih dipegang: Waiting Room dipasang ulang tetap POST join dulu, lalu /me menentukan tujuan", async () => {
       replace.mockClear();
       sessionStarts();
-      server.use(grantedMe("gt_dipegang"));
+      server.use(joinGranted(), grantedMe("gt_dipegang"));
       const container = setupTestContainer();
       container.cradle.credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_dipegang");
       const paths = recordQueueRequests();
       renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper(container) });
       await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
       server.events.removeAllListeners();
-      // Hanya membaca state ke server (tujuan ditentukan server); tidak ada join dan tidak ada CAPTCHA.
-      expect(paths).toEqual(["/queue/me"]);
+      // Join selalu dikirim (server menjawab rejoined); tujuan lalu ditentukan server lewat /queue/me.
+      expect(paths).toEqual(["/queue/join", "/queue/me"]);
     });
 
     it("StrictMode memasang efek dua kali: grant disimpan satu kali", async () => {

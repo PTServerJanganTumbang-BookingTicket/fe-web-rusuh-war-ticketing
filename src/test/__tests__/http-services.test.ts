@@ -202,80 +202,55 @@ describe("queueService", () => {
     expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 30 });
   });
 
-  describe("join dengan grant tersimpan", () => {
-    const meUrl = `${MOCK_API_BASE_URL}/events/:id/queue/me`;
+  describe("join selalu ke server", () => {
     const joinUrl = `${MOCK_API_BASE_URL}/events/:id/queue/join`;
 
-    it("/queue/me QUEUED: grant dibuang dan hasilnya waiting dari tiket tersimpan, bukan admitted", async () => {
-      server.use(http.get(meUrl, () => envelope({ state: "QUEUED", ticket_no: 100, now_serving: 60 })));
+    it("grant dan tiket tersimpan: tetap POST /queue/join lebih dulu, bukan langsung /queue/me", async () => {
+      server.use(
+        http.post(joinUrl, () =>
+          envelope({ ticket_no: 100, now_serving: 60, position: 40, state: "QUEUED" }),
+        ),
+      );
       const { queueService, credentialStore, queueTicketCache } = setupTestContainer().cradle;
       credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_lama");
       queueTicketCache.set(OPEN_EVENT_ID, {
         ticketNo: 90,
         joinedPosition: 90,
-        eventName: "Konser A",
-        ratePerMin: 12,
+        eventName: "x",
+        ratePerMin: 0,
       });
-      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 40 });
-      expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBeNull();
-      expect(queueTicketCache.get(OPEN_EVENT_ID)).toMatchObject({ ticketNo: 100, ratePerMin: 12 });
-    });
-
-    it("/queue/me QUEUED tanpa tiket tersimpan: join ke server", async () => {
-      server.use(
-        http.get(meUrl, () => envelope({ state: "QUEUED", ticket_no: 100, now_serving: 60 })),
-        http.post(joinUrl, () =>
-          envelope({ ticket_no: 100, now_serving: 60, position: 40, state: "QUEUED" }),
-        ),
-      );
-      const { queueService, credentialStore } = setupTestContainer().cradle;
-      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_lama");
       const paths = await queuePaths(async () => {
         expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 40 });
       });
-      expect(paths).toEqual(["/queue/me", "/queue/join"]);
-      expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBeNull();
+      expect(paths).toEqual(["/queue/join"]);
     });
 
-    it("401: token dan grant dibuang lalu join ulang", async () => {
+    it("join berulang: tiap panggilan mengirim POST /queue/join", async () => {
+      const { queueService } = setupTestContainer().cradle;
+      const paths = await queuePaths(async () => {
+        await queueService.join(OPEN_EVENT_ID);
+        await queueService.join(OPEN_EVENT_ID);
+      });
+      expect(paths.filter((path) => path === "/queue/join")).toHaveLength(2);
+    });
+
+    it("join ulang bukan QUEUED: tujuan diambil dari /queue/me sesudah join", async () => {
       server.use(
-        http.get(meUrl, () => envelope(null, 401, "Unauthorized")),
-        http.post(joinUrl, () => envelope({ ticket_no: 100, now_serving: 60, position: 40 })),
+        http.post(joinUrl, () =>
+          envelope({ ticket_no: 100, now_serving: 120, position: 0, state: "GRANTED", rejoined: true }),
+        ),
+        http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+          envelope({ state: "GRANTED", grant_token: "gt_baru" }),
+        ),
       );
-      const { queueService, credentialStore, queueTicketCache } = setupTestContainer().cradle;
-      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_lama");
-      queueTicketCache.set(OPEN_EVENT_ID, { ticketNo: 5, joinedPosition: 5, eventName: "x", ratePerMin: 0 });
-      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting", position: 40 });
-      expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBeNull();
-      expect(queueTicketCache.get(OPEN_EVENT_ID)).toMatchObject({ ticketNo: 100 });
-    });
-
-    it("backend tidak terjangkau (502 dari route same-origin): memakai grant tersimpan", async () => {
-      server.use(http.get(meUrl, () => HttpResponse.error()));
-      const { queueService, credentialStore } = setupTestContainer().cradle;
-      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_lama");
-      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({
-        status: "admitted",
-        accessToken: "gt_lama",
+      const { queueService } = setupTestContainer().cradle;
+      const paths = await queuePaths(async () => {
+        expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({
+          status: "admitted",
+          accessToken: "gt_baru",
+        });
       });
-      expect(credentialStore.grantToken(OPEN_EVENT_ID)).toBe("gt_lama");
-    });
-
-    it("galat server (500) tidak disamarkan sebagai admitted", async () => {
-      server.use(http.get(meUrl, () => envelope(null, 500, "boom")));
-      const { queueService, credentialStore } = setupTestContainer().cradle;
-      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_lama");
-      expect(await failureOf(queueService.join(OPEN_EVENT_ID))).toMatchObject({ kind: expect.any(String) });
-    });
-
-    it("state GRANTED tetap admitted dengan grant dari server", async () => {
-      server.use(http.get(meUrl, () => envelope({ state: "GRANTED", grant_token: "gt_baru" })));
-      const { queueService, credentialStore } = setupTestContainer().cradle;
-      credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_lama");
-      expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({
-        status: "admitted",
-        accessToken: "gt_baru",
-      });
+      expect(paths).toEqual(["/queue/join", "/queue/me"]);
     });
   });
 
@@ -1186,8 +1161,11 @@ describe("state /queue/me yang tidak dikenal", () => {
 });
 
 describe("queueService grant dan giliran tiba", () => {
-  it("join saat grant event ini masih dipegang: admitted tanpa POST join (tanpa CAPTCHA), state dari /queue/me", async () => {
+  it("join saat grant event ini masih dipegang: tetap POST join, lalu state dari /queue/me", async () => {
     server.use(
+      http.post(`${MOCK_API_BASE_URL}/events/:id/queue/join`, () =>
+        envelope({ ticket_no: 100, now_serving: 120, position: 0, state: "GRANTED", rejoined: true }),
+      ),
       http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
         envelope({ state: "GRANTED", grant_token: "gt_dipegang" }),
       ),
@@ -1204,7 +1182,10 @@ describe("queueService grant dan giliran tiba", () => {
         status: "admitted",
         accessToken: "gt_dipegang",
       });
-      expect(paths).toEqual([`/events/${OPEN_EVENT_ID}/queue/me`]);
+      expect(paths.filter((path) => path.includes("/queue/"))).toEqual([
+        `/events/${OPEN_EVENT_ID}/queue/join`,
+        `/events/${OPEN_EVENT_ID}/queue/me`,
+      ]);
     } finally {
       server.events.removeAllListeners();
     }
