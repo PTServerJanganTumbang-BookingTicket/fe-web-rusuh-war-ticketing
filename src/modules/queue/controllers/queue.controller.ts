@@ -58,14 +58,14 @@ export function useQueueController(eventId: string): QueueViewProps {
   const joined = verifyingJoin ? undefined : join.data;
   // Stream dan posisi hanya untuk yang masih mengantre; hasil join lain (admitted, ended) sudah final untuk kunjungan ini.
   const waitingJoin = joined?.status === "waiting" ? joined : undefined;
-  const live = useLiveUpdates<QueueState>({
+  const stream = useLiveUpdates<QueueState>({
     queryKey: queueKeys.position(eventId),
     watch: (observer) => watchQueueStateUseCase(eventId, observer),
     until: (state) => state.status !== "waiting",
     enabled: waitingJoin !== undefined,
   });
   const queue = useQuery(
-    queuePositionQuery({ getQueueStateUseCase, random }, eventId, { live, initial: waitingJoin }),
+    queuePositionQuery({ getQueueStateUseCase, random }, eventId, { stream, initial: waitingJoin }),
   );
   // Detail event hanya pelengkap: gagal memuatnya tidak menghentikan antrian.
   const event = useQuery(queueEventQuery({ getQueueEventUseCase }, eventId));

@@ -275,7 +275,7 @@ describe("useQueueController", () => {
           expect(replace).not.toHaveBeenCalled();
 
           await act(async () => {
-            await vi.advanceTimersByTimeAsync(7000);
+            await vi.advanceTimersByTimeAsync(8000);
           });
           expect(replace).toHaveBeenCalledWith("/");
         } finally {
@@ -356,7 +356,7 @@ describe("useQueueController", () => {
       expect(result.current.status.refresh).toBeUndefined();
 
       // Polling cadangan pertama gagal dengan galat kontrak: query berstatus error dan polling berhenti.
-      await waitFor(() => expect(result.current.status.refresh).toBeDefined(), { timeout: 9_000 });
+      await waitFor(() => expect(result.current.status.refresh).toBeDefined(), { timeout: 14_000 });
       expect(result.current.status.notice).toContain("belum bisa memperbarui");
       expect(result.current.status.updatedNote).toBe("Pembaruan otomatis terhenti");
       expect(result.current.status.position?.value).toBe("#1.248");
@@ -365,14 +365,14 @@ describe("useQueueController", () => {
       act(() => result.current.status.refresh?.onClick());
       await waitFor(() => expect(result.current.status.refresh).toBeUndefined());
       expect(result.current.status.notice).toBeUndefined();
-    }, 20_000);
+    }, 25_000);
 
     it("/queue/serving 404 tetapi /queue/me jalan: giliran tiba terdeteksi tanpa refresh halaman", async () => {
       server.use(gone("serving"), grantedMe("gt_poll"));
       const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-      await waitFor(() => expect(result.current.status.state).toBe("admitted"), { timeout: 9_000 });
+      await waitFor(() => expect(result.current.status.state).toBe("admitted"), { timeout: 14_000 });
       expect(result.current.status.refresh).toBeUndefined();
-    }, 20_000);
+    }, 25_000);
 
     it("stream tersambung: tidak ada pemberitahuan walau polling tidak dipakai", async () => {
       const fakes = setupFakeEventSources();
@@ -483,10 +483,18 @@ describe("useQueueController", () => {
         await waitFor(() => expect(result.current.status.state).toBe("waiting"));
         expect(result.current.status.position?.value).toBe("#1.248");
 
-        // Polling pertama memakai jeda dari join (5 detik ± jitter); sesudahnya poll_after_ms dari server.
+        // Stream dianggap tidak bisa dipakai setelah 3 detik; polling pertama memakai jeda dari join (5 detik ± jitter),
+        // sesudahnya poll_after_ms dari server. Sebelum itu tidak ada polling.
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(6000);
+          await vi.advanceTimersByTimeAsync(2500);
         });
+        expect(paths).not.toContain("/queue/serving");
+        // Per detik supaya React sempat memasang ulang opsi polling begitu stream dinyatakan putus.
+        for (let second = 0; second < 10; second += 1) {
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+          });
+        }
         server.events.removeAllListeners();
         await waitFor(() => expect(result.current.status.position?.value).toBe("#100"));
         expect(paths).toContain("/queue/serving");

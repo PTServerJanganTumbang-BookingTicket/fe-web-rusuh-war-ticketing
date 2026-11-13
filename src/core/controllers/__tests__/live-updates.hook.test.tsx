@@ -25,40 +25,63 @@ describe("useLiveUpdates", () => {
     const { watch, observers, wrapper } = setup();
     const { result } = renderHook(() => useLiveUpdates<number>({ queryKey: ["a"], watch }), { wrapper });
     expect(watch).toHaveBeenCalledOnce();
-    expect(result.current).toBe(false);
+    expect(result.current).toBe("connecting");
     act(() => observers[0]!.connected());
-    expect(result.current).toBe(true);
+    expect(result.current).toBe("live");
     act(() => observers[0]!.disconnected());
-    expect(result.current).toBe(false);
+    expect(result.current).toBe("down");
   });
 
-  it("enabled false: tidak berlangganan dan hasilnya false; berlangganan setelah enabled menjadi true", () => {
+  it("belum tersambung tetap connecting sampai batas tunggu, lalu down", () => {
+    vi.useFakeTimers();
+    try {
+      const { watch, wrapper } = setup();
+      const { result } = renderHook(() => useLiveUpdates<number>({ queryKey: ["g"], watch, graceMs: 1000 }), {
+        wrapper,
+      });
+      act(() => void vi.advanceTimersByTime(999));
+      expect(result.current).toBe("connecting");
+      act(() => void vi.advanceTimersByTime(1));
+      expect(result.current).toBe("down");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("galat sebelum tersambung langsung down", () => {
+    const { watch, observers, wrapper } = setup();
+    const { result } = renderHook(() => useLiveUpdates<number>({ queryKey: ["h"], watch }), { wrapper });
+    act(() => observers[0]!.disconnected());
+    expect(result.current).toBe("down");
+  });
+
+  it("enabled false: tidak berlangganan dan hasilnya down; berlangganan setelah enabled menjadi true", () => {
     const { watch, observers, wrapper } = setup();
     const { result, rerender } = renderHook(
       ({ enabled }) => useLiveUpdates<number>({ queryKey: ["b"], watch, enabled }),
       { wrapper, initialProps: { enabled: false } },
     );
     expect(watch).not.toHaveBeenCalled();
-    expect(result.current).toBe(false);
+    expect(result.current).toBe("down");
 
     rerender({ enabled: true });
     expect(watch).toHaveBeenCalledOnce();
     act(() => observers[0]!.connected());
-    expect(result.current).toBe(true);
+    expect(result.current).toBe("live");
   });
 
-  it("enabled kembali false: berhenti berlangganan dan hasilnya false", () => {
+  it("enabled kembali false: berhenti berlangganan dan hasilnya down", () => {
     const { watch, observers, unsubscribe, wrapper } = setup();
     const { result, rerender } = renderHook(
       ({ enabled }) => useLiveUpdates<number>({ queryKey: ["c"], watch, enabled }),
       { wrapper, initialProps: { enabled: true } },
     );
     act(() => observers[0]!.connected());
-    expect(result.current).toBe(true);
+    expect(result.current).toBe("live");
 
     rerender({ enabled: false });
     expect(unsubscribe).toHaveBeenCalledOnce();
-    expect(result.current).toBe(false);
+    expect(result.current).toBe("down");
   });
 
   it("unmount berhenti berlangganan", () => {

@@ -4,6 +4,15 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hashKey, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import type { Observer, Unsubscribe } from "@/core/domain/live-updates.protocol";
 
+/** Waktu menunggu stream tersambung sebelum dianggap tidak bisa dipakai (koneksi menggantung tanpa galat). */
+export const LIVE_CONNECT_GRACE_MS = 3_000;
+
+/**
+ * `connecting`: stream baru dibuka dan belum gagal, jadi polling belum boleh jalan. `live`: tersambung.
+ * `down`: stream gagal, putus, melewati batas tunggu, atau tidak dipakai; polling cadangan boleh jalan.
+ */
+export type LiveStatus = "connecting" | "live" | "down";
+
 type LiveUpdatesOptions<T> = {
   queryKey: QueryKey;
   watch: (observer: Observer<T>) => Unsubscribe;
@@ -11,21 +20,24 @@ type LiveUpdatesOptions<T> = {
   until?: (value: T) => boolean;
   /** Berlangganan hanya saat true (bawaan true). Dipakai bila stream baru boleh dibuka setelah langkah lain selesai. */
   enabled?: boolean;
+  /** Batas tunggu sambungan pertama sebelum status menjadi `down` (bawaan `LIVE_CONNECT_GRACE_MS`). */
+  graceMs?: number;
 };
 
 /**
- * Menulis pembaruan SSE ke cache TanStack Query (ADR-0016). Mengembalikan `true` selama stream tersambung;
- * query options memakai nilai ini untuk mematikan polling, dan menyalakannya lagi saat stream putus.
- * Selama `enabled` false stream tidak dibuka dan hasilnya `false`.
+ * Menulis pembaruan SSE ke cache TanStack Query (ADR-0016). Mengembalikan status stream; query options memakai
+ * status ini untuk menahan polling selama `connecting`/`live` dan menyalakannya hanya saat `down`.
+ * Selama `enabled` false stream tidak dibuka dan hasilnya `down`.
  */
 export function useLiveUpdates<T>({
   queryKey,
   watch,
   until,
   enabled = true,
-}: LiveUpdatesOptions<T>): boolean {
+  graceMs = LIVE_CONNECT_GRACE_MS,
+}: LiveUpdatesOptions<T>): LiveStatus {
   const queryClient = useQueryClient();
-  const [live, setLive] = useState(false);
+  const [status, setStatus] = useState<LiveStatus>("connecting");
   const latest = useRef({ queryKey, watch, until });
   useLayoutEffect(() => {
     latest.current = { queryKey, watch, until };
@@ -35,10 +47,14 @@ export function useLiveUpdates<T>({
   useEffect(() => {
     if (!enabled) return;
     let done = false;
+    const grace = setTimeout(() => {
+      if (!done) setStatus((current) => (current === "connecting" ? "down" : current));
+    }, graceMs);
     const stop = () => {
       done = true;
+      clearTimeout(grace);
       unsubscribe();
-      setLive(false);
+      setStatus("connecting");
     };
     const unsubscribe = latest.current.watch({
       next: (value) => {
@@ -46,12 +62,18 @@ export function useLiveUpdates<T>({
         if (latest.current.until?.(value)) stop();
       },
       connected: () => {
-        if (!done) setLive(true);
+        if (done) return;
+        clearTimeout(grace);
+        setStatus("live");
       },
-      disconnected: () => setLive(false),
+      disconnected: () => {
+        if (done) return;
+        clearTimeout(grace);
+        setStatus("down");
+      },
     });
     return stop;
-  }, [key, queryClient, enabled]);
+  }, [key, queryClient, enabled, graceMs]);
 
-  return enabled && live;
+  return enabled ? status : "down";
 }
