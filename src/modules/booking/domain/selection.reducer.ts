@@ -10,10 +10,18 @@ export type SelectionAction =
   /** Stok berubah di server: jumlah terpilih tidak boleh melebihi stok terbaru. */
   | { type: "CLAMP_TO_STOCK"; stock: Readonly<Record<string, number>> }
   /** Akses kedaluwarsa: semua pilihan dibuang supaya masuk ulang tidak membawa tiket yang sudah terpilih. */
-  | { type: "RESET" };
+  | { type: "RESET" }
+  /** Muat ulang halaman: pilihan tersimpan dipulihkan, dibatasi ke kategori yang ada dan stok terbaru. */
+  | { type: "RESTORE"; selection: Selection; stock: Readonly<Record<string, number>> };
 
 export function selectionReducer(selection: Selection, action: SelectionAction): Selection {
   switch (action.type) {
+    case "RESTORE":
+      return Object.fromEntries(
+        Object.entries(action.selection)
+          .map(([id, count]): [string, number] => [id, Math.min(count, action.stock[id] ?? 0)])
+          .filter(([, count]) => count > 0),
+      );
     case "RESET":
       return {};
     case "ADD_TICKET": {

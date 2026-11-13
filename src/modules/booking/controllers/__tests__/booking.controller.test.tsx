@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { Activity, type ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
@@ -627,6 +628,70 @@ describe("useBookingController", () => {
       expect(view().dialog).toBeDefined();
       expect(replace).toHaveBeenCalledWith("/");
     }, 15000);
+
+    it("route tersembunyi lalu tampil lagi setelah antri ulang: grant baru tidak dilepas dan tidak dilempar ke Beranda", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      replace.mockClear();
+      const ended = endSessionRoute();
+      let calls = 0;
+      const sessionBody = (expiresAt: string) =>
+        HttpResponse.json({
+          meta: { code: 200, message: "Success" },
+          data: {
+            event: { name: "Konser A" },
+            session: { expires_at: expiresAt, server_time: new Date().toISOString() },
+            categories: [{ id: "cat_vip", name: "VIP", description: "", price: 100_000, available: 5 }],
+            rules: { max_tickets_per_order: 3 },
+          },
+        });
+      const firstExpiry = new Date(Date.now() + 1200).toISOString();
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () => {
+          calls += 1;
+          if (calls === 1) return sessionBody(firstExpiry);
+          if (calls === 2)
+            return HttpResponse.json(
+              { meta: { code: 401, message: "Grant expired", error_code: "GRANT_TOKEN_INVALID" }, data: {} },
+              { status: 401 },
+            );
+          // Antri ulang: grant baru dengan jendela 5 menit yang baru.
+          return sessionBody(new Date(Date.now() + 300_000).toISOString());
+        }),
+      );
+      // Next menyembunyikan route yang ditinggalkan dan menampilkannya lagi tanpa memasang ulang (ADR-0007).
+      let mode: "visible" | "hidden" = "visible";
+      const container = setupTestContainer();
+      await admitToQueue(container);
+      const Base = createWrapper(container);
+      const Wrapper = ({ children }: { children: ReactNode }) => (
+        <Base>
+          <Activity mode={mode}>{children}</Activity>
+        </Base>
+      );
+      const hook = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: Wrapper });
+      await waitFor(() => expect(hook.result.current.kind).toBe("ready"));
+      const view = () => {
+        const screen = hook.result.current;
+        if (screen.kind !== "ready") throw new Error("belum siap");
+        return screen.view;
+      };
+      await waitFor(() => expect(view().dialog?.title).toBe("Waktu booking habis"), { timeout: 6000 });
+      await waitFor(() => expect(ended).toHaveBeenCalledTimes(1));
+      await tick(5000);
+      expect(replace).toHaveBeenCalledWith("/");
+
+      mode = "hidden";
+      hook.rerender();
+      replace.mockClear();
+      mode = "visible";
+      hook.rerender();
+
+      await waitFor(() => expect(calls).toBeGreaterThanOrEqual(3));
+      await waitFor(() => expect(hook.result.current.kind === "ready" && !view().dialog).toBe(true));
+      await tick(1000);
+      expect(ended).toHaveBeenCalledTimes(1);
+      expect(replace).not.toHaveBeenCalled();
+    }, 20000);
   });
 
   describe("customer masuk", () => {
