@@ -285,15 +285,22 @@ export function useBookingController(eventId: string): BookingScreen {
     onSuccess: () => router.replace(queuePath),
   });
   const { mutate: requeueNow } = requeue;
-  // Tanpa formulir (grant ditolak sejak awal): mode dari konfigurasi. Bila melepas grant gagal, jangan mengulang
-  // otomatis (cookie masih ada, jadi tidak akan sampai); layar kedaluwarsa dengan tombol yang menggantikannya.
-  const redirectToQueue =
-    isExpired && !timedOutWithForm && appConfig.bookingExpiry === "queue" && !requeue.isError;
+  // Tanpa formulir (grant ditolak sejak awal): sesi yang berakhir kembali ke Beranda, sama seperti waktu habis dengan
+  // formulir terbuka. Mengirim customer langsung ke Waiting Room memutar gelung: server masih menjawab grant lama
+  // lewat /queue/me, grant dipulihkan, /tickets menjawab 401, lalu habis lagi. Bila melepas grant gagal, jangan
+  // mengulang otomatis (cookie masih ada); layar kedaluwarsa dengan tombol yang menggantikannya.
+  const leaveExpired = useMutation({
+    mutationFn: endSessionUseCase,
+    onSuccess: () => router.replace("/"),
+  });
+  const { mutate: leaveExpiredNow } = leaveExpired;
+  const redirectHome =
+    isExpired && !timedOutWithForm && appConfig.bookingExpiry === "queue" && !leaveExpired.isError;
   // Kedua efek di bawah memakai `useOnceWhileActive`: route ini disembunyikan Next saat ditinggalkan dan efeknya
   // berjalan ulang ketika tampil lagi (ADR-0007). Setelah antri ulang, tanpa penjaga itu efek ini melepas grant BARU
   // dan memantulkan customer lagi (Beranda / Waiting Room): gelung "habis → antri → habis".
-  const requeueOnce = useCallback(() => requeueNow(), [requeueNow]);
-  useOnceWhileActive(redirectToQueue, requeueOnce);
+  const leaveExpiredOnce = useCallback(() => leaveExpiredNow(), [leaveExpiredNow]);
+  useOnceWhileActive(redirectHome, leaveExpiredOnce);
 
   // Waktu habis dengan formulir terbuka: lepas grant yang sudah kedaluwarsa sekali. Tanpa ini cookie grant masih
   // ada dan `proxy.ts` memantulkan Waiting Room kembali ke /book. Gagal melepas diabaikan; pindah ke Beranda jalan terus.
@@ -306,7 +313,7 @@ export function useBookingController(eventId: string): BookingScreen {
     BOOKING_TIMEOUT_REDIRECT_SECONDS,
   );
 
-  if (redirectToQueue) {
+  if (redirectHome) {
     return {
       kind: "status",
       view: {

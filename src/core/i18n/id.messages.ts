@@ -513,7 +513,7 @@ export const id = {
   "booking.timeout.redirect": "Kamu akan diarahkan ke beranda dalam {seconds} detik.",
   "booking.expired.title": "Sesi booking berakhir",
   "booking.expired.cta": "Antre lagi",
-  "booking.expired.redirecting": "Waktu booking habis. Mengembalikanmu ke ruang tunggu…",
+  "booking.expired.redirecting": "Waktu booking habis. Mengembalikanmu ke beranda…",
   "booking.error.title": "Sesi booking bermasalah",
   "booking.nik.perTicket": "Diisi per tiket",
   "booking.error.ACCESS_EXPIRED": "Waktu booking habis. Kamu perlu kembali ke ruang tunggu.",
