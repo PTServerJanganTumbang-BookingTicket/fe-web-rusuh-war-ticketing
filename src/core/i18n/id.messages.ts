@@ -456,7 +456,6 @@ export const id = {
   "booking.holder.nik.invalid": "NIK harus 16 digit angka.",
   "booking.holder.nik.duplicate": "NIK ini sudah dipakai untuk tiket lain di pesanan ini.",
   "booking.holder.nik.checking": "Memeriksa NIK ke Dukcapil…",
-  "booking.holder.nik.verify": "Verifikasi Dukcapil",
   "booking.holder.nik.valid": "NIK terverifikasi",
   "booking.holder.nik.not_found": "NIK tidak ditemukan di Dukcapil.",
   "booking.holder.nik.inactive": "NIK tidak aktif di Dukcapil.",
@@ -476,7 +475,7 @@ export const id = {
   "booking.summary.footnote": "{count} tiket · Maksimal {max} tiket per pesanan",
   "booking.submitting": "Membuat pesanan…",
   "booking.notice":
-    "Tiket belum menjadi milikmu sampai pembayaran berhasil. Sesi booking berakhir otomatis jika idle.",
+    "Tiket belum menjadi milikmu sampai pembayaran berhasil. Sesi booking berakhir otomatis jika waktu habis.",
   "booking.error.BOOKING_REJECTED": "NIK sudah dipakai atau stok berubah. Periksa lagi pilihanmu.",
   "booking.error.BOOKING_INVALID": "Pesanan ditolak. Periksa lagi NIK dan email.",
   "booking.error.UNAUTHENTICATED": "Sesi akunmu berakhir. Masuk lagi, lalu lanjutkan pesananmu.",

@@ -47,9 +47,6 @@ export type HolderSourceProps = {
   onChange: (value: string) => void;
 };
 
-/** Tombol "Verifikasi Dukcapil" di samping isian NIK manual, hanya untuk customer yang masuk. */
-export type HolderVerifyProps = { label: string; busy: boolean; disabled: boolean; onClick: () => void };
-
 export type TicketHolderProps = {
   id: string;
   /** Hanya ada pada tiket pertama tiap kategori: kategori yang sama dikelompokkan, bukan diulang per tiket. */
@@ -57,7 +54,6 @@ export type TicketHolderProps = {
   nik: TextFieldProps;
   /** Pilihan pemegang (NIK pemesan, alias, atau NIK lain); selalu ada untuk customer yang masuk. */
   holder?: HolderSourceProps;
-  verify?: HolderVerifyProps;
 };
 
 /** Tiket berurutan sekategori jadi satu kelompok; kelompok baru dimulai di tiket yang punya `heading`. */
@@ -281,26 +277,6 @@ export function BookingView(props: BookingViewProps) {
                               field={holder.nik}
                               inputMode="numeric"
                               autoComplete="off"
-                              action={
-                                holder.verify ? (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="lg"
-                                    className="w-full shrink-0 sm:w-auto"
-                                    disabled={holder.verify.disabled}
-                                    aria-busy={holder.verify.busy}
-                                    onClick={holder.verify.onClick}
-                                  >
-                                    {holder.verify.busy ? (
-                                      <Spinner data-icon="inline-start" />
-                                    ) : (
-                                      <IdCardIcon data-icon="inline-start" />
-                                    )}
-                                    {holder.verify.label}
-                                  </Button>
-                                ) : null
-                              }
                             />
                           </li>
                         ))}
