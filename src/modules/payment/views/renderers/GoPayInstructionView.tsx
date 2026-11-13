@@ -13,21 +13,18 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { FakeQr } from "../FakeQr";
 
 /* ========================================================================== */
 /*                                   Types                                    */
 /* ========================================================================== */
 
 export type GoPayInstructionViewProps = {
-  /** Seed untuk generate fake QR code */
-  readonly seed: string;
+  /** URL gambar QR code dari payment gateway (Midtrans) */
+  readonly qrUrl: string;
   /** Label aksesibilitas untuk QR code */
   readonly qrLabel: string;
   /** Petunjuk scan QR */
   readonly hint: string;
-  /** Catatan bahwa QR bukan asli (untuk demo) */
-  readonly fakeNote: string;
   /** Label tombol buka aplikasi GoPay */
   readonly openAppLabel: string;
   /** URL deeplink GoPay (gojek.link atau gopay://) */
@@ -54,7 +51,7 @@ export type GoPayInstructionViewProps = {
  * harus dibuka di luar WebView.
  */
 export const GoPayInstructionView = (props: GoPayInstructionViewProps) => {
-  const { seed, qrLabel, hint, fakeNote, openAppLabel, openAppHref, isEmbedded, onGoPayDeeplink } = props;
+  const { qrUrl, qrLabel, hint, openAppLabel, openAppHref, isEmbedded, onGoPayDeeplink } = props;
 
   /**
    * Handle click pada tombol buka aplikasi GoPay.
@@ -74,9 +71,9 @@ export const GoPayInstructionView = (props: GoPayInstructionViewProps) => {
 
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl bg-signal-disable p-4 text-center sm:p-5">
-      <FakeQr seed={seed} label={qrLabel} />
+      {/* eslint-disable-next-line @next/next/no-img-element -- QR dari payment gateway, bukan aset statis */}
+      <img src={qrUrl} alt={qrLabel} width={192} height={192} className="rounded-lg" />
       <p className="type-body2 text-muted-foreground">{hint}</p>
-      <p className="type-body2 text-muted-foreground">{fakeNote}</p>
       <Button variant="outline" className="sm:hidden" onClick={handleOpenApp}>
         {openAppLabel}
       </Button>

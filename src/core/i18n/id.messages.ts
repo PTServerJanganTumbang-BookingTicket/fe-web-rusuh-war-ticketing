@@ -605,9 +605,8 @@ export const id = {
   "payment.va.instruction": "Transfer ke nomor Virtual Account di atas sebelum waktu habis.",
   "payment.va.bankName": "Bank {bank}",
   // GoPay QR instructions (Req 6.3)
-  "payment.qr.label": "QR pembayaran contoh",
+  "payment.qr.label": "QR pembayaran GoPay",
   "payment.qr.hint": "Scan QR dengan aplikasi e-wallet kamu.",
-  "payment.qr.fake": "QR contoh untuk simulasi, tidak bisa dipindai.",
   "payment.qr.instruction": "Scan QR code di atas dengan aplikasi GoPay atau e-wallet lainnya.",
   // Legacy transfer (for fallback)
   "payment.transfer.bank": "Bank {bank}",
