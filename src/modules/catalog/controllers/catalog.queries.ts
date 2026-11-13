@@ -5,7 +5,7 @@ import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
 import type { GetEventUseCase } from "../application/get-event.use-case";
 import type { ListEventsUseCase } from "../application/list-events.use-case";
-import { CATALOG_REFRESH_INTERVAL_MS } from "../domain/catalog.constants";
+import { CATALOG_REFRESH_INTERVAL_MS, CATALOG_STALE_TIME_MS } from "../domain/catalog.constants";
 
 export const catalogKeys = {
   events: () => ["catalog", "events"] as const,
@@ -21,19 +21,20 @@ export function isEventNotFound(error: AppError): boolean {
 }
 
 /**
- * Query options untuk daftar event dengan polling 5s.
- * Req 1.4: data harus ter-refresh dalam waktu tidak lebih dari 5 detik.
+ * Query options untuk daftar event dengan polling 10s (Req 1.4 dilonggarkan dari 5s).
  * Menggunakan jitter untuk mencegah thundering herd (ADR-0004).
  */
 export function eventsQueryOptions(deps: { listEventsUseCase: ListEventsUseCase; random: RandomProtocol }) {
   return queryOptions({
     queryKey: catalogKeys.events(),
     queryFn: () => deps.listEventsUseCase(),
-    // Req 1.4: refresh dalam 5 detik; jitter ±20% untuk mencegah sinkronisasi polling
+    // Jitter ±20% untuk mencegah sinkronisasi polling; tidak berjalan selama tab tersembunyi.
     refetchInterval: (query) =>
       pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
-    // Data stale setelah 1 detik untuk memicu refetch saat focus
-    staleTime: 1_000,
+    refetchIntervalInBackground: false,
+    // Kembali ke tab menyegarkan data yang sudah lewat staleTime, jadi tidak perlu menunggu tik polling berikutnya.
+    refetchOnWindowFocus: true,
+    staleTime: CATALOG_STALE_TIME_MS,
   });
 }
 
@@ -50,7 +51,9 @@ export function eventDetailQueryOptions(
     queryFn: () => deps.getEventUseCase(eventId),
     refetchInterval: (query) =>
       pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
-    staleTime: 1_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: CATALOG_STALE_TIME_MS,
     // Event yang tidak ada tidak akan muncul bila diulang; galat sementara mengikuti aturan bersama.
     retry: (failureCount, error) =>
       !isEventNotFound(toAppError(error)) && shouldRetryQuery(failureCount, error),

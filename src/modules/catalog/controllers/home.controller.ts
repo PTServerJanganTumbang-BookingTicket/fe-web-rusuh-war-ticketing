@@ -2,7 +2,7 @@
 
 /**
  * Home Controller — client-side hook untuk polling daftar event.
- * Requirement: 1.4 (refresh ≤5s), 2.1 (redirect ke queue), 2.2 (redirect ke book).
+ * Requirement: 1.4 (refresh 10s, dilonggarkan dari 5s), 2.1 (redirect ke queue), 2.2 (redirect ke book).
  * ADR-0004 (TanStack Query), ADR-0007 (rendering strategy).
  *
  * Catatan arsitektur:
@@ -15,6 +15,7 @@
  * - Real-time status updates sesuai Req 1.4
  */
 
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
@@ -59,12 +60,19 @@ export function useHomeController(): HomeControllerState {
   const { listEventsUseCase, random } = useDependencies<CatalogDependencies & CoreDependencies>();
 
   const eventsQuery = useQuery(eventsQueryOptions({ listEventsUseCase, random }));
+  // Hanya refetch manual (tombol coba lagi) yang terlihat; polling latar tidak merender ulang layar tiap siklus.
+  const [retrying, setRetrying] = useState(false);
+  const { refetch: refetchEvents } = eventsQuery;
+  const refetch = useCallback(() => {
+    setRetrying(true);
+    void refetchEvents().finally(() => setRetrying(false));
+  }, [refetchEvents]);
 
   return {
     events: eventsQuery.data ?? [],
     isLoading: eventsQuery.isLoading,
     error: eventsQuery.error ? toAppError(eventsQuery.error) : null,
-    isRefetching: eventsQuery.isRefetching,
-    refetch: () => void eventsQuery.refetch(),
+    isRefetching: retrying,
+    refetch,
   };
 }
