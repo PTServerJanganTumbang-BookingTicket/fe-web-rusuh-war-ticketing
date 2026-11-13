@@ -1,3 +1,5 @@
+import type { CaptchaConfig } from "@/core/domain/captcha.protocol";
+
 /**
  * Event status — ketersediaan stok tiket (Req 1.7).
  * Nilai dikirim server dalam SCREAMING_SNAKE_CASE sesuai API v2.1.
@@ -76,4 +78,6 @@ export type EventDetail = Event & {
   time?: string;
   description?: string;
   ticketCategories: TicketCategory[];
+  /** CAPTCHA Waiting Room untuk event ini; dipakai menyiapkan token sebelum pembeli masuk antrian. */
+  captcha?: CaptchaConfig;
 };

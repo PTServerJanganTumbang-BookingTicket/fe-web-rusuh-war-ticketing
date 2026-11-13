@@ -15,7 +15,7 @@
  * - Real-time status updates sesuai Req 1.4
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
@@ -57,7 +57,7 @@ export type HomeControllerState = {
  * ```
  */
 export function useHomeController(): HomeControllerState {
-  const { listEventsUseCase, random } = useDependencies<CatalogDependencies & CoreDependencies>();
+  const { listEventsUseCase, random, captcha } = useDependencies<CatalogDependencies & CoreDependencies>();
 
   // Opsi dimemoisasi supaya jitter polling tetap sama antar render (lihat `eventsQueryOptions`).
   const options = useMemo(
@@ -65,6 +65,13 @@ export function useHomeController(): HomeControllerState {
     [listEventsUseCase, random],
   );
   const eventsQuery = useQuery(options);
+  // Kartu bisa langsung membuka antrian: muat skrip CAPTCHA lebih awal bila ada event yang bisa diantri.
+  const canJoinQueue = eventsQuery.data?.some(
+    (event) => event.display.enabled && event.display.action === "queue",
+  );
+  useEffect(() => {
+    if (canJoinQueue) captcha.warm();
+  }, [canJoinQueue, captcha]);
   // Hanya refetch manual (tombol coba lagi) yang terlihat; polling latar tidak merender ulang layar tiap siklus.
   const [retrying, setRetrying] = useState(false);
   const { refetch: refetchEvents } = eventsQuery;

@@ -69,7 +69,7 @@ export function createHttpQueueService({
   async function joinServer(eventId: string): Promise<QueueState> {
     // Token CAPTCHA diambil lebih dulu: join menolak tanpa token (400), dan nomor antrian dibagikan saat join.
     const event = await httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueJoinEventSchema);
-    const captchaToken = await captcha.solve(event.captcha);
+    const captchaToken = await captcha.solve(event.captcha, eventId);
     const staleToken = tokenInHeader ? credentialStore.queueToken(eventId) : null;
     const options = {
       // `meta.error_code` lebih halus daripada status: 409 bisa SALE_NOT_OPEN, FULL_BOOKED, atau SOLD_OUT (§3.1).
@@ -105,7 +105,7 @@ export function createHttpQueueService({
       // percobaan pertama, jadi token baru diminta lagi.
       if (!(staleToken && failure.kind === "api" && failure.code === "QUEUE_TOKEN_INVALID")) throw error;
       forget(eventId);
-      const freshCaptcha = await captcha.solve(event.captcha);
+      const freshCaptcha = await captcha.solve(event.captcha, eventId);
       joined = await identityClient.post(path, { captcha_token: freshCaptcha }, queueJoinSchema, {
         headers: queueHeaders(eventId),
         ...options,
