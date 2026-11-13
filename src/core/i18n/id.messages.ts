@@ -473,6 +473,7 @@ export const id = {
   "booking.holder.nik.used": "NIK ini sudah dipakai untuk event ini.",
   "booking.holder.nik.error": "NIK belum bisa dicek. Coba lagi sebentar.",
   "booking.holder.nik.saved": "NIK ini sudah terverifikasi di profilmu.",
+  "booking.holder.nik.unverified": "Verifikasi NIK ini ke Dukcapil dulu sebelum lanjut.",
   "booking.holder.source.label": "Pemegang tiket {number}",
   "booking.holder.source.manual": "NIK lain (isi manual)",
   "booking.holder.source.alias": "{label} · {nik}",

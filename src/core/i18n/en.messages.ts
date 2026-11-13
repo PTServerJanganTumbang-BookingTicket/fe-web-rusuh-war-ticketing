@@ -130,6 +130,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.holder.nik.used": "This NIK has already been used for this event.",
   "booking.holder.nik.error": "We couldn't check this NIK yet. Try again shortly.",
   "booking.holder.nik.saved": "This NIK is already verified in your profile.",
+  "booking.holder.nik.unverified": "Verify this NIK with Dukcapil before continuing.",
   "booking.holder.source.label": "Ticket holder {number}",
   "booking.holder.source.manual": "Another NIK (enter manually)",
   "booking.holder.source.alias": "{label} · {nik}",

@@ -667,3 +667,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Booking berhasil sebagai tamu tetapi gagal saat login: `GET /bookings/{id}` dan `/payments/*` dipanggil langsung ke API tanpa `Authorization: Bearer`, padahal grant milik akun login mewajibkannya (kontrak v2.20). Token akun ada di cookie httpOnly.
 - **Output**: `createHttpOrderService` memakai `bffHttpClient` dengan awalan `/account` saat `viaAccountGateway`, seperti booking dan antrian; WebView (payment session) tetap langsung. Gateway mengizinkan `GET bookings/{id}`, `POST payments/{id}`, `GET payments/{id}/methods|status`, `POST payments/{id}/retry` sebagai route `guestAllowed` (Bearer dari cookie bila ada, header grant diteruskan). `GET /events/{id}` tetap langsung (publik).
 - **Review manusia**: Menunggu review. tsc dan 908 test Vitest (coverage) lulus; test gateway memeriksa Bearer dan grant sampai ke BE untuk kelima endpoint. Belum diuji terhadap backend asli dengan akun login; mode mock browser memang melewati gateway.
+
+## 2026-11-14 — Submit booking menunggu NIK lolos cek Dukcapil
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Tombol "Lanjut ke Pembayaran" sudah aktif begitu semua NIK yang diketik berisi 16 digit, walau belum pernah dicek ke Dukcapil (atau ceknya gagal/masih berjalan).
+- **Output**: `isBookingFormValid` kini mensyaratkan hasil cek `valid` untuk NIK yang sama di tiap slot berisian manual; belum dicek, sedang dicek, gagal dicek, hasil untuk NIK lama, atau ditolak memblokir submit. Pemegang dari profil tetap tanpa cek (kontrak §4.3). `nikError` menampilkan "Verifikasi NIK ini ke Dukcapil dulu sebelum lanjut." (`booking.holder.nik.unverified`, id/en) setelah field disentuh bila NIK berformat benar belum dicek. Test controller, mapper, dan property preservation diperbarui; property umum tidak lagi melewati kasus tidak valid diam-diam.
+- **Review manusia**: Menunggu review. tsc, eslint, prettier, dan 917 test Vitest lulus. Belum dilihat di browser (dev server sesi lain memegang folder ini); e2e belum dijalankan, tetapi alurnya sudah menunggu "NIK terverifikasi" sebelum submit.
