@@ -208,22 +208,38 @@ export function useBookingController(eventId: string): BookingScreen {
   // Formulir sudah tampil: waktu habis diberitahukan lewat modal di atasnya, bukan layar pengganti. Hanya setelah
   // server menjawab ACCESS_EXPIRED (ADR-0005).
   const serverAnsweredAtZero = remainingMs === 0 && expiryAnsweredFor === expiresAt;
-  // Akses habis: isian dan pilihan tiket dibuang. Route yang disembunyikan Next tetap memegang state ini, jadi tanpa
-  // reset masuk ulang menampilkan tiket yang masih terpilih.
+  // Isian dan pilihan tiket dibuang saat akses habis, dan saat sesi booking berganti (`expiresAt` baru = grant baru
+  // setelah antri ulang). Route yang disembunyikan Next tetap memegang state ini (ADR-0007), dan kepergian customer
+  // tidak selalu lewat jalur "akses habis" (keluar sebelum server menjawab, kembali dari Payment, Back dari antrian),
+  // jadi tanpa reset masuk ulang menampilkan tiket dan NIK sesi sebelumnya.
   const accessLost = isExpired || (remainingMs === 0 && expiryAnsweredFor === expiresAt);
   const [wasAccessLost, setWasAccessLost] = useState(false);
+  const [formSessionExpiresAt, setFormSessionExpiresAt] = useState<string>();
+  const sessionChanged =
+    Boolean(expiresAt) && formSessionExpiresAt !== undefined && expiresAt !== formSessionExpiresAt;
+  const resetForm = () => {
+    dispatch({ type: "RESET" });
+    setContactEmail("");
+    setNiks({});
+    setAliasPicks({});
+    setChecks({});
+    setTouched(new Set());
+    setSubmitted(false);
+    setFocusNik(null);
+    nikModal.close();
+  };
+  if (expiresAt && expiresAt !== formSessionExpiresAt) setFormSessionExpiresAt(expiresAt);
   if (accessLost !== wasAccessLost) {
     setWasAccessLost(accessLost);
-    if (accessLost) {
-      dispatch({ type: "RESET" });
-      setContactEmail("");
-      setNiks({});
-      setAliasPicks({});
-      setChecks({});
-      setTouched(new Set());
-      setSubmitted(false);
-    }
+    if (accessLost) resetForm();
   }
+  if (sessionChanged) resetForm();
+  // Galat kiriman terakhir ikut dibuang: tanpa ini banner "Pesanan ditolak" lama muncul di sesi berikutnya.
+  const { reset: resetSubmit } = submit;
+  const formEpoch = `${accessLost}:${formSessionExpiresAt ?? ""}`;
+  useEffect(() => {
+    resetSubmit();
+  }, [formEpoch, resetSubmit]);
   const timedOutWithForm = (isExpired || serverAnsweredAtZero) && Boolean(session) && remainingMs !== null;
   // Grant yang habis dilepas dulu (cookie dihapus): selama cookie ada, `proxy.ts` memantulkan Waiting Room ke /book.
   const requeue = useMutation({
