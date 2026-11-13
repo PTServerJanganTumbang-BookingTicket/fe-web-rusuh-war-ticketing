@@ -589,6 +589,34 @@ describe("queueService", () => {
       expect(before.status).toBe("waiting");
     });
 
+    it.each(["DEVICE_MISMATCH", "UNAUTHORIZED"])(
+      "join ditolak %s karena token antrian lama: token dibuang lalu join ulang tanpa token mendapat tempat baru",
+      async (errorCode) => {
+        const requests = seen();
+        const { queueService, credentialStore } = headerMode();
+        credentialStore.saveQueueToken(OPEN_EVENT_ID, "qt_lama");
+        server.use(
+          http.post(
+            `${MOCK_API_BASE_URL}/events/:id/queue/join`,
+            () =>
+              HttpResponse.json(
+                { meta: { code: 401, message: "ditolak", error_code: errorCode }, data: {} },
+                { status: 401 },
+              ),
+            { once: true },
+          ),
+        );
+
+        expect(await queueService.join(OPEN_EVENT_ID)).toMatchObject({ status: "waiting" });
+
+        const joins = requests.filter((request) => request.path.endsWith("/queue/join"));
+        // `seen()` mencatat tiap permintaan dua kali (start dan match); urutan token tanpa pengulangan berurutan.
+        const tokens = joins.map((request) => request.token).filter((token, i, all) => token !== all[i - 1]);
+        expect(tokens).toEqual(["qt_lama", null]);
+        expect(credentialStore.queueToken(OPEN_EVENT_ID)).toMatch(/^qt_(?!lama)/);
+      },
+    );
+
     it("401 dari /queue/me membuang token dan tiket; keluar dari antrian juga", async () => {
       const { queueService, credentialStore } = headerMode();
       await queueService.join(OPEN_EVENT_ID);

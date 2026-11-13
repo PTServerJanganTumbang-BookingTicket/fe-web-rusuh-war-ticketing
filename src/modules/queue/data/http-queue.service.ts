@@ -70,29 +70,47 @@ export function createHttpQueueService({
     // Token CAPTCHA diambil lebih dulu: join menolak tanpa token (400), dan nomor antrian dibagikan saat join.
     const event = await httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueJoinEventSchema);
     const captchaToken = await captcha.solve(event.captcha);
-    const joined = await identityClient.post(
-      identityPath(`${queuePath(eventId)}/join`),
-      { captcha_token: captchaToken },
-      queueJoinSchema,
-      {
-        headers: queueHeaders(eventId),
-        // `meta.error_code` lebih halus daripada status: 409 bisa SALE_NOT_OPEN, FULL_BOOKED, atau SOLD_OUT (§3.1).
-        serverErrorCodes: {
-          QUEUE_FULL: "QUEUE_FULL",
-          FULL_BOOKED: "FULL_BOOKED",
-          SALE_NOT_OPEN: "SALE_NOT_OPEN",
-          SOLD_OUT: "SALE_CLOSED",
-        },
-        errorCodes: {
-          400: "CAPTCHA_FAILED",
-          403: "CAPTCHA_FAILED",
-          409: "SALE_NOT_OPEN",
-          410: "SALE_CLOSED",
-          429: "RATE_LIMITED",
-          503: "QUEUE_FULL",
-        },
+    const staleToken = tokenInHeader ? credentialStore.queueToken(eventId) : null;
+    const options = {
+      // `meta.error_code` lebih halus daripada status: 409 bisa SALE_NOT_OPEN, FULL_BOOKED, atau SOLD_OUT (§3.1).
+      serverErrorCodes: {
+        QUEUE_FULL: "QUEUE_FULL",
+        FULL_BOOKED: "FULL_BOOKED",
+        SALE_NOT_OPEN: "SALE_NOT_OPEN",
+        SOLD_OUT: "SALE_CLOSED",
+        // Token antrian milik perangkat atau akun lain (§3.1, v2.9): bukan kegagalan sesi akun.
+        DEVICE_MISMATCH: "QUEUE_TOKEN_INVALID",
+        UNAUTHORIZED: "QUEUE_TOKEN_INVALID",
       },
-    );
+      errorCodes: {
+        400: "CAPTCHA_FAILED",
+        403: "CAPTCHA_FAILED",
+        409: "SALE_NOT_OPEN",
+        410: "SALE_CLOSED",
+        429: "RATE_LIMITED",
+        503: "QUEUE_FULL",
+      },
+    } as const;
+    const path = identityPath(`${queuePath(eventId)}/join`);
+    let joined;
+    try {
+      joined = await identityClient.post(path, { captcha_token: captchaToken }, queueJoinSchema, {
+        headers: queueHeaders(eventId),
+        ...options,
+      });
+    } catch (error) {
+      const failure = toAppError(error);
+      // Token antrian lama ditolak (kontrak §3.1, v2.9): buang, lalu join ulang tanpa token supaya mendapat tempat baru.
+      // Tanpa ini setiap join berikutnya mengirim token yang sama dan selalu dijawab 401. CAPTCHA sudah terpakai oleh
+      // percobaan pertama, jadi token baru diminta lagi.
+      if (!(staleToken && failure.kind === "api" && failure.code === "QUEUE_TOKEN_INVALID")) throw error;
+      forget(eventId);
+      const freshCaptcha = await captcha.solve(event.captcha);
+      joined = await identityClient.post(path, { captcha_token: freshCaptcha }, queueJoinSchema, {
+        headers: queueHeaders(eventId),
+        ...options,
+      });
+    }
     if (tokenInHeader && joined.queueToken) credentialStore.saveQueueToken(eventId, joined.queueToken);
     // Laju belum diketahui di join; stream dan `/queue/serving` yang mengisinya.
     const ticket: QueueTicket = {
