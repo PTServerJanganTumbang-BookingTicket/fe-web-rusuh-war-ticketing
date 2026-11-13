@@ -15,8 +15,10 @@
  * (kontrak §5: itu 400 VALIDATION_ERROR).
  */
 
+import { viaAccountGateway } from "@/core/data/credentials/account-gateway-mode.utils";
 import { grantHeaders } from "@/core/data/credentials/grant-headers.utils";
 import type { HttpClient, RequestOptions } from "@/core/data/http/http.client";
+import type { AppConfig } from "@/core/domain/app-config.model";
 import { toAppError, type ApiErrorCode } from "@/core/domain/app-error";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { OrderProtocol } from "../domain/order.protocol";
@@ -45,7 +47,10 @@ import {
 /* ========================================================================== */
 
 type HttpOrderServiceDependencies = {
+  readonly appConfig: AppConfig;
   readonly httpClient: HttpClient;
+  /** Route same-origin `/api/account/*`: menambahkan `Authorization: Bearer` dari cookie akun (ADR-0023). */
+  readonly bffHttpClient: HttpClient;
   readonly credentialStore: CredentialStoreProtocol;
   readonly paymentSessionService: PaymentSessionProtocol;
 };
@@ -68,10 +73,13 @@ const PAYMENT_ERROR_CODES: Readonly<Record<string, ApiErrorCode>> = {
  * jadi disimpan di client-side cache agar polling GET tidak menghapusnya.
  */
 export const createHttpOrderService = ({
+  appConfig,
   httpClient,
+  bffHttpClient,
   credentialStore,
   paymentSessionService,
 }: HttpOrderServiceDependencies): OrderProtocol => {
+  const viaServer = viaAccountGateway(appConfig);
   // Cache untuk menyimpan instruksi pembayaran aktif per booking
   const activePaymentsCache = new Map<string, InitiatedPayment>();
 
@@ -79,6 +87,16 @@ export const createHttpOrderService = ({
    * Membuat request options. Payment session (WebView) menggantikan grant, bukan menambah: kontrak menolak
    * keduanya sekaligus.
    */
+  /**
+   * Grant milik akun login wajib disertai `Authorization: Bearer` (kontrak v2.20, §4 dan §5). Token akun ada di
+   * cookie httpOnly, jadi panggilan lewat route same-origin seperti booking dan antrian; tamu diteruskan apa adanya.
+   * WebView (payment session) tetap langsung: tidak ada cookie akun di sana dan session menggantikan grant.
+   */
+  const client = (path: string): { http: HttpClient; path: string } =>
+    viaServer && !paymentSessionService.current()
+      ? { http: bffHttpClient, path: `/account${path}` }
+      : { http: httpClient, path };
+
   const createRequestOptions = (): RequestOptions => {
     const session = paymentSessionService.current();
     return { headers: session ? { "x-payment-session": session } : grantHeaders(credentialStore) };
@@ -102,8 +120,8 @@ export const createHttpOrderService = ({
    * GET /payments/{id}/status - Polling status pembayaran.
    */
   const getPaymentStatus = (bookingId: string): Promise<PaymentStatusResult> => {
-    const statusPath = `${createPaymentPath(bookingId)}/status`;
-    return httpClient.get(statusPath, paymentStatusResultSchema, createRequestOptions());
+    const target = client(`${createPaymentPath(bookingId)}/status`);
+    return target.http.get(target.path, paymentStatusResultSchema, createRequestOptions());
   };
 
   /**
@@ -111,8 +129,8 @@ export const createHttpOrderService = ({
    * Jika status masih PENDING_PAYMENT, juga ambil payment status.
    */
   const getOrder = async (bookingId: string): Promise<Order> => {
-    const bookingPath = `/bookings/${encodeURIComponent(bookingId)}`;
-    const booking = await httpClient.get(bookingPath, bookingSchema, createRequestOptions());
+    const target = client(`/bookings/${encodeURIComponent(bookingId)}`);
+    const booking = await target.http.get(target.path, bookingSchema, createRequestOptions());
 
     // Booking sudah final atau belum sampai bayar: tidak ada charge hidup, instruksi lama tidak berlaku lagi
     if (booking.status !== "PENDING_PAYMENT") {
@@ -135,11 +153,11 @@ export const createHttpOrderService = ({
    * POST /payments/{id} - Inisiasi pembayaran dengan metode yang dipilih.
    */
   const charge = async (bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order> => {
-    const paymentPath = createPaymentPath(bookingId);
+    const target = client(createPaymentPath(bookingId));
     const requestBody = bank != null ? { method, bank } : { method };
 
-    const paymentResult = await httpClient.post(
-      paymentPath,
+    const paymentResult = await target.http.post(
+      target.path,
       requestBody,
       initiatedPaymentSchema,
       createPostOptions(),
@@ -156,8 +174,8 @@ export const createHttpOrderService = ({
    * GET /payments/{id}/methods - Ambil metode pembayaran yang tersedia.
    */
   const getAvailableMethods = (bookingId: string): Promise<AvailableMethod[]> => {
-    const methodsPath = `${createPaymentPath(bookingId)}/methods`;
-    return httpClient.get(methodsPath, availableMethodsSchema, createRequestOptions());
+    const target = client(`${createPaymentPath(bookingId)}/methods`);
+    return target.http.get(target.path, availableMethodsSchema, createRequestOptions());
   };
 
   /**
@@ -175,10 +193,10 @@ export const createHttpOrderService = ({
    * lalu metode baru dimulai dengan TTL yang sama (tidak di-reset).
    */
   const retryPayment = async (bookingId: string, method: PaymentMethod, bank?: BankCode): Promise<Order> => {
-    const retryPath = `${createPaymentPath(bookingId)}/retry`;
+    const target = client(`${createPaymentPath(bookingId)}/retry`);
 
     // Cancel pembayaran yang sedang berjalan
-    await httpClient.post(retryPath, {}, retriedPaymentSchema, createPostOptions());
+    await target.http.post(target.path, {}, retriedPaymentSchema, createPostOptions());
 
     // Hapus instruksi lama dari cache
     activePaymentsCache.delete(bookingId);
