@@ -5,6 +5,7 @@ import {
   canRetryPayment,
   hasTimeForRetry,
   isAwaitingConfirmation,
+  isAwaitingTickets,
   isFinalOrder,
 } from "../order.rules";
 
@@ -55,5 +56,22 @@ describe("order.rules", () => {
     expect(isAwaitingConfirmation(orderWith("PENDING_CANCELLATION"))).toBe(true);
     expect(isAwaitingConfirmation(orderWith("PENDING_PAYMENT"))).toBe(false);
     expect(isAwaitingConfirmation(orderWith("PAID"))).toBe(false);
+  });
+
+  it("isAwaitingTickets: PAID dengan kursi tanpa ticketId masih menunggu penerbitan (kontrak §4.4)", () => {
+    const seat = { category: "VIP", priceIdr: 1, nikMasked: "3171****22" };
+    const paid = (items: Order["items"]): Order => ({ ...orderWith("PAID"), items });
+    expect(isAwaitingTickets(paid([seat]))).toBe(true);
+    expect(
+      isAwaitingTickets(
+        paid([{ ...seat, ticketId: "TKT-1", eticketUrl: "/tickets/TKT-1/eticket?t=x" }, seat]),
+      ),
+    ).toBe(true);
+    expect(
+      isAwaitingTickets(paid([{ ...seat, ticketId: "TKT-1", eticketUrl: "/tickets/TKT-1/eticket?t=x" }])),
+    ).toBe(false);
+    // Dicabut: ticketId tanpa eticketUrl sudah final, bukan menunggu.
+    expect(isAwaitingTickets(paid([{ ...seat, ticketId: "TKT-1" }]))).toBe(false);
+    expect(isAwaitingTickets({ ...orderWith("AWAITING_PAYMENT"), items: [seat] })).toBe(false);
   });
 });

@@ -114,6 +114,8 @@ export const bookingSchema = z
         category: z.string(),
         price: z.number(),
         nik_masked: z.string(),
+        ticket_id: z.string().optional(),
+        eticket_url: z.string().optional(),
       }),
     ),
     summary: z.object({
@@ -130,6 +132,8 @@ export const bookingSchema = z
       category: ticket.category,
       priceIdr: ticket.price,
       nikMasked: ticket.nik_masked,
+      ...(ticket.ticket_id ? { ticketId: ticket.ticket_id } : {}),
+      ...(ticket.eticket_url ? { eticketUrl: ticket.eticket_url } : {}),
     }));
 
     // Default TTL untuk booking yang sudah dibayar (tidak ada countdown)

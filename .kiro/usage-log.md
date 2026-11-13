@@ -651,3 +651,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Lambat atau gagalnya Turnstile tidak lagi terbaca sebagai masalah antrean.
 - **Output**: `CaptchaProtocol` punya `status()` (`idle`/`checking`/`interactive`) dan `subscribe`; hanya `solve` yang dihitung. Waiting Room menampilkan state `checking` (badge "Pemeriksaan keamanan", ikon perisai, subtitle "Satu langkah lagi sebelum kamu masuk antrean."). `CAPTCHA_FAILED` memakai badge "Verifikasi gagal" dan tombol "Coba verifikasi lagi" (refetch join) alih-alih "Antrean berhenti" dan muat ulang. Tantangan interaktif Turnstile kini ditampilkan di tengah bawah layar dengan batas 2 menit (sebelumnya widget 0×0 tersembunyi selalu timeout); presolve di latar membatalkan tantangan dan `solve` mengulangnya.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 905 test Vitest lulus. State checking dilihat di browser (mode mock dengan jeda sementara yang sudah dikembalikan). Tantangan interaktif belum dicoba dengan Turnstile asli.
+
+## 2026-11-14 — E-tiket per kursi di halaman hasil pembayaran
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Setelah bayar, "Lihat E-Tiket" mengarah ke `/tickets` yang butuh akun, jadi tamu tidak bisa membuka e-tiketnya. `/orders/[id]/ticket` hanya redirect ke `/tickets` dengan TODO.
+- **Output**: Booking PAID membaca `tickets[].ticket_id` dan `eticket_url` (kontrak §4.4). Hasil PAID menampilkan satu baris per kursi dengan tautan ke `/tickets/{id}?t=...` (token dibawa, tanpa akun, NFR-10); kursi yang belum terbit tampil "Sedang diterbitkan…", dan order di-poll tiap 2 detik maksimal 30 detik (`TICKET_ISSUANCE_*`), setelah itu diarahkan ke email. "Tiket Saya" hanya untuk customer yang masuk; tamu mendapat "Jelajahi event lain". Breadcrumb e-tiket tanpa "Tiket Saya" untuk tamu. `/orders/[id]/ticket` redirect ke `/orders/[id]/pay`. Import `useMemo` tak terpakai di controller payment dihapus.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 907 test Vitest (coverage) lulus. Dicek di browser dengan mock (tamu, dua tiket VIP): tautan per kursi dan e-tiket lewat `?t=` tampil benar; redirect `/orders/[id]/ticket` jalan. Belum diuji terhadap backend asli, e2e belum dijalankan, tampilan bagi customer yang masuk belum dilihat di browser.

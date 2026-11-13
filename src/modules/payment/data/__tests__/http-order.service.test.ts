@@ -163,6 +163,38 @@ describe("orderService: payment session WebView (ADR-007)", () => {
   });
 });
 
+describe("orderService: tiket di booking PAID (kontrak §4.4)", () => {
+  it("ticket_id dan eticket_url dipetakan per kursi; kursi yang belum terbit tanpa keduanya", async () => {
+    const { service, responses } = setup();
+    responses.booking = {
+      ...booking("PAID"),
+      payment_ttl: undefined,
+      tickets: [
+        {
+          ticket_id: "TKT-001",
+          category: "VIP",
+          price: 1_500_000,
+          nik_masked: "3171**********22",
+          eticket_url: "/tickets/TKT-001/eticket?t=et_9f3a2c",
+        },
+        { category: "VIP", price: 1_500_000, nik_masked: "3171**********33" },
+      ],
+    };
+    const order = await service.getOrder(BOOKING);
+    expect(order.status).toBe("PAID");
+    expect(order.items).toEqual([
+      {
+        category: "VIP",
+        priceIdr: 1_500_000,
+        nikMasked: "3171**********22",
+        ticketId: "TKT-001",
+        eticketUrl: "/tickets/TKT-001/eticket?t=et_9f3a2c",
+      },
+      { category: "VIP", priceIdr: 1_500_000, nikMasked: "3171**********33" },
+    ]);
+  });
+});
+
 describe("orderService: status booking SELECTING dan PENDING_CANCELLATION", () => {
   it("SELECTING dipetakan apa adanya tanpa memanggil /status", async () => {
     const { service, responses, calls } = setup();

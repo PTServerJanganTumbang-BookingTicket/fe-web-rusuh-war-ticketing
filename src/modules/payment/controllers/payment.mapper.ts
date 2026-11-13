@@ -15,11 +15,17 @@ import type {
   AvailableMethod,
   BankCode,
   Order,
+  OrderItem,
   PaymentInstruction,
   PaymentMethod,
 } from "../domain/order.model";
 import type { PaymentEvent } from "../domain/payment-event.model";
-import type { PaymentInstructionView, PaymentStage, PaymentViewProps } from "../views/PaymentView";
+import type {
+  PaidTicketItem,
+  PaymentInstructionView,
+  PaymentStage,
+  PaymentViewProps,
+} from "../views/PaymentView";
 
 /* ========================================================================== */
 /*                                   Types                                    */
@@ -37,6 +43,8 @@ export type PaymentViewInput = {
   readonly remainingMs: number;
   readonly paying: boolean;
   readonly copied: boolean;
+  /** PAID tetapi tiket belum terbit dan batas tunggu belum lewat (kontrak §4.4). */
+  readonly issuingTickets?: boolean;
   readonly error?: string;
   readonly onSelectMethod: (method: PaymentMethod) => void;
   readonly onSelectBank: (bank: BankCode) => void;
@@ -140,26 +148,65 @@ const mapOrderStatus = (order: Order): PaymentViewProps["order"]["status"] => {
 /* ========================================================================== */
 
 /**
+ * Path e-tiket dari BE (`/tickets/{id}/eticket?t=...`) ke halaman e-tiket web (`/tickets/{id}?t=...`).
+ * Token `?t=` dibawa apa adanya: tamu membuka e-tiket tanpa akun dan tanpa menunggu email (NFR-10).
+ */
+export const toETicketHref = (ticketId: string, eticketUrl: string): string => {
+  const token = new URL(eticketUrl, "http://localhost").searchParams.get("t");
+  const path = `/tickets/${encodeURIComponent(ticketId)}`;
+  return token ? `${path}?t=${encodeURIComponent(token)}` : path;
+};
+
+/** Satu baris per kursi: tautan e-tiket bila sudah terbit, selain itu keterangan menunggu atau lewat email. */
+const toPaidTicketItem = (item: OrderItem, issuing: boolean): PaidTicketItem => {
+  const base = { category: item.category, nikMasked: item.nikMasked };
+  if (item.ticketId != null && item.eticketUrl != null) {
+    return {
+      ...base,
+      code: item.ticketId,
+      link: {
+        label: t("payment.result.paid.tickets.open"),
+        href: toETicketHref(item.ticketId, item.eticketUrl),
+      },
+    };
+  }
+  if (item.ticketId != null) {
+    return { ...base, code: item.ticketId, note: t("payment.result.paid.tickets.unavailable") };
+  }
+  const noteKey = issuing ? "payment.result.paid.tickets.issuing" : "payment.result.paid.tickets.byEmail";
+  return { ...base, note: t(noteKey) };
+};
+
+/** Hasil PAID: tiap kursi dengan tautan e-tiketnya; "Tiket saya" hanya untuk customer yang masuk (ADR-0023). */
+const createPaidStage = (order: Order, issuing: boolean, signedIn: boolean): PaymentStage => {
+  const categoryNames = [...new Set(order.items.map((item) => item.category))].join(", ");
+  const explore = { label: t("payment.result.paid.secondary"), href: "/" };
+
+  return {
+    kind: "result",
+    tone: "success",
+    title: t("payment.result.paid.title"),
+    message: t(issuing ? "payment.result.paid.issuing" : "payment.result.paid.message"),
+    detail: t("payment.result.paid.ticket", {
+      quantity: order.items.length,
+      names: categoryNames,
+    }),
+    tickets: {
+      title: t("payment.result.paid.tickets.title"),
+      items: order.items.map((item) => toPaidTicketItem(item, issuing)),
+    },
+    primary: signedIn ? { label: t("payment.result.paid.cta"), href: "/tickets" } : explore,
+    secondary: signedIn ? explore : undefined,
+  };
+};
+
+/**
  * Membuat result stage untuk order yang sudah selesai (PAID/EXPIRED).
  */
-const createResultStage = (order: Order): PaymentStage => {
-  // Success: pembayaran berhasil
+const createResultStage = (input: PaymentViewInput): PaymentStage => {
+  const { order } = input;
   if (order.status === "PAID") {
-    const uniqueCategories = [...new Set(order.items.map((item) => item.category))];
-    const categoryNames = uniqueCategories.join(", ");
-
-    return {
-      kind: "result",
-      tone: "success",
-      title: t("payment.result.paid.title"),
-      message: t("payment.result.paid.message"),
-      detail: t("payment.result.paid.ticket", {
-        quantity: order.items.length,
-        names: categoryNames,
-      }),
-      primary: { label: t("payment.result.paid.cta"), href: "/tickets" },
-      secondary: { label: t("payment.result.paid.secondary"), href: "/" },
-    };
+    return createPaidStage(order, input.issuingTickets ?? false, input.chrome.nav.account != null);
   }
 
   // Expired: waktu habis
@@ -281,7 +328,7 @@ const determineCurrentStage = (input: PaymentViewInput): PaymentStage => {
 
   // Terminal states: PAID atau EXPIRED
   if (order.status === "PAID" || order.status === "EXPIRED") {
-    return createResultStage(order);
+    return createResultStage(input);
   }
 
   // Awaiting payment: tampilkan instruksi pembayaran

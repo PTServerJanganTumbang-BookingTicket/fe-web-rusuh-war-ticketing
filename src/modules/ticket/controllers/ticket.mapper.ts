@@ -84,7 +84,8 @@ export function toETicketViewProps(eticket: ETicket, chrome: SiteChrome): ETicke
     header: {
       breadcrumb: [
         { label: t("checkout.breadcrumb.home"), href: "/" },
-        { label: t("ticket.title"), href: "/tickets" },
+        // Tiket saya butuh akun (ADR-0023): tamu dari tautan email tidak melihat jejak itu.
+        ...(chrome.nav.account ? [{ label: t("ticket.title"), href: "/tickets" }] : []),
         { label: eticket.id },
       ],
       heading: eticket.event.name,

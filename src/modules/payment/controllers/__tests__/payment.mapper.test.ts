@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { toSiteChrome } from "@/core/controllers/site-chrome.utils";
-import type { AvailableMethod, Order } from "../../domain/order.model";
-import { toPaymentViewProps, type PaymentViewInput } from "../payment.mapper";
+import type { AvailableMethod, Order, OrderItem } from "../../domain/order.model";
+import type { PaymentStage } from "../../views/PaymentView";
+import { toETicketHref, toPaymentViewProps, type PaymentViewInput } from "../payment.mapper";
 
 const order: Order = {
   bookingId: "RB-00912",
@@ -162,17 +163,86 @@ describe("toPaymentViewProps", () => {
     expect(view.order.status.tone).toBe("error");
   });
 
-  it("lunas: semua langkah selesai, tanpa timer, CTA ke e-tiket", () => {
-    const view = toPaymentViewProps(input({ order: { ...order, status: "PAID" } }));
+  it("lunas: semua langkah selesai, tanpa timer, tiap kursi menautkan e-tiketnya dengan token", () => {
+    const [vip1, vip2, festival] = order.items as [OrderItem, OrderItem, OrderItem];
+    const paid: Order = {
+      ...order,
+      status: "PAID",
+      items: [
+        { ...vip1, ticketId: "TKT-001", eticketUrl: "/tickets/TKT-001/eticket?t=et_a" },
+        { ...vip2, ticketId: "TKT-002", eticketUrl: "/tickets/TKT-002/eticket?t=et_b" },
+        { ...festival, ticketId: "TKT-003" },
+      ],
+    };
+    const view = toPaymentViewProps(input({ order: paid }));
     const stage: Extract<typeof view.stage, { kind: "result" }> = stageOf(view, "result");
     expect(view.header.steps?.map((step) => step.state)).toEqual(["done", "done", "current"]);
     expect(view.countdown).toBeUndefined();
     expect(stage).toMatchObject({
       tone: "success",
       title: "Pembayaran Berhasil!",
+      message: "E-tiket telah dikirim ke email Anda.",
       detail: "e-Tiket ×3 — VIP, Festival",
     });
-    expect(stage.primary.href).toBe("/tickets");
+    expect(stage.tickets?.items).toEqual([
+      {
+        category: "VIP",
+        nikMasked: "3201•••••••0001",
+        code: "TKT-001",
+        link: { label: "Lihat e-tiket", href: "/tickets/TKT-001?t=et_a" },
+      },
+      {
+        category: "VIP",
+        nikMasked: "3201•••••••0002",
+        code: "TKT-002",
+        link: { label: "Lihat e-tiket", href: "/tickets/TKT-002?t=et_b" },
+      },
+      // Dicabut atau kedaluwarsa: ticket_id tanpa eticket_url.
+      { category: "Festival", nikMasked: "3201•••••••0003", code: "TKT-003", note: "E-tiket tidak tersedia" },
+    ]);
+  });
+
+  it("lunas sebagai tamu: tanpa Tiket Saya yang butuh akun (ADR-0023)", () => {
+    const view = toPaymentViewProps(input({ order: { ...order, status: "PAID" } }));
+    const stage: Extract<typeof view.stage, { kind: "result" }> = stageOf(view, "result");
+    expect(stage.primary).toEqual({ label: "Jelajahi event lain", href: "/" });
+    expect(stage.secondary).toBeUndefined();
+  });
+
+  it("lunas dengan akun: Tiket Saya jadi aksi utama", () => {
+    const view = toPaymentViewProps(
+      input({
+        order: { ...order, status: "PAID" },
+        chrome: toSiteChrome({ account: { email: "budi@example.com", nikMasked: "3171****22" } }),
+      }),
+    );
+    const stage: Extract<typeof view.stage, { kind: "result" }> = stageOf(view, "result");
+    expect(stage.primary).toEqual({ label: "Tiket Saya", href: "/tickets" });
+    expect(stage.secondary).toEqual({ label: "Jelajahi event lain", href: "/" });
+  });
+
+  it("tiket belum terbit: pesan menunggu, lalu arahkan ke email setelah batas tunggu", () => {
+    const paid: Order = { ...order, status: "PAID" };
+    type Result = Extract<PaymentStage, { kind: "result" }>;
+    const issuing: Result = stageOf(
+      toPaymentViewProps(input({ order: paid, issuingTickets: true })),
+      "result",
+    );
+    expect(issuing.message).toContain("sedang diterbitkan");
+    expect(issuing.tickets?.items.map((item) => item.note)).toEqual(Array(3).fill("Sedang diterbitkan…"));
+
+    const late: Result = stageOf(toPaymentViewProps(input({ order: paid, issuingTickets: false })), "result");
+    expect(late.message).toBe("E-tiket telah dikirim ke email Anda.");
+    expect(late.tickets?.items[0]?.note).toBe("Tautan e-tiket akan dikirim ke email");
+    expect(late.tickets?.items[0]?.link).toBeUndefined();
+  });
+
+  it("toETicketHref: path BE ke halaman web, token ikut; tanpa token ke jalur akun", () => {
+    expect(toETicketHref("TKT-001", "/tickets/TKT-001/eticket?t=et_9f3a2c")).toBe(
+      "/tickets/TKT-001?t=et_9f3a2c",
+    );
+    expect(toETicketHref("TKT 1", "/tickets/TKT%201/eticket?t=a%2Bb")).toBe("/tickets/TKT%201?t=a%2Bb");
+    expect(toETicketHref("TKT-001", "/tickets/TKT-001/eticket")).toBe("/tickets/TKT-001");
   });
 
   it("kedaluwarsa: kembali ke beranda", () => {

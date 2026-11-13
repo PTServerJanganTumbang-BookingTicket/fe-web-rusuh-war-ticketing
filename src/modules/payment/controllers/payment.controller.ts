@@ -10,7 +10,7 @@
  * Desain: "Satu langkah menuju panggung." (langkah 2 dari 3)
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
@@ -28,6 +28,8 @@ import type { PaymentDependencies } from "../application/payment.dependencies";
 import type { BankCode, Order, PaymentMethod } from "../domain/order.model";
 import type { WebViewContext } from "../domain/webview-handoff.model";
 import { isReactNativeWebView, extractHandoffCodeFromFragment } from "../domain/webview-handoff.rules";
+import { isAwaitingTickets } from "../domain/order.rules";
+import { TICKET_ISSUANCE_MAX_WAIT_MS } from "../domain/payment.constants";
 import { getPaymentErrorMessageKey } from "./payment-error.mapper";
 import { orderKeys, orderQuery } from "./payment.queries";
 import { toPaymentViewProps } from "./payment.mapper";
@@ -160,12 +162,22 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   // Tanpa ini request pertama berangkat tanpa kredensial dan 401.
   const sessionReady = !webViewContext.isEmbedded || webViewContext.paymentSession != null;
 
+  // Kontrak §4.4: PAID bisa datang sebelum tiket terbit. Batas tunggu dihitung dari respons PAID pertama tanpa tiket.
+  const [ticketsWaitUntil, setTicketsWaitUntil] = useState<number | null>(null);
+
   // Query untuk order data dengan polling
   const orderQueryResult = useQuery({
-    ...orderQuery({ getOrderUseCase, random }, orderId),
+    ...orderQuery({ getOrderUseCase, random, ticketsWaitUntil }, orderId),
     enabled: sessionReady,
   });
   const orderData = orderQueryResult.data;
+
+  const awaitingTickets = orderData != null && isAwaitingTickets(orderData);
+  if (awaitingTickets && ticketsWaitUntil == null) {
+    setTicketsWaitUntil(orderQueryResult.dataUpdatedAt + TICKET_ISSUANCE_MAX_WAIT_MS);
+  }
+  const issuingTickets =
+    awaitingTickets && (ticketsWaitUntil == null || orderQueryResult.dataUpdatedAt < ticketsWaitUntil);
 
   // Query untuk available payment methods
   const methodsQueryResult = useQuery({
@@ -578,6 +590,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
         remainingMs: remainingTimeMs ?? 0,
         paying: payMutation.isPending,
         copied: isCopied,
+        issuingTickets,
         error: errorMessage,
         onSelectMethod: handleMethodSelect,
         onSelectBank: handleBankSelect,
