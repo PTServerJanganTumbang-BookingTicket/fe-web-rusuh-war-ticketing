@@ -19,8 +19,44 @@ const batik = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Rusuh Booking Tiket",
-  description: "Pesan tiket acara dengan antrian yang adil.",
+  title: {
+    default: "Rusuh Booking Tiket",
+    template: "%s | Rusuh Booking Tiket",
+  },
+  description:
+    "Platform pemesanan tiket konser dan acara musik dengan sistem antrian yang adil. Dapatkan tiket event favoritmu tanpa bot dan calo.",
+  keywords: [
+    "tiket konser",
+    "booking tiket",
+    "tiket musik",
+    "antrian tiket",
+    "beli tiket online",
+    "tiket event",
+    "konser Indonesia",
+    "festival musik",
+    "tiket adil",
+    "rusuh tiket",
+  ],
+  authors: [{ name: "PT Server Jangan Tumbang" }],
+  creator: "PT Server Jangan Tumbang",
+  publisher: "PT Server Jangan Tumbang",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    siteName: "Rusuh Booking Tiket",
+    title: "Rusuh Booking Tiket",
+    description:
+      "Platform pemesanan tiket konser dan acara musik dengan sistem antrian yang adil. Dapatkan tiket event favoritmu tanpa bot dan calo.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Rusuh Booking Tiket",
+    description: "Platform pemesanan tiket konser dan acara musik dengan sistem antrian yang adil.",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
