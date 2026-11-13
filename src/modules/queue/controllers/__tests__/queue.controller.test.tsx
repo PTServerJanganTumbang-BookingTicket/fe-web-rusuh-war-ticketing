@@ -76,6 +76,20 @@ describe("useQueueController", () => {
     expect(paths).toEqual(["/queue/join"]);
   });
 
+  it("layar dipasang lagi dengan hasil waiting di cache: join dipanggil lagi, bukan memakai tiket lama", async () => {
+    const paths = recordQueueRequests();
+    const wrapper = createWrapper();
+    const first = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper });
+    await waitFor(() => expect(first.result.current.status.state).toBe("waiting"));
+    first.unmount();
+
+    const second = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper });
+    // Cache lama langsung tampil, tetapi join tetap dikirim ulang.
+    await waitFor(() => expect(paths.filter((path) => path === "/queue/join")).toHaveLength(2));
+    await waitFor(() => expect(second.result.current.status.state).toBe("waiting"));
+    server.events.removeAllListeners();
+  });
+
   it("keluar dari antrian: konfirmasi dulu, batal menutup dialog, ya membuang tiket dan kembali ke Home", async () => {
     push.mockClear();
     const container = setupTestContainer();

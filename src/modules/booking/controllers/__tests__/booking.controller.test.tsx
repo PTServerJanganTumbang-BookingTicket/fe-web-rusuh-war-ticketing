@@ -117,6 +117,40 @@ describe("useBookingController", () => {
     expect(view().submit.disabled).toBe(true);
   });
 
+  it("sesi booking baru (expires_at berganti, mis. antri ulang) membuang pilihan tiket dan isian lama", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      act(() => view().buyer.email.onChange("rina@example.com"));
+      await waitFor(() => expect(view().holders?.items).toHaveLength(1));
+
+      server.use(
+        http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () =>
+          HttpResponse.json({
+            meta: { code: 200, message: "Success" },
+            data: {
+              event: { name: "Konser A" },
+              session: {
+                expires_at: new Date(Date.now() + 600_000).toISOString(),
+                server_time: new Date().toISOString(),
+              },
+              categories: [{ id: "cat_vip", name: "VIP", description: "", price: 100_000, available: 5 }],
+              rules: { max_tickets_per_order: 3 },
+            },
+          }),
+        ),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(13_000);
+      });
+      await waitFor(() => expect(view().holders).toBeUndefined());
+      expect(view().categories.items.every((category) => category.quantity === 0)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("menambah tiket membuat slot NIK per tiket dan berhenti di 3", async () => {
     const { view } = await readyView();
     add(view, "cat_vip");
@@ -266,14 +300,17 @@ describe("useBookingController", () => {
           { status: 409 },
         ),
       );
-    const stockOf = (available: Readonly<Record<string, number>>) =>
-      http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () =>
+    // `expires_at` tetap per grant: berubah berarti sesi booking baru dan formulir direset.
+    const grantExpiresAt = new Date(Date.now() + 300_000).toISOString();
+    const stockOf = (available: Readonly<Record<string, number>>) => {
+      const expiresAt = grantExpiresAt;
+      return http.get(`${MOCK_API_BASE_URL}/events/:id/tickets`, () =>
         HttpResponse.json({
           meta: { code: 200, message: "Success" },
           data: {
             event: { name: "Konser A" },
             session: {
-              expires_at: new Date(Date.now() + 300_000).toISOString(),
+              expires_at: expiresAt,
               server_time: new Date().toISOString(),
             },
             categories: Object.entries(available).map(([id, left]) => ({
@@ -287,6 +324,7 @@ describe("useBookingController", () => {
           },
         }),
       );
+    };
 
     async function submitIntoStockError(view: () => BookingViewProps) {
       add(view, "cat_vip");
@@ -298,7 +336,7 @@ describe("useBookingController", () => {
 
     it("sebagian kategori habis: modal minta pilih kategori lain, pilihan dipangkas ke stok terbaru", async () => {
       replace.mockClear();
-      server.use(insufficient());
+      server.use(insufficient(), stockOf({ cat_vip: 5, cat_festival: 5 }));
       const { view } = await readyView();
       server.use(stockOf({ cat_vip: 0, cat_festival: 5 }));
       await submitIntoStockError(view);
@@ -318,7 +356,7 @@ describe("useBookingController", () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       try {
         replace.mockClear();
-        server.use(insufficient());
+        server.use(insufficient(), stockOf({ cat_vip: 5, cat_festival: 5 }));
         const { view } = await readyView();
         server.use(stockOf({ cat_vip: 0, cat_festival: 0 }));
         await submitIntoStockError(view);

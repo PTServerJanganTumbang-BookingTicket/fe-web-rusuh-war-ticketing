@@ -32,17 +32,19 @@ const waitingOnly = (query: { state: { data: QueueState | undefined } }) =>
   query.state.data?.status === "waiting" ? Infinity : 0;
 
 /**
- * Masuk antrian (`POST /queue/join`) sekali per kunjungan; stream dibuka sesudahnya. Hasil `waiting` bertahan di
- * cache (nomor antrian dibagikan saat join, jadi pemasangan ulang tidak join lagi). Hasil lain dianggap basi dan
- * diambil ulang saat layar dipasang lagi: join ulang idempotent (server menjawab `rejoined`, kontrak §3.1). Ambil
- * ulang yang sedang berjalan dipakai bersama, jadi StrictMode yang memasang dua kali tidak membuat dua `POST`.
- * Galat bisnis (QUEUE_FULL, SALE_CLOSED, ...) tidak diulang otomatis: kebijakan `retry` bawaan QueryClient.
+ * Masuk antrian (`POST /queue/join`) tiap kali Waiting Room dipasang atau tampil lagi (`staleTime: 0`). Hasil `waiting`
+ * tidak dipakai ulang tanpa bertanya: QueryClient dipakai seluruh aplikasi dan route disimpan tersembunyi (ADR-0007),
+ * jadi cache lama bisa memegang tiket yang di server sudah kedaluwarsa dan stream tidak pernah dibuka untuk tiket
+ * yang benar. Join ulang idempotent (server menjawab `rejoined`, kontrak §3.1). Cache lama tetap ditampilkan selama
+ * ambil ulang berjalan; ambil ulang yang sedang berjalan dipakai bersama, jadi StrictMode yang memasang dua kali
+ * tidak membuat dua `POST`. Galat bisnis (QUEUE_FULL, SALE_CLOSED, ...) tidak diulang otomatis: kebijakan `retry`
+ * bawaan QueryClient.
  */
 export function queueJoinQuery(deps: { joinQueueUseCase: JoinQueueUseCase }, eventId: string) {
   return queryOptions({
     queryKey: queueKeys.join(eventId),
     queryFn: () => deps.joinQueueUseCase(eventId),
-    staleTime: waitingOnly,
+    staleTime: 0,
   });
 }
 
