@@ -10,7 +10,7 @@ test.describe("Home (FR-01–03)", () => {
 
     await expect(page.getByRole("link", { name: /Masuk Antrian/ })).toHaveCount(1);
     await expect(page.getByRole("button", { name: "Antrian Penuh" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Belum Dibuka" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^Buka \d/ })).toBeDisabled();
   });
 
   test("klik Beli Tiket membuka Waiting Room event tersebut", async ({ page }) => {

@@ -46,7 +46,7 @@ test.describe("Sesi login: navbar dan Tiket Saya", () => {
     await expect(card.getByText("NIK", { exact: true })).toHaveCount(0);
   });
 
-  test("tamu yang masuk lalu keluar: navbar kembali tamu dan Tiket Saya meminta masuk lagi", async ({
+  test("tamu yang masuk lalu keluar: navbar kembali tamu, tautan Tiket saya hilang, dan /tickets meminta masuk lagi", async ({
     page,
   }) => {
     await signIn(page);
@@ -54,7 +54,9 @@ test.describe("Sesi login: navbar dan Tiket Saya", () => {
     await page.getByRole("button", { name: "Keluar" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("link", { name: /Profil saya/ })).toHaveCount(0);
-    await openMyTickets(page);
+    // Tamu tidak lagi punya tautan "Tiket saya"; membuka /tickets langsung meminta masuk.
+    await expect(page.getByRole("link", { name: "Tiket saya" })).toHaveCount(0);
+    await page.goto("/tickets");
     await expect(page.getByText("Masuk untuk melihat tiketmu.")).toBeVisible();
   });
 });

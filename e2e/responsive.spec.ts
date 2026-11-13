@@ -189,16 +189,19 @@ test.describe("Responsif: navigasi", () => {
     if (narrow) {
       await page.getByRole("button", { name: "Menu" }).click();
       const panel = page.getByRole("dialog");
-      for (const name of ["Jelajahi event", "Tiket saya", "Bantuan"]) {
+      // Tamu tidak melihat "Tiket saya" (tautan itu hanya untuk akun yang masuk).
+      for (const name of ["Jelajahi event", "Bantuan"]) {
         await expect(panel.getByRole("link", { name })).toBeVisible();
       }
+      await expect(panel.getByRole("link", { name: "Tiket saya" })).toHaveCount(0);
       await panel.getByRole("link", { name: "Bantuan" }).click();
       await expect(page).toHaveURL(/\/help$/);
       await expect(page.getByRole("dialog")).toHaveCount(0);
     } else {
-      for (const name of ["Jelajahi event", "Tiket saya", "Bantuan"]) {
+      for (const name of ["Jelajahi event", "Bantuan"]) {
         await expect(page.getByRole("navigation").getByRole("link", { name })).toBeVisible();
       }
+      await expect(page.getByRole("navigation").getByRole("link", { name: "Tiket saya" })).toHaveCount(0);
     }
   });
 });
