@@ -30,12 +30,21 @@ function seatHolder(holder: TicketHolderInput) {
 export function createHttpBookingService({
   appConfig,
   httpClient,
+  bffHttpClient,
   credentialStore,
 }: {
   appConfig: AppConfig;
   httpClient: HttpClient;
+  bffHttpClient: HttpClient;
   credentialStore: CredentialStoreProtocol;
 }): BookingProtocol {
+  // Mock di browser (dev, e2e): state grant ada di memori MSW browser, sedangkan route same-origin berjalan di server
+  // dengan MSW sendiri yang tidak mengenal grant itu. Di sana kedua endpoint dipanggil langsung seperti sebelumnya;
+  // mock tidak memeriksa Bearer. Di test (appBaseUrl terisi) dan produksi, lewat route same-origin.
+  const viaServer = !(appConfig.mocking && appConfig.appBaseUrl === "");
+  const bookingClient = viaServer ? bffHttpClient : httpClient;
+  const bookingPath = (path: string) => (viaServer ? `/account${path}` : path);
+
   /**
    * Grant event ini dari `GET /queue/me` (kontrak §3.3: grant dikembalikan untuk `GRANTED`, `SELECTING`, dan
    * `AWAITING_PAYMENT`). Dipakai saat penyimpanan tab kosong padahal customer sudah lolos antrian: tab baru, muat
@@ -62,10 +71,16 @@ export function createHttpBookingService({
       const grant = credentialStore.grantToken(eventId) ?? (await recoverGrant(eventId));
       if (!grant) throw new AppFailure({ kind: "api", code: "ACCESS_EXPIRED", status: 401 });
       // 401: grant habis, tidak dikenal, atau bukan milik perangkat ini. Semuanya berarti kembali ke antrian.
-      return httpClient.get(`/events/${encodeURIComponent(eventId)}/tickets`, bookingSessionSchema, {
-        headers: grantHeaders(credentialStore, eventId),
-        errorCodes: { 401: "ACCESS_EXPIRED" },
-      });
+      // Lewat route same-origin: token akun ada di cookie httpOnly, jadi hanya server yang bisa menambahkan Bearer
+      // (kontrak §4.1: `account` terisi bagi customer login).
+      return bookingClient.get(
+        bookingPath(`/events/${encodeURIComponent(eventId)}/tickets`),
+        bookingSessionSchema,
+        {
+          headers: grantHeaders(credentialStore, eventId),
+          errorCodes: { 401: "ACCESS_EXPIRED" },
+        },
+      );
     },
 
     getEvent(eventId: string): Promise<BookingEvent> {
@@ -79,7 +94,11 @@ export function createHttpBookingService({
       });
     },
 
-    submitBooking(input: SubmitBookingInput): Promise<CreatedBooking> {
+    async submitBooking(input: SubmitBookingInput): Promise<CreatedBooking> {
+      // Grant tab ini bisa kosong (tab baru, muat ulang): pulihkan dulu, jangan kirim header kosong.
+      if (!credentialStore.grantToken(input.eventId) && !(await recoverGrant(input.eventId))) {
+        throw new AppFailure({ kind: "api", code: "ACCESS_EXPIRED", status: 401 });
+      }
       const body = {
         event_id: input.eventId,
         tickets: input.tickets.map((ticket) => ({
@@ -91,8 +110,9 @@ export function createHttpBookingService({
       };
       // 409: NIK sudah dipakai di event ini atau stok berubah. 400: isian ditolak validasi server, termasuk
       // `saved_nik_id` / `use_account_nik` yang tidak berlaku (`VALIDATION_ERROR`, jawabannya sama untuk semua sebab).
-      return httpClient.post("/bookings", body, createdBookingSchema, {
-        headers: grantHeaders(credentialStore),
+      // Lewat route same-origin supaya kursi `saved_nik_id` / `use_account_nik` dibaca BE bersama token akun (§4.3).
+      return bookingClient.post(bookingPath("/bookings"), body, createdBookingSchema, {
+        headers: grantHeaders(credentialStore, input.eventId),
         errorCodes: { 400: "BOOKING_INVALID", 401: "ACCESS_EXPIRED", 409: "BOOKING_REJECTED" },
         serverErrorCodes: {
           // 409 punya dua arti: NIK terpakai (BOOKING_REJECTED) dan stok kurang (INSUFFICIENT_STOCK, layar tersendiri).

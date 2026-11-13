@@ -379,3 +379,109 @@ describe("accountGateway.forward", () => {
     expect(cookiesOf(reused).account_token?.cookie).toContain("Max-Age=0");
   });
 });
+
+describe("accountGateway.forward: route yang juga dipakai tamu", () => {
+  const credentials = { "x-grant-token": "grant_1", "x-device-id": "dev_1" };
+  const captureTickets = () => {
+    const seen: { authorization: string | null; grant: string | null; device: string | null }[] = [];
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/evt_a/tickets`, ({ request }) => {
+        seen.push({
+          authorization: request.headers.get("authorization"),
+          grant: request.headers.get("x-grant-token"),
+          device: request.headers.get("x-device-id"),
+        });
+        return HttpResponse.json({ meta: { code: 200, message: "Success" }, data: {} });
+      }),
+    );
+    return seen;
+  };
+
+  it("customer login: Bearer dari cookie dan header grant sama-sama sampai ke BE", async () => {
+    const seen = captureTickets();
+    const { accountGateway, session } = await signIn();
+    const response = await accountGateway.forward(
+      api("/account/events/evt_a/tickets", { headers: { ...cookieHeader(session), ...credentials } }),
+      "events/evt_a/tickets",
+    );
+    expect(response.status).toBe(200);
+    expect(seen).toEqual([
+      { authorization: `Bearer ${session.account_token}`, grant: "grant_1", device: "dev_1" },
+    ]);
+  });
+
+  it("tamu: tetap diteruskan tanpa Bearer, dengan header grant", async () => {
+    const seen = captureTickets();
+    const { accountGateway } = setupTestContainer().cradle;
+    const response = await accountGateway.forward(
+      api("/account/events/evt_a/tickets", { headers: credentials }),
+      "events/evt_a/tickets",
+    );
+    expect(response.status).toBe(200);
+    expect(seen).toEqual([{ authorization: null, grant: "grant_1", device: "dev_1" }]);
+  });
+
+  it("POST /bookings diteruskan dengan body, Bearer, dan header grant", async () => {
+    let received: { authorization: string | null; grant: string | null; body: unknown } | undefined;
+    server.use(
+      http.post(`${MOCK_API_BASE_URL}/bookings`, async ({ request }) => {
+        received = {
+          authorization: request.headers.get("authorization"),
+          grant: request.headers.get("x-grant-token"),
+          body: await request.json(),
+        };
+        return HttpResponse.json({ meta: { code: 201, message: "Created" }, data: {} }, { status: 201 });
+      }),
+    );
+    const { accountGateway, session } = await signIn();
+    const body = { event_id: "evt_a", tickets: [{ category_id: "cat_vip", use_account_nik: true }] };
+    const response = await accountGateway.forward(
+      api("/account/bookings", {
+        method: "POST",
+        headers: { ...cookieHeader(session), ...credentials },
+        body: JSON.stringify(body),
+      }),
+      "bookings",
+    );
+    expect(response.status).toBe(201);
+    expect(received).toEqual({ authorization: `Bearer ${session.account_token}`, grant: "grant_1", body });
+  });
+
+  it("401 dari grant: jawaban BE diteruskan apa adanya dan cookie akun tidak dihapus", async () => {
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/evt_a/tickets`, () =>
+        HttpResponse.json({ meta: { code: 401, message: "Grant expired" } }, { status: 401 }),
+      ),
+      http.post(`${MOCK_API_BASE_URL}/auth/refresh`, () =>
+        HttpResponse.json({ meta: { code: 401, message: "no" } }, { status: 401 }),
+      ),
+    );
+    const { accountGateway, session } = await signIn();
+    const response = await accountGateway.forward(
+      api("/account/events/evt_a/tickets", { headers: { ...cookieHeader(session), ...credentials } }),
+      "events/evt_a/tickets",
+    );
+    expect(response.status).toBe(401);
+    expect(((await response.json()) as { meta: { message: string } }).meta.message).toBe("Grant expired");
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("header kredensial tidak diteruskan pada route akun biasa", async () => {
+    let grant: string | null = "belum";
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/accounts/me/saved-niks`, ({ request }) => {
+        grant = request.headers.get("x-grant-token");
+        return HttpResponse.json({
+          meta: { code: 200, message: "Success" },
+          data: { max_entries: 5, saved_niks: [] },
+        });
+      }),
+    );
+    const { accountGateway, session } = await signIn();
+    await accountGateway.forward(
+      api("/account/saved-niks", { headers: { ...cookieHeader(session), ...credentials } }),
+      "saved-niks",
+    );
+    expect(grant).toBeNull();
+  });
+});

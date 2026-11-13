@@ -361,7 +361,7 @@ describe("useBookingController", () => {
     const first = () => view().holders?.items[0];
     const second = () => view().holders?.items[1];
     expect(first()?.holder?.options.map((option) => option.label)).toEqual([
-      "NIK pemesan · 3171**********22",
+      "NIK pemesan · 3171********xx22",
       "Budi · 3171**********33",
       "NIK lain (isi manual)",
     ]);
@@ -438,7 +438,8 @@ describe("useBookingController", () => {
     replace.mockClear();
     let attempts = 0;
     server.use(
-      http.post(`${MOCK_API_BASE_URL}/bookings`, () => {
+      // Putus di sisi browser (route same-origin tidak terjangkau), bukan BE yang tidak menjawab.
+      http.post(`${TEST_APP_ORIGIN}/api/account/bookings`, () => {
         attempts += 1;
         if (attempts === 1) return HttpResponse.error();
         return HttpResponse.json(
@@ -632,7 +633,7 @@ describe("useBookingController", () => {
       expect(view().holders?.items[0]?.verify).toBeDefined();
 
       act(() => view().holders?.items[0]?.holder?.onChange("owner"));
-      expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171**********22", readOnly: true });
+      expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171********xx22", readOnly: true });
       expect(view().holders?.items[0]?.verify).toBeUndefined();
 
       await submitAndConfirm(view);
@@ -653,7 +654,45 @@ describe("useBookingController", () => {
     });
 
     it("akun tanpa NIK terverifikasi: NIK pemesan tidak ditawarkan, isi manual tetap ada", async () => {
-      server.use(savedNiksOf(), sessionBody({ email: "rina@example.com", nik_masked: "" }));
+      server.use(
+        savedNiksOf(),
+        sessionBody({ email: "rina@example.com", nik_masked: "" }),
+        // BE menjawab tiket tanpa NIK terverifikasi: `account` tidak membawa NIK tersamar.
+        http.get(`${MOCK_API_BASE_URL}/events/:eventId/tickets`, () => {
+          const now = Date.now();
+          const category = (id: string, name: string, price: number) => ({
+            id,
+            name,
+            description: name,
+            price,
+            available: 10,
+            max_per_order: 5,
+          });
+          return HttpResponse.json({
+            meta: { code: 200, message: "Success" },
+            data: {
+              event: {
+                id: OPEN_EVENT_ID,
+                name: "Konser",
+                date: new Date(now + 86_400_000).toISOString(),
+                venue: "GBK, Jakarta",
+                image_url: "https://example.test/a.jpg",
+              },
+              session: {
+                expires_at: new Date(now + 600_000).toISOString(),
+                ttl_seconds: 600,
+                server_time: new Date(now).toISOString(),
+              },
+              categories: [
+                category("cat_vip", "VIP", 1_500_000),
+                category("cat_festival", "Festival", 850_000),
+              ],
+              rules: { max_tickets_per_order: 5, one_nik_per_ticket: true },
+              account: null,
+            },
+          });
+        }),
+      );
       const { view } = await readyView({ signedIn: true });
       add(view, "cat_vip");
       await waitFor(() => expect(view().buyer.email.value).toBe("rina@example.com"));
