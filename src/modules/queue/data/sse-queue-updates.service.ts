@@ -1,3 +1,4 @@
+import { queueTokenInHeader } from "@/core/data/credentials/account-gateway-mode.utils";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
 import type { Observer, Unsubscribe } from "@/core/domain/live-updates.protocol";
@@ -32,7 +33,7 @@ export function createSseQueueUpdatesService({
 }): QueueUpdatesProtocol {
   /** Tanpa cookie, token antrian dikirim sebagai header (jalur klien mobile, kontrak §3.2). */
   function streamOptions(eventId: string) {
-    if (appConfig.apiCredentials !== "omit") return undefined;
+    if (!queueTokenInHeader(appConfig)) return undefined;
     const token = credentialStore.queueToken(eventId);
     return token
       ? { headers: { "x-queue-token": token, "x-device-id": credentialStore.deviceId() } }

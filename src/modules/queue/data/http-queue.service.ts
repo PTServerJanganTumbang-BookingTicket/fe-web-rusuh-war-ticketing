@@ -1,3 +1,4 @@
+import { queueTokenInHeader, viaAccountGateway } from "@/core/data/credentials/account-gateway-mode.utils";
 import type { HttpClient } from "@/core/data/http/http.client";
 import type { AppConfig } from "@/core/domain/app-config.model";
 import { toAppError } from "@/core/domain/app-error";
@@ -34,17 +35,24 @@ const queuePath = (eventId: string) => `/events/${encodeURIComponent(eventId)}/q
 export function createHttpQueueService({
   appConfig,
   httpClient,
+  bffHttpClient,
   credentialStore,
   queueTicketCache,
   captcha,
 }: {
   appConfig: AppConfig;
   httpClient: HttpClient;
+  bffHttpClient: HttpClient;
   credentialStore: CredentialStoreProtocol;
   queueTicketCache: QueueTicketCache;
   captcha: CaptchaProtocol;
 }): QueueProtocol {
-  const tokenInHeader = appConfig.apiCredentials === "omit";
+  const tokenInHeader = queueTokenInHeader(appConfig);
+  // Join dan `/queue/me` membawa Bearer akun lewat route same-origin (lihat `account-gateway-mode.utils.ts`);
+  // `/queue/serving` publik dan tetap langsung ke API.
+  const viaServer = viaAccountGateway(appConfig);
+  const identityClient = viaServer ? bffHttpClient : httpClient;
+  const identityPath = (path: string) => (viaServer ? `/account${path}` : path);
 
   function queueHeaders(eventId: string): Record<string, string> {
     const token = tokenInHeader ? credentialStore.queueToken(eventId) : null;
@@ -62,8 +70,8 @@ export function createHttpQueueService({
     // Token CAPTCHA diambil lebih dulu: join menolak tanpa token (400), dan nomor antrian dibagikan saat join.
     const event = await httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueJoinEventSchema);
     const captchaToken = await captcha.solve(event.captcha);
-    const joined = await httpClient.post(
-      `${queuePath(eventId)}/join`,
+    const joined = await identityClient.post(
+      identityPath(`${queuePath(eventId)}/join`),
       { captcha_token: captchaToken },
       queueJoinSchema,
       {
@@ -106,7 +114,7 @@ export function createHttpQueueService({
     const ticket = queueTicketCache.get(eventId);
     if (!ticket) return joinServer(eventId);
     try {
-      const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
+      const me = await identityClient.get(identityPath(`${queuePath(eventId)}/me`), queueMeSchema, {
         headers: queueHeaders(eventId),
         errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
       });
@@ -157,7 +165,7 @@ export function createHttpQueueService({
     if (!heldGrant) return joinServer(eventId);
     const eventName = queueTicketCache.get(eventId)?.eventName ?? "";
     try {
-      const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
+      const me = await identityClient.get(identityPath(`${queuePath(eventId)}/me`), queueMeSchema, {
         headers: queueHeaders(eventId),
         errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
       });

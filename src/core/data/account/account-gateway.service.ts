@@ -90,6 +90,21 @@ const ACCOUNT_ROUTES: AccountRoute[] = [
     guestAllowed: true,
   },
   { pattern: /^bookings$/, methods: ["POST"], target: () => "/bookings", guestAllowed: true },
+  // Join antrian, grant (`/queue/me`), dan cek NIK membawa identitas akun supaya tempat antrian terikat ke akun,
+  // bukan hanya ke perangkat: keluar akun lalu masuk lagi tidak mengulang antrian dari awal. Tamu tetap sama.
+  {
+    pattern: /^events\/([\w-]+)\/queue\/join$/,
+    methods: ["POST"],
+    target: (match) => `/events/${match[1]}/queue/join`,
+    guestAllowed: true,
+  },
+  {
+    pattern: /^events\/([\w-]+)\/queue\/me$/,
+    methods: ["GET"],
+    target: (match) => `/events/${match[1]}/queue/me`,
+    guestAllowed: true,
+  },
+  { pattern: /^nik\/validate$/, methods: ["POST"], target: () => "/nik/validate", guestAllowed: true },
   { pattern: /^tickets$/, methods: ["GET"], target: () => "/users/me/tickets" },
   {
     pattern: /^tickets\/([\w-]+)\/eticket$/,
