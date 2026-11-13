@@ -619,3 +619,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Mencari bug di alur aplikasi lewat audit baca-kode paralel, memperbaiki yang berkeyakinan tinggi, dan mengurangi polling ketersediaan tiket.
 - **Output**: (1) Payment: bayar ulang setelah ditolak memanggil `POST /payments/{id}` (bukan `/retry`); masa tenggang TTL hanya bertanya ke server dan menampilkan "memverifikasi"; status `SELECTING` dan `PENDING_CANCELLATION`; `X-Payment-Session` di WebView; kode galat bisnis pembayaran dipetakan. (2) Auth gateway: umur cookie grant 18 menit; kegagalan refresh sementara tidak menghapus cookie; refresh paralel dibagi satu permintaan; `readCookie` tidak melempar. (3) Queue: satu `/queue/me` sekaligus di SSE, `CLOSED` dari SSE mengakhiri antrian, `join` dengan grant tersimpan memeriksa server, `refetchOnReconnect` mati. (4) Polling: Home dan detail event 10 detik (Req 1.4 dilonggarkan dari 5), polling berhenti di tab tersembunyi, booking berhenti saat semua kategori habis, Home tidak merender ulang tiap poll. (5) Sisa temuan dicatat di `docs/known-bugs.md`.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 877 test Vitest lulus. Belum diuji terhadap backend asli, e2e belum dijalankan, tampilan belum dilihat di browser. Teks Req 1.4 (5 detik) di dokumen lain belum disesuaikan.
+
+## 2026-11-13 — CAPTCHA antrian disiapkan sebelum Waiting Room dibuka
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Layar loading Waiting Room lama untuk event ber-CAPTCHA karena join menunggu unduhan skrip Turnstile dan penyelesaian widget secara berurutan.
+- **Output**: `CaptchaProtocol` mendapat `warm()` (muat skrip) dan `presolve(scope, config)` (selesaikan di latar, token sekali pakai, dibuang setelah 4 menit); `solve(config, scope)` memakai token siap pakai dan mengulang sendiri bila gagal. Halaman detail event yang bisa diantri memanggil `warm` + `presolve`, Home memanggil `warm` bila ada event yang bisa diantri; skema detail membaca `captcha`. Join antrian memakai `solve(event.captcha, eventId)`.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 902 test Vitest lulus. Belum diukur di browser dengan Turnstile asli (mode mock tidak memuat skrip), jadi besarnya percepatan belum terbukti. `GET /events/{id}` di join tetap berurutan sebelum CAPTCHA.

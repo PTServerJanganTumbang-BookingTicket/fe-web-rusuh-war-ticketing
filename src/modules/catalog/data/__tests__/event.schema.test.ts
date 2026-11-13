@@ -172,6 +172,14 @@ describe("eventDetailSchema", () => {
     expect(event.ticketCategories).toEqual([]);
   });
 
+  it("captcha server dibaca ke bentuk domain; tanpa captcha hasilnya tidak ada", () => {
+    expect(eventDetailSchema.parse(detailRaw()).captcha).toBeUndefined();
+    expect(eventDetailSchema.parse(detailRaw({ captcha: null })).captcha).toBeUndefined();
+    expect(
+      eventDetailSchema.parse(detailRaw({ captcha: { provider: "turnstile", site_key: "k" } })).captcha,
+    ).toEqual({ provider: "turnstile", siteKey: "k" });
+  });
+
   it("stok negatif tampil 0 dan status diturunkan dari stok bila server tidak mengirimnya", () => {
     const event = eventDetailSchema.parse(
       detailRaw({

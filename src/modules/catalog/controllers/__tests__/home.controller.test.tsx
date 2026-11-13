@@ -8,7 +8,9 @@ import type { Event } from "../../domain/event.model";
 import { eventsQueryOptions } from "../catalog.queries";
 import { useHomeController } from "../home.controller";
 
-const event = { id: "evt-1", name: "Konser A" } as Event;
+const closed = { enabled: false, action: "disabled", labelKey: "home.event.notOpen" } as const;
+const open = { enabled: true, action: "queue", labelKey: "home.event.cta.queue" } as const;
+const event = { id: "evt-1", name: "Konser A", display: closed } as Event;
 
 const mount = (listEvents: () => Promise<Event[]>) =>
   renderHook(() => useHomeController(), {
@@ -74,5 +76,32 @@ describe("eventsQueryOptions", () => {
     const options = eventsQueryOptions({ listEventsUseCase: vi.fn(), random: { next: () => 0 } });
     const poll = options.refetchInterval as (query: { state: { status: string } }) => number | false;
     expect(poll({ state: { status: "error" } })).toBe(false);
+  });
+});
+
+describe("useHomeController: skrip CAPTCHA", () => {
+  const mountWithCaptcha = (events: Event[]) => {
+    const captcha = { solve: vi.fn(), warm: vi.fn(), presolve: vi.fn() };
+    const view = renderHook(() => useHomeController(), {
+      wrapper: createWrapper(
+        setupTestContainer({
+          listEventsUseCase: asValue(() => Promise.resolve(events)),
+          captcha: asValue(captcha),
+        } as never),
+      ),
+    });
+    return { ...view, captcha };
+  };
+
+  it("ada event yang bisa diantri: skrip dimuat lebih awal", async () => {
+    const { result, captcha } = mountWithCaptcha([{ ...event, display: open }]);
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    expect(captcha.warm).toHaveBeenCalled();
+  });
+
+  it("tidak ada event yang bisa diantri: skrip pihak ketiga tidak dimuat", async () => {
+    const { result, captcha } = mountWithCaptcha([event]);
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    expect(captcha.warm).not.toHaveBeenCalled();
   });
 });

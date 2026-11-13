@@ -88,4 +88,44 @@ describe("useEventDetailController (use case palsu)", () => {
     await waitFor(() => expect(result.current.kind).toBe("ready"));
     expect(getEventUseCase).toHaveBeenCalledWith("evt-1");
   });
+
+  describe("menyiapkan CAPTCHA antrian lebih awal", () => {
+    const fakeCaptcha = () => ({ solve: vi.fn(), warm: vi.fn(), presolve: vi.fn() });
+    const mountWith = (event: EventDetail, captcha = fakeCaptcha()) => {
+      const getEventUseCase = vi.fn(() => Promise.resolve(event));
+      const view = mount(
+        event.id,
+        setupTestContainer({ getEventUseCase: asValue(getEventUseCase), captcha: asValue(captcha) } as never),
+      );
+      return { ...view, captcha };
+    };
+
+    it("event yang bisa diantri: skrip dimuat dan CAPTCHA diselesaikan untuk event ini", async () => {
+      const { result, captcha } = mountWith({
+        ...detail,
+        captcha: { provider: "turnstile", siteKey: "site-key" },
+      });
+      await waitFor(() => expect(result.current.kind).toBe("ready"));
+      expect(captcha.warm).toHaveBeenCalled();
+      expect(captcha.presolve).toHaveBeenCalledWith("evt-1", { provider: "turnstile", siteKey: "site-key" });
+    });
+
+    it("event tanpa konfigurasi CAPTCHA: skrip dimuat tetapi tidak ada yang diselesaikan", async () => {
+      const { result, captcha } = mountWith(detail);
+      await waitFor(() => expect(result.current.kind).toBe("ready"));
+      expect(captcha.warm).toHaveBeenCalled();
+      expect(captcha.presolve).not.toHaveBeenCalled();
+    });
+
+    it("penjualan belum dibuka: tidak ada yang disiapkan", async () => {
+      const { result, captcha } = mountWith({
+        ...detail,
+        display: { enabled: false, action: "disabled", labelKey: "home.event.notOpen" },
+        captcha: { provider: "turnstile", siteKey: "site-key" },
+      });
+      await waitFor(() => expect(result.current.kind).toBe("ready"));
+      expect(captcha.warm).not.toHaveBeenCalled();
+      expect(captcha.presolve).not.toHaveBeenCalled();
+    });
+  });
 });

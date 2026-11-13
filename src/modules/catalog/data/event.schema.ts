@@ -154,18 +154,22 @@ const ticketCategorySchema = z
 
 /**
  * `data` dari `GET /events/{event_id}` (kontrak §2.2). Field di luar bentuk daftar (`time`, `description`,
- * `ticket_categories`) boleh tidak ada: halaman tetap tampil dengan data yang ada. `captcha` tidak dibaca di sini;
- * widget CAPTCHA milik Waiting Room.
+ * `ticket_categories`) boleh tidak ada: halaman tetap tampil dengan data yang ada. `captcha` hanya dibaca untuk
+ * menyiapkan tokennya lebih awal; widgetnya milik Waiting Room.
  */
 export const eventDetailSchema = eventObject
   .extend({
     time: z.string().nullish(),
     description: z.string().nullish(),
     ticket_categories: z.array(ticketCategorySchema).nullish(),
+    captcha: z.object({ provider: z.string(), site_key: z.string() }).nullish(),
   })
   .transform((event): EventDetail => ({
     ...toEvent(event),
     time: event.time?.trim() || undefined,
     description: event.description?.trim() || undefined,
     ticketCategories: event.ticket_categories ?? [],
+    captcha: event.captcha
+      ? { provider: event.captcha.provider, siteKey: event.captcha.site_key }
+      : undefined,
   }));

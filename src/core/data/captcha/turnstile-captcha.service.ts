@@ -4,6 +4,8 @@ import type { CaptchaConfig, CaptchaProtocol } from "@/core/domain/captcha.proto
 
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 const SOLVE_TIMEOUT_MS = 15_000;
+/** Token Turnstile berlaku 300 detik dan sekali pakai; token siap pakai dibuang sebelum itu. */
+const PRESOLVED_TTL_MS = 240_000;
 
 /** Token yang diterima handler MSW; mode mock tidak memuat skrip pihak ketiga. */
 export const MOCK_CAPTCHA_TOKEN = "mock-captcha-token";
@@ -80,12 +82,50 @@ export function createTurnstileCaptchaService({ appConfig }: { appConfig: AppCon
     }
   }
 
+  const presolved = new Map<string, { siteKey: string; token: Promise<string>; expiresAt: number }>();
+
+  const isFresh = (entry: { expiresAt: number }) => entry.expiresAt > Date.now();
+
+  /** Token siap pakai milik `scope` bila masih segar dan untuk site key yang sama; entri selalu dikeluarkan. */
+  function takePresolved(scope: string, config: CaptchaConfig): Promise<string> | undefined {
+    const entry = presolved.get(scope);
+    presolved.delete(scope);
+    return entry && isFresh(entry) && entry.siteKey === config.siteKey ? entry.token : undefined;
+  }
+
   return {
-    async solve(config) {
+    async solve(config, scope) {
       if (!config) return "";
       if (appConfig.mocking) return MOCK_CAPTCHA_TOKEN;
       if (config.provider !== "turnstile") throw failed();
+      const ready = scope === undefined ? undefined : takePresolved(scope, config);
+      if (ready) {
+        try {
+          return await ready;
+        } catch {
+          // Penyelesaian di latar gagal: ulangi di sini supaya galatnya tampil sebagai hasil join.
+        }
+      }
       return solveTurnstile(config);
+    },
+
+    warm() {
+      if (appConfig.mocking || typeof window === "undefined") return;
+      loadTurnstile().catch(() => undefined);
+    },
+
+    presolve(scope, config) {
+      if (!config || appConfig.mocking || typeof window === "undefined") return;
+      if (config.provider !== "turnstile") return;
+      const current = presolved.get(scope);
+      if (current && isFresh(current) && current.siteKey === config.siteKey) return;
+      const token = solveTurnstile(config);
+      const entry = { siteKey: config.siteKey, token, expiresAt: Date.now() + PRESOLVED_TTL_MS };
+      presolved.set(scope, entry);
+      // Gagal di latar tidak boleh jadi galat tak tertangani; entri gagal dibuang agar percobaan berikutnya mulai ulang.
+      token.catch(() => {
+        if (presolved.get(scope) === entry) presolved.delete(scope);
+      });
     },
   };
 }

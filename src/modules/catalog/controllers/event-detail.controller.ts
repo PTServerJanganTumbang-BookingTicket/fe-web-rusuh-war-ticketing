@@ -7,7 +7,7 @@
  * Wireframe: belum ada untuk layar ini; isi mengikuti kartu event Home (9.1) dan kartu event alur pembelian.
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { useDependencies } from "@/core/controllers/dependencies.context";
@@ -27,7 +27,7 @@ export type EventDetailScreen =
   | { kind: "error"; view: EventDetailStatusViewProps };
 
 export function useEventDetailController(eventId: string): EventDetailScreen {
-  const { getEventUseCase, random } = useDependencies<CatalogDependencies & CoreDependencies>();
+  const { getEventUseCase, random, captcha } = useDependencies<CatalogDependencies & CoreDependencies>();
   const { nav, footer } = useSiteChrome();
   // Opsi dimemoisasi supaya jitter polling tetap sama antar render (lihat `eventDetailQueryOptions`).
   const options = useMemo(
@@ -35,6 +35,17 @@ export function useEventDetailController(eventId: string): EventDetailScreen {
     [getEventUseCase, random, eventId],
   );
   const query = useQuery(options);
+
+  // Halaman ini hanya satu klik dari antrian: selesaikan CAPTCHA di latar supaya Waiting Room tidak menunggunya.
+  const { display, captcha: captchaConfig } = query.data ?? {};
+  const canJoin = display?.enabled === true && display.action === "queue";
+  const provider = captchaConfig?.provider;
+  const siteKey = captchaConfig?.siteKey;
+  useEffect(() => {
+    if (!canJoin) return;
+    captcha.warm();
+    if (provider !== undefined && siteKey !== undefined) captcha.presolve(eventId, { provider, siteKey });
+  }, [canJoin, captcha, eventId, provider, siteKey]);
 
   // Data terakhir tetap tampil walau penyegaran berikutnya gagal; layar galat hanya bila belum ada data sama sekali.
   if (query.data) return { kind: "ready", view: { nav, footer, ...toEventDetailViewProps(query.data) } };
