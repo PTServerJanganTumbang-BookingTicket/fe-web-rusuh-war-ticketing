@@ -1,0 +1,12 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background - Signal Primary Red -->
+  <rect width="180" height="180" rx="40" fill="#ff0025"/>
+  <!-- Equalizer bars (scaled for 180x180) -->
+  <rect x="22" y="67" width="14" height="46" rx="7" fill="white"/>
+  <rect x="44" y="45" width="14" height="90" rx="7" fill="white"/>
+  <rect x="66" y="56" width="14" height="68" rx="7" fill="white"/>
+  <rect x="88" y="28" width="14" height="124" rx="7" fill="white"/>
+  <rect x="110" y="50" width="14" height="80" rx="7" fill="white"/>
+  <rect x="132" y="39" width="14" height="102" rx="7" fill="white"/>
+  <rect x="154" y="61" width="14" height="58" rx="7" fill="white"/>
+</svg>
