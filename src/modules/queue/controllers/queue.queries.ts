@@ -1,3 +1,4 @@
+import type { LiveStatus } from "@/core/controllers/live-updates.hook";
 import { pollingStopped } from "@/core/controllers/query-retry.utils";
 import { queryOptions } from "@tanstack/react-query";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
@@ -53,18 +54,25 @@ export function queueJoinQuery(deps: { joinQueueUseCase: JoinQueueUseCase }, eve
 /**
  * Posisi antrian. Tidak mengambil data sendiri: nilai awal dari hasil join (`initial`, query baru aktif setelah itu)
  * dan pembaruan datang dari SSE (ADR-0016). Seperti join, hanya posisi `waiting` yang dipakai ulang tanpa bertanya;
- * hasil lain diverifikasi ke server saat layar dipasang lagi. Polling dengan jitter lewat use case cadangan (`/queue/serving`) hanya jalan selama stream
- * tidak tersambung (`live` false). Giliran sudah tiba (posisi ≤ 0) tetapi server masih menjawab `waiting`: ditanya
- * tiap `QUEUE_TURN_ARRIVED_POLL_MS`, juga saat stream tersambung tetapi diam. Berhenti setelah admitted, ended, atau error.
+ * hasil lain diverifikasi ke server saat layar dipasang lagi. Polling dengan jitter lewat use case cadangan
+ * (`/queue/serving`) hanya jalan saat stream `down` (gagal, putus, atau tidak tersambung dalam batas tunggu);
+ * selama `connecting` atau `live` tidak ada polling. Giliran sudah tiba (posisi ≤ 0) tetapi server masih menjawab
+ * `waiting`: hanya `/queue/me` yang ditanya (tanpa `/queue/serving`), tiap `QUEUE_TURN_ARRIVED_POLL_MS`, juga saat
+ * stream tersambung tetapi diam. Berhenti setelah admitted, ended, atau error.
  */
 export function queuePositionQuery(
   deps: { getQueueStateUseCase: GetQueueStateUseCase; random: RandomProtocol },
   eventId: string,
-  options: { live: boolean; initial?: QueueState },
+  options: { stream: LiveStatus; initial?: QueueState },
 ) {
+  const key = queueKeys.position(eventId);
   return queryOptions({
-    queryKey: queueKeys.position(eventId),
-    queryFn: () => deps.getQueueStateUseCase(eventId),
+    queryKey: key,
+    queryFn: ({ client }) => {
+      const cached = client.getQueryData<QueueState>(key);
+      const turnArrived = cached?.status === "waiting" && cached.position <= 0;
+      return deps.getQueueStateUseCase(eventId, { turnArrived });
+    },
     enabled: options.initial !== undefined,
     initialData: options.initial,
     staleTime: waitingOnly,
@@ -72,7 +80,8 @@ export function queuePositionQuery(
       const state = query.state.data;
       if (state?.status !== "waiting" || pollingStopped(query)) return false;
       if (state.position <= 0) return QUEUE_TURN_ARRIVED_POLL_MS;
-      return options.live ? false : withJitter(state.retryAfterMs, deps.random.next());
+      if (options.stream !== "down") return false;
+      return withJitter(state.retryAfterMs, deps.random.next());
     },
   });
 }

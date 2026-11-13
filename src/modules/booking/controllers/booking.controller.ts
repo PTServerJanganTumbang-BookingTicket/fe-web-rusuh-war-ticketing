@@ -5,7 +5,7 @@
 // Customer yang masuk bisa memilih NIK terdaftarnya atau entri Daftar NIK dari profil sebagai pemegang tiket
 // (kontrak §4.3: `use_account_nik`, `saved_nik_id`); NIK yang diketik tetap tersedia dan dicek ke Dukcapil.
 
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
@@ -16,6 +16,7 @@ import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAutoRedirect } from "@/core/controllers/auto-redirect.hook";
 import { sessionAccountQuery } from "@/core/controllers/session.queries";
 import { useAskServerAtExpiry } from "@/core/controllers/ask-server-at-expiry.hook";
+import { useOnceWhileActive } from "@/core/controllers/once-while-active.hook";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
@@ -30,6 +31,7 @@ import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
 import { BOOKING_TIMEOUT_REDIRECT_SECONDS, NIK_VERIFY_COOLDOWN_MS } from "../domain/booking.constants";
+import { clearBookingDraft, loadBookingDraft, saveBookingDraft } from "./booking-draft.utils";
 import { holderChoices, holderInputFor } from "../domain/ticket-holders.rules";
 import { selectionReducer, type SelectionAction } from "../domain/selection.reducer";
 import { isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
@@ -128,13 +130,19 @@ export function useBookingController(eventId: string): BookingScreen {
     endSessionUseCase,
     getSessionAccountUseCase,
   } = useDependencies<BookingDependencies & CoreDependencies>();
-  const query = useQuery(bookingSessionQuery({ getBookingSessionUseCase, random }, eventId));
+  // Opsi dimemoisasi: jitter polling diundi sekali, jadi hitung mundur yang merender ulang tiap detik tidak
+  // memasang ulang timer polling.
+  const sessionOptions = useMemo(
+    () => bookingSessionQuery({ getBookingSessionUseCase, random }, eventId),
+    [getBookingSessionUseCase, random, eventId],
+  );
+  const query = useQuery(sessionOptions);
   // Detail event hanya pelengkap kartu samping; gagal memuatnya tidak menghentikan pemesanan.
   const event = useQuery(bookingEventQuery({ getBookingEventUseCase }, eventId));
   // Gagal memuat Daftar NIK (tamu mendapat 401) hanya berarti NIK diketik sendiri.
-  const aliases = useQuery(holderAliasesQuery({ listHolderAliasesUseCase }));
   // Customer yang masuk: email pemesan dari akun (tidak bisa diubah) dan NIK terdaftarnya jadi pilihan pemegang tiket.
   const account = useQuery(sessionAccountQuery({ getSessionAccountUseCase })).data ?? null;
+  const aliases = useQuery(holderAliasesQuery({ listHolderAliasesUseCase }, Boolean(account)));
   const [selection, dispatch] = useReducer(selectionReducer, {});
   const [typedEmail, setContactEmail] = useState("");
   const contactEmail = account?.email ?? typedEmail;
@@ -149,7 +157,8 @@ export function useBookingController(eventId: string): BookingScreen {
   const [stockSeconds, setStockSeconds] = useState(SOLD_OUT_REDIRECT_SECONDS);
   const session = query.data;
   // NIK pemesan hanya dikenal tersamar: dari `account` di respons tiket, atau dari sesi akun bila BE belum mengirimnya.
-  const choices = holderChoices(session?.maskedNik || account?.nikMasked, aliases.data ?? []);
+  // Tamu (tanpa akun) tidak pernah mendapat NIK tersimpan, apa pun isi cache atau respons sesi.
+  const choices = account ? holderChoices(session?.maskedNik || account.nikMasked, aliases.data ?? []) : [];
   // Pilihan yang sudah tidak ada (mis. keluar akun di tab lain) tidak ikut dikirim; slotnya kembali ke isian NIK.
   const picks = Object.fromEntries(
     Object.entries(aliasPicks).filter(([, id]) => choices.some((choice) => choice.id === id)),
@@ -158,7 +167,10 @@ export function useBookingController(eventId: string): BookingScreen {
   const submit = useMutation({
     mutationFn: submitBookingUseCase,
     // `replace`: Back dari pembayaran tidak boleh kembali ke formulir booking yang sudah terpakai.
-    onSuccess: ({ bookingId }) => router.replace(`/orders/${encodeURIComponent(bookingId)}/pay`),
+    onSuccess: ({ bookingId }) => {
+      clearBookingDraft(eventId);
+      router.replace(`/orders/${encodeURIComponent(bookingId)}/pay`);
+    },
     // Stok, NIK ditolak, atau grant habis tetap di layar; koneksi dan galat server jadi dialog dengan coba lagi.
     onError: (failure, input) => {
       const error = toAppError(failure);
@@ -227,8 +239,34 @@ export function useBookingController(eventId: string): BookingScreen {
     setSubmitted(false);
     setFocusNik(null);
     nikModal.close();
+    clearBookingDraft(eventId);
   };
-  if (expiresAt && expiresAt !== formSessionExpiresAt) setFormSessionExpiresAt(expiresAt);
+  if (expiresAt && expiresAt !== formSessionExpiresAt) {
+    setFormSessionExpiresAt(expiresAt);
+    // Pertama kali formulir tampil di tab ini (muat ulang): pulihkan draf milik grant yang sama.
+    const draft = formSessionExpiresAt === undefined && session ? loadBookingDraft(eventId, expiresAt) : null;
+    if (draft && session) {
+      dispatch({
+        type: "RESTORE",
+        selection: draft.selection,
+        stock: Object.fromEntries(session.categories.map((category) => [category.id, category.stock])),
+      });
+      setNiks(draft.niks);
+      setAliasPicks(draft.aliasPicks);
+      setContactEmail(draft.contactEmail);
+    }
+  }
+  const draftReady = Boolean(formSessionExpiresAt) && formSessionExpiresAt === expiresAt && !accessLost;
+  useEffect(() => {
+    if (!draftReady || !formSessionExpiresAt) return;
+    saveBookingDraft(eventId, {
+      expiresAt: formSessionExpiresAt,
+      selection,
+      niks,
+      aliasPicks,
+      contactEmail: typedEmail,
+    });
+  }, [draftReady, eventId, formSessionExpiresAt, selection, niks, aliasPicks, typedEmail]);
   if (accessLost !== wasAccessLost) {
     setWasAccessLost(accessLost);
     if (accessLost) resetForm();
@@ -251,16 +289,17 @@ export function useBookingController(eventId: string): BookingScreen {
   // otomatis (cookie masih ada, jadi tidak akan sampai); layar kedaluwarsa dengan tombol yang menggantikannya.
   const redirectToQueue =
     isExpired && !timedOutWithForm && appConfig.bookingExpiry === "queue" && !requeue.isError;
-  useEffect(() => {
-    if (redirectToQueue) requeueNow();
-  }, [redirectToQueue, requeueNow]);
+  // Kedua efek di bawah memakai `useOnceWhileActive`: route ini disembunyikan Next saat ditinggalkan dan efeknya
+  // berjalan ulang ketika tampil lagi (ADR-0007). Setelah antri ulang, tanpa penjaga itu efek ini melepas grant BARU
+  // dan memantulkan customer lagi (Beranda / Waiting Room): gelung "habis → antri → habis".
+  const requeueOnce = useCallback(() => requeueNow(), [requeueNow]);
+  useOnceWhileActive(redirectToQueue, requeueOnce);
 
   // Waktu habis dengan formulir terbuka: lepas grant yang sudah kedaluwarsa sekali. Tanpa ini cookie grant masih
   // ada dan `proxy.ts` memantulkan Waiting Room kembali ke /book. Gagal melepas diabaikan; pindah ke Beranda jalan terus.
   const { mutate: releaseGrant } = useMutation({ mutationFn: endSessionUseCase });
-  useEffect(() => {
-    if (timedOutWithForm) releaseGrant();
-  }, [timedOutWithForm, releaseGrant]);
+  const releaseOnce = useCallback(() => releaseGrant(), [releaseGrant]);
+  useOnceWhileActive(timedOutWithForm, releaseOnce);
   // Hitung mundur hanya jeda tampilan; kedaluwarsanya sendiri sudah diputuskan server.
   const timeoutSeconds = useAutoRedirect(
     timedOutWithForm ? "/" : undefined,

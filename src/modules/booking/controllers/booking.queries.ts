@@ -31,14 +31,16 @@ export function bookingSessionQuery(
   deps: { getBookingSessionUseCase: GetBookingSessionUseCase; random: RandomProtocol },
   eventId: string,
 ) {
+  // Jitter diundi sekali per opsi, bukan per pemanggilan `refetchInterval`: nilai yang berubah tiap render (hitung
+  // mundur merender ulang tiap detik) membuat TanStack Query memasang ulang timer sehingga polling tidak pernah jalan.
+  // Pemanggil memoisasi opsi ini (`useMemo`) supaya nilainya tetap selama layar terpasang.
+  const intervalMs = withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next());
   return queryOptions({
     queryKey: bookingKeys.session(eventId),
     queryFn: () => deps.getBookingSessionUseCase(eventId),
     // Berhenti saat error, saat semua kategori habis (layar kembali ke Beranda), dan selama tab tersembunyi.
     refetchInterval: (query) =>
-      pollingStopped(query) || isAllSoldOut(query.state.data)
-        ? false
-        : withJitter(STOCK_REFRESH_INTERVAL_MS, deps.random.next()),
+      pollingStopped(query) || isAllSoldOut(query.state.data) ? false : intervalMs,
     refetchIntervalInBackground: false,
     // Kembali ke tab menyegarkan stok yang sudah lewat staleTime tanpa menunggu tik polling.
     refetchOnWindowFocus: true,
@@ -50,10 +52,15 @@ export function bookingSessionQuery(
  * Alias akun untuk pemegang tiket. Tamu mendapat 401 dan tetap mengisi NIK manual, jadi tidak diulang.
  * Tidak ada polling: alias diubah di halaman profil, bukan selama memilih tiket.
  */
-export function holderAliasesQuery(deps: { listHolderAliasesUseCase: ListHolderAliasesUseCase }) {
+export function holderAliasesQuery(
+  deps: { listHolderAliasesUseCase: ListHolderAliasesUseCase },
+  signedIn = true,
+) {
   return queryOptions({
     queryKey: bookingKeys.aliases,
     queryFn: () => deps.listHolderAliasesUseCase(),
+    // Tamu tidak punya Daftar NIK: tidak diminta, dan data cache lama tidak dipakai.
+    enabled: signedIn,
     retry: false,
     staleTime: Infinity,
   });

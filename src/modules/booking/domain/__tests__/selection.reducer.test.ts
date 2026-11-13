@@ -58,4 +58,12 @@ describe("CLAMP_TO_STOCK", () => {
   it("RESET membuang semua pilihan saat akses habis", () => {
     expect(selectionReducer({ vip: 2, festival: 1 }, { type: "RESET" })).toEqual({});
   });
+
+  it("RESTORE memulihkan pilihan tersimpan, dibatasi stok dan kategori yang ada", () => {
+    const restored = selectionReducer(
+      {},
+      { type: "RESTORE", selection: { vip: 20, gone: 2, tribune: 1 }, stock },
+    );
+    expect(restored).toEqual({ vip: 12 });
+  });
 });

@@ -25,12 +25,14 @@ export function isEventNotFound(error: AppError): boolean {
  * Menggunakan jitter untuk mencegah thundering herd (ADR-0004).
  */
 export function eventsQueryOptions(deps: { listEventsUseCase: ListEventsUseCase; random: RandomProtocol }) {
+  // Jitter ±20% untuk mencegah sinkronisasi polling, diundi sekali per opsi (pemanggil memoisasi opsi): nilai yang
+  // berubah tiap render memasang ulang timer TanStack Query sehingga polling tidak pernah jalan.
+  const intervalMs = withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next());
   return queryOptions({
     queryKey: catalogKeys.events(),
     queryFn: () => deps.listEventsUseCase(),
-    // Jitter ±20% untuk mencegah sinkronisasi polling; tidak berjalan selama tab tersembunyi.
-    refetchInterval: (query) =>
-      pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
+    // Tidak berjalan selama tab tersembunyi.
+    refetchInterval: (query) => (pollingStopped(query) ? false : intervalMs),
     refetchIntervalInBackground: false,
     // Kembali ke tab menyegarkan data yang sudah lewat staleTime, jadi tidak perlu menunggu tik polling berikutnya.
     refetchOnWindowFocus: true,
@@ -46,11 +48,11 @@ export function eventDetailQueryOptions(
   deps: { getEventUseCase: GetEventUseCase; random: RandomProtocol },
   eventId: string,
 ) {
+  const intervalMs = withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next());
   return queryOptions({
     queryKey: catalogKeys.event(eventId),
     queryFn: () => deps.getEventUseCase(eventId),
-    refetchInterval: (query) =>
-      pollingStopped(query) ? false : withJitter(CATALOG_REFRESH_INTERVAL_MS, deps.random.next()),
+    refetchInterval: (query) => (pollingStopped(query) ? false : intervalMs),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     staleTime: CATALOG_STALE_TIME_MS,

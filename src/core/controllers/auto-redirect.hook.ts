@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
@@ -23,8 +23,17 @@ export function useAutoRedirect(href: string | undefined, seconds: number): numb
     return () => clearInterval(id);
   }, [href]);
 
+  // Sekali per tujuan: route tersembunyi yang tampil lagi menjalankan ulang efek dengan hitungan yang sudah nol
+  // (ADR-0007) dan akan melempar customer pergi lagi.
+  const redirectedTo = useRef<string>(undefined);
   useEffect(() => {
-    if (href !== undefined && remaining === 0) router.replace(href);
+    if (href === undefined) {
+      redirectedTo.current = undefined;
+      return;
+    }
+    if (remaining !== 0 || redirectedTo.current === href) return;
+    redirectedTo.current = href;
+    router.replace(href);
   }, [href, remaining, router]);
 
   return remaining;

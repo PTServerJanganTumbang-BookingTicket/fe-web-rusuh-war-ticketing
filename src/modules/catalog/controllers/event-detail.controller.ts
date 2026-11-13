@@ -7,6 +7,7 @@
  * Wireframe: belum ada untuk layar ini; isi mengikuti kartu event Home (9.1) dan kartu event alur pembelian.
  */
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { useDependencies } from "@/core/controllers/dependencies.context";
@@ -28,7 +29,12 @@ export type EventDetailScreen =
 export function useEventDetailController(eventId: string): EventDetailScreen {
   const { getEventUseCase, random } = useDependencies<CatalogDependencies & CoreDependencies>();
   const { nav, footer } = useSiteChrome();
-  const query = useQuery(eventDetailQueryOptions({ getEventUseCase, random }, eventId));
+  // Opsi dimemoisasi supaya jitter polling tetap sama antar render (lihat `eventDetailQueryOptions`).
+  const options = useMemo(
+    () => eventDetailQueryOptions({ getEventUseCase, random }, eventId),
+    [getEventUseCase, random, eventId],
+  );
+  const query = useQuery(options);
 
   // Data terakhir tetap tampil walau penyegaran berikutnya gagal; layar galat hanya bila belum ada data sama sekali.
   if (query.data) return { kind: "ready", view: { nav, footer, ...toEventDetailViewProps(query.data) } };
