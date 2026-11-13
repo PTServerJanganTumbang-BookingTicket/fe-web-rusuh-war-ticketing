@@ -106,9 +106,15 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await page.getByRole("textbox", { name: "NIK tiket 1" }).fill("3171000000000033");
     await expect(verify).toBeEnabled();
 
-    // Jeda dihitung dari saat ditekan dan waktu nyata tetap berjalan, jadi keadaan mati dicek sebelum menunggu hasil.
-    await verify.click();
-    await expect(verify).toBeDisabled();
+    // Jeda dihitung dari saat ditekan dan waktu nyata tetap berjalan, jadi runner yang macet bisa melewati 3 detik
+    // sebelum asersi sempat jalan. Klik dan pembacaan `disabled` dilakukan dalam satu tugas di halaman.
+    const disabledRightAfterClick = await verify.evaluate(async (element) => {
+      const button = element as HTMLButtonElement;
+      button.click();
+      await Promise.resolve();
+      return button.disabled;
+    });
+    expect(disabledRightAfterClick).toBe(true);
     await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
     await page.clock.runFor(3100);
     await expect(verify).toBeEnabled();
