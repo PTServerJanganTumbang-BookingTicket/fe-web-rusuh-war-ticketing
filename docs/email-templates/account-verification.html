@@ -17,85 +17,202 @@
       Never interpolate the NIK into the email, links, subject or support metadata.
     -->
   </head>
-  <body style="margin:0;padding:0;background:#f0f1f2;font-family:Poppins,'Segoe UI',Helvetica,Arial,sans-serif;color:#00122e;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f1f2;">
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #f0f1f2;
+      font-family: Poppins, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif;
+      color: #00122e;
+    "
+  >
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      style="background: #f0f1f2"
+    >
       <tr>
-        <td align="center" style="padding:24px 16px;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
-                 style="width:100%;max-width:600px;background:#ffffff;border:1px solid #dadddf;border-top:4px solid #ff0025;border-radius:12px;">
+        <td align="center" style="padding: 24px 16px">
+          <table
+            role="presentation"
+            width="600"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              width: 100%;
+              max-width: 600px;
+              background: #ffffff;
+              border: 1px solid #dadddf;
+              border-top: 4px solid #ff0025;
+              border-radius: 12px;
+            "
+          >
             <tr>
-              <td style="padding:40px 40px 0 40px;">
+              <td style="padding: 40px 40px 0 40px">
                 <!-- Brand -->
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td style="padding-right:10px;vertical-align:middle;">
-                      <img src="{{asset_base_url}}/logo-mark.png" width="36" height="36" alt="" style="display:block;border:0;border-radius:10px;" />
+                    <td style="padding-right: 10px; vertical-align: middle">
+                      <img
+                        src="{{asset_base_url}}/logo-mark.png"
+                        width="36"
+                        height="36"
+                        alt=""
+                        style="display: block; border: 0; border-radius: 10px"
+                      />
                     </td>
-                    <td style="vertical-align:middle;">
-                      <div style="font-size:24px;line-height:26px;font-weight:700;color:#00122e;">rusuh.</div>
-                      <div style="font-size:9px;line-height:11px;letter-spacing:.4px;color:#6c757d;">BOOKING TIKET</div>
+                    <td style="vertical-align: middle">
+                      <div style="font-size: 24px; line-height: 26px; font-weight: 700; color: #00122e">
+                        rusuh.
+                      </div>
+                      <div style="font-size: 9px; line-height: 11px; letter-spacing: 0.4px; color: #6c757d">
+                        BOOKING TIKET
+                      </div>
                     </td>
                   </tr>
                 </table>
 
                 <!-- Icon -->
-                <img src="{{asset_base_url}}/mail-verified.png" width="64" height="64" alt="" style="display:block;border:0;margin:28px 0 0 0;border-radius:32px;" />
+                <img
+                  src="{{asset_base_url}}/mail-verified.png"
+                  width="64"
+                  height="64"
+                  alt=""
+                  style="display: block; border: 0; margin: 28px 0 0 0; border-radius: 32px"
+                />
 
                 <!-- Heading -->
-                <h1 style="margin:28px 0 0 0;font-size:30px;line-height:38px;font-weight:600;color:#00122e;">One click. Account verified.</h1>
+                <h1
+                  style="
+                    margin: 28px 0 0 0;
+                    font-size: 30px;
+                    line-height: 38px;
+                    font-weight: 600;
+                    color: #00122e;
+                  "
+                >
+                  One click. Account verified.
+                </h1>
 
-                <p style="margin:24px 0 0 0;font-size:14px;line-height:20px;font-weight:500;color:#00122e;">Hi {{display_name}},</p>
-                <p style="margin:16px 0 0 0;font-size:16px;line-height:24px;color:#00122e;">
-                  Thanks for registering with Rusuh. Please verify your email address to finish setting up your account and get ready for your next live moment.
+                <p
+                  style="
+                    margin: 24px 0 0 0;
+                    font-size: 14px;
+                    line-height: 20px;
+                    font-weight: 500;
+                    color: #00122e;
+                  "
+                >
+                  Hi {{display_name}},
+                </p>
+                <p style="margin: 16px 0 0 0; font-size: 16px; line-height: 24px; color: #00122e">
+                  Thanks for registering with Rusuh. Please verify your email address to finish setting up
+                  your account and get ready for your next live moment.
                 </p>
 
                 <!-- CTA -->
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin-top: 28px"
+                >
                   <tr>
-                    <td align="center" bgcolor="#ff0025" style="border-radius:999px;">
-                      <a href="{{verification_url}}"
-                         style="display:block;padding:18px 24px;font-size:14px;line-height:18px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px;">
+                    <td align="center" bgcolor="#ff0025" style="border-radius: 999px">
+                      <a
+                        href="{{verification_url}}"
+                        style="
+                          display: block;
+                          padding: 18px 24px;
+                          font-size: 14px;
+                          line-height: 18px;
+                          font-weight: 600;
+                          color: #ffffff;
+                          text-decoration: none;
+                          border-radius: 999px;
+                        "
+                      >
                         Verify My Email
                       </a>
                     </td>
                   </tr>
                 </table>
 
-                <p style="margin:16px 0 0 0;font-size:13px;line-height:19px;color:#6c757d;">
+                <p style="margin: 16px 0 0 0; font-size: 13px; line-height: 19px; color: #6c757d">
                   This link can only be used once and expires in {{expires_in}}.
                 </p>
 
                 <!-- Fallback URL -->
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                       style="margin-top:24px;background:#f0f1f2;border:1px solid #dadddf;border-radius:8px;">
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin-top: 24px; background: #f0f1f2; border: 1px solid #dadddf; border-radius: 8px"
+                >
                   <tr>
-                    <td style="padding:16px;">
-                      <p style="margin:0;font-size:12px;line-height:18px;color:#00122e;">
+                    <td style="padding: 16px">
+                      <p style="margin: 0; font-size: 12px; line-height: 18px; color: #00122e">
                         If the button doesn’t work, copy and paste this full URL into your browser:
                       </p>
-                      <p style="margin:8px 0 0 0;font-size:12px;line-height:18px;word-break:break-all;">
-                        <a href="{{verification_url}}" style="color:#0066cc;text-decoration:none;">{{verification_url}}</a>
+                      <p style="margin: 8px 0 0 0; font-size: 12px; line-height: 18px; word-break: break-all">
+                        <a href="{{verification_url}}" style="color: #0066cc; text-decoration: none"
+                          >{{verification_url}}</a
+                        >
                       </p>
                     </td>
                   </tr>
                 </table>
 
-                <p style="margin:24px 0 0 0;font-size:13px;line-height:19px;color:#6c757d;">
-                  If you didn’t create a Rusuh account, you can safely ignore this email. Never share this verification link with anyone.
+                <p style="margin: 24px 0 0 0; font-size: 13px; line-height: 19px; color: #6c757d">
+                  If you didn’t create a Rusuh account, you can safely ignore this email. Never share this
+                  verification link with anyone.
                 </p>
 
                 <!-- Footer -->
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
-                  <tr><td style="border-top:1px solid #dadddf;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr>
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin-top: 28px"
+                >
+                  <tr>
+                    <td style="border-top: 1px solid #dadddf; font-size: 0; line-height: 0; height: 1px">
+                      &nbsp;
+                    </td>
+                  </tr>
                 </table>
-                <p style="margin:20px 0 0 0;font-size:12px;line-height:18px;color:#6c757d;">See you in front of the stage.</p>
-                <p style="margin:6px 0 0 0;font-size:11px;line-height:17px;color:#6c757d;">
-                  Need help? Visit our <a href="{{help_center_url}}" style="color:#0066cc;text-decoration:none;">Help Center</a>.
+                <p style="margin: 20px 0 0 0; font-size: 12px; line-height: 18px; color: #6c757d">
+                  See you in front of the stage.
                 </p>
-                <p style="margin:6px 0 0 0;font-size:11px;line-height:17px;color:#6c757d;">
-                  <a href="{{help_center_url}}" style="color:#0066cc;text-decoration:none;">Help Center</a> · {{help_center_url}}
+                <p style="margin: 6px 0 0 0; font-size: 11px; line-height: 17px; color: #6c757d">
+                  Need help? Visit our
+                  <a href="{{help_center_url}}" style="color: #0066cc; text-decoration: none">Help Center</a>.
                 </p>
-                <p style="margin:6px 0 0 0;padding-bottom:32px;font-size:10px;line-height:16px;color:#6c757d;">© 2026 Rusuh Booking Tiket</p>
+                <p style="margin: 6px 0 0 0; font-size: 11px; line-height: 17px; color: #6c757d">
+                  <a href="{{help_center_url}}" style="color: #0066cc; text-decoration: none">Help Center</a>
+                  · {{help_center_url}}
+                </p>
+                <p
+                  style="
+                    margin: 6px 0 0 0;
+                    padding-bottom: 32px;
+                    font-size: 10px;
+                    line-height: 16px;
+                    color: #6c757d;
+                  "
+                >
+                  © 2026 Rusuh Booking Tiket
+                </p>
               </td>
             </tr>
           </table>
