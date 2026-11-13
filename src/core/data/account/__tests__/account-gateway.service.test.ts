@@ -520,6 +520,52 @@ describe("accountGateway.forward: route yang juga dipakai tamu", () => {
     expect(received).toEqual({ authorization: `Bearer ${session.account_token}`, grant: "grant_1", body });
   });
 
+  it("detail booking dan pembayaran membawa Bearer dari cookie dan header grant (kontrak v2.20)", async () => {
+    const seen: string[] = [];
+    const record = (request: Request) => {
+      const url = new URL(request.url);
+      seen.push(
+        `${request.method} ${url.pathname} ${request.headers.get("authorization")} ${request.headers.get("x-grant-token")}`,
+      );
+      return HttpResponse.json({ meta: { code: 200, message: "Success" }, data: {} });
+    };
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/bookings/:id`, ({ request }) => record(request)),
+      http.post(`${MOCK_API_BASE_URL}/payments/:id`, ({ request }) => record(request)),
+      http.get(`${MOCK_API_BASE_URL}/payments/:id/methods`, ({ request }) => record(request)),
+      http.get(`${MOCK_API_BASE_URL}/payments/:id/status`, ({ request }) => record(request)),
+      http.post(`${MOCK_API_BASE_URL}/payments/:id/retry`, ({ request }) => record(request)),
+    );
+    const { accountGateway, session } = await signIn();
+    const id = "RB-01M7AZ9W750FF611BDXXXY1VT3";
+    const calls: [string, string][] = [
+      ["GET", `bookings/${id}`],
+      ["POST", `payments/${id}`],
+      ["GET", `payments/${id}/methods`],
+      ["GET", `payments/${id}/status`],
+      ["POST", `payments/${id}/retry`],
+    ];
+    for (const [method, path] of calls) {
+      const response = await accountGateway.forward(
+        api(`/account/${path}`, {
+          method,
+          headers: { ...cookieHeader(session), ...credentials },
+          ...(method === "POST" ? { body: "{}" } : {}),
+        }),
+        path,
+      );
+      expect(response.status).toBe(200);
+    }
+    const bearer = `Bearer ${session.account_token}`;
+    expect(seen).toEqual([
+      `GET /bookings/${id} ${bearer} grant_1`,
+      `POST /payments/${id} ${bearer} grant_1`,
+      `GET /payments/${id}/methods ${bearer} grant_1`,
+      `GET /payments/${id}/status ${bearer} grant_1`,
+      `POST /payments/${id}/retry ${bearer} grant_1`,
+    ]);
+  });
+
   it("401 dari grant: jawaban BE diteruskan apa adanya dan cookie akun tidak dihapus", async () => {
     server.use(
       http.get(`${MOCK_API_BASE_URL}/events/evt_a/tickets`, () =>

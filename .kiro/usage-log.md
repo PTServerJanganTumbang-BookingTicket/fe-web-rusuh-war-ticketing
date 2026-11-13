@@ -659,3 +659,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Setelah bayar, "Lihat E-Tiket" mengarah ke `/tickets` yang butuh akun, jadi tamu tidak bisa membuka e-tiketnya. `/orders/[id]/ticket` hanya redirect ke `/tickets` dengan TODO.
 - **Output**: Booking PAID membaca `tickets[].ticket_id` dan `eticket_url` (kontrak §4.4). Hasil PAID menampilkan satu baris per kursi dengan tautan ke `/tickets/{id}?t=...` (token dibawa, tanpa akun, NFR-10); kursi yang belum terbit tampil "Sedang diterbitkan…", dan order di-poll tiap 2 detik maksimal 30 detik (`TICKET_ISSUANCE_*`), setelah itu diarahkan ke email. "Tiket Saya" hanya untuk customer yang masuk; tamu mendapat "Jelajahi event lain". Breadcrumb e-tiket tanpa "Tiket Saya" untuk tamu. `/orders/[id]/ticket` redirect ke `/orders/[id]/pay`. Import `useMemo` tak terpakai di controller payment dihapus.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 907 test Vitest (coverage) lulus. Dicek di browser dengan mock (tamu, dua tiket VIP): tautan per kursi dan e-tiket lewat `?t=` tampil benar; redirect `/orders/[id]/ticket` jalan. Belum diuji terhadap backend asli, e2e belum dijalankan, tampilan bagi customer yang masuk belum dilihat di browser.
+
+## 2026-11-14 — Pembayaran customer login lewat route same-origin (Bearer)
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Booking berhasil sebagai tamu tetapi gagal saat login: `GET /bookings/{id}` dan `/payments/*` dipanggil langsung ke API tanpa `Authorization: Bearer`, padahal grant milik akun login mewajibkannya (kontrak v2.20). Token akun ada di cookie httpOnly.
+- **Output**: `createHttpOrderService` memakai `bffHttpClient` dengan awalan `/account` saat `viaAccountGateway`, seperti booking dan antrian; WebView (payment session) tetap langsung. Gateway mengizinkan `GET bookings/{id}`, `POST payments/{id}`, `GET payments/{id}/methods|status`, `POST payments/{id}/retry` sebagai route `guestAllowed` (Bearer dari cookie bila ada, header grant diteruskan). `GET /events/{id}` tetap langsung (publik).
+- **Review manusia**: Menunggu review. tsc dan 908 test Vitest (coverage) lulus; test gateway memeriksa Bearer dan grant sampai ke BE untuk kelima endpoint. Belum diuji terhadap backend asli dengan akun login; mode mock browser memang melewati gateway.

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import type { HttpClient, RequestOptions } from "@/core/data/http/http.client";
 import type { CredentialStoreProtocol } from "@/core/domain/credential-store.protocol";
+import { testConfig } from "@/test/support";
 import { createHttpOrderService } from "../http-order.service";
 import { createPaymentSessionService } from "../payment-session.service";
 
@@ -41,16 +42,21 @@ const charged = (method: "bank_transfer" | "gopay") => ({
       : { bank: "bca", va_number: "8801" },
 });
 
-type Call = { verb: "GET" | "POST"; path: string; options?: RequestOptions };
+type Call = { verb: "GET" | "POST"; path: string; options?: RequestOptions; client: "api" | "bff" };
 
 /** HttpClient palsu: jawaban per path, diparse dengan schema asli seperti klien produksi. */
-function setup({ session, grant }: { session?: string; grant?: string } = {}) {
+function setup({
+  session,
+  grant,
+  gateway = false,
+}: { session?: string; grant?: string; gateway?: boolean } = {}) {
   const calls: Call[] = [];
   const responses = {
     booking: booking("PENDING_PAYMENT") as Record<string, unknown>,
     status: pendingStatus as Record<string, unknown>,
   };
-  const answer = (path: string, method: "bank_transfer" | "gopay"): unknown => {
+  const answer = (fullPath: string, method: "bank_transfer" | "gopay"): unknown => {
+    const path = fullPath.replace(/^\/account/, "");
     if (path === `/bookings/${BOOKING}`) return responses.booking;
     if (path === `/payments/${BOOKING}/status`) return responses.status;
     if (path === `/payments/${BOOKING}/methods`) return { methods: [] };
@@ -59,23 +65,32 @@ function setup({ session, grant }: { session?: string; grant?: string } = {}) {
     throw new Error(`path tak dikenal: ${path}`);
   };
   let nextMethod: "bank_transfer" | "gopay" = "gopay";
-  const httpClient = {
-    get: vi.fn((path: string, schema: z.ZodType, options?: RequestOptions) => {
-      calls.push({ verb: "GET", path, options });
-      return Promise.resolve(schema.parse(answer(path, nextMethod)));
-    }),
-    post: vi.fn((path: string, _body: unknown, schema: z.ZodType, options?: RequestOptions) => {
-      calls.push({ verb: "POST", path, options });
-      return Promise.resolve(schema.parse(answer(path, nextMethod)));
-    }),
-  } as unknown as HttpClient;
+  const fakeClient = (client: Call["client"]) =>
+    ({
+      get: vi.fn((path: string, schema: z.ZodType, options?: RequestOptions) => {
+        calls.push({ verb: "GET", path, options, client });
+        return Promise.resolve(schema.parse(answer(path, nextMethod)));
+      }),
+      post: vi.fn((path: string, _body: unknown, schema: z.ZodType, options?: RequestOptions) => {
+        calls.push({ verb: "POST", path, options, client });
+        return Promise.resolve(schema.parse(answer(path, nextMethod)));
+      }),
+    }) as unknown as HttpClient;
+  // Langsung ke API hanya pada mock di browser (appBaseUrl kosong); selain itu lewat route same-origin.
+  const appConfig = gateway ? testConfig : { ...testConfig, mocking: true, appBaseUrl: "" };
   const credentialStore = {
     grantToken: () => grant ?? "gt_1",
     deviceId: () => "dev_1",
   } as unknown as CredentialStoreProtocol;
   const paymentSessionService = createPaymentSessionService();
   if (session) paymentSessionService.set(session);
-  const service = createHttpOrderService({ httpClient, credentialStore, paymentSessionService });
+  const service = createHttpOrderService({
+    appConfig,
+    httpClient: fakeClient("api"),
+    bffHttpClient: fakeClient("bff"),
+    credentialStore,
+    paymentSessionService,
+  });
   const posts = () => calls.filter((call) => call.verb === "POST").map((call) => call.path);
   return {
     service,
@@ -191,6 +206,37 @@ describe("orderService: tiket di booking PAID (kontrak §4.4)", () => {
         eticketUrl: "/tickets/TKT-001/eticket?t=et_9f3a2c",
       },
       { category: "VIP", priceIdr: 1_500_000, nikMasked: "3171**********33" },
+    ]);
+  });
+});
+
+describe("orderService: customer login lewat route same-origin (kontrak v2.20)", () => {
+  it("booking, status, metode, charge, dan retry lewat /account agar Bearer dari cookie ikut", async () => {
+    const { service, calls, pay } = setup({ gateway: true });
+    await service.getOrder(BOOKING);
+    await service.getAvailableMethods(BOOKING);
+    await pay("gopay");
+    await pay("bank_transfer");
+    const routed = calls;
+    expect(new Set(routed.map((call) => call.client))).toEqual(new Set(["bff"]));
+    expect(routed.map((call) => `${call.verb} ${call.path}`)).toEqual(
+      expect.arrayContaining([
+        `GET /account/bookings/${BOOKING}`,
+        `GET /account/payments/${BOOKING}/status`,
+        `GET /account/payments/${BOOKING}/methods`,
+        `POST /account/payments/${BOOKING}`,
+        `POST /account/payments/${BOOKING}/retry`,
+      ]),
+    );
+    expect(routed[0]?.options?.headers).toHaveProperty("x-grant-token");
+  });
+
+  it("WebView (payment session) tetap langsung ke API: tidak ada cookie akun di sana", async () => {
+    const { service, calls } = setup({ gateway: true, session: "ps_1" });
+    await service.getOrder(BOOKING);
+    expect(calls.map((call) => `${call.client} ${call.path}`)).toEqual([
+      `api /bookings/${BOOKING}`,
+      `api /payments/${BOOKING}/status`,
     ]);
   });
 });
