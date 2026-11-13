@@ -14,6 +14,7 @@ import {
   testConfig,
 } from "@/test/support";
 import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
+import { NIK_VERIFY_COOLDOWN_MS } from "../../domain/booking.constants";
 import { useBookingController } from "../booking.controller";
 import type { BookingViewProps } from "../../views/BookingView";
 
@@ -403,6 +404,7 @@ describe("useBookingController", () => {
     act(() => first()?.holder?.onChange("snk_1"));
     expect(first()?.nik).toMatchObject({ value: BUDI_MASKED, readOnly: true });
     expect(first()?.nik.success).toBe("NIK ini sudah terverifikasi di profilmu.");
+    expect(first()?.verify).toBeUndefined();
     // Alias yang sudah dipakai tiket 1 tidak bisa dipilih untuk tiket 2 (BR-02).
     expect(second()?.holder?.options[1]).toMatchObject({
       label: "Budi · 3171**********33 (sudah dipakai tiket lain)",
@@ -728,8 +730,11 @@ describe("useBookingController", () => {
       await waitFor(() =>
         expect(view().holders?.items[0]?.holder?.options.map((o) => o.value)).toEqual(["owner", ""]),
       );
+      expect(view().holders?.items[0]?.verify).toBeDefined();
+
       act(() => view().holders?.items[0]?.holder?.onChange("owner"));
       expect(view().holders?.items[0]?.nik).toMatchObject({ value: "3171********xx22", readOnly: true });
+      expect(view().holders?.items[0]?.verify).toBeUndefined();
 
       await submitAndConfirm(view);
       await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-ACCOUNT/pay"));
@@ -794,56 +799,133 @@ describe("useBookingController", () => {
       expect(view().holders?.items[0]?.holder?.options.map((option) => option.value)).toEqual([""]);
     });
 
-    it("tamu: tanpa pilihan pemegang dan tanpa tombol verifikasi; email bisa diketik", async () => {
+    it("tamu: tanpa pilihan pemegang tetapi dengan tombol verifikasi; email bisa diketik", async () => {
       const { view } = await readyView();
       add(view, "cat_vip");
       await waitFor(() => expect(view().holders?.items).toHaveLength(1));
       expect(view().holders?.items[0]?.holder).toBeUndefined();
-      expect(view().holders?.items[0]).not.toHaveProperty("verify");
+      expect(view().holders?.items[0]?.verify).toMatchObject({
+        label: "Verifikasi Dukcapil",
+        disabled: true,
+      });
       expect(view().buyer.email.readOnly).toBeUndefined();
       act(() => view().buyer.email.onChange("tamu@example.com"));
       expect(view().buyer.email.value).toBe("tamu@example.com");
     });
   });
 
-  describe("cek NIK otomatis", () => {
-    const typeNik = (view: () => BookingViewProps, nik = "3171000000001234", index = 0) =>
-      act(() => view().holders?.items[index]?.nik.onChange(nik));
+  describe("tombol Verifikasi Dukcapil", () => {
+    const click = (view: () => BookingViewProps) => act(() => view().holders?.items[0]?.verify?.onClick());
+    const typeNik = (view: () => BookingViewProps, nik = "3171000000001234") =>
+      act(() => view().holders?.items[0]?.nik.onChange(nik));
+    const tick = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
 
-    it("tamu: NIK dicek begitu 16 digit, bukan sebelumnya; tidak ada tombol verifikasi", async () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("tamu: tombol mati sampai 16 digit, lalu mengecek NIK dan mati selama jeda NIK_VERIFY_COOLDOWN_MS", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       const validated: string[] = [];
       server.use(captureValidate(validated));
       const { view } = await readyView();
       add(view, "cat_vip");
-      await waitFor(() => expect(view().holders?.items).toHaveLength(1));
-      expect(view().holders?.items[0]).not.toHaveProperty("verify");
+      await waitFor(() => expect(view().holders?.items[0]?.verify).toBeDefined());
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
 
-      typeNik(view, "317100000000123");
-      expect(validated).toEqual([]);
+      typeNik(view, "3171");
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
       typeNik(view);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+
+      click(view);
       await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
       expect(validated).toEqual(["3171000000001234"]);
+      // Pengecekan selesai tetapi jeda masih berjalan: tombol tetap mati.
+      expect(view().holders?.items[0]?.verify).toMatchObject({ busy: false, disabled: true });
+
+      // Jam palsu ikut berjalan mengikuti waktu nyata selama menunggu respons, jadi batasnya diberi ruang 1,5 detik.
+      await tick(NIK_VERIFY_COOLDOWN_MS - 1500);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+      await tick(2000);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+
+      // Setelah jeda, menekan lagi untuk NIK yang sama tetap bertanya ke server (coba lagi).
+      click(view);
+      await waitFor(() => expect(validated).toHaveLength(2));
     });
 
-    it("16 digit lalu blur untuk NIK yang sama tidak membuat permintaan kembar", async () => {
+    it("tekanan kedua selama jeda diabaikan; jeda per slot tiket", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       const validated: string[] = [];
       server.use(captureValidate(validated));
       const { view } = await readyView();
       add(view, "cat_vip");
-      await waitFor(() => expect(view().holders?.items).toHaveLength(1));
+      add(view, "cat_festival");
+      await waitFor(() => expect(view().holders?.items).toHaveLength(2));
+      typeNik(view);
+      act(() => view().holders?.items[1]?.nik.onChange("3171000000005678"));
+
+      click(view);
+      click(view);
+      await waitFor(() => expect(validated).toEqual(["3171000000001234"]));
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+      // Slot lain tidak ikut terkunci.
+      expect(view().holders?.items[1]?.verify?.disabled).toBe(false);
+    });
+
+    it("blur lalu klik untuk NIK yang sama tidak membuat permintaan kembar", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const validated: string[] = [];
+      server.use(
+        http.post(`${MOCK_API_BASE_URL}/nik/validate`, async ({ request }) => {
+          const { nik } = (await request.json()) as { nik: string };
+          validated.push(nik);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          return HttpResponse.json({
+            meta: { code: 200, message: "NIK is valid" },
+            data: { nik, valid: true, name: "PEMILIK AKUN", status: "ACTIVE" },
+          });
+        }),
+      );
+      const { view } = await readyView();
+      add(view, "cat_vip");
       typeNik(view);
       act(() => view().holders?.items[0]?.nik.onBlur?.());
-      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
+      click(view);
+      await tick(500);
       expect(validated).toEqual(["3171000000001234"]);
     });
 
-    it("customer masuk: NIK lain yang diketik juga dicek otomatis", async () => {
+    it("slot yang hilang (tiket dikurangi) tidak menyisakan jeda untuk tiket baru di slot yang sama", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      server.use(captureValidate([]));
+      const { view } = await readyView();
+      add(view, "cat_vip");
+      typeNik(view);
+      click(view);
+      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
+
+      act(() =>
+        view()
+          .categories.items.find((item) => item.id === "cat_vip")
+          ?.onRemove(),
+      );
+      add(view, "cat_vip");
+      typeNik(view);
+      expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
+    });
+
+    it("customer masuk: NIK lain yang diketik dicek lewat tombol yang sama", async () => {
       const validated: string[] = [];
-      server.use(savedNiksOf(), captureValidate(validated));
+      server.use(captureValidate(validated));
       const { view } = await readyView({ signedIn: true });
       add(view, "cat_vip");
-      await waitFor(() => expect(view().holders?.items[0]?.holder).toBeDefined());
+      await waitFor(() => expect(view().holders?.items[0]?.verify).toBeDefined());
       typeNik(view);
+      click(view);
       await waitFor(() => expect(validated).toEqual(["3171000000001234"]));
     });
   });

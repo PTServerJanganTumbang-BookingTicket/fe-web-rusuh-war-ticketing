@@ -5,13 +5,13 @@
 // Customer yang masuk bisa memilih NIK terdaftarnya atau entri Daftar NIK dari profil sebagai pemegang tiket
 // (kontrak §4.3: `use_account_nik`, `saved_nik_id`); NIK yang diketik tetap tersedia dan dicek ke Dukcapil.
 
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
 import { serverOffsetMs } from "@/core/domain/time/remaining-ms.utils";
-import { NIK_LENGTH, sanitizeNikInput } from "@/core/domain/nik.utils";
+import { sanitizeNikInput } from "@/core/domain/nik.utils";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useAutoRedirect } from "@/core/controllers/auto-redirect.hook";
 import { sessionAccountQuery } from "@/core/controllers/session.queries";
@@ -30,10 +30,10 @@ import type { SubmitBookingInput } from "../domain/booking-request.model";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
-import { BOOKING_TIMEOUT_REDIRECT_SECONDS } from "../domain/booking.constants";
+import { BOOKING_TIMEOUT_REDIRECT_SECONDS, NIK_VERIFY_COOLDOWN_MS } from "../domain/booking.constants";
 import { clearBookingDraft, loadBookingDraft, saveBookingDraft } from "./booking-draft.utils";
 import { holderChoices, holderInputFor } from "../domain/ticket-holders.rules";
-import { selectionReducer } from "../domain/selection.reducer";
+import { selectionReducer, type SelectionAction } from "../domain/selection.reducer";
 import { isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
 import { bookingEventQuery, bookingSessionQuery, holderAliasesQuery } from "./booking.queries";
 import {
@@ -60,6 +60,50 @@ function errorKey(error: AppError): MessageKey {
     if (error.code === "UNAUTHENTICATED") return "booking.error.UNAUTHENTICATED";
   }
   return "booking.error.unknown";
+}
+
+/**
+ * Jeda tombol "Verifikasi Dukcapil" per slot tiket (`NIK_VERIFY_COOLDOWN_MS`). `start` mengembalikan `false` bila
+ * slot itu masih dalam jeda. Timer dibuang saat slot tidak lagi menampilkan tombol (`stop`) dan saat layar ditutup.
+ */
+function useVerifyCooldown() {
+  const [cooling, setCooling] = useState<ReadonlySet<string>>(new Set());
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const stop = useCallback((slotKey: string) => {
+    const timer = timers.current.get(slotKey);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timers.current.delete(slotKey);
+    setCooling((current) => {
+      const next = new Set(current);
+      next.delete(slotKey);
+      return next;
+    });
+  }, []);
+
+  const start = useCallback(
+    (slotKey: string) => {
+      if (timers.current.has(slotKey)) return false;
+      timers.current.set(
+        slotKey,
+        setTimeout(() => stop(slotKey), NIK_VERIFY_COOLDOWN_MS),
+      );
+      setCooling((current) => new Set(current).add(slotKey));
+      return true;
+    },
+    [stop],
+  );
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending.values()) clearTimeout(timer);
+      pending.clear();
+    };
+  }, []);
+
+  return { cooling, start, stop };
 }
 
 export function useBookingController(eventId: string): BookingScreen {
@@ -107,6 +151,7 @@ export function useBookingController(eventId: string): BookingScreen {
   /** Slot yang pemegangnya dipilih dari profil: kunci slot → id pilihan. */
   const [aliasPicks, setAliasPicks] = useState<Record<string, string>>({});
   const [checks, setChecks] = useState<Record<string, NikCheckState>>({});
+  const verifyCooldown = useVerifyCooldown();
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [stockSeconds, setStockSeconds] = useState(SOLD_OUT_REDIRECT_SECONDS);
@@ -333,8 +378,8 @@ export function useBookingController(eventId: string): BookingScreen {
   // NIK yang diketik dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
   // Pemegang dari profil tidak dicek: kontrak menyatakannya sudah terverifikasi (§4.3). Tidak cocok atau nonaktif
   // membuka modal "Periksa NIK"; tanpa jawaban membuka modal "Verifikasi belum tersedia" tanpa menyebut NIK salah.
-  // `force` dipakai tombol coba lagi untuk NIK yang sama; NIK yang sedang dicek tidak dikirim dua kali
-  // (16 digit lalu blur): status "checking" sudah tercatat sebelum event berikutnya diproses.
+  // `force` dipakai tombol verifikasi dan coba lagi untuk NIK yang sama; NIK yang sedang dicek tidak dikirim dua kali
+  // (blur lalu klik tombol): status "checking" sudah tercatat sebelum event berikutnya diproses.
   const checkNik = (slotKey: string, nik: string = niks[slotKey] ?? "", force = false) => {
     touch(`nik:${slotKey}`);
     const current = checks[slotKey];
@@ -361,6 +406,17 @@ export function useBookingController(eventId: string): BookingScreen {
   const editNik = (slotKey: string) => {
     nikModal.close();
     setFocusNik((current) => ({ slotKey, n: (current?.n ?? 0) + 1 }));
+  };
+
+  // Slot yang hilang dari layar (tiket dikurangi, pilihan dipangkas ke stok) tidak menyisakan timer jeda verifikasi.
+  const changeSelection = (action: SelectionAction) => {
+    const kept = new Set(
+      ticketSlots(selectionReducer(selection, action), session.categories).map((slot) => slot.key),
+    );
+    for (const slot of ticketSlots(selection, session.categories)) {
+      if (!kept.has(slot.key)) verifyCooldown.stop(slot.key);
+    }
+    dispatch(action);
   };
 
   let dialog: ActionDialogModel | undefined;
@@ -397,7 +453,7 @@ export function useBookingController(eventId: string): BookingScreen {
       allSoldOut,
       secondsLeft: stockSeconds,
       onPickAnother: () => {
-        dispatch({
+        changeSelection({
           type: "CLAMP_TO_STOCK",
           stock: Object.fromEntries(session.categories.map((category) => [category.id, category.stock])),
         });
@@ -431,23 +487,24 @@ export function useBookingController(eventId: string): BookingScreen {
           ? t(errorKey(toAppError(submit.error)))
           : undefined,
       onAdd: (categoryId) =>
-        dispatch({
+        changeSelection({
           type: "ADD_TICKET",
           categoryId,
           stock: Object.fromEntries(session.categories.map((category) => [category.id, category.stock])),
           activeBooked: session.quota.used,
         }),
-      onRemove: (categoryId) => dispatch({ type: "REMOVE_TICKET", categoryId }),
+      onRemove: (categoryId) => changeSelection({ type: "REMOVE_TICKET", categoryId }),
       onContactEmail: setContactEmail,
-      // Hanya digit, maksimal 16: spasi, tanda baca, dan digit berlebih ditolak. NIK dicek otomatis begitu 16 digit.
-      onNik: (slotKey, value) => {
-        const nik = sanitizeNikInput(value);
-        setNiks((current) => ({ ...current, [slotKey]: nik }));
-        if (nik.length === NIK_LENGTH) checkNik(slotKey, nik);
-      },
+      // Hanya digit, maksimal 16: spasi, tanda baca, dan digit berlebih ditolak.
+      onNik: (slotKey, value) => setNiks((current) => ({ ...current, [slotKey]: sanitizeNikInput(value) })),
       onNikBlur: (slotKey) => checkNik(slotKey),
       aliases: choices,
       account,
+      verifyCooldown: verifyCooldown.cooling,
+      // Tombol verifikasi: selama jeda, tekanan berikutnya diabaikan (tombolnya juga mati di layar).
+      onNikVerify: (slotKey) => {
+        if (verifyCooldown.start(slotKey)) checkNik(slotKey, niks[slotKey] ?? "", true);
+      },
       // Memilih NIK pemesan atau entri Daftar NIK hanya mencatat id-nya; tidak ada NIK lengkap untuk diisi atau dicek.
       // NIK yang sempat diketik di slot itu dikosongkan supaya tidak muncul lagi tanpa sengaja saat kembali ke "NIK lain".
       onHolderAlias: (slotKey, aliasId) => {
@@ -459,6 +516,7 @@ export function useBookingController(eventId: string): BookingScreen {
           return next;
         });
         setNiks((current) => ({ ...current, [slotKey]: "" }));
+        if (alias) verifyCooldown.stop(slotKey);
       },
       onFieldBlur: touch,
       onSubmit: () => {

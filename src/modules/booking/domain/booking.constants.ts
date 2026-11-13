@@ -15,3 +15,9 @@ export const STOCK_STALE_TIME_MS = 5_000;
  * Ini jeda tampilan, bukan TTL; kedaluwarsa tetap diputuskan server (ADR-0005).
  */
 export const BOOKING_TIMEOUT_REDIRECT_SECONDS = 5;
+
+/**
+ * Permintaan produk: setelah tombol "Verifikasi Dukcapil" ditekan, tombol itu mati 3 detik (per tiket) supaya tidak
+ * bisa ditekan berulang-ulang. Ini jeda tampilan, bukan TTL atau batas laju server (`429` tetap milik server).
+ */
+export const NIK_VERIFY_COOLDOWN_MS = 3_000;
