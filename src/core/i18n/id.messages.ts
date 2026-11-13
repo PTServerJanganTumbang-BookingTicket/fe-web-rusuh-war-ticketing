@@ -155,6 +155,15 @@ export const id = {
   "queue.badge.waiting": "Antrean aktif",
   "queue.badge.admitted": "Giliranmu tiba",
   "queue.badge.error": "Antrean berhenti",
+  "queue.badge.security": "Pemeriksaan keamanan",
+  "queue.badge.securityFailed": "Verifikasi gagal",
+  "queue.subtitle.checking": "Satu langkah lagi sebelum kamu masuk antrean.",
+  "queue.security.checking": "Memeriksa keamanan…",
+  "queue.security.checking.detail":
+    "Kami memastikan antrean hanya diisi manusia, bukan bot. Biasanya hanya beberapa detik.",
+  "queue.security.interactive": "Selesaikan verifikasi keamanan di bagian bawah layar.",
+  "queue.security.interactive.detail": "Setelah terverifikasi, kamu langsung masuk antrean.",
+  "queue.security.retry": "Coba verifikasi lagi",
   "queue.fullBooked":
     "Tiket sedang habis. Kursi dapat kembali dari booking yang dibatalkan, jadi tetap di halaman ini.",
   "queue.stale": "Memperbarui…",
@@ -209,7 +218,8 @@ export const id = {
     "Anda akan keluar dari antrian, anda akan mendapatkan nomor antrian baru jika memutuskan untuk masuk kembali",
   "queue.leave.confirm": "Ya, keluar",
   "queue.leave.stay": "Tetap di antrian",
-  "queue.error.CAPTCHA_FAILED": "Verifikasi keamanan gagal. Muat ulang halaman ini lalu coba lagi.",
+  "queue.error.CAPTCHA_FAILED":
+    "Verifikasi keamanan belum berhasil. Kamu belum masuk antrean, jadi coba verifikasi lagi.",
   "queue.error.SALE_NOT_OPEN": "Penjualan belum dibuka. Kembali lagi saat penjualan dimulai.",
   "queue.error.SALE_CLOSED": "Tiket sudah habis. Penjualan acara ini sudah ditutup.",
   "queue.error.RATE_LIMITED": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",

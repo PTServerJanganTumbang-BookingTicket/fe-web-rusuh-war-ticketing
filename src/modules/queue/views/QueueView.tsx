@@ -1,4 +1,11 @@
-import { ClockIcon, IdCardIcon, InfoIcon, TicketIcon, WifiIcon } from "@/components/ui/icons";
+import {
+  ClockIcon,
+  IdCardIcon,
+  InfoIcon,
+  ShieldCheckIcon,
+  TicketIcon,
+  WifiIcon,
+} from "@/components/ui/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,10 +20,13 @@ import { SiteShell, type SiteShellProps } from "@/components/ui/layout/SiteShell
 import { Progress } from "@/components/ui/progress";
 
 export type QueueStatusProps = {
-  state: "loading" | "waiting" | "admitted" | "error";
+  /** `checking`: pemeriksaan keamanan (CAPTCHA) sebelum join; customer belum masuk antrean. */
+  state: "loading" | "checking" | "waiting" | "admitted" | "error";
   badge?: { label: string; tone: "success" | "info" | "error" };
   /** Pesan untuk state selain waiting. */
   message?: string;
+  /** Penjelasan di bawah `message`. */
+  detail?: string;
   position?: { label: string; value: string; suffix: string };
   eta?: { label: string; value: string };
   progress?: { percent: number; label: string };
@@ -103,6 +113,7 @@ function StatusCard({
   state,
   badge,
   message,
+  detail,
   position,
   eta,
   progress,
@@ -143,9 +154,18 @@ function StatusCard({
                   <Skeleton className="h-5 w-56" />
                 </div>
               ) : null}
+              {state === "checking" ? (
+                <span
+                  aria-hidden="true"
+                  className="flex size-16 items-center justify-center rounded-full bg-signal-bg-info text-signal-info"
+                >
+                  <ShieldCheckIcon className="size-8 motion-safe:animate-pulse" />
+                </span>
+              ) : null}
               <p className={cn("type-title", state === "error" ? "text-signal-error" : "text-foreground")}>
                 {message}
               </p>
+              {detail ? <p className="type-body2 max-w-sm text-muted-foreground">{detail}</p> : null}
               {action ? (
                 <Button size="lg" onClick={action.onClick} disabled={action.disabled}>
                   {action.label}

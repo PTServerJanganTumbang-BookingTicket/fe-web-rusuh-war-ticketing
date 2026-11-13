@@ -11,6 +11,7 @@ type Options = {
   callback: (token: string) => void;
   "error-callback": () => void;
   "timeout-callback": () => void;
+  "before-interactive-callback": () => void;
 };
 
 function fakeTurnstile(onRender: (options: Options) => void) {
@@ -210,6 +211,91 @@ describe("createTurnstileCaptchaService", () => {
         siteKey: "k",
       });
       expect(render).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("status dan tantangan interaktif", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("solve melaporkan checking selama berjalan lalu kembali idle, dan memberi tahu pelanggan", async () => {
+      let finish: (token: string) => void = () => undefined;
+      fakeTurnstile((options) => (finish = options.callback));
+      const service = createTurnstileCaptchaService({ appConfig: config(false) });
+      const seen: string[] = [];
+      const unsubscribe = service.subscribe(() => seen.push(service.status()));
+      expect(service.status()).toBe("idle");
+
+      const token = service.solve(turnstileConfig);
+      expect(service.status()).toBe("checking");
+      await vi.waitFor(() => expect(document.body.children).toHaveLength(1));
+      finish("token-ok");
+      expect(await token).toBe("token-ok");
+      expect(service.status()).toBe("idle");
+      expect(seen).toEqual(["checking", "idle"]);
+
+      unsubscribe();
+      service.presolve("evt-x", turnstileConfig);
+      expect(seen).toEqual(["checking", "idle"]);
+    });
+
+    it("tantangan interaktif saat solve: widget ditampilkan, status interactive, batas waktu diperpanjang", async () => {
+      vi.useFakeTimers();
+      let options: Options | undefined;
+      const { remove } = fakeTurnstile((rendered) => {
+        options = rendered;
+        rendered["before-interactive-callback"]();
+      });
+      const service = createTurnstileCaptchaService({ appConfig: config(false) });
+      const token = service.solve(turnstileConfig);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const container = document.body.firstElementChild as HTMLElement;
+      expect(service.status()).toBe("interactive");
+      expect(container.getAttribute("aria-hidden")).toBeNull();
+      expect(container.style.position).toBe("fixed");
+      expect(container.style.width).toBe("");
+
+      // Melewati batas pemeriksaan tak terlihat (15 detik) tidak menggagalkan tantangan yang sedang dikerjakan.
+      await vi.advanceTimersByTimeAsync(30_000);
+      options!.callback("token-manusia");
+      expect(await token).toBe("token-manusia");
+      expect(service.status()).toBe("idle");
+      expect(remove).toHaveBeenCalledWith("widget-1");
+      expect(document.body.children).toHaveLength(0);
+    });
+
+    it("tantangan interaktif yang tidak diselesaikan gagal setelah 2 menit", async () => {
+      vi.useFakeTimers();
+      fakeTurnstile((rendered) => rendered["before-interactive-callback"]());
+      const service = createTurnstileCaptchaService({ appConfig: config(false) });
+      const result = service.solve(turnstileConfig);
+      const assertion = expect(result).rejects.toMatchObject({ error: { code: "CAPTCHA_FAILED" } });
+      await vi.advanceTimersByTimeAsync(120_000);
+      await assertion;
+      expect(service.status()).toBe("idle");
+    });
+
+    it("presolve tidak menampilkan tantangan; solve berikutnya mengulangnya dan menampilkannya", async () => {
+      let renders = 0;
+      fakeTurnstile((rendered) => {
+        renders += 1;
+        if (renders === 1) {
+          rendered["before-interactive-callback"]();
+          return;
+        }
+        rendered.callback("token-di-ruang-tunggu");
+      });
+      const service = createTurnstileCaptchaService({ appConfig: config(false) });
+      const seen: string[] = [];
+      service.subscribe(() => seen.push(service.status()));
+
+      service.presolve("evt-i", turnstileConfig);
+      await vi.waitFor(() => expect(renders).toBe(1));
+      expect(seen).toEqual([]);
+
+      expect(await service.solve(turnstileConfig, "evt-i")).toBe("token-di-ruang-tunggu");
+      expect(renders).toBe(2);
+      expect(seen).toEqual(["checking", "idle"]);
     });
   });
 });

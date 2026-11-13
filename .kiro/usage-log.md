@@ -643,3 +643,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Tombol "Verifikasi Dukcapil" tetap dipakai; cek otomatis begitu NIK 16 digit dibatalkan.
 - **Output**: Commit c118681 di-revert: tombol, jeda `NIK_VERIFY_COOLDOWN_MS`, kunci i18n, dan test tombol kembali; `onNik` hanya menyaring isian. Cek saat field ditinggalkan (blur) tetap seperti sebelumnya.
 - **Review manusia**: Menunggu review. tsc dan test Vitest modul booking lulus. Tampilan belum dilihat di browser.
+
+## 2026-11-14 — Tahap pemeriksaan keamanan (Turnstile) di Waiting Room
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Lambat atau gagalnya Turnstile tidak lagi terbaca sebagai masalah antrean.
+- **Output**: `CaptchaProtocol` punya `status()` (`idle`/`checking`/`interactive`) dan `subscribe`; hanya `solve` yang dihitung. Waiting Room menampilkan state `checking` (badge "Pemeriksaan keamanan", ikon perisai, subtitle "Satu langkah lagi sebelum kamu masuk antrean."). `CAPTCHA_FAILED` memakai badge "Verifikasi gagal" dan tombol "Coba verifikasi lagi" (refetch join) alih-alih "Antrean berhenti" dan muat ulang. Tantangan interaktif Turnstile kini ditampilkan di tengah bawah layar dengan batas 2 menit (sebelumnya widget 0×0 tersembunyi selalu timeout); presolve di latar membatalkan tantangan dan `solve` mengulangnya.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 905 test Vitest lulus. State checking dilihat di browser (mode mock dengan jeda sementara yang sudah dikembalikan). Tantangan interaktif belum dicoba dengan Turnstile asli.

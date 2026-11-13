@@ -347,6 +347,15 @@ export const en: Partial<Record<MessageKey, string>> = {
   "queue.badge.waiting": "Queue active",
   "queue.badge.admitted": "Your turn",
   "queue.badge.error": "Queue stopped",
+  "queue.badge.security": "Security check",
+  "queue.badge.securityFailed": "Check failed",
+  "queue.subtitle.checking": "One more step before you join the queue.",
+  "queue.security.checking": "Running a security check…",
+  "queue.security.checking.detail":
+    "We make sure the queue is for people, not bots. This usually takes a few seconds.",
+  "queue.security.interactive": "Complete the security check at the bottom of the screen.",
+  "queue.security.interactive.detail": "Once verified, you'll join the queue right away.",
+  "queue.security.retry": "Try the check again",
   "queue.fullBooked":
     "Tickets are sold out for now. Seats can return from cancelled bookings, so stay on this page.",
   "queue.stale": "Updating…",
@@ -400,7 +409,8 @@ export const en: Partial<Record<MessageKey, string>> = {
     "You are about to quit the queue. You will get a new queue number if you decide to re-enter.",
   "queue.leave.confirm": "Yes, leave",
   "queue.leave.stay": "Stay in the queue",
-  "queue.error.CAPTCHA_FAILED": "Security check failed. Reload this page and try again.",
+  "queue.error.CAPTCHA_FAILED":
+    "The security check didn't pass. You haven't joined the queue yet, so try the check again.",
   "queue.error.SALE_NOT_OPEN": "Sales have not opened yet. Come back when they start.",
   "queue.error.SALE_CLOSED": "Tickets are sold out. Sales for this event are closed.",
   "queue.error.RATE_LIMITED": "Too many attempts. Wait a moment and try again.",
