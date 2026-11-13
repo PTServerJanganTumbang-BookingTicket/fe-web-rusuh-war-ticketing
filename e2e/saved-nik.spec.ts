@@ -115,7 +115,7 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
       return button.disabled;
     });
     expect(disabledRightAfterClick).toBe(true);
-    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    await expect(page.getByText("NIK terverifikasi")).toBeVisible();
     await page.clock.runFor(3100);
     await expect(verify).toBeEnabled();
   });
@@ -128,7 +128,7 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
     await nik.fill("3171000000000033");
     await nik.blur();
-    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    await expect(page.getByText("NIK terverifikasi")).toBeVisible();
     await confirmOrder(page);
     await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
   });
@@ -149,7 +149,7 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     // Isian manual customer yang masuk diverifikasi lewat tombol.
     await nik.fill("3171000000000033");
     await page.getByRole("button", { name: "Verifikasi Dukcapil" }).click();
-    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    await expect(page.getByText("NIK terverifikasi")).toBeVisible();
   });
 
   test("customer masuk memilih NIK pemesan sebagai pemegang tiket", async ({ page }) => {

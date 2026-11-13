@@ -108,7 +108,7 @@ describe("toBookingViewProps", () => {
     expect(submitted.buyer.email.error).toBe("Masukkan alamat email yang valid.");
   });
 
-  it("NIK terverifikasi menampilkan nama dari Dukcapil", () => {
+  it("NIK terverifikasi menampilkan pesan terverifikasi", () => {
     const view = build({
       form: {
         ...emptyForm,
@@ -118,7 +118,7 @@ describe("toBookingViewProps", () => {
         },
       },
     });
-    expect(view.holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama JOHN DOE");
+    expect(view.holders?.items[0]?.nik.success).toBe("NIK terverifikasi");
   });
 
   it("tombol lanjut mati tanpa tiket atau saat waktu habis", () => {

@@ -181,9 +181,7 @@ describe("useBookingController", () => {
     act(() => view().holders?.items[0]?.nik.onChange("3171-0000-0000-1234"));
     expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
     act(() => view().holders?.items[0]?.nik.onBlur?.());
-    await waitFor(() =>
-      expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama WARGA 1234"),
-    );
+    await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
 
     act(() => view().holders?.items[0]?.nik.onChange("3171000000000099"));
     act(() => view().holders?.items[0]?.nik.onBlur?.());
@@ -223,9 +221,7 @@ describe("useBookingController", () => {
     expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
     const retry = view().dialog?.primary;
     act(() => retry && "onClick" in retry && retry.onClick());
-    await waitFor(() =>
-      expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama WARGA 1234"),
-    );
+    await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
     expect(view().dialog).toBeUndefined();
     expect(attempts).toBe(2);
   });
@@ -844,9 +840,7 @@ describe("useBookingController", () => {
       expect(view().holders?.items[0]?.verify?.disabled).toBe(false);
 
       click(view);
-      await waitFor(() =>
-        expect(view().holders?.items[0]?.nik.success).toBe("Terverifikasi atas nama PEMILIK AKUN"),
-      );
+      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
       expect(validated).toEqual(["3171000000001234"]);
       // Pengecekan selesai tetapi jeda masih berjalan: tombol tetap mati.
       expect(view().holders?.items[0]?.verify).toMatchObject({ busy: false, disabled: true });
@@ -911,7 +905,7 @@ describe("useBookingController", () => {
       add(view, "cat_vip");
       typeNik(view);
       click(view);
-      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toContain("Terverifikasi"));
+      await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
       expect(view().holders?.items[0]?.verify?.disabled).toBe(true);
 
       act(() =>

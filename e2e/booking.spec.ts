@@ -61,7 +61,7 @@ test.describe("Detail Ticket (FR-11–19, BR-01–04)", () => {
     const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
     await nik.fill("3171000000000033");
     await nik.blur();
-    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    await expect(page.getByText("NIK terverifikasi")).toBeVisible();
 
     await page.getByRole("button", { name: "Lanjut ke Pembayaran" }).click();
     const dialog = page.getByRole("dialog", { name: "Periksa pesananmu" });
