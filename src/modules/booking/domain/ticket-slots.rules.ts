@@ -1,3 +1,4 @@
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import type { TicketCategory } from "./booking-session.model";
 import type { Selection } from "./selection.reducer";
 
@@ -58,4 +59,15 @@ export function isEmail(value: string): boolean {
   const domain = email.slice(at + 1);
   const dot = domain.indexOf(".", 1);
   return dot !== -1 && dot < domain.length - 1;
+}
+
+export type ContactEmailProblem = "invalid" | "too_long";
+
+/**
+ * Email pemesan yang diketik: bentuknya benar dan tidak lebih panjang dari `EMAIL_MAX_LENGTH`. `maxLength` di input
+ * sudah menahan ketikan; aturan ini menangkap nilai yang masuk lewat jalan lain (mis. isi otomatis peramban).
+ */
+export function contactEmailProblem(value: string): ContactEmailProblem | null {
+  if (!isEmail(value)) return "invalid";
+  return value.trim().length > EMAIL_MAX_LENGTH ? "too_long" : null;
 }

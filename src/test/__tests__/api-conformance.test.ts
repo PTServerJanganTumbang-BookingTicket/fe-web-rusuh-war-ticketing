@@ -187,8 +187,10 @@ describe("kesesuaian FE dan mock dengan openapi.json", () => {
     const { bookingId } = await bookingService.submitBooking({
       eventId: "evt_konser_a",
       contactEmail: "rina@example.com",
-      tickets: [{ categoryId: "cat_vip", nik: "3171000000000022" }],
-      termsVersion: "2026-10-01",
+      tickets: [
+        { categoryId: "cat_vip", holder: { kind: "typed", nik: "3171000000000022" } },
+        { categoryId: "cat_festival", holder: { kind: "saved", savedNikId: "snk_1" } },
+      ],
     });
 
     // Pembayaran

@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CircleAlertIcon, CircleCheckIcon, ClockIcon, InfoIcon, MailIcon } from "../icons";
 import { Alert, AlertDescription } from "../alert";
 import { Button, buttonVariants } from "../button";
 import { cn } from "../cn.utils";
@@ -17,10 +16,10 @@ export type ActionDialogAction =
   { label: string; onClick: () => void; busy?: boolean } | { label: string; href: string };
 
 export type ActionDialogTone = "error" | "warning" | "info" | "success";
-export type ActionDialogIcon = "alert" | "clock" | "mail" | "check" | "info";
 
 /**
- * Ilustrasi Signal DS (spreadsheet "Icon & Asset reference for SJT"). Menggantikan lingkaran ikon bila ada.
+ * Ilustrasi Signal DS (spreadsheet "Icon & Asset reference for SJT"). Wajib: setiap dialog, sukses maupun gagal,
+ * memakai aset Signal, bukan ikon generik.
  * Berkas di `public/images/illustrations/`.
  */
 export type ActionDialogIllustration = "network" | "confirmation" | "success" | "email" | "error" | "box";
@@ -35,12 +34,10 @@ const ILLUSTRATIONS: Record<ActionDialogIllustration, string> = {
 };
 
 export type ActionDialogProps = {
-  /** Warna lingkaran ikon. `error` galat, `warning` sesi atau waktu, `info` tinjauan, `success` selesai. */
+  /** Sifat dialog: `error` dan `warning` berperan `alertdialog`, `info` dan `success` berperan `dialog`. */
   tone: ActionDialogTone;
-  /** Ikon di lingkaran; bawaan mengikuti `tone`. */
-  icon?: ActionDialogIcon;
-  /** Ilustrasi Signal DS di atas judul; menggantikan ikon. */
-  illustration?: ActionDialogIllustration;
+  /** Ilustrasi Signal DS di atas judul. */
+  illustration: ActionDialogIllustration;
   title: string;
   description: string;
   /** Ringkasan isian, misalnya email dan NIK sebelum mendaftar. */
@@ -53,28 +50,6 @@ export type ActionDialogProps = {
   secondary?: ActionDialogAction;
   /** Escape, klik di luar, geser ke bawah (mobile), dan tombol tutup. Tidak dipanggil saat aksi utama berjalan. */
   onDismiss: () => void;
-};
-
-const TONE_CLASS: Record<ActionDialogTone, string> = {
-  error: "bg-signal-bg-error text-signal-error",
-  warning: "bg-signal-bg-warning text-signal-warning",
-  info: "bg-signal-bg-info text-signal-info",
-  success: "bg-signal-bg-valid text-signal-valid",
-};
-
-const TONE_ICON: Record<ActionDialogTone, ActionDialogIcon> = {
-  error: "alert",
-  warning: "clock",
-  info: "info",
-  success: "check",
-};
-
-const ICONS = {
-  alert: CircleAlertIcon,
-  clock: ClockIcon,
-  mail: MailIcon,
-  check: CircleCheckIcon,
-  info: InfoIcon,
 };
 
 const actionClass = "h-12 w-full rounded-full text-base";
@@ -104,30 +79,17 @@ function ActionButton({ action, variant }: { action: ActionDialogAction; variant
 }
 
 function Body({ props, header }: { props: ActionDialogProps; header: ReactNode }) {
-  const { tone, icon, illustration, details, note, error, primary, secondary } = props;
-  const Icon = ICONS[icon ?? TONE_ICON[tone]];
+  const { illustration, details, note, error, primary, secondary } = props;
   return (
     <>
-      {illustration ? (
-        <Image
-          src={ILLUSTRATIONS[illustration]}
-          alt=""
-          aria-hidden="true"
-          width={180}
-          height={150}
-          className="mx-auto h-auto w-40"
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "flex size-16 items-center justify-center rounded-full [&_svg]:size-7",
-            TONE_CLASS[tone],
-          )}
-        >
-          <Icon />
-        </span>
-      )}
+      <Image
+        src={ILLUSTRATIONS[illustration]}
+        alt=""
+        aria-hidden="true"
+        width={180}
+        height={150}
+        className="mx-auto h-auto w-40"
+      />
       {header}
       {details?.length ? (
         <dl className="flex flex-col gap-3 rounded-2xl border border-border p-4">

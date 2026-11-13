@@ -25,6 +25,8 @@ export type LoginFormProps = {
     placeholder: string;
     hint: string;
     value: string;
+    /** Batas panjang isian; karakter berlebih ditolak peramban. */
+    maxLength?: number;
     error?: string;
     onChange: (value: string) => void;
     onBlur: () => void;
@@ -105,6 +107,7 @@ function LoginForm({
             required
             placeholder={email.placeholder}
             value={email.value}
+            maxLength={email.maxLength}
             aria-invalid={Boolean(email.error)}
             aria-describedby={describedBy}
             disabled={submit.busy}

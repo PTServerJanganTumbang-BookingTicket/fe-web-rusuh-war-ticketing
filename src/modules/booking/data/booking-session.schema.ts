@@ -4,8 +4,9 @@ import type { CreatedBooking, NikCheck } from "../domain/booking-request.model";
 import type { BookingSession } from "../domain/booking-session.model";
 
 /**
- * `data` dari `GET /events/{event_id}/tickets`. Kontrak tidak membawa NIK akun maupun kuota terpakai:
- * login opsional dan batasnya per transaksi (BR-01, BR-02), jadi kuota = `max_tickets_per_order`.
+ * `data` dari `GET /events/{event_id}/tickets`. Kontrak tidak membawa kuota terpakai: batasnya per transaksi
+ * (BR-01, BR-02), jadi kuota = `max_tickets_per_order`. `account` hanya ada untuk customer yang masuk (`null` untuk
+ * tamu) dan NIK-nya selalu tersamar (kontrak §4.1).
  */
 export const bookingSessionSchema = z
   .object({
@@ -21,12 +22,13 @@ export const bookingSessionSchema = z
       }),
     ),
     rules: z.object({ max_tickets_per_order: z.number() }),
+    account: z.object({ nik_masked: z.string().nullish() }).nullish(),
   })
   .transform((response): BookingSession => ({
     eventName: response.event.name,
     expiresAt: response.session.expires_at,
     serverNow: response.session.server_time,
-    maskedNik: null,
+    maskedNik: response.account?.nik_masked ?? null,
     quota: {
       max: response.rules.max_tickets_per_order,
       used: 0,
@@ -77,3 +79,16 @@ export const nikCheckSchema = z
 export const createdBookingSchema = z
   .object({ booking_id: z.string() })
   .transform((booking): CreatedBooking => ({ bookingId: booking.booking_id }));
+
+/** State di `GET /events/{id}/queue/me` yang membawa `grant_token` (kontrak §3.3). */
+const GRANT_CARRYING_STATES: readonly string[] = ["GRANTED", "SELECTING", "AWAITING_PAYMENT"];
+
+/**
+ * `data` dari `GET /events/{event_id}/queue/me`, hanya untuk memulihkan grant. `null` bila customer tidak (lagi)
+ * memegang grant: masih mengantre, selesai, atau kedaluwarsa. Modul booking tidak mengimpor modul antrian.
+ */
+export const queueGrantSchema = z
+  .object({ state: z.string(), grant_token: z.string().nullish() })
+  .transform((me): string | null =>
+    GRANT_CARRYING_STATES.includes(me.state) ? (me.grant_token ?? null) : null,
+  );

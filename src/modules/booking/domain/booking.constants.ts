@@ -4,9 +4,6 @@ export const MAX_TICKETS_PER_NIK = 3;
 /** BR-01: maksimal tiket dalam satu booking (kontrak `POST /bookings`, `tickets.maxItems`). */
 export const MAX_TICKETS_PER_BOOKING = 3;
 
-/** Versi syarat pembelian yang disetujui saat lanjut ke pembayaran (contoh kontrak `POST /bookings`). */
-export const TERMS_VERSION = "2026-10-01";
-
 /** Interval penyegaran stok Detail Ticket, sebelum jitter (ADR-0004). */
 export const STOCK_REFRESH_INTERVAL_MS = 15_000;
 
@@ -15,3 +12,9 @@ export const STOCK_REFRESH_INTERVAL_MS = 15_000;
  * Ini jeda tampilan, bukan TTL; kedaluwarsa tetap diputuskan server (ADR-0005).
  */
 export const BOOKING_TIMEOUT_REDIRECT_SECONDS = 5;
+
+/**
+ * Permintaan produk: setelah tombol "Verifikasi Dukcapil" ditekan, tombol itu mati 3 detik (per tiket) supaya tidak
+ * bisa ditekan berulang-ulang. Ini jeda tampilan, bukan TTL atau batas laju server (`429` tetap milik server).
+ */
+export const NIK_VERIFY_COOLDOWN_MS = 3_000;

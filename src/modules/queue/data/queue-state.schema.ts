@@ -99,20 +99,33 @@ export const queueJoinEventSchema = z
     captcha: event.captcha ? { provider: event.captcha.provider, siteKey: event.captcha.site_key } : null,
   }));
 
+// Tenggat hanya pelengkap tampilan; grant-nya yang menentukan customer boleh lanjut, jadi tenggat yang tidak
+// terkirim tidak boleh menggagalkan pemulihan (kontrak §3.3).
 const grantedStates = z.object({
   state: z.enum(["GRANTED", "SELECTING"]),
   grant_token: z.string(),
-  booking_expires_at: z.string(),
+  booking_expires_at: z.string().nullish(),
 });
 
-/** `data` dari `GET /events/{event_id}/queue/me`: state customer di mesin antrian (kontrak §3). */
+/**
+ * `data` dari `GET /events/{event_id}/queue/me`: state customer di mesin antrian (kontrak §3.3). Selain keadaan di
+ * tabel kontrak, `LAPSED` dan `ABANDONED` (keadaan akhir tanpa grant, §3.3 dan Appendix) berarti sama dengan
+ * `EXPIRED`. State yang sama sekali tidak dikenal sengaja gagal di-parse: controller menampilkan galat dan tombol
+ * coba lagi, bukan layar tunggu yang diam.
+ */
 export const queueMeSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("QUEUED"), ticket_no: z.number(), now_serving: z.number() }),
   grantedStates.extend({ state: z.literal("GRANTED") }),
   grantedStates.extend({ state: z.literal("SELECTING") }),
-  z.object({ state: z.literal("AWAITING_PAYMENT"), grant_token: z.string(), payment_expires_at: z.string() }),
+  z.object({
+    state: z.literal("AWAITING_PAYMENT"),
+    grant_token: z.string(),
+    payment_expires_at: z.string().nullish(),
+  }),
   z.object({ state: z.literal("CONFIRMED") }),
   z.object({ state: z.literal("EXPIRED") }),
+  z.object({ state: z.literal("LAPSED") }),
+  z.object({ state: z.literal("ABANDONED") }),
 ]);
 
 export type QueueMe = z.infer<typeof queueMeSchema>;
@@ -178,15 +191,28 @@ export function toQueueState(ticket: QueueTicket, me: QueueMe): QueueState {
   const { eventName } = ticket;
   switch (me.state) {
     case "QUEUED":
-      return waitingState(ticket, me.now_serving);
+      // Nomor dari server: tiket tersimpan bisa tanpa nomor (join yang langsung diberi giliran).
+      return waitingState({ ...ticket, ticketNo: me.ticket_no }, me.now_serving);
     case "GRANTED":
     case "SELECTING":
-      return { status: "admitted", eventName, accessToken: me.grant_token, expiresAt: me.booking_expires_at };
+      return {
+        status: "admitted",
+        eventName,
+        accessToken: me.grant_token,
+        expiresAt: me.booking_expires_at ?? undefined,
+      };
     case "AWAITING_PAYMENT":
-      return { status: "admitted", eventName, accessToken: me.grant_token, expiresAt: me.payment_expires_at };
+      return {
+        status: "admitted",
+        eventName,
+        accessToken: me.grant_token,
+        expiresAt: me.payment_expires_at ?? undefined,
+      };
     case "CONFIRMED":
       return { status: "ended", eventName, reason: "confirmed" };
     case "EXPIRED":
+    case "LAPSED":
+    case "ABANDONED":
       return { status: "ended", eventName, reason: "expired" };
   }
 }

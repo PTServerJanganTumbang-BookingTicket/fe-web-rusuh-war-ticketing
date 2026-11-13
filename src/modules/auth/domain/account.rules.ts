@@ -1,3 +1,4 @@
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import { SAVED_NIK_LABEL_MAX_LENGTH } from "./auth.constants";
 import type { SavedNikInput } from "./account.model";
 
@@ -12,13 +13,46 @@ export function isEmail(value: string): boolean {
   return dot !== -1 && dot < domain.length - 1;
 }
 
+export type EmailInputError = "required" | "too_long" | "invalid";
+
+/**
+ * Galat isian email di form masuk dan daftar, atau `null` bila siap dikirim. Panjang dicek di sini juga karena
+ * `maxLength` di input tidak berlaku untuk nilai yang ditempel di sebagian peramban atau diisi otomatis.
+ */
+export function emailInputError(value: string): EmailInputError | null {
+  const email = value.trim();
+  if (email === "") return "required";
+  if (email.length > EMAIL_MAX_LENGTH) return "too_long";
+  return isEmail(email) ? null : "invalid";
+}
+
 /** NIK selalu 16 digit angka (BR-02). Keaslian dicek Dukcapil di server. */
 export function isNikFormat(value: string): boolean {
   return /^\d{16}$/.test(value);
 }
 
-/** Huruf dan angka saja; spasi antar kata diizinkan (asumsi: nama orang berspasi, perlu konfirmasi produk). */
-const LABEL_PATTERN = /^[A-Za-z0-9 ]*$/;
+/**
+ * Karakter yang boleh ada di nama alias, sebagai isi kelas karakter regex. Permintaan produk: huruf dan angka saja.
+ * Spasi antar kata diizinkan supaya nama seperti "Budi Santoso" bisa diketik (asumsi, perlu konfirmasi produk);
+ * bila produk menolak spasi, cukup hapus spasi di akhir nilai ini. Dipakai isian dan validasi submit sekaligus.
+ */
+const LABEL_ALLOWED_CHARS = "A-Za-z0-9 ";
+const LABEL_PATTERN = new RegExp(`^[${LABEL_ALLOWED_CHARS}]*$`);
+const LABEL_DISALLOWED_PATTERN = new RegExp(`[^${LABEL_ALLOWED_CHARS}]`, "g");
+
+/**
+ * Membersihkan nama alias saat diketik atau ditempel: karakter di luar daftar dibuang, spasi di awal dan spasi
+ * beruntun dirapikan, lalu dipotong di batas panjang. Spasi di akhir dibiarkan supaya kata berikutnya bisa diketik;
+ * `savedNikLabelOf` memangkasnya saat disimpan.
+ */
+export function sanitizeSavedNikLabelInput(value: string): string {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(LABEL_DISALLOWED_PATTERN, "")
+    .replace(/ {2,}/g, " ")
+    .replace(/^ /, "")
+    .slice(0, SAVED_NIK_LABEL_MAX_LENGTH);
+}
 
 export type SavedNikInputError = {
   label?: "too_long" | "invalid_chars";

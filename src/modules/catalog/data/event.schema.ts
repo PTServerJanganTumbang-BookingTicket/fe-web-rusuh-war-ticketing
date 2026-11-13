@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { DEFAULT_CATEGORY } from "../domain/catalog.constants";
-import type { DisplayBlock, Event, EventStatus, QueueState } from "../domain/event.model";
+import type {
+  DisplayBlock,
+  Event,
+  EventDetail,
+  EventStatus,
+  QueueState,
+  TicketCategory,
+} from "../domain/event.model";
 
 /** Aksi kontrak → aksi tombol di FE. */
 const ACTIONS: Record<"JOIN_QUEUE" | "GO_TO_TICKETS" | "NONE", DisplayBlock["action"]> = {
@@ -87,38 +94,78 @@ function toDisplay(display: z.infer<typeof displaySchema>, queueState: QueueStat
   };
 }
 
-/** Satu event di `GET /events` dan `GET /events/{event_id}` (kontrak §Events). */
-export const eventSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    category: z.string().nullish(),
-    location: z.object({ venue: z.string(), city: z.string() }),
-    date: z.string(),
-    sale_starts_at: z.string().nullish(),
-    image_url: z.string(),
-    status: z.enum(["AVAILABLE", "SELLING_OUT_FAST", "SOLD_OUT"]).nullish(),
-    queue_state: z.enum(Object.keys(QUEUE_STATES) as [keyof typeof QUEUE_STATES]),
-    display: displaySchema,
-  })
-  .transform((event): Event => {
-    const queueState: QueueState = QUEUE_STATES[event.queue_state];
-    return {
-      id: event.id,
-      name: event.name,
-      date: event.date,
-      venue: `${event.location.venue}, ${event.location.city}`,
-      category: event.category?.trim() || DEFAULT_CATEGORY,
-      saleStartsAt: event.sale_starts_at ?? undefined,
-      imageUrl: event.image_url,
-      status: event.status ?? STATE_STATUS[queueState],
-      queueState,
-      display: toDisplay(event.display, queueState),
-    };
-  });
+const eventObject = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string().nullish(),
+  location: z.object({ venue: z.string(), city: z.string() }),
+  date: z.string(),
+  sale_starts_at: z.string().nullish(),
+  image_url: z.string(),
+  status: z.enum(["AVAILABLE", "SELLING_OUT_FAST", "SOLD_OUT"]).nullish(),
+  queue_state: z.enum(Object.keys(QUEUE_STATES) as [keyof typeof QUEUE_STATES]),
+  display: displaySchema,
+});
+
+function toEvent(event: z.infer<typeof eventObject>): Event {
+  const queueState: QueueState = QUEUE_STATES[event.queue_state];
+  return {
+    id: event.id,
+    name: event.name,
+    date: event.date,
+    venue: `${event.location.venue}, ${event.location.city}`,
+    category: event.category?.trim() || DEFAULT_CATEGORY,
+    saleStartsAt: event.sale_starts_at ?? undefined,
+    imageUrl: event.image_url,
+    status: event.status ?? STATE_STATUS[queueState],
+    queueState,
+    display: toDisplay(event.display, queueState),
+  };
+}
+
+/** Satu event di `GET /events` (kontrak §2.1). */
+export const eventSchema = eventObject.transform(toEvent);
 
 /** `data` dari `GET /events`. Pagination ada di `meta` dan belum dipakai Home. */
 export const eventListSchema = z.array(eventSchema);
 
-/** `data` dari `GET /events/{event_id}`. */
-export const eventDetailSchema = eventSchema;
+const ticketCategorySchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullish(),
+    price: z.number().nonnegative(),
+    available: z.number().nullish(),
+    status: z.enum(["AVAILABLE", "SOLD_OUT"]).nullish(),
+  })
+  .transform((category): TicketCategory => {
+    // Stok Redis bisa negatif sesaat; kontrak §2.2 memintanya tampil 0.
+    const available = Math.max(category.available ?? 0, 0);
+    return {
+      id: category.id,
+      name: category.name,
+      description: category.description?.trim() || undefined,
+      price: category.price,
+      available,
+      // Tanpa `status` dan tanpa `available`, kategori tidak bisa dinyatakan tersedia.
+      status: category.status ?? (available > 0 ? "AVAILABLE" : "SOLD_OUT"),
+    };
+  });
+
+/**
+ * `data` dari `GET /events/{event_id}` (kontrak §2.2). Field di luar bentuk daftar (`time`, `description`,
+ * `ticket_categories`) boleh tidak ada: halaman tetap tampil dengan data yang ada. `captcha` tidak dibaca di sini;
+ * widget CAPTCHA milik Waiting Room.
+ */
+export const eventDetailSchema = eventObject
+  .extend({
+    time: z.string().nullish(),
+    description: z.string().nullish(),
+    ticket_categories: z.array(ticketCategorySchema).nullish(),
+  })
+  .transform((event): EventDetail => ({
+    ...toEvent(event),
+    time: event.time?.trim() || undefined,
+    description: event.description?.trim() || undefined,
+    ticketCategories: event.ticket_categories ?? [],
+  }));

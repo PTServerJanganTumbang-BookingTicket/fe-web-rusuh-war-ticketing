@@ -2,9 +2,10 @@
 
 // Detail Ticket. Requirement: FR-11–19, BR-01–04, BR-07. ADR-0005 (timer), ADR-0011 (NIK).
 // Desain: "Pilih tempatmu di konser." (langkah 1 dari 3). Submit membuat booking lalu ke halaman pembayaran.
-// Customer yang masuk bisa memilih alias dari profil sebagai pemegang tiket; NIK manual tetap tersedia.
+// Customer yang masuk bisa memilih NIK terdaftarnya atau entri Daftar NIK dari profil sebagai pemegang tiket
+// (kontrak §4.3: `use_account_nik`, `saved_nik_id`); NIK yang diketik tetap tersedia dan dicek ke Dukcapil.
 
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
@@ -28,9 +29,9 @@ import type { SubmitBookingInput } from "../domain/booking-request.model";
 import { t, type MessageKey } from "@/core/i18n/t.utils";
 import type { StatusViewProps } from "@/components/ui/layout/StatusView";
 import type { BookingDependencies } from "../application/booking.dependencies";
-import { BOOKING_TIMEOUT_REDIRECT_SECONDS, TERMS_VERSION } from "../domain/booking.constants";
-import { holderChoices } from "../domain/ticket-holders.rules";
-import { selectionReducer } from "../domain/selection.reducer";
+import { BOOKING_TIMEOUT_REDIRECT_SECONDS, NIK_VERIFY_COOLDOWN_MS } from "../domain/booking.constants";
+import { holderChoices, holderInputFor } from "../domain/ticket-holders.rules";
+import { selectionReducer, type SelectionAction } from "../domain/selection.reducer";
 import { isNikFormat, ticketSlots } from "../domain/ticket-slots.rules";
 import { bookingEventQuery, bookingSessionQuery, holderAliasesQuery } from "./booking.queries";
 import {
@@ -54,8 +55,53 @@ function errorKey(error: AppError): MessageKey {
     if (error.code === "QUEUE_TOKEN_INVALID") return "booking.error.QUEUE_TOKEN_INVALID";
     if (error.code === "BOOKING_REJECTED") return "booking.error.BOOKING_REJECTED";
     if (error.code === "BOOKING_INVALID") return "booking.error.BOOKING_INVALID";
+    if (error.code === "UNAUTHENTICATED") return "booking.error.UNAUTHENTICATED";
   }
   return "booking.error.unknown";
+}
+
+/**
+ * Jeda tombol "Verifikasi Dukcapil" per slot tiket (`NIK_VERIFY_COOLDOWN_MS`). `start` mengembalikan `false` bila
+ * slot itu masih dalam jeda. Timer dibuang saat slot tidak lagi menampilkan tombol (`stop`) dan saat layar ditutup.
+ */
+function useVerifyCooldown() {
+  const [cooling, setCooling] = useState<ReadonlySet<string>>(new Set());
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const stop = useCallback((slotKey: string) => {
+    const timer = timers.current.get(slotKey);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timers.current.delete(slotKey);
+    setCooling((current) => {
+      const next = new Set(current);
+      next.delete(slotKey);
+      return next;
+    });
+  }, []);
+
+  const start = useCallback(
+    (slotKey: string) => {
+      if (timers.current.has(slotKey)) return false;
+      timers.current.set(
+        slotKey,
+        setTimeout(() => stop(slotKey), NIK_VERIFY_COOLDOWN_MS),
+      );
+      setCooling((current) => new Set(current).add(slotKey));
+      return true;
+    },
+    [stop],
+  );
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending.values()) clearTimeout(timer);
+      pending.clear();
+    };
+  }, []);
+
+  return { cooling, start, stop };
 }
 
 export function useBookingController(eventId: string): BookingScreen {
@@ -85,22 +131,29 @@ export function useBookingController(eventId: string): BookingScreen {
   const query = useQuery(bookingSessionQuery({ getBookingSessionUseCase, random }, eventId));
   // Detail event hanya pelengkap kartu samping; gagal memuatnya tidak menghentikan pemesanan.
   const event = useQuery(bookingEventQuery({ getBookingEventUseCase }, eventId));
-  // Gagal memuat alias (tamu, atau BE belum mengirim NIK lengkap) hanya berarti isian manual.
+  // Gagal memuat Daftar NIK (tamu mendapat 401) hanya berarti NIK diketik sendiri.
   const aliases = useQuery(holderAliasesQuery({ listHolderAliasesUseCase }));
-  // Customer yang masuk: email pemesan dari akun (tidak bisa diubah) dan NIK pemilik jadi pilihan pemegang tiket.
+  // Customer yang masuk: email pemesan dari akun (tidak bisa diubah) dan NIK terdaftarnya jadi pilihan pemegang tiket.
   const account = useQuery(sessionAccountQuery({ getSessionAccountUseCase })).data ?? null;
-  const choices = holderChoices(account, aliases.data ?? []);
   const [selection, dispatch] = useReducer(selectionReducer, {});
   const [typedEmail, setContactEmail] = useState("");
   const contactEmail = account?.email ?? typedEmail;
+  /** NIK yang diketik per slot. */
   const [niks, setNiks] = useState<Record<string, string>>({});
-  /** Slot yang pemegangnya dipilih dari alias: kunci slot → id alias. */
+  /** Slot yang pemegangnya dipilih dari profil: kunci slot → id pilihan. */
   const [aliasPicks, setAliasPicks] = useState<Record<string, string>>({});
   const [checks, setChecks] = useState<Record<string, NikCheckState>>({});
+  const verifyCooldown = useVerifyCooldown();
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [stockSeconds, setStockSeconds] = useState(SOLD_OUT_REDIRECT_SECONDS);
   const session = query.data;
+  // NIK pemesan hanya dikenal tersamar: dari `account` di respons tiket, atau dari sesi akun bila BE belum mengirimnya.
+  const choices = holderChoices(session?.maskedNik || account?.nikMasked, aliases.data ?? []);
+  // Pilihan yang sudah tidak ada (mis. keluar akun di tab lain) tidak ikut dikirim; slotnya kembali ke isian NIK.
+  const picks = Object.fromEntries(
+    Object.entries(aliasPicks).filter(([, id]) => choices.some((choice) => choice.id === id)),
+  );
 
   const submit = useMutation({
     mutationFn: submitBookingUseCase,
@@ -233,15 +286,27 @@ export function useBookingController(eventId: string): BookingScreen {
     };
   }
 
-  const form = { contactEmail, niks, aliasPicks, checks, touched, submitted };
+  const form = {
+    contactEmail,
+    emailLocked: Boolean(account),
+    niks,
+    aliasPicks: picks,
+    checks,
+    touched,
+    submitted,
+  };
   const touch = (field: string) => setTouched((current) => new Set(current).add(field));
 
-  // NIK dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
-  // Tidak cocok atau nonaktif membuka modal "Periksa NIK"; tanpa jawaban membuka modal "Verifikasi belum tersedia"
-  // tanpa menyebut NIK salah. `force` dipakai tombol coba lagi untuk NIK yang sama.
+  // NIK yang diketik dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
+  // Pemegang dari profil tidak dicek: kontrak menyatakannya sudah terverifikasi (§4.3). Tidak cocok atau nonaktif
+  // membuka modal "Periksa NIK"; tanpa jawaban membuka modal "Verifikasi belum tersedia" tanpa menyebut NIK salah.
+  // `force` dipakai tombol verifikasi dan coba lagi untuk NIK yang sama; NIK yang sedang dicek tidak dikirim dua kali
+  // (blur lalu klik tombol): status "checking" sudah tercatat sebelum event berikutnya diproses.
   const checkNik = (slotKey: string, nik: string = niks[slotKey] ?? "", force = false) => {
     touch(`nik:${slotKey}`);
-    if (!isNikFormat(nik) || (!force && checks[slotKey]?.nik === nik)) return;
+    const current = checks[slotKey];
+    if (picks[slotKey] || !isNikFormat(nik)) return;
+    if (current?.nik === nik && (current.state === "checking" || !force)) return;
     setChecks((current) => ({ ...current, [slotKey]: { nik, state: "checking" } }));
     validateNikUseCase(nik).then(
       (result) => {
@@ -258,19 +323,22 @@ export function useBookingController(eventId: string): BookingScreen {
     );
   };
 
-  // "Ubah data": tutup modal dan kembali ke field NIK dengan isian yang ada. NIK alias tidak bisa diketik, jadi
-  // slot itu kembali ke isian manual yang kosong.
+  // "Ubah data": tutup modal dan kembali ke field NIK dengan isian yang ada. Modal NIK hanya muncul untuk NIK yang
+  // diketik, jadi field-nya selalu bisa diubah.
   const editNik = (slotKey: string) => {
     nikModal.close();
-    if (aliasPicks[slotKey]) {
-      setAliasPicks((current) => {
-        const next = { ...current };
-        delete next[slotKey];
-        return next;
-      });
-      setNiks((current) => ({ ...current, [slotKey]: "" }));
-    }
     setFocusNik((current) => ({ slotKey, n: (current?.n ?? 0) + 1 }));
+  };
+
+  // Slot yang hilang dari layar (tiket dikurangi, pilihan dipangkas ke stok) tidak menyisakan timer jeda verifikasi.
+  const changeSelection = (action: SelectionAction) => {
+    const kept = new Set(
+      ticketSlots(selectionReducer(selection, action), session.categories).map((slot) => slot.key),
+    );
+    for (const slot of ticketSlots(selection, session.categories)) {
+      if (!kept.has(slot.key)) verifyCooldown.stop(slot.key);
+    }
+    dispatch(action);
   };
 
   let dialog: ActionDialogModel | undefined;
@@ -296,6 +364,8 @@ export function useBookingController(eventId: string): BookingScreen {
       event: event.data,
       selection,
       contactEmail: open.input.contactEmail,
+      tickets: open.input.tickets,
+      aliases: choices,
       submitting: submit.isPending,
       onConfirm: () => submit.mutate(open.input),
       onDismiss: nikModal.close,
@@ -305,7 +375,7 @@ export function useBookingController(eventId: string): BookingScreen {
       allSoldOut,
       secondsLeft: stockSeconds,
       onPickAnother: () => {
-        dispatch({
+        changeSelection({
           type: "CLAMP_TO_STOCK",
           stock: Object.fromEntries(session.categories.map((category) => [category.id, category.stock])),
         });
@@ -339,22 +409,26 @@ export function useBookingController(eventId: string): BookingScreen {
           ? t(errorKey(toAppError(submit.error)))
           : undefined,
       onAdd: (categoryId) =>
-        dispatch({
+        changeSelection({
           type: "ADD_TICKET",
           categoryId,
           stock: Object.fromEntries(session.categories.map((category) => [category.id, category.stock])),
           activeBooked: session.quota.used,
         }),
-      onRemove: (categoryId) => dispatch({ type: "REMOVE_TICKET", categoryId }),
+      onRemove: (categoryId) => changeSelection({ type: "REMOVE_TICKET", categoryId }),
       onContactEmail: setContactEmail,
       // Hanya digit, maksimal 16: spasi, tanda baca, dan digit berlebih ditolak.
       onNik: (slotKey, value) => setNiks((current) => ({ ...current, [slotKey]: sanitizeNikInput(value) })),
       onNikBlur: (slotKey) => checkNik(slotKey),
       aliases: choices,
       account,
-      onNikVerify: (slotKey) => checkNik(slotKey, niks[slotKey] ?? "", true),
-      // Memilih alias (atau NIK pemilik) mengisi NIK slot itu; "isi manual" mengosongkan NIK supaya tidak terkirim
-      // tanpa sengaja.
+      verifyCooldown: verifyCooldown.cooling,
+      // Tombol verifikasi: selama jeda, tekanan berikutnya diabaikan (tombolnya juga mati di layar).
+      onNikVerify: (slotKey) => {
+        if (verifyCooldown.start(slotKey)) checkNik(slotKey, niks[slotKey] ?? "", true);
+      },
+      // Memilih NIK pemesan atau entri Daftar NIK hanya mencatat id-nya; tidak ada NIK lengkap untuk diisi atau dicek.
+      // NIK yang sempat diketik di slot itu dikosongkan supaya tidak muncul lagi tanpa sengaja saat kembali ke "NIK lain".
       onHolderAlias: (slotKey, aliasId) => {
         const alias = choices.find((item) => item.id === aliasId);
         setAliasPicks((current) => {
@@ -363,8 +437,8 @@ export function useBookingController(eventId: string): BookingScreen {
           else delete next[slotKey];
           return next;
         });
-        setNiks((current) => ({ ...current, [slotKey]: alias?.nik ?? "" }));
-        if (alias) checkNik(slotKey, alias.nik);
+        setNiks((current) => ({ ...current, [slotKey]: "" }));
+        if (alias) verifyCooldown.stop(slotKey);
       },
       onFieldBlur: touch,
       onSubmit: () => {
@@ -383,8 +457,10 @@ export function useBookingController(eventId: string): BookingScreen {
           input: {
             eventId,
             contactEmail,
-            termsVersion: TERMS_VERSION,
-            tickets: slots.map((slot) => ({ categoryId: slot.categoryId, nik: niks[slot.key] ?? "" })),
+            tickets: slots.map((slot) => ({
+              categoryId: slot.categoryId,
+              holder: holderInputFor(picks[slot.key], niks[slot.key] ?? ""),
+            })),
           },
         });
       },

@@ -8,23 +8,19 @@ import { useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError } from "@/core/domain/app-error";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useCountdown } from "@/core/controllers/countdown.hook";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
-import { isEmail } from "../domain/account.rules";
+import { emailInputError } from "../domain/account.rules";
 import { RESEND_COOLDOWN_MS } from "../domain/auth.constants";
-import { authErrorKey } from "./auth-error.mapper";
+import { authErrorKey, visibleEmailError } from "./auth-error.mapper";
 import { toServiceUnavailableDialog } from "./auth-dialogs.mapper";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { useModal, type ActionDialogModel } from "@/core/controllers/modal.hook";
 import { isUnexpectedError, toConnectionProblemDialog } from "@/core/controllers/common-dialogs.mapper";
 import type { LoginViewProps } from "../views/LoginView";
-
-function emailErrorKey(email: string) {
-  if (email.trim() === "") return "login.email.required" as const;
-  return isEmail(email) ? undefined : ("login.email.invalid" as const);
-}
 
 export function useLoginController(): LoginViewProps {
   const siteChrome = useSiteChrome();
@@ -129,7 +125,7 @@ export function useLoginController(): LoginViewProps {
     };
   }
 
-  const errorKey = touched ? emailErrorKey(email) : undefined;
+  const emailError = visibleEmailError(emailInputError(email), touched);
   const busy = request.isPending;
   return {
     ...chrome,
@@ -144,7 +140,9 @@ export function useLoginController(): LoginViewProps {
       placeholder: t("login.email.placeholder"),
       hint: t("login.email.hint"),
       value: email,
-      error: errorKey ? t(errorKey) : undefined,
+      // Batas di input; nilai yang lolos (tempelan, isian otomatis) ditolak validasi, tidak dipotong diam-diam.
+      maxLength: EMAIL_MAX_LENGTH,
+      error: emailError,
       onChange: (value) => {
         setEmail(value);
         if (request.isError) request.reset();
@@ -156,10 +154,10 @@ export function useLoginController(): LoginViewProps {
       label: busy ? t("login.sending") : t(expired ? "login.expired.submit" : "login.submit"),
       busy,
       // Kosong atau sudah terbukti tidak valid: tombol mati. Fokus saja tidak mengaktifkannya.
-      disabled: busy || email.trim() === "" || Boolean(errorKey),
+      disabled: busy || email.trim() === "" || Boolean(emailError),
       onSubmit: () => {
         setTouched(true);
-        if (!emailErrorKey(email)) request.mutate(email);
+        if (!emailInputError(email)) request.mutate(email);
       },
     },
     register: expired

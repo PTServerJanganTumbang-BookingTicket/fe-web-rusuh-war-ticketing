@@ -1,6 +1,13 @@
 import { http } from "msw";
 import { fail, field, hasBearer, noContent, ok, okMeta, readJson } from "./envelope";
-import { isNikFormat, lookupNik, MAX_SAVED_NIKS, maskNik, REGISTERED_NIK } from "./fixtures";
+import {
+  isNikFormat,
+  lookupNik,
+  MAX_SAVED_NIKS,
+  maskNik,
+  MOCK_ACCOUNT_EMAIL,
+  REGISTERED_NIK,
+} from "./fixtures";
 import type { MockState } from "./state";
 
 const MAGIC_LINK_COOLDOWN_MS = 60_000;
@@ -63,7 +70,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
       return ok(
         {
           ...issueTokens(),
-          user: { id: "usr_123", email: "you@example.com", nik: REGISTERED_NIK },
+          user: { id: "usr_123", email: MOCK_ACCOUNT_EMAIL, nik: REGISTERED_NIK },
           redirect_context: {
             type: "booking",
             event_id: "evt_konser_a",
@@ -105,8 +112,6 @@ export function authHandlers(state: MockState, baseUrl: string) {
         saved_niks: state.savedNiks.map((saved) => ({
           id: saved.id,
           nik_masked: saved.nikMasked,
-          // Asumsi FE (contract-assumptions.md): NIK lengkap hanya untuk pemilik akun, supaya bisa dipilih di booking.
-          nik: saved.nik,
           label: saved.label,
           verified_at: saved.verifiedAt,
           status: "VERIFIED",

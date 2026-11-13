@@ -39,4 +39,14 @@ describe("dialog auth", () => {
       href: "/login",
     });
   });
+
+  it("semua dialog auth punya ilustrasi Signal", () => {
+    const fn = vi.fn();
+    const retry = { onRetry: fn, onDismiss: fn };
+    expect(toServiceUnavailableDialog(retry).illustration).toBe("error");
+    expect(toRegistrationFailedDialog(retry).illustration).toBe("error");
+    expect(toAlreadyRegisteredDialog({ onEdit: fn, onDismiss: fn }).illustration).toBe("confirmation");
+    expect(toEmailVerificationFailedDialog({ onResend: fn, onDismiss: fn }).illustration).toBe("error");
+    expect(toLoginLinkFailedDialog({ onDismiss: fn }).illustration).toBe("error");
+  });
 });

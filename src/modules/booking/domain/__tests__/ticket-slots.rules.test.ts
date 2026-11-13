@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { duplicateNikSlots, isEmail, isNikFormat, ticketSlots } from "../ticket-slots.rules";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
+import {
+  contactEmailProblem,
+  duplicateNikSlots,
+  isEmail,
+  isNikFormat,
+  ticketSlots,
+} from "../ticket-slots.rules";
 
 const categories = [
   { id: "vip", name: "VIP", description: "", priceIdr: 1_500_000, stock: 12 },
@@ -35,5 +42,19 @@ describe("format", () => {
   it("email", () => {
     expect(isEmail(" rina@example.com ")).toBe(true);
     expect(isEmail("rina@")).toBe(false);
+  });
+});
+
+describe("contactEmailProblem", () => {
+  const ofLength = (length: number) => `${"a".repeat(length - "@example.com".length)}@example.com`;
+
+  it("email wajar tidak bermasalah; bentuk salah invalid", () => {
+    expect(contactEmailProblem("rina@example.com")).toBeNull();
+    expect(contactEmailProblem("rina@")).toBe("invalid");
+  });
+
+  it(`maksimal ${EMAIL_MAX_LENGTH} karakter: tepat batas lolos, lebih satu ditolak`, () => {
+    expect(contactEmailProblem(ofLength(EMAIL_MAX_LENGTH))).toBeNull();
+    expect(contactEmailProblem(ofLength(EMAIL_MAX_LENGTH + 1))).toBe("too_long");
   });
 });

@@ -57,7 +57,8 @@ export function createHttpQueueService({
     credentialStore.clearQueueToken(eventId);
   }
 
-  async function join(eventId: string): Promise<QueueState> {
+  /** `POST /queue/join` ke server. Dipakai juga saat `/queue/me` dan `/queue/serving` belum punya tiket. */
+  async function joinServer(eventId: string): Promise<QueueState> {
     // Token CAPTCHA diambil lebih dulu: join menolak tanpa token (400), dan nomor antrian dibagikan saat join.
     const event = await httpClient.get(`/events/${encodeURIComponent(eventId)}`, queueJoinEventSchema);
     const captchaToken = await captcha.solve(event.captcha);
@@ -103,12 +104,15 @@ export function createHttpQueueService({
 
   async function getOwnState(eventId: string): Promise<QueueState> {
     const ticket = queueTicketCache.get(eventId);
-    if (!ticket) return join(eventId);
+    if (!ticket) return joinServer(eventId);
     try {
       const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
         headers: queueHeaders(eventId),
         errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
       });
+      if (me.state === "QUEUED" && me.ticket_no !== ticket.ticketNo) {
+        queueTicketCache.set(eventId, { ...ticket, ticketNo: me.ticket_no });
+      }
       return toQueueState(ticket, me);
     } catch (error) {
       const failure = toAppError(error);
@@ -119,7 +123,7 @@ export function createHttpQueueService({
 
   async function getState(eventId: string): Promise<QueueState> {
     const ticket = queueTicketCache.get(eventId);
-    if (!ticket) return join(eventId);
+    if (!ticket) return joinServer(eventId);
     // `/queue/serving` bisa tidak tersedia (404 di gateway) padahal antrian jalan. `/queue/me` (kontrak §3.3) selalu
     // menjawab posisi atau grant, jadi dipakai sebagai cadangan kedua sebelum polling dianggap gagal.
     let serving;
@@ -132,11 +136,27 @@ export function createHttpQueueService({
     queueTicketCache.set(eventId, known);
     if (serving.saleState === "CLOSED")
       return { status: "ended", eventName: known.eventName, reason: "closed" };
-    if (known.ticketNo > 0 && serving.nowServing >= known.ticketNo) return getOwnState(eventId);
-    const position = Math.max(known.ticketNo - serving.nowServing, 0);
+    // Giliran tiba, atau tiket belum bernomor (join yang langsung diberi giliran): hanya `/queue/me` yang tahu.
+    const position = known.ticketNo - serving.nowServing;
+    if (position <= 0) return getOwnState(eventId);
     return waitingState(known, serving.nowServing, {
       fullBooked: serving.saleState === "FULL_BOOKED",
       retryAfterMs: pollAfterMs(position, serving.pollTiers, serving.pollAfterMs ?? QUEUE_POLL_FALLBACK_MS),
+    });
+  }
+
+  /**
+   * Join dari layar Waiting Room. Grant event ini masih dipegang (Back/Forward dari halaman booking): customer sudah
+   * lewat antrian, jadi hasilnya admitted tanpa CAPTCHA dan tanpa menghabiskan jatah join. Booking sendiri yang
+   * menolak grant yang sudah habis, lalu melepasnya sebelum antre lagi.
+   */
+  function join(eventId: string): Promise<QueueState> {
+    const heldGrant = credentialStore.grantToken(eventId);
+    if (!heldGrant) return joinServer(eventId);
+    return Promise.resolve({
+      status: "admitted",
+      eventName: queueTicketCache.get(eventId)?.eventName ?? "",
+      accessToken: heldGrant,
     });
   }
 

@@ -3930,6 +3930,13 @@
                               "examples": [true]
                             }
                           }
+                        },
+                        "account": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "email": { "type": "string" },
+                            "nik_masked": { "type": ["string", "null"], "examples": ["3171**********22"] }
+                          }
                         }
                       }
                     }
@@ -4097,7 +4104,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["event_id", "tickets", "contact_email", "terms_version"],
+                "required": ["event_id", "tickets", "contact_email"],
                 "properties": {
                   "event_id": {
                     "type": "string"
@@ -4108,7 +4115,7 @@
                     "maxItems": 3,
                     "items": {
                       "type": "object",
-                      "required": ["category_id", "nik", "holder_email"],
+                      "required": ["category_id"],
                       "properties": {
                         "category_id": {
                           "type": "string"
@@ -4118,33 +4125,34 @@
                           "minLength": 16,
                           "maxLength": 16
                         },
-                        "holder_email": {
-                          "type": "string",
-                          "format": "email"
+                        "saved_nik_id": {
+                          "type": "string"
+                        },
+                        "use_account_nik": {
+                          "const": true
                         }
-                      }
+                      },
+                      "oneOf": [
+                        { "required": ["nik"] },
+                        { "required": ["saved_nik_id"] },
+                        { "required": ["use_account_nik"] }
+                      ]
                     }
                   },
                   "contact_email": {
                     "type": "string",
                     "format": "email"
-                  },
-                  "terms_version": {
-                    "type": "string"
                   }
                 }
               },
               "example": {
                 "event_id": "evt_konser_a",
                 "tickets": [
-                  {
-                    "category_id": "cat_vip",
-                    "nik": "3171xxxxxxxxxx22",
-                    "holder_email": "buyer@example.com"
-                  }
+                  { "category_id": "cat_vip", "use_account_nik": true },
+                  { "category_id": "cat_vip", "saved_nik_id": "snk_1" },
+                  { "category_id": "cat_festival", "nik": "3171xxxxxxxxxx33" }
                 ],
-                "contact_email": "buyer@example.com",
-                "terms_version": "2026-10-01"
+                "contact_email": "buyer@example.com"
               }
             }
           },

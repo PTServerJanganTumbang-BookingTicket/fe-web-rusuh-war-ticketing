@@ -23,7 +23,7 @@ describe("createListEventsUseCase", () => {
     const listEventsUseCase = createListEventsUseCase({
       eventService: {
         getEvents: async () => [event],
-        getEvent: async () => event,
+        getEvent: async () => ({ ...event, ticketCategories: [] }),
       },
     });
     expect(await listEventsUseCase()).toEqual([event]);

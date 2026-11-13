@@ -1,4 +1,4 @@
-import type { Event } from "./event.model";
+import type { Event, EventDetail } from "./event.model";
 
 /**
  * Protocol untuk mengakses data event.
@@ -8,6 +8,6 @@ import type { Event } from "./event.model";
 export interface EventProtocol {
   /** Mengambil daftar seluruh event. Req 1.1 */
   getEvents(): Promise<Event[]>;
-  /** Mengambil detail satu event berdasarkan ID. */
-  getEvent(eventId: string): Promise<Event>;
+  /** Mengambil detail satu event berdasarkan ID, termasuk kategori tiket (kontrak §2.2). */
+  getEvent(eventId: string): Promise<EventDetail>;
 }

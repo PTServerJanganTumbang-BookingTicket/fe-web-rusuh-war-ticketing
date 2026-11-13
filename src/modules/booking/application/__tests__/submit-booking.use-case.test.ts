@@ -26,8 +26,7 @@ function fakeBookingService() {
 const input = (niks: string[]): SubmitBookingInput => ({
   eventId: "evt_1",
   contactEmail: "  rina@example.com ",
-  termsVersion: "2026-10-01",
-  tickets: niks.map((nik) => ({ categoryId: "cat_vip", nik })),
+  tickets: niks.map((nik) => ({ categoryId: "cat_vip", holder: { kind: "typed", nik } })),
 });
 
 describe("createSubmitBookingUseCase", () => {
@@ -37,6 +36,29 @@ describe("createSubmitBookingUseCase", () => {
       bookingId: "RB-1",
     });
     expect(submitted).toEqual([{ ...input(["3171000000000033"]), contactEmail: "rina@example.com" }]);
+  });
+
+  it("pemegang dari profil diteruskan tanpa NIK", async () => {
+    const { bookingService, submitted } = fakeBookingService();
+    const tickets: SubmitBookingInput["tickets"] = [
+      { categoryId: "cat_vip", holder: { kind: "account" } },
+      { categoryId: "cat_vip", holder: { kind: "saved", savedNikId: "snk_1" } },
+    ];
+    await createSubmitBookingUseCase({ bookingService })({ ...input([]), tickets });
+    expect(submitted[0]?.tickets).toEqual(tickets);
+  });
+
+  it("entri Daftar NIK yang sama di dua tiket ditolak BOOKING_INVALID tanpa request", async () => {
+    const { bookingService, submitted } = fakeBookingService();
+    const tickets: SubmitBookingInput["tickets"] = [
+      { categoryId: "cat_vip", holder: { kind: "saved", savedNikId: "snk_1" } },
+      { categoryId: "cat_vip", holder: { kind: "saved", savedNikId: "snk_1" } },
+    ];
+    const thrown = await createSubmitBookingUseCase({ bookingService })({ ...input([]), tickets }).catch(
+      (e: unknown) => e,
+    );
+    expect(thrown).toBeInstanceOf(AppFailure);
+    expect(submitted).toEqual([]);
   });
 
   it.each([
@@ -54,9 +76,7 @@ describe("createSubmitBookingUseCase", () => {
 
 describe("createListHolderAliasesUseCase", () => {
   it("mengembalikan alias dari HolderAliasProtocol", async () => {
-    const aliases = [
-      { id: "snk_1", label: "Budi", name: null, nik: "3171000000000033", nikMasked: "3171****33" },
-    ];
+    const aliases = [{ id: "snk_1", label: "Budi", nikMasked: "3171**********33" }];
     const listHolderAliasesUseCase = createListHolderAliasesUseCase({
       holderAliasService: { list: async () => aliases },
     });

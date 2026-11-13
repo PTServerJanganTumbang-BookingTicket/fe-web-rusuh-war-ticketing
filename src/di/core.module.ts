@@ -5,6 +5,7 @@ import type { CredentialStoreProtocol } from "@/core/domain/credential-store.pro
 import type { SessionProtocol } from "@/core/domain/session.protocol";
 import { createStartSessionUseCase } from "@/core/application/start-session.use-case";
 import { createEndSessionUseCase } from "@/core/application/end-session.use-case";
+import { createResetSessionUseCase } from "@/core/application/reset-session.use-case";
 import { createGetSessionAccountUseCase } from "@/core/application/get-session-account.use-case";
 import type { SessionAccountProtocol } from "@/core/domain/session-account.protocol";
 import { createHttpSessionAccountService } from "@/core/data/account/http-session-account.service";
@@ -71,6 +72,7 @@ export function coreModule(appConfig: AppConfig): NameAndRegistrationPair<CoreRe
     sessionService: asFunction(createHttpSessionService).singleton(),
     startSessionUseCase: asFunction(createStartSessionUseCase).singleton(),
     endSessionUseCase: asFunction(createEndSessionUseCase).singleton(),
+    resetSessionUseCase: asFunction(createResetSessionUseCase).singleton(),
     sessionAccountService: asFunction(createHttpSessionAccountService).singleton(),
     getSessionAccountUseCase: asFunction(createGetSessionAccountUseCase).singleton(),
   };

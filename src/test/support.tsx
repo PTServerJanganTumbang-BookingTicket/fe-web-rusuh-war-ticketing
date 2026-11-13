@@ -121,7 +121,7 @@ export async function admitToQueue(container: AppContainer, eventId = OPEN_EVENT
   for (let poll = 0; poll < 5; poll += 1) {
     const state = await queueService.getOwnState(eventId);
     if (state.status === "admitted") {
-      credentialStore.saveGrantToken(state.accessToken);
+      credentialStore.saveGrantToken(eventId, state.accessToken);
       return state.accessToken;
     }
   }

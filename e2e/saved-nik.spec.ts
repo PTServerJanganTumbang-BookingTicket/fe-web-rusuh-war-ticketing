@@ -30,7 +30,7 @@ test.describe("Alias NIK di profil", () => {
     await page.getByRole("textbox", { name: "NIK", exact: true }).fill("3171000000000055");
     await page.getByRole("button", { name: "Simpan alias" }).click();
     await expect(page.getByText("3171********xx55")).toBeVisible();
-    await expect(page.getByText("NIK ••0055")).toBeVisible();
+    await expect(page.getByText("NIK 0055")).toBeVisible();
   });
 
   test("NIK format salah ditolak di form tanpa memanggil server, alias kosong tidak jadi galat", async ({
@@ -65,7 +65,9 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
     await expect(nik).toHaveValue("3171********xx33");
     await expect(nik).toHaveAttribute("readonly", "");
-    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    // NIK dari profil hanya dikenal tersamar dan sudah terverifikasi: tidak ada tombol Dukcapil untuk slot ini.
+    await expect(page.getByText("NIK ini sudah terverifikasi di profilmu.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verifikasi Dukcapil" })).toHaveCount(0);
 
     await confirmOrder(page);
     await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
@@ -93,6 +95,23 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
     await expect(page.getByRole("textbox", { name: "NIK tiket 1" })).toBeEditable();
     await expect(page.getByRole("combobox", { name: "Pemegang tiket 1" })).toHaveCount(0);
+  });
+
+  test("tamu: tombol Verifikasi Dukcapil mati 3 detik setelah ditekan, lalu aktif lagi", async ({ page }) => {
+    await installFakeClock(page);
+    await passQueue(page);
+    await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
+    const verify = page.getByRole("button", { name: "Verifikasi Dukcapil" });
+    await expect(verify).toBeDisabled();
+    await page.getByRole("textbox", { name: "NIK tiket 1" }).fill("3171000000000033");
+    await expect(verify).toBeEnabled();
+
+    // Jeda dihitung dari saat ditekan dan waktu nyata tetap berjalan, jadi keadaan mati dicek sebelum menunggu hasil.
+    await verify.click();
+    await expect(verify).toBeDisabled();
+    await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+    await page.clock.runFor(3100);
+    await expect(verify).toBeEnabled();
   });
 
   test("tamu mengetik NIK manual, terverifikasi, lalu lanjut bayar", async ({ page }) => {
@@ -137,5 +156,9 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
     await expect(nik).toHaveValue("3171**********22");
     await expect(nik).toHaveAttribute("readonly", "");
+
+    // NIK pemesan dikirim sebagai use_account_nik (tanpa NIK lengkap) dan booking tetap berhasil.
+    await confirmOrder(page);
+    await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
   });
 });

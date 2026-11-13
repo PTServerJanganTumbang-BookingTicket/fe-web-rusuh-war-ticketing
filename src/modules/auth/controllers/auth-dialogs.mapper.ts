@@ -60,6 +60,7 @@ export function toAlreadyRegisteredDialog({
 }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "confirmation",
     title: t("dialog.alreadyRegistered.title"),
     description: t("dialog.alreadyRegistered.description"),
     primary: { label: t("dialog.alreadyRegistered.login"), href: "/login" },
@@ -83,6 +84,7 @@ export function toEmailVerificationFailedDialog({
 }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "error",
     title: t("dialog.emailVerificationFailed.title"),
     description: t("dialog.emailVerificationFailed.description"),
     primary: { label: t("dialog.emailVerificationFailed.resend"), onClick: onResend, busy: resending },
@@ -94,6 +96,7 @@ export function toEmailVerificationFailedDialog({
 export function toLoginLinkFailedDialog({ onDismiss }: { onDismiss: Action }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "error",
     title: t("dialog.loginLink.title"),
     description: t("dialog.loginLink.description"),
     primary: { label: t("dialog.loginLink.requestNew"), href: "/login" },

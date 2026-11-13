@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventSchema } from "../event.schema";
+import { eventDetailSchema, eventSchema } from "../event.schema";
 
 const raw = (display: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   id: "evt_a",
@@ -124,5 +124,75 @@ describe("eventSchema display", () => {
       saleStartsAt: "2026-11-10T02:00:00Z",
     });
     expect(eventSchema.parse(raw(display, { category: null })).category).toBe("EVENT");
+  });
+});
+
+describe("eventDetailSchema", () => {
+  const detailRaw = (extra: Record<string, unknown> = {}) =>
+    raw({ enabled: true, action: "JOIN_QUEUE", label_key: "join_queue" }, extra);
+
+  it("detail lengkap: jam, deskripsi, dan kategori tiket dipetakan", () => {
+    const event = eventDetailSchema.parse(
+      detailRaw({
+        time: " 19:00 ",
+        description: "Energi panggung.",
+        ticket_categories: [
+          {
+            id: "vip",
+            name: "VIP",
+            description: "Dekat",
+            price: 1_500_000,
+            available: 5,
+            status: "AVAILABLE",
+          },
+          { id: "reg", name: "Regular", price: 500_000, available: 0, status: "SOLD_OUT" },
+        ],
+      }),
+    );
+    expect(event.time).toBe("19:00");
+    expect(event.description).toBe("Energi panggung.");
+    expect(event.venue).toBe("GBK, Jakarta");
+    expect(event.ticketCategories).toEqual([
+      { id: "vip", name: "VIP", description: "Dekat", price: 1_500_000, available: 5, status: "AVAILABLE" },
+      {
+        id: "reg",
+        name: "Regular",
+        description: undefined,
+        price: 500_000,
+        available: 0,
+        status: "SOLD_OUT",
+      },
+    ]);
+  });
+
+  it("minimal: tanpa time, description, dan ticket_categories tetap lolos", () => {
+    const event = eventDetailSchema.parse(detailRaw());
+    expect(event.time).toBeUndefined();
+    expect(event.description).toBeUndefined();
+    expect(event.ticketCategories).toEqual([]);
+  });
+
+  it("stok negatif tampil 0 dan status diturunkan dari stok bila server tidak mengirimnya", () => {
+    const event = eventDetailSchema.parse(
+      detailRaw({
+        ticket_categories: [
+          { id: "a", name: "A", price: 1, available: -3 },
+          { id: "b", name: "B", price: 1, available: 4 },
+        ],
+      }),
+    );
+    expect(event.ticketCategories.map((c) => [c.available, c.status])).toEqual([
+      [0, "SOLD_OUT"],
+      [4, "AVAILABLE"],
+    ]);
+  });
+
+  it("tidak valid: harga negatif, status kategori asing, queue_state asing, atau field wajib hilang", () => {
+    const category = { id: "a", name: "A", price: 1, available: 1 };
+    const parse = (extra: Record<string, unknown>) => eventDetailSchema.safeParse(detailRaw(extra)).success;
+    expect(parse({ ticket_categories: [{ ...category, price: -1 }] })).toBe(false);
+    expect(parse({ ticket_categories: [{ ...category, status: "HOLD" }] })).toBe(false);
+    expect(parse({ queue_state: "PAUSED" })).toBe(false);
+    expect(eventDetailSchema.safeParse({ id: "x" }).success).toBe(false);
   });
 });

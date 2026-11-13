@@ -23,6 +23,7 @@ export function toNikUnavailableDialog({
 }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "error",
     title: t("dialog.nikUnavailable.title"),
     description: t("dialog.nikUnavailable.description"),
     primary: { label: t("dialog.retry"), onClick: onRetry, busy: retrying },
@@ -41,6 +42,7 @@ export function toNikMismatchDialog({
 }): ActionDialogModel {
   return {
     tone: "error",
+    illustration: "confirmation",
     title: t("dialog.nikMismatch.title"),
     description: t("dialog.nikMismatch.description"),
     primary: { label: t("dialog.editInformation"), onClick: onEdit },

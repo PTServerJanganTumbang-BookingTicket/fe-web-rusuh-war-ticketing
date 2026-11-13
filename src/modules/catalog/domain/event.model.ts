@@ -51,3 +51,29 @@ export type Event = {
   /** Tombol dan chip kartu: dari blok `display` server, dilengkapi dari `queueState` bila server hanya mengirim `enabled`. */
   display: DisplayBlock;
 };
+
+/**
+ * Satu kategori tiket di halaman detail event (kontrak §2.2).
+ * `status` dari server: `AVAILABLE` bila `available > 0`, selain itu `SOLD_OUT`.
+ */
+export type TicketCategory = {
+  id: string;
+  name: string;
+  description?: string;
+  /** Harga per tiket dalam rupiah. */
+  price: number;
+  /** Sisa stok; tidak pernah negatif. Perkiraan, karena respons di-cache CDN (kontrak §2.2). */
+  available: number;
+  status: "AVAILABLE" | "SOLD_OUT";
+};
+
+/**
+ * Detail satu event untuk halaman `/events/{eventId}` (kontrak §2.2, FR-11, FR-12).
+ * Tombol dan chip mengikuti blok `display` yang sama dengan kartu di Home.
+ */
+export type EventDetail = Event & {
+  /** Jam mulai "HH:mm" waktu setempat venue, apa adanya dari server. */
+  time?: string;
+  description?: string;
+  ticketCategories: TicketCategory[];
+};

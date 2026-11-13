@@ -8,6 +8,7 @@ describe("toNikUnavailableDialog", () => {
     const dialog = toNikUnavailableDialog({ onRetry, onEdit, onDismiss: vi.fn(), retrying: true });
     expect(dialog).toMatchObject({
       tone: "error",
+      illustration: "error",
       title: "Verifikasi NIK belum tersedia",
       primary: { label: "Coba lagi", busy: true },
       secondary: { label: "Ubah data" },
@@ -22,6 +23,7 @@ describe("toNikMismatchDialog", () => {
     const onEdit = vi.fn();
     const dialog = toNikMismatchDialog({ onEdit, onDismiss: vi.fn() });
     expect(dialog.title).toBe("Periksa NIK-mu");
+    expect(dialog.illustration).toBe("confirmation");
     expect(dialog.primary.label).toBe("Ubah data");
     expect(dialog.secondary).toBeUndefined();
     if ("onClick" in dialog.primary) dialog.primary.onClick();

@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { advance, EVENT_ID, passQueue, pickVipAndContinue, installFakeClock } from "./helpers";
+import {
+  advance,
+  EVENT_ID,
+  OTHER_EVENT_ID,
+  passQueue,
+  pickVipAndContinue,
+  installFakeClock,
+} from "./helpers";
 
 test.describe("Kedaluwarsa dan gerbang akses", () => {
   test("waktu booking habis: server menjawab ACCESS_EXPIRED, modal tampil, lalu customer kembali ke Beranda (FR-19, ADR-0005)", async ({
@@ -9,9 +16,13 @@ test.describe("Kedaluwarsa dan gerbang akses", () => {
     await passQueue(page, "?scenario=booking-expiring");
     await expect(page.getByRole("timer")).toBeVisible();
 
-    await page.clock.runFor(80_000);
-
+    // TTL mock 75 detik, sebagian sudah terpakai selama antre. Mendekati nol lalu maju per detik: melompat jauh
+    // melewati nol juga menghabiskan hitung mundur 5 detik di modal, dan halaman sudah pindah sebelum dicek.
     const dialog = page.getByRole("alertdialog", { name: "Waktu booking habis" });
+    await page.clock.runFor(55_000);
+    for (let second = 0; second < 25 && !(await dialog.isVisible()); second++) {
+      await page.clock.runFor(1000);
+    }
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(/diarahkan ke beranda dalam \d detik/)).toBeVisible();
 
@@ -48,6 +59,31 @@ test.describe("Kedaluwarsa dan gerbang akses", () => {
 
     await page.goto(`/events/${EVENT_ID}/queue`);
     await expect(page).toHaveURL(new RegExp(`/events/${EVENT_ID}/book$`));
+  });
+
+  test("grant event lain tidak melewati antrian event ini: /book dan Waiting Room event lain dilayani sebagaimana tanpa grant (FR-06)", async ({
+    page,
+  }) => {
+    await installFakeClock(page);
+    await passQueue(page);
+
+    await page.goto(`/events/${OTHER_EVENT_ID}/book`);
+    await expect(page).toHaveURL(new RegExp(`/events/${OTHER_EVENT_ID}/queue$`));
+    // Tetap di Waiting Room event itu, tidak dipantulkan ke /book.
+    await page.goto(`/events/${OTHER_EVENT_ID}/queue`);
+    await expect(page).toHaveURL(new RegExp(`/events/${OTHER_EVENT_ID}/queue$`));
+  });
+
+  test("kembali ke Waiting Room dengan history browser saat grant masih berlaku: langsung ke booking, tanpa antre ulang", async ({
+    page,
+  }) => {
+    await installFakeClock(page);
+    await passQueue(page);
+
+    await page.goto("/");
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/events/${EVENT_ID}/book$`));
+    await expect(page.getByRole("timer")).toBeVisible();
   });
 
   test("token tidak pernah ada di URL dan cookie bersifat httpOnly (ADR-0008)", async ({ page, context }) => {

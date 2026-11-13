@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { setupServer } from "msw/node";
 import { createHandlers, MOCK_API_BASE_URL, type Scenario } from "../handlers";
 import { FAILING_CAPTCHA_TOKEN } from "../api/events";
+import { maskNik } from "../api/fixtures";
 
 type Operation = {
   operationId: string;
@@ -85,29 +86,30 @@ function useServer(scenario?: Scenario) {
 }
 
 /** Join antrian; token dari Set-Cookie dikirim ulang lewat X-Queue-Token seperti klien mobile. */
-async function joinQueue(eventId = "evt_konser_a") {
-  const joined = await post(`/events/${eventId}/queue/join`, CAPTCHA, DEVICE);
+async function joinQueue(eventId = "evt_konser_a", device = DEVICE) {
+  const joined = await post(`/events/${eventId}/queue/join`, CAPTCHA, device);
   const token = /queue_token=([^;]+)/.exec(joined.headers.get("set-cookie") ?? "")?.[1] ?? "";
   return { "x-queue-token": token };
 }
 
 /** Join lalu poll /queue/me sampai GRANTED, seperti klien setelah event `grant`. */
-async function obtainGrant(eventId = "evt_konser_a") {
-  const queue = await joinQueue(eventId);
+async function obtainGrant(eventId = "evt_konser_a", device = DEVICE) {
+  const queue = await joinQueue(eventId, device);
   for (let poll = 0; poll < 10; poll += 1) {
-    const { data } = (await (await api(`/events/${eventId}/queue/me`, { headers: queue })).json()) as {
+    const { data } = (await (
+      await api(`/events/${eventId}/queue/me`, { headers: { ...queue, ...device } })
+    ).json()) as {
       data: { state: string; grant_token?: string };
     };
-    if (data.grant_token) return { "x-grant-token": data.grant_token, ...DEVICE };
+    if (data.grant_token) return { "x-grant-token": data.grant_token, ...device };
   }
   throw new Error("grant tidak pernah diberikan");
 }
 
 const bookingRequest = (niks: string[], categoryId = "cat_vip") => ({
   event_id: "evt_konser_a",
-  tickets: niks.map((nik) => ({ category_id: categoryId, nik, holder_email: "buyer@example.com" })),
+  tickets: niks.map((nik) => ({ category_id: categoryId, nik })),
   contact_email: "buyer@example.com",
-  terms_version: "2026-10-01",
 });
 
 describe("Authentication dan Accounts", () => {
@@ -266,6 +268,53 @@ describe("Events dan Queue", () => {
   });
 });
 
+describe("createBooking: kursi dari profil (kontrak §4.3)", () => {
+  useServer();
+  const seats = (...tickets: Record<string, unknown>[]) => ({
+    event_id: "evt_konser_a",
+    tickets: tickets.map((seat) => ({ category_id: "cat_vip", ...seat })),
+    contact_email: "buyer@example.com",
+  });
+
+  it("bentuk kursi salah: 400 dengan index kursinya", async () => {
+    const grant = await obtainGrant();
+    const badIndex = async (body: unknown) => {
+      const response = await post("/bookings", body, grant);
+      expect(response.status).toBe(400);
+      return ((await response.json()) as { data: { index: number } }).data.index;
+    };
+    // Nol atau lebih dari satu field per kursi, id tidak dikenal, dan use_account_nik di dua kursi.
+    expect(await badIndex(seats({ nik: "3171000000000044" }, {}))).toBe(1);
+    expect(await badIndex(seats({ nik: "3171000000000044", saved_nik_id: "snk_1" }))).toBe(0);
+    expect(await badIndex(seats({ saved_nik_id: "snk_404" }))).toBe(0);
+    expect(await badIndex(seats({ use_account_nik: true }, { use_account_nik: true }))).toBe(1);
+  });
+
+  it("saved_nik_id dan use_account_nik diselesaikan di server; respons hanya membawa NIK tersamar", async () => {
+    const created = await post(
+      "/bookings",
+      seats({ saved_nik_id: "snk_1" }, { use_account_nik: true }, { nik: "3171 0000 0000 0044" }),
+      await obtainGrant(),
+    );
+    expect(created.status, await created.clone().text()).toBe(201);
+    const { data } = (await created.json()) as { data: { tickets: { nik_masked: string }[] } };
+    expect(data.tickets.map((ticket) => ticket.nik_masked)).toEqual([
+      maskNik("3171000000000033"),
+      maskNik("3171000000000022"),
+      maskNik("3171000000000044"),
+    ]);
+  });
+
+  it("NIK yang sama lewat kursi berbeda ditolak (dibandingkan sebagai NIK, bukan sebagai bentuk kursi)", async () => {
+    const response = await post(
+      "/bookings",
+      seats({ saved_nik_id: "snk_1" }, { nik: "3171000000000033" }),
+      await obtainGrant(),
+    );
+    expect(response.status).toBe(400);
+  });
+});
+
 describe("Booking, NIK, Payment, dan tiket", () => {
   useServer();
   let grant: Record<string, string>;
@@ -328,6 +377,19 @@ describe("Booking, NIK, Payment, dan tiket", () => {
       409,
       "4",
     );
+  });
+
+  it("getTicketSelection membawa account tersamar hanya untuk customer login", async () => {
+    const tickets = async (headers: Record<string, string>) =>
+      (
+        (await (await api("/events/evt_konser_a/tickets", { headers })).json()) as {
+          data: { account: { email: string; nik_masked: string } | null };
+        }
+      ).data.account;
+    expect(await tickets(grant)).toBeNull();
+    const account = await tickets({ ...grant, authorization: "Bearer at_x" });
+    expect(account?.email).toBe("you@example.com");
+    expect(account?.nik_masked).not.toMatch(/\d{16}/);
   });
 
   it("getBooking PENDING_PAYMENT dan getPaymentMethods", async () => {

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toAppError, type AppError } from "@/core/domain/app-error";
+import { EMAIL_MAX_LENGTH } from "@/core/domain/email.constants";
 import { useDependencies } from "@/core/controllers/dependencies.context";
 import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
 import { legalLinks } from "@/core/controllers/site-chrome.utils";
@@ -16,9 +17,9 @@ import { toConnectionProblemDialog } from "@/core/controllers/common-dialogs.map
 import { toNikMismatchDialog } from "@/core/controllers/nik-dialog.mapper";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
-import { isEmail, isNikFormat } from "../domain/account.rules";
+import { emailInputError, isNikFormat } from "../domain/account.rules";
 import { PRIVACY_POLICY_VERSION } from "../domain/auth.constants";
-import { authErrorKey } from "./auth-error.mapper";
+import { authErrorKey, visibleEmailError } from "./auth-error.mapper";
 import { authKeys } from "./auth.queries";
 import { toAlreadyRegisteredDialog, toRegistrationFailedDialog } from "./auth-dialogs.mapper";
 import type { RegisterViewProps } from "../views/RegisterView";
@@ -68,12 +69,13 @@ export function useRegisterController(): RegisterViewProps {
     },
   });
 
+  const emailProblem = emailInputError(email);
   const errors = {
-    email: (submitted || touched.email) && !isEmail(email) ? t("login.email.invalid") : undefined,
+    email: visibleEmailError(emailProblem, submitted || touched.email),
     nik: (submitted || touched.nik) && !isNikFormat(nik) ? t("register.nik.invalid") : undefined,
     consent: submitted && !consent ? t("register.consent.required") : undefined,
   };
-  const valid = isEmail(email) && isNikFormat(nik) && consent;
+  const valid = emailProblem === null && isNikFormat(nik) && consent;
   const inlineError =
     register.isError && !registerModalOf(toAppError(register.error))
       ? t(authErrorKey(toAppError(register.error), { CONSENT_REQUIRED: "register.error.CONSENT_REQUIRED" }))
@@ -113,7 +115,7 @@ export function useRegisterController(): RegisterViewProps {
     };
     dialog = {
       tone: "info",
-      icon: "mail",
+      illustration: "confirmation",
       title: t("register.confirm.title"),
       description: t("register.confirm.description"),
       details: [
@@ -142,6 +144,8 @@ export function useRegisterController(): RegisterViewProps {
       required: true,
       value: email,
       focusKey: focus?.field === "email" ? focus.n : undefined,
+      // Batas di input; nilai yang lolos (tempelan, isian otomatis) ditolak validasi, tidak dipotong diam-diam.
+      maxLength: EMAIL_MAX_LENGTH,
       error: errors.email,
       onChange: setEmail,
       onBlur: () => setTouched((current) => ({ ...current, email: email.trim() !== "" })),

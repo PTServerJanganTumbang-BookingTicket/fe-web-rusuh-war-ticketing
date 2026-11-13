@@ -6,7 +6,8 @@ import type { FetchFn } from "../http/fetch-http.client";
 
 /**
  * Menyimpan grant token dari antrian: ke credential store untuk header `X-Grant-Token`, dan ke cookie httpOnly
- * lewat route handler same-origin `/api/session/start` untuk gerbang halaman di `proxy.ts`.
+ * lewat route handler same-origin `/api/session/start` untuk gerbang halaman di `proxy.ts`. Keduanya mencatat event
+ * pemilik grant.
  */
 export function createHttpSessionService({
   appConfig,
@@ -17,31 +18,47 @@ export function createHttpSessionService({
   fetchFn: FetchFn;
   credentialStore: CredentialStoreProtocol;
 }): SessionProtocol {
-  return {
-    async start(accessToken: string): Promise<void> {
-      credentialStore.saveGrantToken(accessToken);
+  // Permintaan ke route sesi dikirim satu per satu sesuai urutan pemanggilan. Tanpa ini jawaban `end` yang terlambat
+  // bisa tiba setelah `start` berikutnya dan menghapus cookie grant yang baru.
+  let previous: Promise<void> = Promise.resolve();
+
+  function post(path: string, body?: Record<string, string>): Promise<void> {
+    const send = async () => {
       let response: Response;
       try {
-        response = await fetchFn(`${appConfig.appBaseUrl}/api/session/start`, {
+        response = await fetchFn(`${appConfig.appBaseUrl}${path}`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ accessToken }),
+          ...(body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}),
         });
       } catch {
         throw new AppFailure({ kind: "network" });
       }
       if (!response.ok) throw new AppFailure({ kind: "unknown", status: response.status });
+    };
+    const result = previous.then(send);
+    previous = result.catch(() => undefined);
+    return result;
+  }
+
+  return {
+    start(eventId: string, accessToken: string): Promise<void> {
+      credentialStore.saveGrantToken(eventId, accessToken);
+      return post("/api/session/start", { eventId, accessToken });
     },
 
-    async end(): Promise<void> {
+    end(): Promise<void> {
+      // Route hanya menghapus cookie yang masih berisi grant ini: grant lebih baru dari tab lain tidak ikut terhapus.
+      // Tanpa grant di tab ini (penyimpanan kosong) cookie dihapus apa adanya, supaya gerbang tidak memantulkan
+      // customer ke /book dengan cookie yang tidak bisa dipakai.
+      const accessToken = credentialStore.grantToken();
       credentialStore.clearGrantToken();
-      let response: Response;
-      try {
-        response = await fetchFn(`${appConfig.appBaseUrl}/api/session/end`, { method: "POST" });
-      } catch {
-        throw new AppFailure({ kind: "network" });
-      }
-      if (!response.ok) throw new AppFailure({ kind: "unknown", status: response.status });
+      return post("/api/session/end", accessToken ? { accessToken } : undefined);
+    },
+
+    reset(): Promise<void> {
+      credentialStore.clearGrantToken();
+      credentialStore.clearQueueTokens();
+      return post("/api/session/end");
     },
   };
 }

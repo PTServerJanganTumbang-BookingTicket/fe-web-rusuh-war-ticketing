@@ -1,32 +1,70 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
+import type { AppContainer } from "@/di/container";
 import { MOCK_API_BASE_URL } from "@/mocks/handlers";
-import { createWrapper, setupMockServer, setupTestContainer } from "@/test/support";
+import { createWrapper, setupMockServer, setupTestContainer, TEST_APP_ORIGIN } from "@/test/support";
+import { DependencyProvider } from "@/core/controllers/dependencies.context";
+import { sessionKeys } from "@/core/controllers/session.queries";
+import { useSiteChrome } from "@/core/controllers/site-chrome.hook";
+import { SAVED_NIK_LABEL_MAX_LENGTH } from "../../domain/auth.constants";
 import { useAccountController } from "../account.controller";
 
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, replace }) }));
 
 const server = setupMockServer();
+
+/** Urutan panggilan route same-origin saat keluar: logout akun, lalu pembuangan grant dan token antrian. */
+let signOutCalls: string[] = [];
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  signOutCalls = [];
+  server.events.on("request:start", ({ request }) => {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/api/auth/logout" || pathname === "/api/session/end") signOutCalls.push(pathname);
+  });
+  server.use(http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => new HttpResponse(null, { status: 204 })));
+});
+
+afterEach(() => server.events.removeAllListeners());
 
 /** Menekan aksi dialog berupa tombol. */
 function click(action: { label: string; onClick: () => void } | { label: string; href: string } | undefined) {
   if (action && "onClick" in action) action.onClick();
 }
 
+/** Wrapper dengan QueryClient yang bisa diperiksa test: satu cache dipakai semua route, seperti di browser. */
+function sharedCacheWrapper(container: AppContainer, client: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <DependencyProvider dependencies={container.cradle}>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      </DependencyProvider>
+    );
+  };
+}
+
 async function mountSignedIn() {
   const container = setupTestContainer();
   await container.cradle.verifyLoginUseCase("mt_account");
-  const hook = renderHook(() => useAccountController(), { wrapper: createWrapper(container) });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  });
+  const wrapper = sharedCacheWrapper(container, client);
+  const hook = renderHook(() => useAccountController(), { wrapper });
   await waitFor(() => expect(hook.result.current.kind).toBe("ready"));
   const ready = () => {
     const view = hook.result.current;
     if (view.kind !== "ready") throw new Error("belum siap");
     return view;
   };
-  return { ...hook, ready };
+  return { ...hook, ready, client, wrapper, container };
 }
 
 describe("useAccountController", () => {
@@ -150,6 +188,7 @@ describe("useAccountController", () => {
     act(() => ready().saved.items[0]?.remove.onClick());
     expect(ready().dialog).toMatchObject({
       tone: "error",
+      illustration: "confirmation",
       title: "Hapus alias?",
       description: "Budi (3171********xx33) tidak bisa dipilih lagi saat membeli tiket.",
     });
@@ -203,11 +242,155 @@ describe("useAccountController", () => {
     expect(attempts).toBe(2);
   });
 
-  it("keluar menghapus sesi lalu kembali ke Home", async () => {
-    push.mockClear();
-    const { ready, result } = await mountSignedIn();
+  it("nama alias: simbol dan karakter ke-51 ditolak saat diketik, spasi antar kata tetap bisa", async () => {
+    const { ready } = await mountSignedIn();
+    expect(ready().add?.label).toMatchObject({
+      maxLength: SAVED_NIK_LABEL_MAX_LENGTH,
+      hint: "Maksimal 50 karakter, hanya huruf dan angka.",
+    });
+    act(() => ready().add?.label.onChange("  Budi (adik) #1"));
+    expect(ready().add?.label.value).toBe("Budi adik 1");
+    act(() => ready().add?.label.onChange("Budi "));
+    expect(ready().add?.label.value).toBe("Budi ");
+    act(() => ready().add?.label.onChange("Budi Santoso"));
+    expect(ready().add?.label.value).toBe("Budi Santoso");
+    act(() => ready().add?.label.onChange("a".repeat(SAVED_NIK_LABEL_MAX_LENGTH + 20)));
+    expect(ready().add?.label.value).toBe("a".repeat(SAVED_NIK_LABEL_MAX_LENGTH));
+    expect(ready().add?.label.error).toBeUndefined();
+  });
+
+  it("nama alias yang ditempel dengan simbol tersimpan dalam bentuk yang sudah dibersihkan", async () => {
+    let body: unknown;
+    server.events.on("request:start", async ({ request }) => {
+      if (request.method === "POST" && new URL(request.url).pathname.endsWith("/accounts/me/saved-niks"))
+        body = await request.clone().json();
+    });
+    const { ready } = await mountSignedIn();
+    act(() => {
+      ready().add?.label.onChange("Sari_Dewi! ");
+      ready().add?.nik.onChange("3171000000000044");
+    });
+    act(() => ready().add?.submit.onSubmit());
+    await waitFor(() => expect(ready().saved.items.map((item) => item.label)).toEqual(["Budi", "SariDewi"]));
+    server.events.removeAllListeners();
+    expect(body).toEqual({ label: "SariDewi", nik: "3171000000000044" });
+  });
+
+  it("keluar menghapus sesi lalu mengganti halaman ke Home tanpa menampilkan profil lama", async () => {
+    const { ready, result, client, wrapper } = await mountSignedIn();
+    act(() => {
+      ready().add?.label.onChange("Sari");
+      ready().add?.nik.onChange("3171000000000044");
+    });
     act(() => ready().signOut.onClick());
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
-    expect(result.current.kind).toBe("signedOut");
+    // `replace`, bukan `push`: tombol Back tidak kembali ke halaman profil yang sudah keluar.
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(push).not.toHaveBeenCalled();
+    // Grant dan token antrian identitas lama dibuang setelah akun keluar di server, sebelum pindah halaman.
+    expect(signOutCalls).toEqual(["/api/auth/logout", "/api/session/end"]);
+    expect(result.current).toMatchObject({ kind: "loading", message: "Mengeluarkan akun…" });
+    expect(client.getQueryData(sessionKeys.account)).toBeNull();
+    expect(client.getQueryData(["auth", "saved-niks"])).toBeUndefined();
+
+    // Route lain dan kunjungan berikutnya ke /account memakai cache yang sama: navbar tamu, layar ajakan masuk.
+    const chrome = renderHook(() => useSiteChrome(), { wrapper });
+    expect(chrome.result.current.nav.account).toBeUndefined();
+    const revisit = renderHook(() => useAccountController(), { wrapper });
+    await waitFor(() => expect(revisit.result.current.kind).toBe("signedOut"));
+    expect(chrome.result.current.nav.account).toBeUndefined();
+  });
+
+  it("respons sesi lama yang mendarat setelah keluar tidak mengembalikan profil ke navbar", async () => {
+    const { ready, client, wrapper } = await mountSignedIn();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((done) => {
+      release = done;
+    });
+    let answered = false;
+    // Pemeriksaan sesi (misalnya saat tab difokuskan) dijawab server sebelum logout, tetapi baru tiba sesudahnya.
+    server.use(
+      http.get(`${TEST_APP_ORIGIN}/api/auth/session`, async () => {
+        await gate;
+        answered = true;
+        return HttpResponse.json({
+          meta: { code: 200, message: "OK" },
+          data: { account: { email: "you@example.com", nik_masked: "3171**********22" } },
+        });
+      }),
+    );
+    const staleCheck = client.refetchQueries({ queryKey: sessionKeys.account });
+    await waitFor(() => expect(client.isFetching({ queryKey: sessionKeys.account })).toBe(1));
+
+    act(() => ready().signOut.onClick());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    release();
+    await waitFor(() => expect(answered).toBe(true));
+    await staleCheck;
+    await new Promise((done) => setTimeout(done, 0));
+
+    expect(client.getQueryData(sessionKeys.account)).toBeNull();
+    const chrome = renderHook(() => useSiteChrome(), { wrapper });
+    expect(chrome.result.current.nav.account).toBeUndefined();
+  });
+
+  it("pembuangan grant gagal setelah akun keluar: layar tetap keluar dan pindah ke Home", async () => {
+    server.use(
+      http.post(`${TEST_APP_ORIGIN}/api/session/end`, () => new HttpResponse(null, { status: 500 })),
+    );
+    const { ready, result, client } = await mountSignedIn();
+    act(() => ready().signOut.onClick());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(signOutCalls).toEqual(["/api/auth/logout", "/api/session/end"]);
+    expect(result.current.kind).toBe("loading");
+    expect(client.getQueryData(sessionKeys.account)).toBeNull();
+  });
+
+  it("keluar membuang grant booking dan token antrian yang tersimpan di perangkat", async () => {
+    const { ready, container } = await mountSignedIn();
+    const { credentialStore } = container.cradle;
+    credentialStore.saveGrantToken("evt_konser_a", "grant_lama");
+    act(() => ready().signOut.onClick());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(credentialStore.grantToken()).toBeNull();
+  });
+
+  it("keluar gagal di server: profil tetap, dialog coba lagi, lalu berhasil keluar", async () => {
+    let failures = 0;
+    server.use(
+      http.post(
+        `${TEST_APP_ORIGIN}/api/auth/logout`,
+        () => {
+          failures += 1;
+          return HttpResponse.json({ meta: { code: 500, message: "Internal error" } }, { status: 500 });
+        },
+        { once: true },
+      ),
+    );
+    const { ready, result, client } = await mountSignedIn();
+    act(() => ready().signOut.onClick());
+    await waitFor(() => expect(ready().dialog?.title).toBe("Terjadi kesalahan"));
+    expect(ready().dialog?.illustration).toBe("error");
+    // Cookie masih ada, jadi layar tidak berpura-pura sudah keluar.
+    expect(ready().profile.email).toBe("you@example.com");
+    expect(client.getQueryData(sessionKeys.account)).not.toBeNull();
+    expect(replace).not.toHaveBeenCalled();
+
+    act(() => click(ready().dialog?.primary));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(failures).toBe(1);
+    // Percobaan pertama gagal di logout, jadi grant belum disentuh; percobaan kedua menjalankan keduanya.
+    expect(signOutCalls).toEqual(["/api/auth/logout", "/api/auth/logout", "/api/session/end"]);
+    expect(result.current.kind).toBe("loading");
+    expect(client.getQueryData(sessionKeys.account)).toBeNull();
+  });
+
+  it("keluar gagal tanpa jaringan: dialog koneksi, tombol keluar aktif lagi", async () => {
+    server.use(http.post(`${TEST_APP_ORIGIN}/api/auth/logout`, () => HttpResponse.error()));
+    const { ready } = await mountSignedIn();
+    act(() => ready().signOut.onClick());
+    await waitFor(() => expect(ready().dialog?.illustration).toBe("network"));
+    expect(ready().signOut.disabled).toBe(false);
+    act(() => ready().dialog?.onDismiss());
+    expect(ready().dialog).toBeUndefined();
   });
 });

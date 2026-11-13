@@ -40,7 +40,7 @@ describe("dialog umum", () => {
     const dialog = toSessionExpiredDialog({ onDismiss });
     expect(dialog).toMatchObject({
       tone: "warning",
-      icon: "clock",
+      illustration: "confirmation",
       title: "Sesi berakhir",
       primary: { label: "Masuk lagi", href: "/login?session=expired" },
       secondary: { label: "Tutup" },
