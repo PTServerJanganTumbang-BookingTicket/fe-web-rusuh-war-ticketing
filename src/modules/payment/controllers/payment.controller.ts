@@ -10,7 +10,7 @@
  * Desain: "Satu langkah menuju panggung." (langkah 2 dari 3)
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
@@ -119,8 +119,14 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   /*                                 Queries                                  */
   /* ======================================================================== */
 
+  // Stabilkan dependencies untuk query options
+  const orderQueryOptions = useMemo(
+    () => orderQuery({ getOrderUseCase, random }, orderId),
+    [getOrderUseCase, random, orderId],
+  );
+
   // Query untuk order data dengan polling
-  const orderQueryResult = useQuery(orderQuery({ getOrderUseCase, random }, orderId));
+  const orderQueryResult = useQuery(orderQueryOptions);
   const orderData = orderQueryResult.data;
 
   // Query untuk available payment methods
