@@ -41,6 +41,10 @@ export type PaymentScreen =
   | { readonly kind: "payment"; readonly view: PaymentViewPropsWithWebView }
   | { readonly kind: "status"; readonly view: StatusViewProps };
 
+/** Modal kinds untuk payment controller */
+type PaymentModalKind =
+  { readonly kind: "payFailed"; readonly input: PayMutationInput } | { readonly kind: "paymentExpired" };
+
 /** Extended payment view props with WebView context */
 export type PaymentViewPropsWithWebView = PaymentViewProps & {
   /** WebView context untuk deteksi dan komunikasi dengan mobile app */
@@ -93,7 +97,8 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   const router = useRouter();
   const queryClient = useQueryClient();
   // Galat tanpa respons atau respons asing saat membayar jadi modal "coba lagi"; pilihan metode tetap tersimpan.
-  const payModal = useModal<{ kind: "payFailed"; input: PayMutationInput }>();
+  // Payment expired juga ditampilkan sebagai modal agar user aware sebelum redirect.
+  const payModal = useModal<PaymentModalKind>();
 
   // Dependencies dari DI container
   const {
@@ -331,17 +336,20 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
 
   // Redirect ke Home saat TTL expired (hanya untuk non-WebView)
   // WebView case sudah di-handle via notifyPaymentExpired di effect status changes
+  // Tampilkan dialog dulu sebelum redirect agar user aware waktu sudah habis
   useEffect(() => {
-    // Hanya redirect jika:
+    // Hanya tampilkan dialog jika:
     // 1. Bukan WebView (WebView kirim pesan ke app, tidak redirect)
     // 2. Order masih aktif (expiresAt ada)
     // 3. Countdown sudah mencapai 0
+    // 4. Dialog belum dibuka (mencegah multiple open)
     if (webViewContext.isEmbedded) return;
     if (expiresAt == null) return;
     if (remainingTimeMs == null || remainingTimeMs > 0) return;
+    if (payModal.modal?.kind === "paymentExpired") return;
 
-    router.replace("/");
-  }, [webViewContext.isEmbedded, expiresAt, remainingTimeMs, router]);
+    payModal.open({ kind: "paymentExpired" });
+  }, [webViewContext.isEmbedded, expiresAt, remainingTimeMs, payModal]);
 
   /* ======================================================================== */
   /*                           Loading & Error States                         */
@@ -436,14 +444,26 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
   const payError = payMutation.isError ? toAppError(payMutation.error) : null;
   const errorMessage = payError && !payModal.modal ? t(getErrorMessageKey(payError)) : undefined;
   const openModal = payModal.modal;
-  const dialog: ActionDialogModel | undefined =
-    openModal && payError
-      ? toRequestFailedDialog(payError, {
-          onRetry: () => payMutation.mutate(openModal.input),
-          onDismiss: payModal.close,
-          retrying: payMutation.isPending,
-        })
-      : undefined;
+
+  // Build dialog berdasarkan modal kind
+  let dialog: ActionDialogModel | undefined;
+  if (openModal?.kind === "paymentExpired") {
+    // Dialog waktu pembayaran habis
+    dialog = {
+      tone: "warning",
+      illustration: "confirmation",
+      title: t("payment.expired.dialog.title"),
+      description: t("payment.expired.dialog.description"),
+      primary: { label: t("payment.expired.dialog.cta"), onClick: () => router.replace("/") },
+      onDismiss: () => router.replace("/"),
+    };
+  } else if (openModal?.kind === "payFailed" && payError) {
+    dialog = toRequestFailedDialog(payError, {
+      onRetry: () => payMutation.mutate(openModal.input),
+      onDismiss: payModal.close,
+      retrying: payMutation.isPending,
+    });
+  }
 
   return {
     kind: "payment",

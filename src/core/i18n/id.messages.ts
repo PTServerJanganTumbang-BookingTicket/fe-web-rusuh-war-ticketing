@@ -707,6 +707,11 @@ export const id = {
   "ticket.detail.error.unknown": "Tiket belum bisa dimuat. Coba lagi sebentar lagi.",
   "ticket.detail.retry": "Coba lagi",
   "ticket.detail.login": "Masuk",
+  // Payment expired dialog (countdown habis sebelum bayar)
+  "payment.expired.dialog.title": "Waktu pembayaran habis",
+  "payment.expired.dialog.description":
+    "Booking otomatis dibatalkan karena batas waktu 10 menit sudah lewat. Tiket dilepas untuk antrian berikutnya.",
+  "payment.expired.dialog.cta": "Kembali ke Beranda",
 } as const;
 
 export type MessageKey = keyof typeof id;
