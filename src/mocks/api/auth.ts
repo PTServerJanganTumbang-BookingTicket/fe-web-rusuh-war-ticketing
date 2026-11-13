@@ -57,7 +57,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
 
     // Konfirmasi email pendaftaran (FR-31): tidak menerbitkan sesi. Token "expired" atau kosong ditolak.
     http.get(`${baseUrl}/auth/verify-email`, ({ cookies }) => {
-      const token = cookies.magic_token; // seperti BE yang berjalan; query `token` ikut dikirim sesuai kontrak
+      const token = cookies.magic_token; // kontrak §1.7 (v2.24): token di cookie, bukan query
       if (!token || token === "expired") return fail(400, "Invalid or expired token", {}, "TOKEN_INVALID");
       return okMeta("Email verified");
     }),
@@ -98,7 +98,7 @@ export function authHandlers(state: MockState, baseUrl: string) {
       const consent = field(body, "consent");
       if (!isEmail(email)) return fail(400, "email is required");
       if (!isNikFormat(nik)) return fail(400, "NIK must be exactly 16 digits");
-      if (field(consent, "accepted") !== true || typeof field(consent, "policy_version") !== "string")
+      if (field(consent, "accepted") !== true)
         return fail(422, "Consent is required", {}, "CONSENT_REQUIRED");
       if (nik === REGISTERED_NIK)
         return fail(409, "NIK already registered to another account", {}, "NIK_ALREADY_REGISTERED");

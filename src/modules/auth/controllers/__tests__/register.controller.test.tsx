@@ -145,7 +145,7 @@ describe("useRegisterController", () => {
     expect(body).toEqual({
       email: "alex@example.com",
       nik: "3171000000000044",
-      consent: { accepted: true, policy_version: "2026-10-01" },
+      consent: { accepted: true },
     });
   });
 

@@ -34,6 +34,6 @@ Opsi 1, disesuaikan untuk satu aplikasi.
 - **Negatif**: `next build` mem-prerender Home dengan memanggil `NEXT_PUBLIC_API_BASE_URL`. Tanpa backend yang bisa dijangkau dari build, Home ter-bake dengan state error sampai revalidate pertama (ADR-0007).
 - **Negatif**: Poppins masih lewat `next/font/google`, jadi `docker build` butuh akses ke Google Fonts dan bisa gagal di jaringan tertutup. Keputusan lama memakai font self-hosted; file-nya belum dipulihkan.
 - **Yang harus dijaga**:
-  - Job `image` di CI membangun image, gagal bila ukurannya di atas 300 MB, dan menjalankan smoke test `/api/health` dan Home.
+  - Job `image` di CI (jalan bila Dockerfile, dependensi, atau konfigurasi build berubah) membangun image, gagal bila ukurannya di atas 300 MB, dan menjalankan smoke test `/api/health` dan Home.
   - Setiap `NEXT_PUBLIC_*` di `.env.example` harus punya `ARG` di `Dockerfile`. Dicek job `image`.
   - Route `/` tetap statis di log build (job `check`, ADR-0007).

@@ -586,3 +586,28 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Menutup dua butir terbuka dari sesi sebelumnya: kursi dari profil (`saved_nik_id` / `use_account_nik`) ditolak BE asli karena Bearer tidak terkirim, dan header `x-grant-token` kosong.
 - **Output**: (1) `AccountGateway.forward` mendapat route `events/{id}/tickets` (GET) dan `bookings` (POST) dengan penanda `guestAllowed`: Bearer dari cookie httpOnly ditambahkan bila ada, tamu tetap diteruskan tanpa Bearer, header `x-grant-token`, `x-device-id`, `x-queue-token` ikut, dan 401 dari grant diteruskan apa adanya tanpa menghapus cookie akun. (2) `HttpBookingService` memakai `bffHttpClient` untuk dua endpoint itu; `submitBooking` memulihkan grant dari `/queue/me` dulu dan melempar `ACCESS_EXPIRED` bila tidak ada. (3) `grantHeaders` tidak lagi mengirim `x-grant-token` kosong (berlaku juga untuk halaman pembayaran). Test gateway, `grantHeaders`, dan service booking ditambah; test controller disesuaikan karena `account` kini terisi saat login.
 - **Review manusia**: Menunggu review. Lint, tsc, dan 826 test Vitest lulus. Belum diuji terhadap backend asli (perlu cek `GET /tickets` mengisi `account` dan `POST /bookings` menerima `saved_nik_id` dengan Bearer lewat route ini). Halaman pembayaran tidak memulihkan grant: endpoint-nya per booking, event belum diketahui sebelum booking terbaca; tanpa grant, header dilewati dan BE yang menjawab. Alias tetap mengizinkan spasi (keputusan produk: nama samaran perlindungan data, dibiarkan longgar). Bila BE tidak terjangkau dari server Next, dialog booking kini "Terjadi kesalahan" (502), bukan "Tidak ada jaringan".
+
+## 2026-11-13 — Integrasi kontrak v2.27: HELD, verifikasi pembayaran, policy_version, verify-email
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Menyamakan `api-contracts.md` dengan repo dokumentasi (v2.26 → v2.27) dan mengintegrasikan perubahannya. Bug yang dilaporkan: dari halaman Payment kembali ke beranda lalu masuk lagi mendarat di halaman booking dengan hitung mundur 10 menit.
+- **Output**: (1) `join` Waiting Room yang masih memegang grant kini bertanya ke `/queue/me` (sebelumnya langsung admitted ke booking); `HELD` dan `AWAITING_PAYMENT` membawa `paymentBookingId` dan diarahkan ke `/orders/{id}/pay`. (2) State `HELD` di skema antrian dan pemulihan grant booking. (3) Payment: dialog "waktu habis" dari PR #101 dipertahankan (hitung mundur 0 ke Beranda; versi "memverifikasi" dibuang saat rebase); 401 kembali ke `/events/{id}/queue`, dan grant dilepas saat waktu habis, EXPIRED, atau 401. (4) `consent.policy_version` dihapus dari register; `verify-email` hanya lewat cookie `magic_token`. (5) `openapi.json`, mock, dan test disesuaikan.
+- **Review manusia**: Menunggu review. tsc dan seluruh test Vitest lulus. Belum diuji terhadap backend asli dan e2e belum dijalankan; spek e2e "waktu pembayaran habis" kemungkinan perlu disesuaikan karena kini tidak redirect ke Beranda. Instruksi VA/QR hanya ada di cache klien, jadi kembali ke Payment setelah memuat ulang halaman menampilkan pemilihan metode lagi.
+
+## 2026-11-13 — CI FE mengikuti pola pipeline backend
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Membuat CI FE lebih hemat dan lebih pintar dengan pola dari `be-rusuh-war-ticketing/.github/workflows/cicd.yml`.
+- **Output**: `ci.yml`: `detect-changes` (paths-filter) menyalakan `check`, `image`, `e2e` hanya bila berkas terkait berubah; concurrency membatalkan run usang selain di `main`; cache build Next dan browser Playwright; `timeout-minutes`; action dipin ke SHA; job `quality-gate` sebagai satu check wajib (job yang dilewati dianggap lulus). Deploy tetap Vercel, tidak ditambahkan.
+- **Review manusia**: Menunggu review. YAML valid dan prettier bersih, tetapi workflow belum dijalankan di GitHub. Branch protection yang mewajibkan check lama (`check`, `image`, `e2e`) perlu diganti ke `Quality Gate`.
+
+## 2026-11-13 — Sisa catatan perbaikan: kuota 10 detik, reset form kedaluwarsa, lepas grant, tombol NIK
+
+- **Tool**: Claude Code (Claude Sonnet 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Menutup lima butir yang masih terbuka dari daftar catatan perbaikan.
+- **Output**: (1) `STOCK_REFRESH_INTERVAL_MS` 15 detik menjadi 10 detik (jitter ±20% tetap). (2) Register: "Ubah data" disembunyikan selama permintaan berjalan. (3) Booking: aksi `RESET` pada reducer pilihan; saat akses habis, pilihan tiket, email, NIK, alias, dan hasil cek dikosongkan sehingga masuk ulang ke route yang disembunyikan Next tidak membawa tiket terpilih. (4) Antrian berakhir dan pembayaran kedaluwarsa/401 melepas grant (`endSessionUseCase`) sebelum redirect. (5) Tombol Verifikasi Dukcapil kini sebaris dengan input (bukan dengan label atau pesan galat), berikon.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 829 test Vitest lulus. Tampilan tombol NIK belum dilihat di browser dan e2e belum dijalankan; test baru hanya untuk `RESET`.
+

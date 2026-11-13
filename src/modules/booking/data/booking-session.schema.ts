@@ -81,7 +81,7 @@ export const createdBookingSchema = z
   .transform((booking): CreatedBooking => ({ bookingId: booking.booking_id }));
 
 /** State di `GET /events/{id}/queue/me` yang membawa `grant_token` (kontrak §3.3). */
-const GRANT_CARRYING_STATES: readonly string[] = ["GRANTED", "SELECTING", "AWAITING_PAYMENT"];
+const GRANT_CARRYING_STATES: readonly string[] = ["GRANTED", "SELECTING", "HELD", "AWAITING_PAYMENT"];
 
 /**
  * `data` dari `GET /events/{event_id}/queue/me`, hanya untuk memulihkan grant. `null` bila customer tidak (lagi)

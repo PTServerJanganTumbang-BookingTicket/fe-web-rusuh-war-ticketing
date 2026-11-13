@@ -134,6 +134,42 @@ describe("useQueueController", () => {
     expect(result.current.status.state).toBe("admitted");
   });
 
+  it("grant masih dipegang tapi Bayar sudah ditekan (HELD): kembali ke Payment, bukan Detail Ticket", async () => {
+    replace.mockClear();
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({
+          state: "HELD",
+          grant_token: "gt_h",
+          booking_id: "RB-77",
+          payment_expires_at: "2026-10-19T10:20:00.000Z",
+          server_time: "2026-10-19T10:10:00.000Z",
+        }),
+      ),
+      http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 204 })),
+    );
+    const container = setupTestContainer();
+    container.cradle.credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_h");
+
+    renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper(container) });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/orders/RB-77/pay"));
+  });
+
+  it("grant masih dipegang dan masih memilih (SELECTING): tetap ke booking", async () => {
+    replace.mockClear();
+    server.use(
+      http.get(`${MOCK_API_BASE_URL}/events/:id/queue/me`, () =>
+        envelope({ state: "SELECTING", grant_token: "gt_s", booking_id: "RB-78", booking_expires_at: "x" }),
+      ),
+      http.post(`${TEST_APP_ORIGIN}/api/session/start`, () => new HttpResponse(null, { status: 204 })),
+    );
+    const container = setupTestContainer();
+    container.cradle.credentialStore.saveGrantToken(OPEN_EVENT_ID, "gt_s");
+
+    renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper(container) });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
+  });
+
   it("gagal menyimpan sesi: tampil pesan dan tombol coba lagi, tanpa pindah halaman", async () => {
     push.mockClear();
     replace.mockClear();
@@ -554,7 +590,8 @@ describe("useQueueController", () => {
       renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper(container) });
       await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/book`));
       server.events.removeAllListeners();
-      expect(paths).toEqual([]);
+      // Hanya membaca state ke server (tujuan ditentukan server); tidak ada join dan tidak ada CAPTCHA.
+      expect(paths).toEqual(["/queue/me"]);
     });
 
     it("StrictMode memasang efek dua kali: grant disimpan satu kali", async () => {

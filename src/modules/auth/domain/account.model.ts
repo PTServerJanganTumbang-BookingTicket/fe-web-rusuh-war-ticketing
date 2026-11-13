@@ -25,8 +25,6 @@ export type SavedNikList = { maxEntries: number; savedNiks: SavedNik[] };
 export type RegisterInput = {
   email: string;
   nik: string;
-  /** Persetujuan wajib dicentang sendiri oleh customer (UU PDP); versi kebijakan dikirim bersama. */
-  policyVersion: string;
 };
 
 /** Tujuan setelah login, sudah berupa path internal yang dibangun server, plus booking yang dipulihkan (BR-09). */

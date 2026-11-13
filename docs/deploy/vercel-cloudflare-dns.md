@@ -7,7 +7,7 @@
 
 ## Alur
 
-1. PR menjalankan CI (`format:check`, `lint`, `typecheck`, `test:coverage`, SonarCloud, `build`, image Docker, e2e).
+1. PR menjalankan CI. `detect-changes` memilih job menurut berkas yang berubah: `check` (`format:check`, `lint`, `typecheck`, `test:coverage`, SonarCloud, `build`), `image` (hanya bila Dockerfile, dependensi, atau konfigurasi build berubah), dan `e2e` (hanya bila kode aplikasi atau spek berubah). Perubahan dokumen saja tidak menjalankan job mahal. `Quality Gate` adalah satu-satunya check wajib.
 2. Vercel membuat preview deployment per PR dan production deployment dari `main`.
 3. Domain produksi menunjuk ke Vercel lewat record DNS di Cloudflare.
 

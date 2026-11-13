@@ -196,7 +196,7 @@ describe("accountGateway.verifyLink", () => {
 });
 
 describe("accountGateway.verifyEmail", () => {
-  it("mengirim token sebagai cookie magic_token dan query token, tanpa menyetel cookie akun", async () => {
+  it("mengirim token sebagai cookie magic_token tanpa query token, tanpa menyetel cookie akun", async () => {
     let seen: { cookie: string | null; query: string | null } | undefined;
     server.use(
       http.get(`${MOCK_API_BASE_URL}/auth/verify-email`, ({ request }) => {
@@ -211,7 +211,7 @@ describe("accountGateway.verifyEmail", () => {
     const response = await accountGateway.verifyEmail(
       api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token: "a b" }) }),
     );
-    expect(seen).toEqual({ cookie: "magic_token=a%20b", query: "a b" });
+    expect(seen).toEqual({ cookie: "magic_token=a%20b", query: null });
     expect(response.status).toBe(200);
     expect(response.headers.getSetCookie()).toEqual([]);
   });

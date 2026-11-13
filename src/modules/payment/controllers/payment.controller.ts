@@ -109,6 +109,7 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
     retryPaymentUseCase,
     simulatePaymentUseCase,
     handleWebViewHandoffUseCase,
+    endSessionUseCase,
     webViewBridgeService,
     random,
     appConfig,
@@ -350,6 +351,23 @@ export const usePaymentController = (orderId: string): PaymentScreen => {
 
     payModal.open({ kind: "paymentExpired" });
   }, [webViewContext.isEmbedded, expiresAt, remainingTimeMs, payModal]);
+
+  // Grant sudah dihapus (401): kembali ke antrian event. Waktu habis ditangani dialog di atas, tanpa redirect otomatis.
+  const failure = orderQueryResult.isError ? toAppError(orderQueryResult.error) : undefined;
+  const grantGone =
+    failure != null && failure.kind !== "network" && "status" in failure && failure.status === 401;
+  const queueEventId = orderData?.eventId;
+  const timeUp = expiresAt != null && remainingTimeMs != null && remainingTimeMs <= 0;
+  const expiredOnServer = orderData?.status === "EXPIRED";
+  useEffect(() => {
+    if (webViewContext.isEmbedded) return;
+    // Cookie grant dihapus supaya kunjungan berikutnya tidak memantul ke /book; gagal melepas tidak menahan apa pun.
+    if (grantGone || timeUp || expiredOnServer) endSessionUseCase().catch(() => undefined);
+  }, [webViewContext.isEmbedded, grantGone, timeUp, expiredOnServer, endSessionUseCase]);
+  useEffect(() => {
+    if (webViewContext.isEmbedded || !queueEventId || !grantGone) return;
+    router.replace(`/events/${encodeURIComponent(queueEventId)}/queue`);
+  }, [webViewContext.isEmbedded, grantGone, queueEventId, router]);
 
   /* ======================================================================== */
   /*                           Loading & Error States                         */

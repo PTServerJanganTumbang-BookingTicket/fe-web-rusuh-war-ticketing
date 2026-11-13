@@ -14,6 +14,13 @@ export type QueueState =
       retryAfterMs: number;
     }
   /** `accessToken` adalah grant slot (`X-Grant-Token`) dari `GET /queue/me`, bukan token akun. */
-  | { status: "admitted"; eventName: string; accessToken: string; expiresAt?: string }
+  | {
+      status: "admitted";
+      eventName: string;
+      accessToken: string;
+      expiresAt?: string;
+      /** Ada bila customer sudah menekan Bayar (`HELD`, `AWAITING_PAYMENT`): lanjut ke Payment, bukan Detail Ticket. */
+      paymentBookingId?: string;
+    }
   /** Antrian tidak bisa dilanjutkan: grant kedaluwarsa, booking sudah dibayar, atau penjualan ditutup. */
   | { status: "ended"; eventName: string; reason: "expired" | "confirmed" | "closed" };

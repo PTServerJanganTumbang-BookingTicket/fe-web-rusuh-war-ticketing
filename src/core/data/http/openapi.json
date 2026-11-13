@@ -694,13 +694,10 @@
                   },
                   "consent": {
                     "type": "object",
-                    "required": ["accepted", "policy_version"],
+                    "required": ["accepted"],
                     "properties": {
                       "accepted": {
                         "type": "boolean"
-                      },
-                      "policy_version": {
-                        "type": "string"
                       }
                     }
                   }
@@ -711,8 +708,7 @@
                 "nik": "3171xxxxxxxxxx22",
                 "name": "ALEX",
                 "consent": {
-                  "accepted": true,
-                  "policy_version": "2026-10-01"
+                  "accepted": true
                 }
               }
             }
@@ -1000,8 +996,8 @@
         "tags": ["Authentication"],
         "parameters": [
           {
-            "name": "token",
-            "in": "query",
+            "name": "magic_token",
+            "in": "cookie",
             "description": "Token dari tautan email account.verify; berlaku 15 MENIT, sekali pakai — sama dengan TTL tautan login, karena magic_tokens memakai satu konstanta untuk kedua purpose.",
             "required": true,
             "example": "",
@@ -3427,6 +3423,7 @@
                             "QUEUED",
                             "GRANTED",
                             "SELECTING",
+                            "HELD",
                             "AWAITING_PAYMENT",
                             "CONFIRMED",
                             "EXPIRED"
@@ -3445,7 +3442,7 @@
                         },
                         "grant_token": {
                           "type": "string",
-                          "description": "GRANTED, SELECTING, AWAITING_PAYMENT. Kirim sebagai X-Grant-Token",
+                          "description": "GRANTED, SELECTING, HELD, AWAITING_PAYMENT. Kirim sebagai X-Grant-Token",
                           "examples": ["gt_abc123"]
                         },
                         "booking_id": {
@@ -3460,7 +3457,7 @@
                         "payment_expires_at": {
                           "type": "string",
                           "format": "date-time",
-                          "description": "AWAITING_PAYMENT"
+                          "description": "HELD, AWAITING_PAYMENT"
                         },
                         "payment_ref": {
                           "type": "string",

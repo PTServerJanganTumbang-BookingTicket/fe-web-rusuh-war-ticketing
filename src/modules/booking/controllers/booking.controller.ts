@@ -208,6 +208,22 @@ export function useBookingController(eventId: string): BookingScreen {
   // Formulir sudah tampil: waktu habis diberitahukan lewat modal di atasnya, bukan layar pengganti. Hanya setelah
   // server menjawab ACCESS_EXPIRED (ADR-0005).
   const serverAnsweredAtZero = remainingMs === 0 && expiryAnsweredFor === expiresAt;
+  // Akses habis: isian dan pilihan tiket dibuang. Route yang disembunyikan Next tetap memegang state ini, jadi tanpa
+  // reset masuk ulang menampilkan tiket yang masih terpilih.
+  const accessLost = isExpired || (remainingMs === 0 && expiryAnsweredFor === expiresAt);
+  const [wasAccessLost, setWasAccessLost] = useState(false);
+  if (accessLost !== wasAccessLost) {
+    setWasAccessLost(accessLost);
+    if (accessLost) {
+      dispatch({ type: "RESET" });
+      setContactEmail("");
+      setNiks({});
+      setAliasPicks({});
+      setChecks({});
+      setTouched(new Set());
+      setSubmitted(false);
+    }
+  }
   const timedOutWithForm = (isExpired || serverAnsweredAtZero) && Boolean(session) && remainingMs !== null;
   // Grant yang habis dilepas dulu (cookie dihapus): selama cookie ada, `proxy.ts` memantulkan Waiting Room ke /book.
   const requeue = useMutation({

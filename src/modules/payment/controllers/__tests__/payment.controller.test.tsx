@@ -307,7 +307,7 @@ it("menampilkan dialog waktu habis saat countdown mencapai 0, lalu redirect sete
   const expiredOrder = makeOrder({
     status: "PENDING_PAYMENT",
     paymentTtl: {
-      expiresAt: new Date(Date.now() - 5000).toISOString(), // 5 detik lalu
+      expiresAt: new Date(Date.now() - 5000).toISOString(),
       ttlSeconds: 0,
       serverTime: new Date(Date.now() - 5000).toISOString(),
     },

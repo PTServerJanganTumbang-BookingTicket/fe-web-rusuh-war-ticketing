@@ -117,9 +117,17 @@ export const queueMeSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("QUEUED"), ticket_no: z.number(), now_serving: z.number() }),
   grantedStates.extend({ state: z.literal("GRANTED") }),
   grantedStates.extend({ state: z.literal("SELECTING") }),
+  // `HELD` (v2.27): Bayar sudah ditekan, kursi di-hold, pembayaran belum dimulai. Sebelumnya dilaporkan `SELECTING`.
+  z.object({
+    state: z.literal("HELD"),
+    grant_token: z.string(),
+    booking_id: z.string().nullish(),
+    payment_expires_at: z.string().nullish(),
+  }),
   z.object({
     state: z.literal("AWAITING_PAYMENT"),
     grant_token: z.string(),
+    booking_id: z.string().nullish(),
     payment_expires_at: z.string().nullish(),
   }),
   z.object({ state: z.literal("CONFIRMED") }),
@@ -201,12 +209,15 @@ export function toQueueState(ticket: QueueTicket, me: QueueMe): QueueState {
         accessToken: me.grant_token,
         expiresAt: me.booking_expires_at ?? undefined,
       };
+    case "HELD":
     case "AWAITING_PAYMENT":
+      // Bayar sudah ditekan: tujuannya halaman Payment dengan tenggat pembayaran, bukan Detail Ticket (kontrak §3.3).
       return {
         status: "admitted",
         eventName,
         accessToken: me.grant_token,
         expiresAt: me.payment_expires_at ?? undefined,
+        paymentBookingId: me.booking_id ?? undefined,
       };
     case "CONFIRMED":
       return { status: "ended", eventName, reason: "confirmed" };

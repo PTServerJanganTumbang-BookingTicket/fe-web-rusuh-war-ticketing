@@ -168,7 +168,6 @@ describe("kesesuaian FE dan mock dengan openapi.json", () => {
     await authService.register({
       email: "baru@example.com",
       nik: "3171000000000044",
-      policyVersion: "2026-10-01",
     });
     await authService.verifyEmail("token-valid");
     await authService.verify("token-valid");

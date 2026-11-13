@@ -146,18 +146,29 @@ export function createHttpQueueService({
   }
 
   /**
-   * Join dari layar Waiting Room. Grant event ini masih dipegang (Back/Forward dari halaman booking): customer sudah
-   * lewat antrian, jadi hasilnya admitted tanpa CAPTCHA dan tanpa menghabiskan jatah join. Booking sendiri yang
-   * menolak grant yang sudah habis, lalu melepasnya sebelum antre lagi.
+   * Join dari layar Waiting Room. Grant event ini masih dipegang (Back/Forward dari halaman booking, atau kembali ke
+   * beranda lalu masuk lagi): customer sudah lewat antrian, jadi tanpa CAPTCHA dan tanpa menghabiskan jatah join.
+   * Tujuannya ditentukan server lewat `/queue/me` (kontrak §3.3): customer yang sudah menekan Bayar (`HELD`,
+   * `AWAITING_PAYMENT`) kembali ke Payment dengan tenggat pembayarannya, bukan ke Detail Ticket. Bila server tidak
+   * bisa dihubungi, grant tersimpan dipakai apa adanya; booking sendiri yang menolak grant yang sudah habis.
    */
-  function join(eventId: string): Promise<QueueState> {
+  async function join(eventId: string): Promise<QueueState> {
     const heldGrant = credentialStore.grantToken(eventId);
     if (!heldGrant) return joinServer(eventId);
-    return Promise.resolve({
-      status: "admitted",
-      eventName: queueTicketCache.get(eventId)?.eventName ?? "",
-      accessToken: heldGrant,
-    });
+    const eventName = queueTicketCache.get(eventId)?.eventName ?? "";
+    try {
+      const me = await httpClient.get(`${queuePath(eventId)}/me`, queueMeSchema, {
+        headers: queueHeaders(eventId),
+        errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
+      });
+      // Posisi antrian tidak dipakai di sini: grant masih dipegang, jadi hanya state dengan grant yang diikuti.
+      if (me.state !== "QUEUED") {
+        return toQueueState({ ticketNo: 0, joinedPosition: 0, eventName, ratePerMin: 0 }, me);
+      }
+    } catch {
+      // Jatuh ke grant tersimpan di bawah.
+    }
+    return { status: "admitted", eventName, accessToken: heldGrant };
   }
 
   return {

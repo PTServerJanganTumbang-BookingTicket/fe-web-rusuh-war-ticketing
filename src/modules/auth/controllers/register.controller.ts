@@ -18,7 +18,6 @@ import { toNikMismatchDialog } from "@/core/controllers/nik-dialog.mapper";
 import { t } from "@/core/i18n/t.utils";
 import type { AuthDependencies } from "../application/auth.dependencies";
 import { emailInputError, isNikFormat } from "../domain/account.rules";
-import { PRIVACY_POLICY_VERSION } from "../domain/auth.constants";
 import { authErrorKey, visibleEmailError } from "./auth-error.mapper";
 import { authKeys } from "./auth.queries";
 import { toAlreadyRegisteredDialog, toRegistrationFailedDialog } from "./auth-dialogs.mapper";
@@ -55,7 +54,7 @@ export function useRegisterController(): RegisterViewProps {
   const [reviewing, setReviewing] = useState(false);
   // Satu permintaan saja: tombol terkunci selama berjalan, galat membuka kunci tanpa menghapus isian.
   const register = useMutation({
-    mutationFn: () => registerAccountUseCase({ email, nik, policyVersion: PRIVACY_POLICY_VERSION }),
+    mutationFn: () => registerAccountUseCase({ email, nik }),
     onSuccess: () => {
       modal.close();
       queryClient.setQueryData(authKeys.pendingRegistration, email.trim());
@@ -129,7 +128,8 @@ export function useRegisterController(): RegisterViewProps {
         busy,
         onClick: () => register.mutate(),
       },
-      secondary: { label: t("register.confirm.edit"), onClick: edit },
+      // Selama permintaan berjalan, "Ubah data" disembunyikan dan dialog sudah menahan penutupan.
+      secondary: busy ? undefined : { label: t("register.confirm.edit"), onClick: edit },
       onDismiss: edit,
     };
   }

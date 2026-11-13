@@ -8,10 +8,14 @@ export type SelectionAction =
   | { type: "ADD_TICKET"; categoryId: string; stock: Readonly<Record<string, number>>; activeBooked: number }
   | { type: "REMOVE_TICKET"; categoryId: string }
   /** Stok berubah di server: jumlah terpilih tidak boleh melebihi stok terbaru. */
-  | { type: "CLAMP_TO_STOCK"; stock: Readonly<Record<string, number>> };
+  | { type: "CLAMP_TO_STOCK"; stock: Readonly<Record<string, number>> }
+  /** Akses kedaluwarsa: semua pilihan dibuang supaya masuk ulang tidak membawa tiket yang sudah terpilih. */
+  | { type: "RESET" };
 
 export function selectionReducer(selection: Selection, action: SelectionAction): Selection {
   switch (action.type) {
+    case "RESET":
+      return {};
     case "ADD_TICKET": {
       if (
         !canAddTicket({
