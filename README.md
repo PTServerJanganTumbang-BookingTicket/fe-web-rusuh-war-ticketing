@@ -1,6 +1,7 @@
 # Rusuh Booking Tiket — Frontend
 
 [![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=fe-web-rusuh-war-ticketing&metric=alert_status&token=557598462acacb24492e29beb290088bf6561b16)](https://sonarcloud.io/summary/new_code?id=fe-web-rusuh-war-ticketing)
+[![ci](https://github.com/PTServerJanganTumbang-BookingTicket/fe-web-rusuh-war-ticketing/actions/workflows/ci.yml/badge.svg)](https://github.com/PTServerJanganTumbang-BookingTicket/fe-web-rusuh-war-ticketing/actions/workflows/ci.yml)
 
 Frontend penjualan tiket konser online yang tahan flash crowd: pelanggan masuk antrean (Waiting Room), memilih tiket dengan NIK per tiket, lalu membayar lewat Virtual Account atau e-wallet. Halaman pembayaran juga dipakai ulang di WebView aplikasi mobile.
 
