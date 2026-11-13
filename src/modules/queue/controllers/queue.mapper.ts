@@ -72,6 +72,12 @@ export type QueuePageInput = {
   dialog?: QueueViewProps["dialog"];
 };
 
+/** Selama pemeriksaan keamanan customer belum masuk antrean: jangan katakan sudah. */
+function queueSubtitle(status: QueueStatusProps, eventName: string | undefined): string {
+  if (status.state === "checking") return t("queue.subtitle.checking");
+  return eventName ? t("queue.subtitle", { event: eventName }) : t("queue.subtitle.loading");
+}
+
 /** Halaman Waiting Room: breadcrumb, judul, panel status, kartu event, dan tips. */
 export function toQueueViewProps({
   chrome,
@@ -89,7 +95,7 @@ export function toQueueViewProps({
       { label: t("queue.breadcrumb.current") },
     ],
     heading: t("queue.heading"),
-    subtitle: eventName ? t("queue.subtitle", { event: eventName }) : t("queue.subtitle.loading"),
+    subtitle: queueSubtitle(status, eventName),
     status,
     event: event ? toEventCard(event) : undefined,
     tips: {

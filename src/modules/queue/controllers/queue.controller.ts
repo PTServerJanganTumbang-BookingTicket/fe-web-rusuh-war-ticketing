@@ -5,7 +5,7 @@
 // `/queue/me` saat giliran tiba. `/queue/serving` hanya polling cadangan selama stream tidak tersambung
 // (kontrak §3.1–3.4, ADR-0016). Tiket habis / penjualan berakhir: modal lalu kembali ke beranda.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
@@ -46,10 +46,14 @@ export function useQueueController(eventId: string): QueueViewProps {
     startSessionUseCase,
     endSessionUseCase,
     random,
+    captcha,
   } = useDependencies<QueueDependencies & CoreDependencies>();
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [fullDismissed, setFullDismissed] = useState(false);
   const queryClient = useQueryClient();
+  // Tahap CAPTCHA yang sedang ditunggu join: layar memisahkannya dari antrean supaya lambat atau gagalnya pemeriksaan
+  // keamanan tidak terbaca sebagai masalah antrean.
+  const security = useSyncExternalStore(captcha.subscribe, captcha.status, () => "idle" as const);
   // Join dulu; stream baru dibuka sesudahnya supaya `sse_url` dan tiket hasil join sudah ada.
   const join = useQuery(queueJoinQuery({ joinQueueUseCase }, eventId));
   // Hasil non-waiting dari kunjungan lalu sedang diverifikasi ulang ke server (lihat `queue.queries.ts`): jangan
@@ -218,6 +222,32 @@ export function useQueueController(eventId: string): QueueViewProps {
       state: "error",
       badge: { label: t("queue.badge.error"), tone: "error" },
       message: t(`queue.ended.${data.reason}`),
+    });
+  }
+
+  // Join sedang menunggu CAPTCHA (juga saat mencoba lagi setelah gagal verifikasi).
+  if (join.isFetching && security !== "idle") {
+    return page({
+      state: "checking",
+      badge: { label: t("queue.badge.security"), tone: "info" },
+      message: t(security === "interactive" ? "queue.security.interactive" : "queue.security.checking"),
+      detail: t(
+        security === "interactive" ? "queue.security.interactive.detail" : "queue.security.checking.detail",
+      ),
+    });
+  }
+
+  // Verifikasi keamanan gagal: customer belum masuk antrean dan boleh mencoba lagi tanpa memuat ulang halaman.
+  if (failureError?.kind === "api" && failureError.code === "CAPTCHA_FAILED") {
+    return page({
+      state: "error",
+      badge: { label: t("queue.badge.securityFailed"), tone: "error" },
+      message: t("queue.error.CAPTCHA_FAILED"),
+      action: {
+        label: t("queue.security.retry"),
+        onClick: () => void join.refetch(),
+        disabled: join.isFetching,
+      },
     });
   }
 

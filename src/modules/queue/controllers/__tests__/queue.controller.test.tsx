@@ -14,6 +14,8 @@ import {
   setupTestContainer,
   TEST_APP_ORIGIN,
 } from "@/test/support";
+import { AppFailure } from "@/core/domain/app-error";
+import type { CaptchaProtocol, CaptchaStatus } from "@/core/domain/captcha.protocol";
 import { useQueueController } from "../queue.controller";
 
 const push = vi.fn();
@@ -716,5 +718,90 @@ describe("useQueueController", () => {
     const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.status.state).toBe("error"));
     expect(result.current.status.message).toBe(t("queue.error.unknown"));
+  });
+
+  describe("pemeriksaan keamanan sebelum join", () => {
+    /** CAPTCHA palsu: tiap `solve` menunggu `pass`/`fail` dan status diatur dari test. */
+    function controlledCaptcha() {
+      let status: CaptchaStatus = "idle";
+      const listeners = new Set<() => void>();
+      const set = (next: CaptchaStatus) => {
+        status = next;
+        listeners.forEach((listener) => listener());
+      };
+      let settle: { pass: () => void; fail: () => void } | undefined;
+      const captcha: CaptchaProtocol = {
+        solve: vi.fn(
+          () =>
+            new Promise<string>((resolve, reject) => {
+              set("checking");
+              settle = {
+                pass: () => {
+                  set("idle");
+                  resolve("test-captcha-token");
+                },
+                fail: () => {
+                  set("idle");
+                  reject(new AppFailure({ kind: "api", code: "CAPTCHA_FAILED", status: 403 }));
+                },
+              };
+            }),
+        ),
+        warm: vi.fn(),
+        presolve: vi.fn(),
+        status: () => status,
+        subscribe: (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      };
+      return { captcha, set, settle: () => settle! };
+    }
+
+    it("menampilkan tahap pemeriksaan keamanan, bukan antrean, lalu posisi setelah lolos", async () => {
+      const fake = controlledCaptcha();
+      const container = setupTestContainer({ captcha: asValue(fake.captcha) });
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+
+      await waitFor(() => expect(result.current.status.state).toBe("checking"));
+      expect(result.current.status.badge?.label).toBe(t("queue.badge.security"));
+      expect(result.current.status.message).toBe(t("queue.security.checking"));
+      expect(result.current.subtitle).toBe(t("queue.subtitle.checking"));
+
+      act(() => fake.set("interactive"));
+      expect(result.current.status.message).toBe(t("queue.security.interactive"));
+      expect(result.current.status.detail).toBe(t("queue.security.interactive.detail"));
+
+      act(() => fake.settle().pass());
+      await waitFor(() => expect(result.current.status.state).toBe("waiting"));
+    });
+
+    it("verifikasi gagal: badge dan pesan keamanan, tombol coba lagi mengulang join", async () => {
+      const fake = controlledCaptcha();
+      const container = setupTestContainer({ captcha: asValue(fake.captcha) });
+      const { result } = renderHook(() => useQueueController(OPEN_EVENT_ID), {
+        wrapper: createWrapper(container),
+      });
+      await waitFor(() => expect(result.current.status.state).toBe("checking"));
+
+      // Widget gagal di browser: join belum dikirim.
+      act(() => fake.settle().fail());
+      await waitFor(() => expect(result.current.status.state).toBe("error"));
+      expect(result.current.status.badge?.label).toBe(t("queue.badge.securityFailed"));
+      expect(result.current.status.message).toBe(t("queue.error.CAPTCHA_FAILED"));
+
+      // Coba lagi tanpa memuat ulang halaman; kali ini token lolos di browser tetapi ditolak server.
+      server.use(joinRejected(403, "CAPTCHA_FAILED", "captcha rejected"));
+      act(() => result.current.status.action?.onClick());
+      await waitFor(() => expect(result.current.status.state).toBe("checking"));
+      expect(fake.captcha.solve).toHaveBeenCalledTimes(2);
+      act(() => fake.settle().pass());
+      await waitFor(() => expect(result.current.status.state).toBe("error"));
+      expect(result.current.status.badge?.label).toBe(t("queue.badge.securityFailed"));
+      expect(result.current.status.message).toBe(t("queue.error.CAPTCHA_FAILED"));
+      expect(result.current.status.action?.label).toBe(t("queue.security.retry"));
+    });
   });
 });
