@@ -15,7 +15,7 @@
  * - Real-time status updates sesuai Req 1.4
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CoreDependencies } from "@/core/application/core.dependencies";
 import { toAppError, type AppError } from "@/core/domain/app-error";
@@ -59,7 +59,12 @@ export type HomeControllerState = {
 export function useHomeController(): HomeControllerState {
   const { listEventsUseCase, random } = useDependencies<CatalogDependencies & CoreDependencies>();
 
-  const eventsQuery = useQuery(eventsQueryOptions({ listEventsUseCase, random }));
+  // Opsi dimemoisasi supaya jitter polling tetap sama antar render (lihat `eventsQueryOptions`).
+  const options = useMemo(
+    () => eventsQueryOptions({ listEventsUseCase, random }),
+    [listEventsUseCase, random],
+  );
+  const eventsQuery = useQuery(options);
   // Hanya refetch manual (tombol coba lagi) yang terlihat; polling latar tidak merender ulang layar tiap siklus.
   const [retrying, setRetrying] = useState(false);
   const { refetch: refetchEvents } = eventsQuery;
