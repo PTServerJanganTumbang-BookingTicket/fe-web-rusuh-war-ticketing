@@ -627,3 +627,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Layar loading Waiting Room lama untuk event ber-CAPTCHA karena join menunggu unduhan skrip Turnstile dan penyelesaian widget secara berurutan.
 - **Output**: `CaptchaProtocol` mendapat `warm()` (muat skrip) dan `presolve(scope, config)` (selesaikan di latar, token sekali pakai, dibuang setelah 4 menit); `solve(config, scope)` memakai token siap pakai dan mengulang sendiri bila gagal. Halaman detail event yang bisa diantri memanggil `warm` + `presolve`, Home memanggil `warm` bila ada event yang bisa diantri; skema detail membaca `captcha`. Join antrian memakai `solve(event.captcha, eventId)`.
 - **Review manusia**: Menunggu review. tsc, eslint, dan 902 test Vitest lulus. Belum diukur di browser dengan Turnstile asli (mode mock tidak memuat skrip), jadi besarnya percepatan belum terbukti. `GET /events/{id}` di join tetap berurutan sebelum CAPTCHA.
+
+## 2026-11-13 — Tombol Verifikasi Dukcapil dihapus, NIK dicek otomatis di 16 digit
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: NIK yang diketik sudah dicek otomatis begitu 16 digit, jadi tombol "Verifikasi Dukcapil" tidak diperlukan lagi.
+- **Output**: `onNik` memanggil `checkNik` saat NIK genap 16 digit (blur tetap mengecek, tanpa permintaan kembar). Tombol, jeda `NIK_VERIFY_COOLDOWN_MS`, `useVerifyCooldown`, `HolderVerifyProps`, dan kunci i18n `booking.holder.nik.verify` dihapus. Test tombol diganti test cek otomatis.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 134 test Vitest modul booking lulus. Tampilan belum dilihat di browser, e2e belum dijalankan.

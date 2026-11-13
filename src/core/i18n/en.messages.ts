@@ -123,7 +123,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.holder.nik.invalid": "NIK must be 16 digits.",
   "booking.holder.nik.duplicate": "This NIK is already used for another ticket in this order.",
   "booking.holder.nik.checking": "Checking NIK with Dukcapil…",
-  "booking.holder.nik.verify": "Verify with Dukcapil",
   "booking.holder.nik.valid": "ID verified",
   "booking.holder.nik.not_found": "NIK not found at Dukcapil.",
   "booking.holder.nik.inactive": "NIK is inactive at Dukcapil.",

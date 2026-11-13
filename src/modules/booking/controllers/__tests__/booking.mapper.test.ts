@@ -322,27 +322,6 @@ describe("akun yang masuk", () => {
     expect(view.holders?.items[0]?.holder?.options[0]).toMatchObject({ value: "owner", disabled: false });
   });
 
-  it("tombol verifikasi untuk setiap slot berisian manual (akun maupun tamu), bukan untuk pemegang dari profil", () => {
-    const manual = build({ account: owner, aliases: holderChoices(owner.nikMasked, []) });
-    expect(manual.holders?.items[0]?.verify).toMatchObject({
-      label: "Verifikasi Dukcapil",
-      busy: false,
-      disabled: true,
-    });
-
-    const picked = build({
-      account: owner,
-      aliases: holderChoices(owner.nikMasked, []),
-      form: { ...emptyForm, aliasPicks: { "vip-0": "owner" } },
-    });
-    expect(picked.holders?.items[0]?.verify).toBeUndefined();
-    expect(picked.holders?.items[0]?.nik).toMatchObject({ value: owner.nikMasked, readOnly: true });
-
-    // Tamu: tanpa pilihan pemegang, tetapi tombol verifikasi tetap ada.
-    expect(build().holders?.items[0]?.holder).toBeUndefined();
-    expect(build().holders?.items[0]?.verify).toMatchObject({ label: "Verifikasi Dukcapil", disabled: true });
-  });
-
   it("pemegang dari profil tampil tersamar dan tidak punya NIK lengkap", () => {
     const view = build({
       account: owner,
@@ -383,33 +362,5 @@ describe("akun yang masuk", () => {
       aliasPicks: { "vip-0": "owner", "vip-1": "snk_1" },
     };
     expect(isBookingFormValid(form, ["vip-0", "vip-1"])).toBe(true);
-  });
-
-  it("jeda verifikasi mematikan tombol meski NIK sudah 16 digit; selesai jeda, tombol hidup lagi", () => {
-    const form = { ...emptyForm, niks: { "vip-0": "3171000000001234" } };
-    const cooling = build({ form, verifyCooldown: new Set(["vip-0"]) });
-    expect(cooling.holders?.items[0]?.verify).toMatchObject({ busy: false, disabled: true });
-    const ready = build({ form, verifyCooldown: new Set(["vip-1"]) });
-    expect(ready.holders?.items[0]?.verify).toMatchObject({ disabled: false });
-  });
-
-  it("tombol verifikasi aktif untuk NIK 16 digit, sibuk saat dicek, dan memanggil onNikVerify dengan slotnya", () => {
-    const onNikVerify = vi.fn();
-    const nik = "3171000000001234";
-    const ready = build({
-      account: owner,
-      onNikVerify,
-      form: { ...emptyForm, niks: { "vip-0": nik } },
-    });
-    const verify = ready.holders?.items[0]?.verify;
-    expect(verify).toMatchObject({ busy: false, disabled: false });
-    verify?.onClick();
-    expect(onNikVerify).toHaveBeenCalledWith("vip-0");
-
-    const checking = build({
-      account: owner,
-      form: { ...emptyForm, niks: { "vip-0": nik }, checks: { "vip-0": { nik, state: "checking" } } },
-    });
-    expect(checking.holders?.items[0]?.verify).toMatchObject({ busy: true, disabled: true });
   });
 });

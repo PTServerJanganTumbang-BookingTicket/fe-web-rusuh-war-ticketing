@@ -72,10 +72,6 @@ export type BookingViewInput = {
   onHolderAlias?: (slotKey: string, aliasId: string) => void;
   /** Akun yang masuk; `null` atau kosong untuk tamu. Email pemesan terisi dari akun dan pilihan pemegang selalu tampil. */
   account?: SessionAccount | null;
-  /** Cek NIK yang diketik ke Dukcapil lewat tombol, bukan hanya saat field ditinggalkan. */
-  onNikVerify?: (slotKey: string) => void;
-  /** Slot yang tombol verifikasinya sedang jeda setelah ditekan (`NIK_VERIFY_COOLDOWN_MS`). */
-  verifyCooldown?: ReadonlySet<string>;
   onFieldBlur: (field: string) => void;
   onSubmit: () => void;
 };
@@ -222,16 +218,6 @@ export function toBookingViewProps(input: BookingViewInput): BookingViewProps {
               onChange: (value: string) => input.onHolderAlias?.(slot.key, value),
             }
           : undefined,
-      // Setiap NIK yang diketik (tamu maupun customer yang masuk) bisa dicek lewat tombol; pemegang dari profil sudah
-      // terverifikasi. Tombol mati selama pengecekan berjalan, selama jeda setelah ditekan, dan sebelum 16 digit.
-      verify: picked
-        ? undefined
-        : {
-            label: t("booking.holder.nik.verify"),
-            busy: checking,
-            disabled: checking || Boolean(input.verifyCooldown?.has(slot.key)) || !isNikFormat(nik),
-            onClick: () => input.onNikVerify?.(slot.key),
-          },
     };
   });
 

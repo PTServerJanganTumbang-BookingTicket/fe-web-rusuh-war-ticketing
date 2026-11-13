@@ -456,7 +456,6 @@ export const id = {
   "booking.holder.nik.invalid": "NIK harus 16 digit angka.",
   "booking.holder.nik.duplicate": "NIK ini sudah dipakai untuk tiket lain di pesanan ini.",
   "booking.holder.nik.checking": "Memeriksa NIK ke Dukcapil…",
-  "booking.holder.nik.verify": "Verifikasi Dukcapil",
   "booking.holder.nik.valid": "NIK terverifikasi",
   "booking.holder.nik.not_found": "NIK tidak ditemukan di Dukcapil.",
   "booking.holder.nik.inactive": "NIK tidak aktif di Dukcapil.",
