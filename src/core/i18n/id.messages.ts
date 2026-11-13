@@ -476,7 +476,7 @@ export const id = {
   "booking.summary.footnote": "{count} tiket · Maksimal {max} tiket per pesanan",
   "booking.submitting": "Membuat pesanan…",
   "booking.notice":
-    "Tiket belum menjadi milikmu sampai pembayaran berhasil. Sesi booking berakhir otomatis jika idle.",
+    "Tiket belum menjadi milikmu sampai pembayaran berhasil. Sesi booking berakhir otomatis jika waktu habis.",
   "booking.error.BOOKING_REJECTED": "NIK sudah dipakai atau stok berubah. Periksa lagi pilihanmu.",
   "booking.error.BOOKING_INVALID": "Pesanan ditolak. Periksa lagi NIK dan email.",
   "booking.error.UNAUTHENTICATED": "Sesi akunmu berakhir. Masuk lagi, lalu lanjutkan pesananmu.",

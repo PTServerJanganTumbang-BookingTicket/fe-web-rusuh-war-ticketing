@@ -143,7 +143,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.summary.footnote": "{count} tickets · Up to {max} tickets per order",
   "booking.submitting": "Creating your order…",
   "booking.notice":
-    "Tickets aren't yours until payment succeeds. The booking session ends automatically when idle.",
+    "Tickets aren't yours until payment succeeds. The booking session ends automatically when time runs out.",
   "booking.error.BOOKING_REJECTED": "The NIK is already used or stock changed. Check your selection again.",
   "booking.error.BOOKING_INVALID": "Order rejected. Check the NIKs and email again.",
   "booking.error.UNAUTHENTICATED": "Your account session has ended. Sign in again, then continue your order.",
