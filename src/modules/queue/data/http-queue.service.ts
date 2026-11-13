@@ -158,25 +158,44 @@ export function createHttpQueueService({
    * beranda lalu masuk lagi): customer sudah lewat antrian, jadi tanpa CAPTCHA dan tanpa menghabiskan jatah join.
    * Tujuannya ditentukan server lewat `/queue/me` (kontrak §3.3): customer yang sudah menekan Bayar (`HELD`,
    * `AWAITING_PAYMENT`) kembali ke Payment dengan tenggat pembayarannya, bukan ke Detail Ticket. Bila server tidak
-   * bisa dihubungi, grant tersimpan dipakai apa adanya; booking sendiri yang menolak grant yang sudah habis.
+   * dihubungi (galat jaringan), grant tersimpan dipakai apa adanya; booking sendiri yang menolak grant yang sudah habis.
+   * `QUEUED` berarti grant sudah tidak berlaku (dibuang, lanjut sebagai antrian); 401 membuang token dan join ulang.
    */
   async function join(eventId: string): Promise<QueueState> {
     const heldGrant = credentialStore.grantToken(eventId);
     if (!heldGrant) return joinServer(eventId);
-    const eventName = queueTicketCache.get(eventId)?.eventName ?? "";
+    const cached = queueTicketCache.get(eventId);
+    const eventName = cached?.eventName ?? "";
+    let me;
     try {
-      const me = await identityClient.get(identityPath(`${queuePath(eventId)}/me`), queueMeSchema, {
+      me = await identityClient.get(identityPath(`${queuePath(eventId)}/me`), queueMeSchema, {
         headers: queueHeaders(eventId),
         errorCodes: { 401: "QUEUE_TOKEN_INVALID" },
       });
-      // Posisi antrian tidak dipakai di sini: grant masih dipegang, jadi hanya state dengan grant yang diikuti.
-      if (me.state !== "QUEUED") {
-        return toQueueState({ ticketNo: 0, joinedPosition: 0, eventName, ratePerMin: 0 }, me);
+    } catch (error) {
+      const failure = toAppError(error);
+      if (failure.kind === "api" && failure.code === "QUEUE_TOKEN_INVALID") {
+        // Token antrian ditolak: grant tersimpan ikut tidak berlaku. Masuk antrian ulang dari awal.
+        forget(eventId);
+        credentialStore.clearGrantToken();
+        return joinServer(eventId);
       }
-    } catch {
-      // Jatuh ke grant tersimpan di bawah.
+      // Grant tersimpan hanya dipakai bila server tidak terjangkau (jaringan putus, atau 502 dari route same-origin
+      // saat backend tidak terjangkau); galat lain tidak boleh menyembunyikan masalahnya.
+      const unreachable =
+        failure.kind === "network" || (failure.kind === "unknown" && failure.status === 502);
+      if (unreachable) return { status: "admitted", eventName, accessToken: heldGrant };
+      throw error;
     }
-    return { status: "admitted", eventName, accessToken: heldGrant };
+    if (me.state === "QUEUED") {
+      // Customer kembali mengantre (grant lama sudah dilepas server): grant tersimpan tidak berlaku lagi.
+      credentialStore.clearGrantToken();
+      if (!cached) return joinServer(eventId);
+      const ticket = { ...cached, ticketNo: me.ticket_no };
+      queueTicketCache.set(eventId, ticket);
+      return toQueueState(ticket, me);
+    }
+    return toQueueState(cached ?? { ticketNo: 0, joinedPosition: 0, eventName, ratePerMin: 0 }, me);
   }
 
   return {
