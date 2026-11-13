@@ -500,11 +500,12 @@ describe("useBookingController", () => {
     expect(attempts).toBe(2);
   });
 
-  it("grant ditolak (401): cookie grant dilepas dulu, lalu kembali ke Waiting Room (mode default)", async () => {
+  it("grant ditolak (401): cookie grant dilepas dulu, lalu kembali ke Beranda (mode default)", async () => {
     replace.mockClear();
     const ended = endSessionRoute();
     const { result } = renderHook(() => useBookingController(OPEN_EVENT_ID), { wrapper: createWrapper() });
-    await waitFor(() => expect(replace).toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(replace).not.toHaveBeenCalledWith(`/events/${OPEN_EVENT_ID}/queue`);
     expect(ended).toHaveBeenCalledTimes(1);
     expect(result.current.kind).toBe("status");
   });

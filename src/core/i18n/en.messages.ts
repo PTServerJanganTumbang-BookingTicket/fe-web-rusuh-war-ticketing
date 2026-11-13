@@ -181,7 +181,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "booking.timeout.redirect": "You'll be taken to the home page in {seconds} seconds.",
   "booking.expired.title": "Booking session ended",
   "booking.expired.cta": "Queue again",
-  "booking.expired.redirecting": "Booking time is up. Taking you back to the waiting room…",
+  "booking.expired.redirecting": "Booking time is up. Taking you back to the home page…",
   "booking.error.title": "Booking session problem",
   "booking.nik.perTicket": "Filled per ticket",
   "booking.error.ACCESS_EXPIRED": "Booking time is up. You need to go back to the waiting room.",
