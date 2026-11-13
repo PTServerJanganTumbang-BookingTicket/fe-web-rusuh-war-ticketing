@@ -712,6 +712,10 @@ export const id = {
   "payment.expired.dialog.description":
     "Booking otomatis dibatalkan karena batas waktu 10 menit sudah lewat. Tiket dilepas untuk antrian berikutnya.",
   "payment.expired.dialog.cta": "Kembali ke Beranda",
+  "payment.error.chargeFailed.title": "Pembayaran belum bisa diproses",
+  "payment.error.chargeFailed.description":
+    "Server gagal memproses metode pembayaran ini. Pembayaran sebelumnya mungkin masih berjalan. Coba lagi atau muat ulang halaman, waktu pembayaran Anda tidak berubah.",
+  "payment.error.chargeFailed.reload": "Muat ulang halaman",
 } as const;
 
 export type MessageKey = keyof typeof id;
