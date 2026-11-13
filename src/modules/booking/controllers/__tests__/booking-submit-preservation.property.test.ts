@@ -302,7 +302,7 @@ describe("Preservation Property: Valid Form Submit Behavior", () => {
           // PRESERVATION: Verified NIK must show success message
           const holder = view.holders?.items[0];
           expect(holder).toBeDefined();
-          expect(holder?.nik.success).toContain(verifiedName);
+          expect(holder?.nik.success).toBe("NIK terverifikasi");
           expect(holder?.nik.error).toBeUndefined();
         },
       ),
@@ -604,7 +604,7 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
     expect(view.submit.busy).toBe(true);
   });
 
-  it("verified NIK shows success message with name", () => {
+  it("verified NIK shows success message", () => {
     const form: BookingForm = {
       contactEmail: "john@example.com",
       niks: { "vip-0": "3171000000000022" },
@@ -626,7 +626,7 @@ describe("Preservation Property: Explicit Concrete Cases", () => {
     const view = toBookingViewProps(viewInput);
 
     const holder = view.holders?.items[0];
-    expect(holder?.nik.success).toContain("VERIFIED USER");
+    expect(holder?.nik.success).toBe("NIK terverifikasi");
     expect(holder?.nik.error).toBeUndefined();
   });
 

@@ -457,7 +457,7 @@ export const id = {
   "booking.holder.nik.duplicate": "NIK ini sudah dipakai untuk tiket lain di pesanan ini.",
   "booking.holder.nik.checking": "Memeriksa NIK ke Dukcapil…",
   "booking.holder.nik.verify": "Verifikasi Dukcapil",
-  "booking.holder.nik.valid": "Terverifikasi atas nama {name}",
+  "booking.holder.nik.valid": "NIK terverifikasi",
   "booking.holder.nik.not_found": "NIK tidak ditemukan di Dukcapil.",
   "booking.holder.nik.inactive": "NIK tidak aktif di Dukcapil.",
   "booking.holder.nik.used": "NIK ini sudah dipakai untuk event ini.",

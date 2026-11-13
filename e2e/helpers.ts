@@ -38,7 +38,7 @@ export async function pickVipAndContinue(page: Page) {
   const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
   await nik.fill("3171000000000033");
   await nik.blur();
-  await expect(page.getByText("Terverifikasi atas nama JANE DOE")).toBeVisible();
+  await expect(page.getByText("NIK terverifikasi")).toBeVisible();
   await confirmOrder(page);
   await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);
 }
