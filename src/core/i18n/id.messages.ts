@@ -631,7 +631,14 @@ export const id = {
   "payment.result.paid.title": "Pembayaran Berhasil!",
   "payment.result.paid.message": "E-tiket telah dikirim ke email Anda.",
   "payment.result.paid.ticket": "e-Tiket ×{quantity} — {names}",
-  "payment.result.paid.cta": "Lihat E-Tiket",
+  "payment.result.paid.cta": "Tiket Saya",
+  "payment.result.paid.issuing":
+    "Pembayaran diterima. E-tiket sedang diterbitkan, biasanya hanya beberapa detik.",
+  "payment.result.paid.tickets.title": "E-tiket",
+  "payment.result.paid.tickets.open": "Lihat e-tiket",
+  "payment.result.paid.tickets.issuing": "Sedang diterbitkan…",
+  "payment.result.paid.tickets.byEmail": "Tautan e-tiket akan dikirim ke email",
+  "payment.result.paid.tickets.unavailable": "E-tiket tidak tersedia",
   "payment.result.paid.detail": "Nomor pesanan: {orderId}",
   // Payment result: EXPIRED (Req 6.7, BR-05)
   "payment.result.expired.header": "Expired",

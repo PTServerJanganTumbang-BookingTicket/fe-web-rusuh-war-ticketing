@@ -9,8 +9,11 @@ import { queryOptions } from "@tanstack/react-query";
 import type { RandomProtocol } from "@/core/domain/random.protocol";
 import { withJitter } from "@/core/domain/time/jitter.utils";
 import type { GetOrderUseCase } from "../application/get-order.use-case";
-import { isFinalOrder } from "../domain/order.rules";
-import { PAYMENT_STATUS_POLL_INTERVAL_MS } from "../domain/payment.constants";
+import { isAwaitingTickets, isFinalOrder } from "../domain/order.rules";
+import {
+  PAYMENT_STATUS_POLL_INTERVAL_MS,
+  TICKET_ISSUANCE_POLL_INTERVAL_MS,
+} from "../domain/payment.constants";
 
 /* ========================================================================== */
 /*                                Query Keys                                  */
@@ -29,6 +32,8 @@ export const orderKeys = {
 type OrderQueryDependencies = {
   readonly getOrderUseCase: GetOrderUseCase;
   readonly random: RandomProtocol;
+  /** Batas menunggu penerbitan tiket (epoch ms, jam yang sama dengan `dataUpdatedAt`); null bila belum mulai. */
+  readonly ticketsWaitUntil?: number | null;
 };
 
 /* ========================================================================== */
@@ -48,7 +53,7 @@ type OrderQueryDependencies = {
  * @param live - Jika true, polling dimatikan (untuk SSR/prefetch)
  */
 export const orderQuery = (deps: OrderQueryDependencies, orderId: string, live: boolean = false) => {
-  const { getOrderUseCase, random } = deps;
+  const { getOrderUseCase, random, ticketsWaitUntil } = deps;
 
   return queryOptions({
     queryKey: orderKeys.detail(orderId),
@@ -59,6 +64,15 @@ export const orderQuery = (deps: OrderQueryDependencies, orderId: string, live: 
       // Tidak polling jika live mode atau order belum ada
       if (live || orderData == null || pollingStopped(query)) {
         return false;
+      }
+
+      // PAID tanpa tiket: ulangi sampai tiket terbit atau batas tunggu lewat (kontrak §4.4).
+      if (
+        isAwaitingTickets(orderData) &&
+        ticketsWaitUntil != null &&
+        query.state.dataUpdatedAt < ticketsWaitUntil
+      ) {
+        return TICKET_ISSUANCE_POLL_INTERVAL_MS;
       }
 
       // Tidak polling jika order sudah terminal

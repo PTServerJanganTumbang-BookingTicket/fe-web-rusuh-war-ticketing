@@ -30,6 +30,14 @@ describe("toETicketViewProps", () => {
     expect(view.eventDate).toBe("Jumat, 25 Desember 2026, 19:00 WIB");
     expect(view.statusLabel).toBe("Aktif");
     expect(view.instructions).toEqual({ title: "Instruksi masuk", text: "Tunjukkan QR code." });
+    expect(view.header.breadcrumb).toEqual([{ label: "Beranda", href: "/" }, { label: "TKT-001" }]);
+  });
+
+  it("customer yang masuk melihat jejak Tiket Saya; tamu dari tautan email tidak (ADR-0023)", () => {
+    const view = toETicketViewProps(
+      eticket,
+      toSiteChrome({ account: { email: "budi@example.com", nikMasked: "3171****22" } }),
+    );
     expect(view.header.breadcrumb).toEqual([
       { label: "Beranda", href: "/" },
       { label: "Tiket Saya", href: "/tickets" },

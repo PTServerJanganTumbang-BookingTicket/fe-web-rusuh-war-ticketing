@@ -32,6 +32,15 @@ export const GRACE_PERIOD_SECONDS = 30;
  */
 export const PAYMENT_STATUS_POLL_INTERVAL_MS = 3_000; // 3 detik
 
+/**
+ * Kontrak §4.4: tiket diterbitkan sesaat setelah webhook, jadi PAID bisa datang tanpa `ticket_id`.
+ * Success Page mengulang GET /bookings/{id} tiap 2 detik, maksimal 30 detik, sampai setiap kursi punya tiket.
+ */
+export const TICKET_ISSUANCE_POLL_INTERVAL_MS = 2_000;
+
+/** Kontrak §4.4: batas menunggu penerbitan tiket; sesudahnya customer diarahkan ke email e-tiket. */
+export const TICKET_ISSUANCE_MAX_WAIT_MS = 30_000;
+
 /* ========================================================================== */
 /*                             Retry Constants                                */
 /* ========================================================================== */

@@ -129,6 +129,10 @@ export type OrderItem = {
   readonly category: string;
   readonly priceIdr: number;
   readonly nikMasked: string;
+  /** Ada saat PAID setelah tiket diterbitkan; tiket dicabut tetap membawanya tanpa `eticketUrl` (kontrak §4.4). */
+  readonly ticketId?: string;
+  /** Path e-tiket BE yang sudah membawa token `?t=`, sehingga tamu bisa membukanya tanpa akun (NFR-10). */
+  readonly eticketUrl?: string;
 };
 
 /** TTL pembayaran dengan waktu server */

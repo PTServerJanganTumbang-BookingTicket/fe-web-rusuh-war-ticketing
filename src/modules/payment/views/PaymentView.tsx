@@ -126,8 +126,22 @@ type ResultStage = {
   readonly title: string;
   readonly message: string;
   readonly detail?: string;
+  /** Hanya PAID: satu baris per kursi dengan tautan e-tiket bila sudah terbit. */
+  readonly tickets?: {
+    readonly title: string;
+    readonly items: readonly PaidTicketItem[];
+  };
   readonly primary: LinkProps;
   readonly secondary?: LinkProps;
+};
+
+/** Satu kursi di hasil PAID: `link` bila e-tiket bisa dibuka, selain itu `note`. */
+export type PaidTicketItem = {
+  readonly category: string;
+  readonly nikMasked: string;
+  readonly code?: string;
+  readonly link?: LinkProps;
+  readonly note?: string;
 };
 
 /** Union type untuk semua payment stage */
@@ -393,7 +407,7 @@ type PaymentResultProps = {
 
 /** Komponen hasil pembayaran */
 const PaymentResult = ({ stage }: PaymentResultProps) => {
-  const { tone, title, message, detail, primary, secondary } = stage;
+  const { tone, title, message, detail, tickets, primary, secondary } = stage;
   const { bubbleClass, IconComponent } = RESULT_STAGE_STYLES[tone];
 
   return (
@@ -411,6 +425,43 @@ const PaymentResult = ({ stage }: PaymentResultProps) => {
           <p className="type-body1 text-muted-foreground">{message}</p>
           {detail != null && <p className="type-body1-bold">{detail}</p>}
         </div>
+
+        {tickets != null && (
+          <section aria-labelledby="paid-tickets-title" className="flex w-full flex-col gap-2">
+            <h3 id="paid-tickets-title" className="type-title">
+              {tickets.title}
+            </h3>
+            <ul className="flex flex-col divide-y rounded-xl border">
+              {tickets.items.map((item, index) => (
+                <li
+                  key={item.code ?? index}
+                  className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <span className="type-body1-bold">{item.category}</span>
+                    <span className="type-body2 font-mono text-muted-foreground">
+                      {item.code == null ? item.nikMasked : `${item.nikMasked} · ${item.code}`}
+                    </span>
+                  </div>
+                  {item.link == null ? (
+                    <span className="type-body2 text-muted-foreground">{item.note}</span>
+                  ) : (
+                    <Link
+                      href={item.link.href}
+                      className={cn(
+                        buttonVariants({ size: "lg", variant: "outline" }),
+                        "w-full border-primary text-primary sm:w-auto",
+                      )}
+                    >
+                      {item.link.label}
+                      <ArrowRightIcon data-icon="inline-end" />
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="flex w-full flex-col gap-3 sm:flex-row">
           <Link href={primary.href} className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}>

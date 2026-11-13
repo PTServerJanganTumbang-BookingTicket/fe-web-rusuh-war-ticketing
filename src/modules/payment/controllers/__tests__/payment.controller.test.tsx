@@ -255,6 +255,34 @@ describe("usePaymentController", () => {
     expect(payment().stage.kind).toBe("result");
     expect(payment().pay).toBeUndefined();
   });
+
+  it("PAID sebelum tiket terbit: tampil 'sedang diterbitkan', lalu tautan e-tiket begitu terbit (kontrak §4.4)", async () => {
+    const seat = { category: "VIP", priceIdr: 1_500_000, nikMasked: "3171****22" };
+    const getOrder = vi
+      .fn()
+      .mockResolvedValueOnce(makeOrder({ status: "PAID", items: [seat] }))
+      .mockResolvedValue(
+        makeOrder({
+          status: "PAID",
+          items: [{ ...seat, ticketId: "TKT-9", eticketUrl: "/tickets/TKT-9/eticket?t=et_9" }],
+        }),
+      );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { payment } = mount(makeOrder(), { getOrder });
+    const result = () => {
+      const stage = payment().stage;
+      if (stage.kind !== "result") throw new Error("bukan result");
+      return stage;
+    };
+    await waitFor(() => expect(result).not.toThrow());
+    expect(result().tickets?.items[0]?.note).toBe("Sedang diterbitkan…");
+
+    // Poll penerbitan tiap 2 detik: majukan jam palsu, bukan menunggu.
+    await act(() => vi.advanceTimersByTimeAsync(2_500));
+    await waitFor(() => expect(result().tickets?.items[0]?.link?.href).toBe("/tickets/TKT-9?t=et_9"));
+    expect(getOrder).toHaveBeenCalledWith("RB-T1");
+    vi.useRealTimers();
+  });
 });
 
 describe("usePaymentController TTL expiry redirect", () => {

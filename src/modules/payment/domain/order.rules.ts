@@ -97,3 +97,14 @@ export const isAwaitingConfirmation = (order: Order): boolean => {
   const awaitingStatuses = ["AWAITING_PAYMENT", "PENDING_CANCELLATION"];
   return awaitingStatuses.includes(order.status);
 };
+
+/* ========================================================================== */
+/*                           Ticket Issuance Check                            */
+/* ========================================================================== */
+
+/**
+ * PAID tetapi masih ada kursi tanpa `ticketId`: tiket belum diterbitkan (kontrak §4.4).
+ * Kursi yang punya `ticketId` tanpa `eticketUrl` (dicabut atau kedaluwarsa) sudah final, bukan menunggu.
+ */
+export const isAwaitingTickets = (order: Order): boolean =>
+  order.status === "PAID" && order.items.some((item) => item.ticketId == null);
