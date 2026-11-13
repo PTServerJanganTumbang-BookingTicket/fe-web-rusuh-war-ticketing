@@ -301,7 +301,7 @@ describe("usePaymentController TTL expiry redirect", () => {
   });
 });
 
-it("redirect ke Home saat countdown mencapai 0", async () => {
+it("menampilkan dialog waktu habis saat countdown mencapai 0, lalu redirect setelah user klik tombol", async () => {
   // Order dengan TTL yang sudah expired (expiresAt di masa lalu)
   // Status tetap PENDING_PAYMENT supaya isOrderActive = true
   const expiredOrder = makeOrder({
@@ -312,8 +312,20 @@ it("redirect ke Home saat countdown mencapai 0", async () => {
       serverTime: new Date(Date.now() - 5000).toISOString(),
     },
   });
-  const { result } = mount(expiredOrder);
-  // Tunggu sampai data ter-load dan effect redirect berjalan
+  const { result, payment } = mount(expiredOrder);
+  // Tunggu sampai data ter-load dan dialog muncul
   await waitFor(() => expect(result.current.kind).toBe("payment"), { timeout: 3000 });
-  await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 3000 });
+  await waitFor(() => expect(payment().dialog).toBeDefined(), { timeout: 3000 });
+
+  // Verifikasi dialog content
+  const dialog = payment().dialog;
+  expect(dialog?.tone).toBe("warning");
+  expect(dialog?.title).toBeDefined();
+
+  // Klik tombol primary untuk redirect ke Home
+  const primary = dialog?.primary;
+  act(() => {
+    if (primary && "onClick" in primary) primary.onClick();
+  });
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/"), { timeout: 1000 });
 });

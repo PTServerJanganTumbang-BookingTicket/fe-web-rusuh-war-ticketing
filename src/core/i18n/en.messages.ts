@@ -224,6 +224,11 @@ export const en: Partial<Record<MessageKey, string>> = {
   "ticket.detail.error.unknown": "We couldn't load this ticket. Try again shortly.",
   "ticket.detail.retry": "Try again",
   "ticket.detail.login": "Log in",
+  // Payment expired dialog (countdown runs out before payment)
+  "payment.expired.dialog.title": "Payment time expired",
+  "payment.expired.dialog.description":
+    "Your booking was automatically cancelled because the 10-minute limit has passed. The tickets have been released for the next in line.",
+  "payment.expired.dialog.cta": "Back to Home",
   // Catalog, bantuan, antrean, auth, pembayaran
   "common.placeholder": "This screen hasn't been built yet.",
   "home.title": "Rusuh Ticket Booking",
