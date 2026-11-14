@@ -127,7 +127,7 @@ test.describe("NIK profil dipilih di Detail Ticket", () => {
     await page.getByRole("button", { name: "Tambah tiket VIP" }).click();
     const nik = page.getByRole("textbox", { name: "NIK tiket 1" });
     await nik.fill("3171000000000033");
-    await nik.blur();
+    await page.getByRole("button", { name: "Verifikasi Dukcapil" }).click();
     await expect(page.getByText("NIK terverifikasi")).toBeVisible();
     await confirmOrder(page);
     await expect(page).toHaveURL(/\/orders\/RB-\d+\/pay$/);

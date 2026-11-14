@@ -675,3 +675,11 @@ Sesuai aturan evaluasi #5, penggunaan AI tools dicatat di sini dan tidak dihapus
 - **Tujuan**: Tombol "Lanjut ke Pembayaran" sudah aktif begitu semua NIK yang diketik berisi 16 digit, walau belum pernah dicek ke Dukcapil (atau ceknya gagal/masih berjalan).
 - **Output**: `isBookingFormValid` kini mensyaratkan hasil cek `valid` untuk NIK yang sama di tiap slot berisian manual; belum dicek, sedang dicek, gagal dicek, hasil untuk NIK lama, atau ditolak memblokir submit. Pemegang dari profil tetap tanpa cek (kontrak §4.3). `nikError` menampilkan "Verifikasi NIK ini ke Dukcapil dulu sebelum lanjut." (`booking.holder.nik.unverified`, id/en) setelah field disentuh bila NIK berformat benar belum dicek. Test controller, mapper, dan property preservation diperbarui; property umum tidak lagi melewati kasus tidak valid diam-diam.
 - **Review manusia**: Menunggu review. tsc, eslint, prettier, dan 917 test Vitest lulus. Belum dilihat di browser (dev server sesi lain memegang folder ini); e2e belum dijalankan, tetapi alurnya sudah menunggu "NIK terverifikasi" sebelum submit.
+
+## 2026-11-14 — Cek NIK ke Dukcapil hanya lewat tombol
+
+- **Tool**: Claude Code (Claude Opus 5.5)
+- **Oleh**: zaki
+- **Tujuan**: Meninggalkan field NIK masih mengirim cek ke Dukcapil (warisan #55, sebelum tombol "Verifikasi Dukcapil" kembali di #116). Cek itu melewati jeda tombol, membuka modal "Periksa NIK"/"Verifikasi belum tersedia" hanya karena field ditinggalkan, dan sejak #120 diam-diam membuka submit.
+- **Output**: `onNikBlur` hanya menandai field tersentuh; `checkNik` hanya dipanggil tombol verifikasi dan "Coba lagi" di modal, tanpa parameter `force`. Field NIK berformat benar yang belum diverifikasi menampilkan "Verifikasi NIK ini ke Dukcapil dulu sebelum lanjut." setelah ditinggalkan. Test controller (helper `enterVerifiedNik`, cek blur tanpa request, modal lewat tombol) dan alur e2e (`helpers.ts`, `booking.spec.ts`, `saved-nik.spec.ts`) memakai tombol, bukan blur.
+- **Review manusia**: Menunggu review. tsc, eslint, dan 917 test Vitest lulus. E2E belum bisa dijalankan di mesin ini (Playwright mencari Chrome terpasang yang tidak ada); belum dilihat di browser.

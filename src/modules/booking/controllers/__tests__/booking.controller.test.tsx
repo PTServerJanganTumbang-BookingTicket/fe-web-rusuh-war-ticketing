@@ -59,10 +59,10 @@ async function submitAndConfirm(view: () => BookingViewProps) {
   act(() => confirm && "onClick" in confirm && confirm.onClick());
 }
 
-/** Isi NIK satu tiket lalu tinggalkan field; submit baru terbuka setelah Dukcapil menyatakannya valid. */
+/** Isi NIK satu tiket lalu tekan "Verifikasi Dukcapil"; submit baru terbuka setelah Dukcapil menyatakannya valid. */
 async function enterVerifiedNik(view: () => BookingViewProps, index: number, nik: string) {
   act(() => view().holders?.items[index]?.nik.onChange(nik));
-  act(() => view().holders?.items[index]?.nik.onBlur?.());
+  act(() => view().holders?.items[index]?.verify?.onClick());
   await waitFor(() => expect(view().holders?.items[index]?.nik.success).toBe("NIK terverifikasi"));
 }
 
@@ -182,25 +182,36 @@ describe("useBookingController", () => {
     expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
   });
 
-  it("NIK dicek ke Dukcapil saat field ditinggalkan", async () => {
+  it("meninggalkan field NIK tidak mengecek ke Dukcapil; hanya tombol verifikasi yang mengecek", async () => {
+    const validated: string[] = [];
+    server.use(captureValidate(validated));
     const { view } = await readyView();
     add(view, "cat_vip");
+    act(() => view().buyer.email.onChange("rina@example.com"));
     act(() => view().holders?.items[0]?.nik.onChange("3171-0000-0000-1234"));
     expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
     act(() => view().holders?.items[0]?.nik.onBlur?.());
-    await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
+    // Tunggu satu putaran supaya permintaan yang (seharusnya tidak) terkirim sempat tercatat.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(validated).toEqual([]);
+    expect(view().holders?.items[0]?.nik.error).toBe("Verifikasi NIK ini ke Dukcapil dulu sebelum lanjut.");
+    expect(view().submit.disabled).toBe(true);
 
-    act(() => view().holders?.items[0]?.nik.onChange("3171000000000099"));
-    act(() => view().holders?.items[0]?.nik.onBlur?.());
-    await waitFor(() => expect(view().holders?.items[0]?.nik.error).toBe("NIK tidak aktif di Dukcapil."));
+    act(() => view().holders?.items[0]?.verify?.onClick());
+    await waitFor(() => expect(view().holders?.items[0]?.nik.success).toBe("NIK terverifikasi"));
+    expect(validated).toEqual(["3171000000001234"]);
+    expect(view().submit.disabled).toBe(false);
   });
 
   it("NIK tidak cocok di Dukcapil membuka modal Periksa NIK; Ubah data memfokus field tiket itu", async () => {
     const { view } = await readyView();
     add(view, "cat_vip");
     act(() => view().holders?.items[0]?.nik.onChange("3171000000000099"));
-    act(() => view().holders?.items[0]?.nik.onBlur?.());
+    act(() => view().holders?.items[0]?.verify?.onClick());
     await waitFor(() => expect(view().dialog?.title).toBe("Periksa NIK-mu"));
+    expect(view().holders?.items[0]?.nik.error).toBe("NIK tidak aktif di Dukcapil.");
     const edit = view().dialog?.primary;
     act(() => edit && "onClick" in edit && edit.onClick());
     expect(view().dialog).toBeUndefined();
@@ -222,7 +233,7 @@ describe("useBookingController", () => {
     const { view } = await readyView();
     add(view, "cat_vip");
     act(() => view().holders?.items[0]?.nik.onChange("3171000000001234"));
-    act(() => view().holders?.items[0]?.nik.onBlur?.());
+    act(() => view().holders?.items[0]?.verify?.onClick());
     await waitFor(() => expect(view().dialog?.title).toBe("Verifikasi NIK belum tersedia"));
     expect(view().holders?.items[0]?.nik.error).not.toBe("NIK tidak ditemukan di Dukcapil.");
     expect(view().holders?.items[0]?.nik.value).toBe("3171000000001234");
@@ -881,7 +892,7 @@ describe("useBookingController", () => {
       expect(view().holders?.items[1]?.verify?.disabled).toBe(false);
     });
 
-    it("blur lalu klik untuk NIK yang sama tidak membuat permintaan kembar", async () => {
+    it("klik lalu blur untuk NIK yang sama hanya membuat satu permintaan", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       const validated: string[] = [];
       server.use(
@@ -898,8 +909,8 @@ describe("useBookingController", () => {
       const { view } = await readyView();
       add(view, "cat_vip");
       typeNik(view);
-      act(() => view().holders?.items[0]?.nik.onBlur?.());
       click(view);
+      act(() => view().holders?.items[0]?.nik.onBlur?.());
       await tick(500);
       expect(validated).toEqual(["3171000000001234"]);
     });

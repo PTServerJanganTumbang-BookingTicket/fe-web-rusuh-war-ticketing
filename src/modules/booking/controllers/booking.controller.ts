@@ -3,7 +3,7 @@
 // Detail Ticket. Requirement: FR-11–19, BR-01–04, BR-07. ADR-0005 (timer), ADR-0011 (NIK).
 // Desain: "Pilih tempatmu di konser." (langkah 1 dari 3). Submit membuat booking lalu ke halaman pembayaran.
 // Customer yang masuk bisa memilih NIK terdaftarnya atau entri Daftar NIK dari profil sebagai pemegang tiket
-// (kontrak §4.3: `use_account_nik`, `saved_nik_id`); NIK yang diketik tetap tersedia dan dicek ke Dukcapil.
+// (kontrak §4.3: `use_account_nik`, `saved_nik_id`); NIK yang diketik tetap tersedia dan dicek ke Dukcapil lewat tombol.
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -375,16 +375,16 @@ export function useBookingController(eventId: string): BookingScreen {
   };
   const touch = (field: string) => setTouched((current) => new Set(current).add(field));
 
-  // NIK yang diketik dicek ke Dukcapil saat field ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan.
-  // Pemegang dari profil tidak dicek: kontrak menyatakannya sudah terverifikasi (§4.3). Tidak cocok atau nonaktif
-  // membuka modal "Periksa NIK"; tanpa jawaban membuka modal "Verifikasi belum tersedia" tanpa menyebut NIK salah.
-  // `force` dipakai tombol verifikasi dan coba lagi untuk NIK yang sama; NIK yang sedang dicek tidak dikirim dua kali
-  // (blur lalu klik tombol): status "checking" sudah tercatat sebelum event berikutnya diproses.
-  const checkNik = (slotKey: string, nik: string = niks[slotKey] ?? "", force = false) => {
+  // NIK yang diketik dicek ke Dukcapil hanya lewat tombol "Verifikasi Dukcapil" dan "Coba lagi", bukan saat field
+  // ditinggalkan; hasil untuk NIK yang sudah diganti diabaikan. Pemegang dari profil tidak dicek: kontrak menyatakannya
+  // sudah terverifikasi (§4.3). Tidak cocok atau nonaktif membuka modal "Periksa NIK"; tanpa jawaban membuka modal
+  // "Verifikasi belum tersedia" tanpa menyebut NIK salah. NIK yang sedang dicek tidak dikirim dua kali.
+  const checkNik = (slotKey: string) => {
+    const nik = niks[slotKey] ?? "";
     touch(`nik:${slotKey}`);
     const current = checks[slotKey];
     if (picks[slotKey] || !isNikFormat(nik)) return;
-    if (current?.nik === nik && (current.state === "checking" || !force)) return;
+    if (current?.nik === nik && current.state === "checking") return;
     setChecks((current) => ({ ...current, [slotKey]: { nik, state: "checking" } }));
     validateNikUseCase(nik).then(
       (result) => {
@@ -431,7 +431,7 @@ export function useBookingController(eventId: string): BookingScreen {
     dialog = toNikMismatchDialog({ onEdit: () => editNik(open.slotKey), onDismiss: nikModal.close });
   } else if (open?.kind === "unavailable") {
     dialog = toNikUnavailableDialog({
-      onRetry: () => checkNik(open.slotKey, niks[open.slotKey] ?? "", true),
+      onRetry: () => checkNik(open.slotKey),
       onEdit: () => editNik(open.slotKey),
       onDismiss: nikModal.close,
       retrying: checks[open.slotKey]?.state === "checking",
@@ -497,13 +497,14 @@ export function useBookingController(eventId: string): BookingScreen {
       onContactEmail: setContactEmail,
       // Hanya digit, maksimal 16: spasi, tanda baca, dan digit berlebih ditolak.
       onNik: (slotKey, value) => setNiks((current) => ({ ...current, [slotKey]: sanitizeNikInput(value) })),
-      onNikBlur: (slotKey) => checkNik(slotKey),
+      // Meninggalkan field hanya menampilkan galatnya; pengecekan ke Dukcapil menunggu tombol verifikasi.
+      onNikBlur: (slotKey) => touch(`nik:${slotKey}`),
       aliases: choices,
       account,
       verifyCooldown: verifyCooldown.cooling,
       // Tombol verifikasi: selama jeda, tekanan berikutnya diabaikan (tombolnya juga mati di layar).
       onNikVerify: (slotKey) => {
-        if (verifyCooldown.start(slotKey)) checkNik(slotKey, niks[slotKey] ?? "", true);
+        if (verifyCooldown.start(slotKey)) checkNik(slotKey);
       },
       // Memilih NIK pemesan atau entri Daftar NIK hanya mencatat id-nya; tidak ada NIK lengkap untuk diisi atau dicek.
       // NIK yang sempat diketik di slot itu dikosongkan supaya tidak muncul lagi tanpa sengaja saat kembali ke "NIK lain".
